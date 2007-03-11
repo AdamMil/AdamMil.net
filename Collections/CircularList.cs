@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 
 namespace AdamMil.Collections
@@ -65,7 +64,7 @@ public class CircularList<T> : IList<T>
       item  = default(T);
     }
 
-    object IEnumerator.Current
+    object System.Collections.IEnumerator.Current
     {
       get { return Current; }
     }
@@ -211,22 +210,24 @@ public class CircularList<T> : IList<T>
     }
     else if(index == this.count-count)
     {
-      if(count < 0 || index < 0 || index+count > this.count) throw new ArgumentOutOfRangeException();
+      if(count < 0 || index < 0) throw new ArgumentOutOfRangeException();
 
       if(count != 0)
       {
-        head -= count;
-        if(head < 0) // if the data to remove was split...
+        int newHead = head - count;
+        if(newHead < 0 && head != 0) // if the data to remove was split...
         {
+          head = newHead + array.Length;
           if(mustClear)
           {
-            Array.Clear(array, array.Length+head, -head);
-            Array.Clear(array, 0, count+head);
+            Array.Clear(array, head, -newHead);
+            Array.Clear(array, 0, count+newHead);
           }
-          head += array.Length;
         }
         else if(mustClear)
         {
+          head = newHead;
+          if(head < 0) head += array.Length;
           Array.Clear(array, head, count);
         }
 
@@ -237,9 +238,9 @@ public class CircularList<T> : IList<T>
     else if(count == 1) // we'll implement the special case of count == 1 so that RemoveAt(int) and Remove(T) work
     {
       int rawIndex = GetRawIndex(index);
+      this.count--;
       if(rawIndex < head) // if the data's contiguous or the index is within the left block, shift the head data left.
       {                   // TODO: this can be optimized by choosing the smallest chunk to shift.
-        this.count--;
         Array.Copy(array, rawIndex+1, array, rawIndex, this.count-index);
         array[--head] = default(T);
       }
@@ -334,7 +335,7 @@ public class CircularList<T> : IList<T>
   public void Add(T item)
   {
     EnsureCapacity(count+1);
-    count++;
+    count++; // don't combine this with the above, because if EnsureCapacity() fails, we don't want 'count' to change
     array[MoveHead()] = item;
     OnModified();
   }
@@ -381,19 +382,22 @@ public class CircularList<T> : IList<T>
     {
       throw new ArgumentOutOfRangeException();
     }
-    
-    sourceIndex = GetRawIndex(sourceIndex);
-    if(!IsContiguousBlock(sourceIndex, count)) // the source data is split, so copying starts from the right
-    {
-      int toCopy = this.array.Length - sourceIndex; // the number of bytes to copy from the first (tail) chunk
-      // copy the right (tail) chunk and make sourceIndex point at the left
-      Array.Copy(this.array, sourceIndex, array, destIndex, toCopy);
-      sourceIndex = 0;
-      count -= toCopy;
-      destIndex += toCopy;
-    }
 
-    Array.Copy(this.array, sourceIndex, array, destIndex, count);
+    if(this.count != 0)
+    {
+      sourceIndex = GetRawIndex(sourceIndex);
+      if(!IsContiguousBlock(sourceIndex, count)) // the source data is split, so copying starts from the right
+      {
+        int toCopy = this.array.Length - sourceIndex; // the number of bytes to copy from the first (tail) chunk
+        // copy the right (tail) chunk and make sourceIndex point at the left
+        Array.Copy(this.array, sourceIndex, array, destIndex, toCopy);
+        sourceIndex = 0;
+        count -= toCopy;
+        destIndex += toCopy;
+      }
+
+      Array.Copy(this.array, sourceIndex, array, destIndex, count);
+    }
   }
 
   /// <summary>Removes an item from the list.</summary>
@@ -423,7 +427,7 @@ public class CircularList<T> : IList<T>
   #endregion
 
   #region IEnumerable
-  IEnumerator IEnumerable.GetEnumerator()
+  System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
   {
     return GetEnumerator();
   }
@@ -597,8 +601,8 @@ public class CircularList<T> : IList<T>
 
       if(mustClear) Array.Clear(array, count, array.Length-count);
 
-      head = 0;
-      tail = count;
+      tail = 0;
+      head = count;
     }
   }
 
@@ -608,7 +612,7 @@ public class CircularList<T> : IList<T>
   int MoveHead()
   {
     int index = head++;
-    if(head > array.Length) head = 0;
+    if(head == array.Length) head = 0;
     return index;
   }
 
@@ -616,7 +620,7 @@ public class CircularList<T> : IList<T>
   void MoveHead(int count)
   {
     head += count;
-    if(head > array.Length) head -= array.Length;
+    if(head >= array.Length) head -= array.Length;
   }
 
   /// <summary>
@@ -647,7 +651,6 @@ public class CircularList<T> : IList<T>
   {
     if(capacity != array.Length)
     {
-      if(capacity < count) throw new InvalidOperationException();
       T[] newArray = new T[capacity];
       CopyTo(newArray, 0);
       array = newArray;
