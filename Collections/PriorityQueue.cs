@@ -136,7 +136,7 @@ public class PriorityQueue<T> : ICollection<T>
   /// <returns>An <see cref="IEnumerator"/> that can be used to iterate through the queue.</returns>
   System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
   {
-    return ((System.Collections.IEnumerable)array).GetEnumerator();
+    return GetEnumerator();
   }
   #endregion
 
