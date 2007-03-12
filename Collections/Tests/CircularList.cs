@@ -9,6 +9,52 @@ namespace AdamMil.Collections.Tests
 [TestFixture]
 public class CircularListTest
 {
+  #region MyCircularList
+  class MyCircularList<T> : CircularList<T>
+  {
+    public MyCircularList() { }
+    public MyCircularList(int capacity) : base(capacity) { }
+    public MyCircularList(int capacity, bool canGrow) : base(capacity, canGrow) { }
+
+    public new void MakeContiguous()
+    {
+      base.MakeContiguous();
+      Assert.IsTrue(IsContiguous);
+    }
+
+    public void MakeNonContiguous(T[] items)
+    {
+      Clear();
+      Capacity = items.Length;
+      int added = items.Length/2;
+      AddRange(items, items.Length-added, added);
+      Insert(0, items, 0, items.Length-added);
+      Assert.IsFalse(IsContiguous);
+    }
+
+    public void TestLogicalIndex()
+    {
+      Helpers.TestException<ArgumentOutOfRangeException>(delegate() { GetLogicalIndex(-1); });
+      Helpers.TestException<ArgumentOutOfRangeException>(delegate() { GetLogicalIndex(Count); });
+      Assert.AreEqual(0, GetLogicalIndex(Tail));
+      Assert.AreEqual(Count-1, GetLogicalIndex(Head == 0 ? List.Length-1 : Head-1));
+    }
+
+    public void VerifyCleared()
+    {
+      if(IsContiguous) // if the data is contiguous, the free space is not
+      {
+        for(int i=0; i<Tail; i++) Assert.AreEqual(default(T), List[i]);
+        for(int i=Head; i<List.Length; i++) Assert.AreEqual(default(T), List[i]);
+      }
+      else
+      {
+        for(int i=Head; i<Tail; i++) Assert.AreEqual(default(T), List[i]);
+      }
+    }
+  }
+  #endregion
+
   #region BasicTest
   [Test]
   public void BasicTest()
@@ -136,10 +182,14 @@ public class CircularListTest
 
     // test IndexOf() for the non-contiguous code path
     circ.Clear();
-    circ.AddRange(6, 7, 8, 9, 10);
-    circ.Insert(0, new int[] { 1, 2, 3, 4, 5 }, 0, 5);
+    circ.AddRange(oneToTen, 5, 5);
+    circ.Insert(0, oneToTen, 0, 5);
     Assert.AreEqual(0, circ.IndexOf(1));
     Assert.AreEqual(5, circ.IndexOf(6));
+    Assert.AreEqual(9, circ.IndexOf(10));
+    Assert.AreEqual(-1, circ.IndexOf(1, 1, 9));
+    Assert.AreEqual(1, circ.IndexOf(2, 1, 9));
+    Assert.AreEqual(-1, circ.IndexOf(10, 0, 9));
 
     // test wraparound case for MoveTail()
     circ = new MyCircularList<int>(10);
@@ -191,6 +241,40 @@ public class CircularListTest
     circ.AddRange(oneToTen, 0, 9);
     circ.Add(10);
     Compare(circ, oneToTen);
+
+    // test AddRange(IEnumerable<T>) in the case where Add(T) is called
+    circ.Clear();
+    circ.Capacity = 15;
+    circ.AddRange(oneToTen);
+    circ.RemoveFirst(9);
+    circ.AddRange((IEnumerable<int>)oneToTen);
+    Compare(circ, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+
+    // test AddRange(IEnumerable<T>) in the case where MakeContiguous() is called
+    list = new List<int>(oneToTen);
+    list.AddRange(oneToTen);
+    circ.Clear();
+    circ.Capacity = 25;
+    circ.AddRange(oneToTen);
+    circ.RemoveFirst(9);
+    circ.AddRange(list);
+    Compare(circ, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+
+    // test Insert(T[]) in the case where the free space is fragmented
+    circ.Clear();
+    circ.Capacity = 10;
+    circ.AddRange(oneToTen, 0, 5);
+    circ.RemoveFirst(4);
+    circ.Insert(1, oneToTen, 0, 9);
+    Compare(circ, 5, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+
+    // test CopyTo(T[]) in the case where the data is fragmented
+    circ.Clear();
+    circ.AddRange(oneToTen);
+    circ.RemoveFirst(8);
+    circ.AddRange(oneToTen, 0, 5);
+    circ.CopyTo(0, firstFive, 0, 5);
+    Helpers.AssertEqual(firstFive, 9, 10, 1, 2, 3);
   }
   #endregion
 
@@ -211,25 +295,23 @@ public class CircularListTest
     circ.MakeNonContiguous(items);
     circ.TestLogicalIndex();
 
+    Helpers.TestException<ArgumentNullException>(delegate() { circ.AddRange((int[])null); }); // test null checks in AddRange
+    Helpers.TestException<ArgumentNullException>(delegate() { circ.AddRange((IEnumerable<int>)null); }); // test null check in AddRange
+    Helpers.TestException<ArgumentNullException>(delegate() { circ.Insert(0, null, 0, 0); });
+    Helpers.TestException<ArgumentNullException>(delegate() { circ.CopyTo(0, null, 0, 0); });
     Helpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.CopyTo(array, 7); }); // test bounds check in CopyTo()
-
+    Helpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.IndexOf(1, 2, 5); }); // test bounds check in IndexOf()
     circ.CopyTo(4, array, 0, 1); // test bounds check in CopyTo()
 
     Helpers.TestException<ArgumentOutOfRangeException>(delegate() { int x = circ[10]; }); // test bounds check in GetRawIndex()
-
     Helpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.CopyTo(4, array, 0, 2); }); // test bounds check in CopyTo()
-
     Helpers.TestException<InvalidOperationException>(delegate() { circ.Add(10); }); // test that the list can't be overflowed
     Assert.AreEqual(5, circ.Count);
 
     Helpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.Insert(0, array, 0, -1); }); // test bounds check inside Insert()
-
     Helpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.Insert(2, array, 0, 2); }); // test that insertion except from the beginning or end is disallowed
-
     Helpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.RemoveFirst(-1); }); // test simple bounds check inside RemoveFirst(int)
-
     Helpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.RemoveRange(-1, 6); }); // test the bounds check inside RemoveRange() for the "remove from end" case
-
     Helpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.RemoveRange(2, 2); }); // test that removal except from the beginning or end is disallowed
 
     IEnumerator<int> e = circ.GetEnumerator();
@@ -249,61 +331,15 @@ public class CircularListTest
 
     Helpers.TestException<InvalidOperationException>(delegate() { e.MoveNext(); }); // test that the enumerator throws when the collection is modified
 
-
     circ.Clear();
     circ.RemoveFirst(0); // test count == 0 case for removefirst
 
     Helpers.TestException<InvalidOperationException>(delegate() { circ.RemoveFirst(); }); // test that the list can't be underflowed
-
     Helpers.TestException<ArgumentOutOfRangeException>(delegate() { circ = new MyCircularList<int>(-5); }); // test the negative capacity check
   }
   #endregion
 
   #region ClearTest
-  class MyCircularList<T> : CircularList<T>
-  {
-    public MyCircularList() { }
-    public MyCircularList(int capacity) : base(capacity) { }
-    public MyCircularList(int capacity, bool canGrow) : base(capacity, canGrow) { }
-    
-    public new void MakeContiguous()
-    {
-      base.MakeContiguous();
-      Assert.IsTrue(IsContiguous);
-    }
-
-    public void MakeNonContiguous(T[] items)
-    {
-      Clear();
-      Capacity = items.Length;
-      int added = items.Length/2;
-      AddRange(items, items.Length-added, added);
-      Insert(0, items, 0, items.Length-added);
-      Assert.IsFalse(IsContiguous);
-    }
-
-    public void TestLogicalIndex()
-    {
-      Helpers.TestException<ArgumentOutOfRangeException>(delegate() { GetLogicalIndex(-1); });
-      Helpers.TestException<ArgumentOutOfRangeException>(delegate() { GetLogicalIndex(Count); });
-      Assert.AreEqual(0, GetLogicalIndex(Tail));
-      Assert.AreEqual(Count-1, GetLogicalIndex(Head == 0 ? List.Length-1 : Head-1));
-    }
-
-    public void VerifyCleared()
-    {
-      if(IsContiguous) // if the data is contiguous, the free space is not
-      {
-        for(int i=0; i<Tail; i++) Assert.AreEqual(default(T), List[i]);
-        for(int i=Head; i<List.Length; i++) Assert.AreEqual(default(T), List[i]);
-      }
-      else
-      {
-        for(int i=Head; i<Tail; i++) Assert.AreEqual(default(T), List[i]);
-      }
-    }
-  }
-
   [Test]
   public void ClearTest()
   {
@@ -359,12 +395,27 @@ public class CircularListTest
     circ.VerifyCleared();
     Compare<object>(circ, 1);
 
-    circ.MakeNonContiguous(oneToTen);
+    circ.MakeNonContiguous(oneToTen); // test RemoveAt()
     circ.RemoveAt(2);
     circ.VerifyCleared();
     circ.RemoveAt(circ.Count-2);
     circ.VerifyCleared();
     Compare<object>(circ, 1, 2, 4, 5, 6, 7, 8, 10);
+
+    // test AddRange(IEnumerable<T>) in the case where MakeContiguous() is called
+    List<object> list = new List<object>(oneToTen);
+    list.AddRange(oneToTen);
+    circ.Clear();
+    circ.Capacity = 25;
+    circ.AddRange(list);
+    circ.AddRange(list.ToArray(), 0, 5);
+    Assert.IsTrue(circ.IsFull);
+    circ.RemoveFirst(20);
+    circ.RemoveRange(circ.Count-1, 1);
+    list.RemoveRange(0, 4);
+    circ.AddRange(list);
+    circ.VerifyCleared();
+    Compare<object>(circ, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
   }
   #endregion
 

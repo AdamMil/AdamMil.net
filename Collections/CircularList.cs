@@ -27,7 +27,6 @@ public class CircularList<T> : IList<T>
   {
     public CircularListEnumerator(CircularList<T> list)
     {
-      if(list == null) throw new ArgumentNullException();
       this.list      = list;
       this.myVersion = list.version;
       this.index     = -1;
@@ -106,6 +105,7 @@ public class CircularList<T> : IList<T>
   /// <summary>Adds a list of items to the end of the circular list.</summary>
   public void AddRange(params T[] items)
   {
+    if(items == null) throw new ArgumentNullException();
     Insert(count, items, 0, items.Length);
   }
 
@@ -118,6 +118,42 @@ public class CircularList<T> : IList<T>
   /// <summary>Adds a list of items to the end of the circular list.</summary>
   public void AddRange(IEnumerable<T> items)
   {
+    ICollection<T> collection = items as ICollection<T>;
+    if(collection != null)
+    {
+      EnsureCapacity(count + collection.Count);
+
+      int availableContiguousSpace = array.Length - (tail < head ? head : count);
+
+      // if there's not enough contiguous space, but the collection is pretty big, we can make the space contiguous
+      if(collection.Count > availableContiguousSpace && collection.Count >= 16)
+      {
+        MakeContiguous();
+        if(tail != 0)
+        {
+          Array.Copy(array, tail, array, 0, count); // shift the data to the start of the array
+          int unclearedItems = tail - collection.Count;
+          if(mustClear && unclearedItems > 0) // if the new items wouldn't overwrite all the data left behind...
+          {
+            Array.Clear(array, head-unclearedItems, unclearedItems);
+          }
+          tail = 0;
+          head = count;
+        }
+        availableContiguousSpace = array.Length - head;
+      }
+
+      if(collection.Count <= availableContiguousSpace)
+      {
+        collection.CopyTo(array, head);
+        MoveHead(collection.Count);
+        count += collection.Count;
+        OnModified();
+        return;
+      }
+    }
+
+    if(items == null) throw new ArgumentNullException();
     foreach(T item in items) Add(item);
   }
 
@@ -131,6 +167,7 @@ public class CircularList<T> : IList<T>
   /// </remarks>
   public void Insert(int destIndex, T[] items, int sourceIndex, int count)
   {
+    if(items == null) throw new ArgumentNullException();
     InsertSpace(destIndex, count);
 
     destIndex = GetRawIndex(destIndex);
@@ -276,21 +313,34 @@ public class CircularList<T> : IList<T>
     }
   }
 
-  /// <summary>Returns the index of the item within the list.</summary>
+  /// <summary>Returns the index of the given item within the list.</summary>
   /// <param name="item">The item to search for.</param>
   /// <returns>The index at which the item is located, or -1 if the item is not in the list.</returns>
   public int IndexOf(T item)
   {
+    return IndexOf(item, 0, count);
+  }
+
+  /// <summary>Returns the index of the given item within the list.</summary>
+  /// <param name="item">The item to search for.</param>
+  /// <param name="startIndex">The index into the list at which the search will begin.</param>
+  /// <param name="count">The number of items to search.</param>
+  /// <returns>The index at which the item is located, or -1 if the item is not in the list.</returns>
+  public int IndexOf(T item, int startIndex, int count)
+  {
+    if(count < 0 || startIndex+count > this.count) throw new ArgumentOutOfRangeException();
+    startIndex = GetRawIndex(startIndex);
+
     int index;
-    if(IsContiguous)
+    if(IsContiguousBlock(startIndex, count))
     {
-      index = Array.IndexOf(array, item, 0, head);
+      index = Array.IndexOf(array, item, startIndex, count);
     }
     else
     {
-      // search the right side before the left because it holds the first part of the data
-      index = Array.IndexOf(array, item, RightIndex, RightCount);
-      if(index == -1) index = Array.IndexOf(array, item, LeftIndex, LeftCount);
+      int toSearch = array.Length - startIndex;
+      index = Array.IndexOf(array, item, startIndex, toSearch);
+      if(index == -1) index = Array.IndexOf(array, item, 0, count-toSearch);
     }
 
     if(index != -1) index = GetLogicalIndex(index);
@@ -378,6 +428,7 @@ public class CircularList<T> : IList<T>
   /// <param name="count">The number of items to copy.</param>
   public void CopyTo(int sourceIndex, T[] array, int destIndex, int count)
   {
+    if(array == null) throw new ArgumentNullException();
     if(count < 0 || sourceIndex+count > this.count || destIndex+count > array.Length)
     {
       throw new ArgumentOutOfRangeException();
@@ -507,6 +558,7 @@ public class CircularList<T> : IList<T>
       while(newArraySize < newCount) newArraySize *= 2;
       ResizeArray(newArraySize);
     }
+    else if(count == 0) head = tail = 0; // whenever we're about to add items, write from index 0 if possible
   }
 
   /// <summary>Converts a raw array index into a logical index.</summary>
