@@ -36,7 +36,6 @@
     <Compile Include="ArrayIO.cs" />
     <Compile Include="BinaryReaderWriter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="StreamIO.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
