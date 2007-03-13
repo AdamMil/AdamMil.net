@@ -285,16 +285,25 @@ public abstract class BinaryReaderWriterBase : PinnedBuffer
 /// </remarks>
 public unsafe class BinaryReader : BinaryReaderWriterBase
 {
-  /// <summary>Initializes this <see cref="BinaryReader"/> with the default buffer size and the
+  /// <summary>Initializes this <see cref="BinaryReader"/> with the default buffer size, little-endianness, and the
   /// assumption that the stream will not be accessed by any other classes while this reader is in use.
   /// </summary>
   /// <param name="stream">The stream from which data will be read.</param>
   /// <remarks>If the underlying stream will be accessed by any other classes while this reader is in use, you must use
   /// an override that takes a 'shared' parameter, and pass <c>true</c>.
   /// </remarks>
+  public BinaryReader(Stream stream) : this(stream, true) { }
+
+  /// <summary>Initializes this <see cref="BinaryReader"/> with the default buffer size and the
+  /// assumption that the stream will not be accessed by any other classes while this reader is in use.
+  /// </summary>
+  /// <param name="stream">The stream from which data will be read.</param>
   /// <param name="littleEndian">Whether the data being read is little endian. This can be changed at any time using
   /// the <see cref="LittleEndian"/> property.
   /// </param>
+  /// <remarks>If the underlying stream will be accessed by any other classes while this reader is in use, you must use
+  /// an override that takes a 'shared' parameter, and pass <c>true</c>.
+  /// </remarks>
   public BinaryReader(Stream stream, bool littleEndian) : this(stream, littleEndian, 0, false) { }
 
   /// <summary>Initializes this <see cref="BinaryReader"/>.</summary>
@@ -412,7 +421,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads an array of bytes from the stream.</summary>
-  public byte[] ReadBytes(int count)
+  public byte[] ReadByte(int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
     byte[] data = new byte[count];
@@ -421,7 +430,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads a number of two-byte characters from the stream.</summary>
-  public void ReadBytes(byte[] array, int index, int count)
+  public void ReadByte(byte[] array, int index, int count)
   {
     if(array == null) throw new ArgumentNullException();
     if(index < 0 || index+count > array.Length) throw new ArgumentOutOfRangeException();
@@ -429,24 +438,24 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads an array of two-byte characters from the stream.</summary>
-  public char[] ReadChars(int count)
+  public char[] ReadChar(int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
     char[] data = new char[count];
-    fixed(char* ptr=data) ReadChars(ptr, count);
+    fixed(char* ptr=data) ReadChar(ptr, count);
     return data;
   }
 
   /// <summary>Reads a number of two-byte characters from the stream.</summary>
-  public void ReadChars(char[] array, int index, int count)
+  public void ReadChar(char[] array, int index, int count)
   {
     if(array == null) throw new ArgumentNullException();
     if(index < 0 || index+count > array.Length) throw new ArgumentOutOfRangeException();
-    fixed(char* ptr=array) ReadChars(ptr+index, count);
+    fixed(char* ptr=array) ReadChar(ptr+index, count);
   }
 
   /// <summary>Reads a number of two-byte characters from the stream.</summary>
-  public void ReadChars(char* array, int count)
+  public void ReadChar(char* array, int count)
   {
     ReadUInt16((ushort*)array, count);
   }
@@ -815,16 +824,25 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
 /// <remarks>This class in not safe for use by multiple threads concurrently.</remarks>
 public unsafe class BinaryWriter : BinaryReaderWriterBase
 {
-  /// <summary>Initializes this <see cref="BinaryWriter"/> with the default buffer size and the
+  /// <summary>Initializes this <see cref="BinaryWriter"/> with the default buffer size, little-endianness, and the
   /// assumption that the stream will not be accessed by any other classes while this writer is in use.
   /// </summary>
   /// <param name="stream">The stream to which data will be written.</param>
   /// <remarks>If the underlying stream will be accessed by any other classes while this writer is in use, you must use
   /// an override that takes a 'shared' parameter, and pass <c>true</c>.
   /// </remarks>
+  public BinaryWriter(Stream stream) : this(stream, true) { }
+  
+  /// <summary>Initializes this <see cref="BinaryWriter"/> with the default buffer size and the
+  /// assumption that the stream will not be accessed by any other classes while this writer is in use.
+  /// </summary>
+  /// <param name="stream">The stream to which data will be written.</param>
   /// <param name="littleEndian">Whether the data being written is little endian. This can be changed at any time using
   /// the <see cref="LittleEndian"/> property.
   /// </param>
+  /// <remarks>If the underlying stream will be accessed by any other classes while this writer is in use, you must use
+  /// an override that takes a 'shared' parameter, and pass <c>true</c>.
+  /// </remarks>
   public BinaryWriter(Stream stream, bool littleEndian) : this(stream, littleEndian, 0, false) { }
 
   /// <summary>Initializes this <see cref="BinaryWriter"/>.</summary>
