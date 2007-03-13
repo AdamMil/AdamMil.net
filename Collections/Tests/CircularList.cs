@@ -295,6 +295,7 @@ public class CircularListTest
     circ.MakeNonContiguous(items);
     circ.TestLogicalIndex();
 
+    Helpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.Capacity = 1; }); // test that Capacity cannot be set less than Count
     Helpers.TestException<ArgumentNullException>(delegate() { circ.AddRange((int[])null); }); // test null checks in AddRange
     Helpers.TestException<ArgumentNullException>(delegate() { circ.AddRange((IEnumerable<int>)null); }); // test null check in AddRange
     Helpers.TestException<ArgumentNullException>(delegate() { circ.Insert(0, null, 0, 0); });
