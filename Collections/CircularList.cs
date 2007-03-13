@@ -91,7 +91,7 @@ public class CircularList<T> : IList<T>
   public int Capacity
   {
     get { return array.Length; }
-    set { if(value >= count) ResizeArray(value); }
+    set { ResizeArray(value); }
   }
 
   /// <summary>Gets whether the list is full to capacity. (Although if <see cref="CanGrow"/> is true, the list can
@@ -703,6 +703,7 @@ public class CircularList<T> : IList<T>
   {
     if(capacity != array.Length)
     {
+      if(capacity < this.count) throw new ArgumentOutOfRangeException("Capacity cannot be less than Count.");
       T[] newArray = new T[capacity];
       CopyTo(newArray, 0);
       array = newArray;
