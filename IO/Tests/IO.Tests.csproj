@@ -39,9 +39,9 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\IO.csproj">
+    <ProjectReference Include="..\AdamMil.IO.csproj">
       <Project>{CEB9BC77-B63F-40A1-BEDE-7C32E9B90D55}</Project>
-      <Name>IO</Name>
+      <Name>AdamMil.IO</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
