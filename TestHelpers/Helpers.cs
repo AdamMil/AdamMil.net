@@ -1,14 +1,12 @@
 using System;
 using NUnit.Framework;
 
-namespace AdamMil.Collections.Tests
+namespace AdamMil.Tests
 {
 
-static class Helpers
+public static class CollectionHelpers
 {
-  public delegate void CodeBlock();
-
-  public static void AssertEqual<T>(T[] a, params T[] b)
+  public static void ArrayEquals<T>(T[] a, params T[] b)
   {
     Assert.AreEqual(a.Length, b.Length);
     for(int i=0; i<a.Length; i++)
@@ -16,6 +14,11 @@ static class Helpers
       Assert.AreEqual(b[i], a[i]);
     }
   }
+}
+
+public static class TestHelpers
+{
+  public delegate void CodeBlock();
 
   public static void TestException<T>(CodeBlock block) where T : Exception
   {
@@ -30,4 +33,4 @@ static class Helpers
   }
 }
 
-} // namespace AdamMil.Collections.Tests
+} // namespace AdamMil.Tests

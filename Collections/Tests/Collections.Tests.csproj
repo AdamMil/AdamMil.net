@@ -30,20 +30,23 @@
     <UseVSHostingProcess>false</UseVSHostingProcess>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="nunit.framework, Version=2.2.9.0, Culture=neutral, PublicKeyToken=96d09a1eb7f44a77, processorArchitecture=MSIL" />
-    <Reference Include="System" />
-  </ItemGroup>
-  <ItemGroup>
     <Compile Include="CircularList.cs" />
-    <Compile Include="Helpers.cs" />
     <Compile Include="PriorityQueue.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\TestHelpers\AdamMil.TestHelpers.csproj">
+      <Project>{E755006A-EB9E-4A5A-9872-65A2C4737C20}</Project>
+      <Name>AdamMil.TestHelpers</Name>
+    </ProjectReference>
     <ProjectReference Include="..\AdamMil.Collections.csproj">
       <Project>{D9724C65-C54A-4671-BA0B-40B0B38464DD}</Project>
       <Name>AdamMil.Collections</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="nunit.framework" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
