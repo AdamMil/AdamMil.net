@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
+using AdamMil.Tests;
 using AdamMil.Collections;
 
 namespace AdamMil.Collections.Tests
@@ -17,14 +18,14 @@ public class PriorityQueueTest
 
     PriorityQueue<int> queue;
 
-    Helpers.TestException<ArgumentNullException>(delegate() { queue = new PriorityQueue<int>(null, 10); });
-    Helpers.TestException<ArgumentOutOfRangeException>(delegate() { queue = new PriorityQueue<int>(-10); });
+    TestHelpers.TestException<ArgumentNullException>(delegate() { queue = new PriorityQueue<int>(null, 10); });
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { queue = new PriorityQueue<int>(-10); });
 
     queue = new PriorityQueue<int>();
     Assert.IsFalse(queue.IsReadOnly);
 
-    Helpers.TestException<InvalidOperationException>(delegate() { queue.Dequeue(); });
-    Helpers.TestException<InvalidOperationException>(delegate() { queue.Peek(); });
+    TestHelpers.TestException<InvalidOperationException>(delegate() { queue.Dequeue(); });
+    TestHelpers.TestException<InvalidOperationException>(delegate() { queue.Peek(); });
 
     List<int> list = new List<int>(randomNumbers);
     AddItems(queue, randomNumbers);

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
+using AdamMil.Tests;
 using AdamMil.Collections;
 
 namespace AdamMil.Collections.Tests
@@ -34,8 +35,8 @@ public class CircularListTest
 
     public void TestLogicalIndex()
     {
-      Helpers.TestException<ArgumentOutOfRangeException>(delegate() { GetLogicalIndex(-1); });
-      Helpers.TestException<ArgumentOutOfRangeException>(delegate() { GetLogicalIndex(Count); });
+      TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { GetLogicalIndex(-1); });
+      TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { GetLogicalIndex(Count); });
       Assert.AreEqual(0, GetLogicalIndex(Tail));
       Assert.AreEqual(Count-1, GetLogicalIndex(Head == 0 ? List.Length-1 : Head-1));
     }
@@ -113,12 +114,13 @@ public class CircularListTest
     circ.Insert(0, oneToTen, 0, oneToTen.Length);
     int[] firstFive = new int[5];
     circ.RemoveFirst(firstFive, 0, 5);
-    Helpers.AssertEqual(firstFive, 1, 2, 3, 4, 5);
+    
+    CollectionHelpers.ArrayEquals(firstFive, 1, 2, 3, 4, 5);
     Compare(circ, 6, 7, 8, 9, 10);
 
     // test CopyTo
     circ.CopyTo(firstFive, 0);
-    Helpers.AssertEqual(firstFive, 6, 7, 8, 9, 10);
+    CollectionHelpers.ArrayEquals(firstFive, 6, 7, 8, 9, 10);
 
     // test RemoveRange()
     circ.RemoveRange(0, 2);
@@ -173,7 +175,7 @@ public class CircularListTest
     // test CopyTo(int, T[])
     int[] dest = new int[8];
     circ.CopyTo(1, dest, 0, 8);
-    Helpers.AssertEqual(dest, 2, 3, 4, 5, 6, 7, 8, 9);
+    CollectionHelpers.ArrayEquals(dest, 2, 3, 4, 5, 6, 7, 8, 9);
 
     // test the GetEnumerable
     list.Clear();
@@ -274,7 +276,7 @@ public class CircularListTest
     circ.RemoveFirst(8);
     circ.AddRange(oneToTen, 0, 5);
     circ.CopyTo(0, firstFive, 0, 5);
-    Helpers.AssertEqual(firstFive, 9, 10, 1, 2, 3);
+    CollectionHelpers.ArrayEquals(firstFive, 9, 10, 1, 2, 3);
   }
   #endregion
 
@@ -295,48 +297,48 @@ public class CircularListTest
     circ.MakeNonContiguous(items);
     circ.TestLogicalIndex();
 
-    Helpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.Capacity = 1; }); // test that Capacity cannot be set less than Count
-    Helpers.TestException<ArgumentNullException>(delegate() { circ.AddRange((int[])null); }); // test null checks in AddRange
-    Helpers.TestException<ArgumentNullException>(delegate() { circ.AddRange((IEnumerable<int>)null); }); // test null check in AddRange
-    Helpers.TestException<ArgumentNullException>(delegate() { circ.Insert(0, null, 0, 0); });
-    Helpers.TestException<ArgumentNullException>(delegate() { circ.CopyTo(0, null, 0, 0); });
-    Helpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.CopyTo(array, 7); }); // test bounds check in CopyTo()
-    Helpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.IndexOf(1, 2, 5); }); // test bounds check in IndexOf()
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.Capacity = 1; }); // test that Capacity cannot be set less than Count
+    TestHelpers.TestException<ArgumentNullException>(delegate() { circ.AddRange((int[])null); }); // test null checks in AddRange
+    TestHelpers.TestException<ArgumentNullException>(delegate() { circ.AddRange((IEnumerable<int>)null); }); // test null check in AddRange
+    TestHelpers.TestException<ArgumentNullException>(delegate() { circ.Insert(0, null, 0, 0); });
+    TestHelpers.TestException<ArgumentNullException>(delegate() { circ.CopyTo(0, null, 0, 0); });
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.CopyTo(array, 7); }); // test bounds check in CopyTo()
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.IndexOf(1, 2, 5); }); // test bounds check in IndexOf()
     circ.CopyTo(4, array, 0, 1); // test bounds check in CopyTo()
 
-    Helpers.TestException<ArgumentOutOfRangeException>(delegate() { int x = circ[10]; }); // test bounds check in GetRawIndex()
-    Helpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.CopyTo(4, array, 0, 2); }); // test bounds check in CopyTo()
-    Helpers.TestException<InvalidOperationException>(delegate() { circ.Add(10); }); // test that the list can't be overflowed
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { int x = circ[10]; }); // test bounds check in GetRawIndex()
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.CopyTo(4, array, 0, 2); }); // test bounds check in CopyTo()
+    TestHelpers.TestException<InvalidOperationException>(delegate() { circ.Add(10); }); // test that the list can't be overflowed
     Assert.AreEqual(5, circ.Count);
 
-    Helpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.Insert(0, array, 0, -1); }); // test bounds check inside Insert()
-    Helpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.Insert(2, array, 0, 2); }); // test that insertion except from the beginning or end is disallowed
-    Helpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.RemoveFirst(-1); }); // test simple bounds check inside RemoveFirst(int)
-    Helpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.RemoveRange(-1, 6); }); // test the bounds check inside RemoveRange() for the "remove from end" case
-    Helpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.RemoveRange(2, 2); }); // test that removal except from the beginning or end is disallowed
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.Insert(0, array, 0, -1); }); // test bounds check inside Insert()
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.Insert(2, array, 0, 2); }); // test that insertion except from the beginning or end is disallowed
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.RemoveFirst(-1); }); // test simple bounds check inside RemoveFirst(int)
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.RemoveRange(-1, 6); }); // test the bounds check inside RemoveRange() for the "remove from end" case
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.RemoveRange(2, 2); }); // test that removal except from the beginning or end is disallowed
 
     IEnumerator<int> e = circ.GetEnumerator();
-    Helpers.TestException<InvalidOperationException>(delegate() { int x = e.Current; }); // test that the enumerator will throw on BOF
+    TestHelpers.TestException<InvalidOperationException>(delegate() { int x = e.Current; }); // test that the enumerator will throw on BOF
 
     for(int i=0; i<5; i++) Assert.IsTrue(e.MoveNext()); // move the enumerator to the end
     Assert.AreEqual(5, e.Current);
     Assert.IsFalse(e.MoveNext());
 
-    Helpers.TestException<InvalidOperationException>(delegate() { int x = e.Current; }); // test that the enumerator will throw on EOF
+    TestHelpers.TestException<InvalidOperationException>(delegate() { int x = e.Current; }); // test that the enumerator will throw on EOF
     e.Reset();
-    Helpers.TestException<InvalidOperationException>(delegate() { int x = e.Current; }); // test that Current will throw after Reset()
+    TestHelpers.TestException<InvalidOperationException>(delegate() { int x = e.Current; }); // test that Current will throw after Reset()
     Assert.IsTrue(e.MoveNext());
     Assert.AreEqual(1, e.Current);
 
     circ[2] = 4;
 
-    Helpers.TestException<InvalidOperationException>(delegate() { e.MoveNext(); }); // test that the enumerator throws when the collection is modified
+    TestHelpers.TestException<InvalidOperationException>(delegate() { e.MoveNext(); }); // test that the enumerator throws when the collection is modified
 
     circ.Clear();
     circ.RemoveFirst(0); // test count == 0 case for removefirst
 
-    Helpers.TestException<InvalidOperationException>(delegate() { circ.RemoveFirst(); }); // test that the list can't be underflowed
-    Helpers.TestException<ArgumentOutOfRangeException>(delegate() { circ = new MyCircularList<int>(-5); }); // test the negative capacity check
+    TestHelpers.TestException<InvalidOperationException>(delegate() { circ.RemoveFirst(); }); // test that the list can't be underflowed
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ = new MyCircularList<int>(-5); }); // test the negative capacity check
   }
   #endregion
 
