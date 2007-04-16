@@ -420,6 +420,18 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     return LittleEndian ? ArrayIO.ReadLE8U(data, 0) : ArrayIO.ReadBE8U(data, 0);
   }
 
+  /// <summary>Reads a four-byte float from the stream.</summary>
+  public float ReadSingle()
+  {
+    return *(float*)ReadContiguousData(sizeof(float));
+  }
+
+  /// <summary>Reads an eight-byte float from the stream.</summary>
+  public double ReadDouble()
+  {
+    return *(double*)ReadContiguousData(sizeof(double));
+  }
+
   /// <summary>Reads an array of bytes from the stream.</summary>
   public byte[] ReadByte(int count)
   {
@@ -596,6 +608,52 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     if(count < 0) throw new ArgumentOutOfRangeException();
     ReadData(array, count*sizeof(ulong));
     MakeSystemEndian8(array, count);
+  }
+
+  /// <summary>Reads an array of four-byte floats from the stream.</summary>
+  public float[] ReadSingle(int count)
+  {
+    float[] data = new float[count];
+    fixed(float* ptr=data) ReadSingle(ptr, count);
+    return data;
+  }
+
+  /// <summary>Reads an array of four-byte floats from the stream.</summary>
+  public void ReadSingle(float[] array, int index, int count)
+  {
+    if(array == null) throw new ArgumentNullException();
+    if(index < 0 || index+count > array.Length) throw new ArgumentOutOfRangeException();
+    fixed(float* ptr=array) ReadSingle(ptr+index, count);
+  }
+
+  /// <summary>Reads an array of unsigned four-byte integers from the stream.</summary>
+  public void ReadSingle(float* array, int count)
+  {
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    ReadData(array, count*sizeof(float));
+  }
+
+  /// <summary>Reads an array of eight-byte floats from the stream.</summary>
+  public double[] ReadDouble(int count)
+  {
+    double[] data = new double[count];
+    fixed(double* ptr=data) ReadDouble(ptr, count);
+    return data;
+  }
+
+  /// <summary>Reads an array of eight-byte floats from the stream.</summary>
+  public void ReadDouble(double[] array, int index, int count)
+  {
+    if(array == null) throw new ArgumentNullException();
+    if(index < 0 || index+count > array.Length) throw new ArgumentOutOfRangeException();
+    fixed(double* ptr=array) ReadDouble(ptr+index, count);
+  }
+
+  /// <summary>Reads an array of unsigned eight-byte integers from the stream.</summary>
+  public void ReadDouble(double* array, int count)
+  {
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    ReadData(array, count*sizeof(double));
   }
 
   /// <summary>Reads a string stored as an array of two-byte characters from the stream.</summary>
@@ -949,6 +1007,22 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     writeIndex += sizeof(ulong);
   }
 
+  /// <summary>Writes a four-byte float to the stream.</summary>
+  public void Write(float value)
+  {
+    EnsureSpace(sizeof(float));
+    ArrayIO.WriteFloat(BufferPtr, writeIndex, value);
+    writeIndex += sizeof(float);
+  }
+
+  /// <summary>Writes an eight-byte float to the stream.</summary>
+  public void Write(double value)
+  {
+    EnsureSpace(sizeof(double));
+    ArrayIO.WriteDouble(BufferPtr, writeIndex, value);
+    writeIndex += sizeof(double);
+  }
+
   /// <summary>Writes a string to the stream as an array of two-byte characters.</summary>
   public void Write(string str)
   {
@@ -1142,6 +1216,50 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     Write((void*)data, count, sizeof(ulong));
   }
 
+  /// <summary>Writes an array of four-byte floats to the stream.</summary>
+  public void Write(float[] data)
+  {
+    if(data == null) throw new ArgumentNullException();
+    fixed(float* ptr=data) Write(ptr, data.Length);
+  }
+
+  /// <summary>Writes an array of four-byte floats to the stream.</summary>
+  public void Write(float[] data, int index, int count)
+  {
+    if(data == null) throw new ArgumentNullException();
+    if(index < 0 || index+count > data.Length) throw new ArgumentOutOfRangeException();
+    fixed(float* ptr=data) Write(ptr+index, count);
+  }
+
+  /// <summary>Writes an array of four-byte floats to the stream.</summary>
+  public void Write(float* data, int count)
+  {
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    Write((void*)data, count*sizeof(float), 1);
+  }
+
+  /// <summary>Writes an array of eight-byte floats to the stream.</summary>
+  public void Write(double[] data)
+  {
+    if(data == null) throw new ArgumentNullException();
+    fixed(double* ptr=data) Write(ptr, data.Length);
+  }
+
+  /// <summary>Writes an array of eight-byte floats to the stream.</summary>
+  public void Write(double[] data, int index, int count)
+  {
+    if(data == null) throw new ArgumentNullException();
+    if(index < 0 || index+count > data.Length) throw new ArgumentOutOfRangeException();
+    fixed(double* ptr=data) Write(ptr+index, count);
+  }
+
+  /// <summary>Writes an array of eight-byte floats to the stream.</summary>
+  public void Write(double* data, int count)
+  {
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    Write((void*)data, count*sizeof(double), 1);
+  }
+
   /// <summary>Writes the data from the buffer to the underlying stream and then flushes the underlying stream.</summary>
   public void Flush()
   {
@@ -1245,8 +1363,8 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     byte* src = (byte*)data;
     while(count != 0)
     {
-      int toCopy = Math.Min(AvailableSpace>>shift, count);
-      Copy(src, WritePtr, toCopy);
+      int toCopy = Math.Min(AvailableSpace>>shift, count), bytesWritten = toCopy<<shift;
+      Copy(src, WritePtr, bytesWritten);
 
       if(wordSize != 1) // make sure the data in the buffer has the correct endianness
       {
@@ -1255,9 +1373,9 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
         else MakeDesiredEndian8(toCopy);
       }
 
-      int bytesWritten = toCopy<<shift;
+      count      -= toCopy;
+      src        += bytesWritten;
       writeIndex += bytesWritten;
-      src += bytesWritten;
       if(writeIndex == Buffer.Length) Flush();
     }
   }
