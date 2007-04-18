@@ -1,13 +1,14 @@
 using System;
 using System.Reflection;
 using NUnit.Framework;
+using System.IO;
 using AdamMil.IO;
 
 namespace AdamMil.IO.Tests
 {
 
 [TestFixture]
-public class ArrayIOTest
+public class IOHTest
 {
   [Test]
   public unsafe void Test()
@@ -47,22 +48,31 @@ public class ArrayIOTest
     byte[] array = new byte[8];
 
     // test reading and writing using the byte[] interface
-    MethodInfo read = typeof(ArrayIO).GetMethod("Read"+testName, new Type[] { typeof(byte[]), typeof(int) }),
-              write = typeof(ArrayIO).GetMethod("Write"+testName,
-                                                new Type[] { typeof(byte[]), typeof(int), valueObj.GetType() });
+    MethodInfo read = typeof(IOH).GetMethod("Read"+testName, new Type[] { typeof(byte[]), typeof(int) }),
+              write = typeof(IOH).GetMethod("Write"+testName,
+                                            new Type[] { typeof(byte[]), typeof(int), valueObj.GetType() });
     write.Invoke(null, new object[] { array, 0, valueObj });
     Assert.AreEqual(read.Invoke(null, new object[] { array, 0 }), valueObj);
     Verify(array, value, size, bigEndian);
 
     // and test using the byte* interface
-    read  = typeof(ArrayIO).GetMethod("Read"+testName, new Type[] { typeof(byte*), typeof(int) });
-    write = typeof(ArrayIO).GetMethod("Write"+testName, new Type[] { typeof(byte*), typeof(int), valueObj.GetType() });
+    read  = typeof(IOH).GetMethod("Read"+testName, new Type[] { typeof(byte*), typeof(int) });
+    write = typeof(IOH).GetMethod("Write"+testName, new Type[] { typeof(byte*), typeof(int), valueObj.GetType() });
     fixed(byte* ptr = array)
     {
       write.Invoke(null, new object[] { new IntPtr(ptr), 0, valueObj });
       Assert.AreEqual(read.Invoke(null, new object[] { new IntPtr(ptr), 0 }), valueObj);
     }
     Verify(array, value, size, bigEndian);
+
+    // and test using the Stream interface
+    read  = typeof(IOH).GetMethod("Read"+testName, new Type[] { typeof(Stream) });
+    write = typeof(IOH).GetMethod("Write"+testName, new Type[] { typeof(Stream), valueObj.GetType() });
+    MemoryStream ms = new MemoryStream(array, 0, array.Length, true, true);
+    write.Invoke(null, new object[] { ms, valueObj });
+    ms.Position = 0;
+    Assert.AreEqual(read.Invoke(null, new object[] { ms }), valueObj);
+    Verify(ms.GetBuffer(), value, size, bigEndian);
   }
 
   static void Verify(byte[] array, long value, int size, bool bigEndian)

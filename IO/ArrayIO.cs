@@ -4,7 +4,7 @@ namespace AdamMil.IO
 /// <summary>This class provides methods for reading and writing integer and floating point numbers from/to arrays
 /// with little or big endianness.
 /// </summary>
-public unsafe static class ArrayIO
+public unsafe static partial class IOH
 {
   #region Reading
   /// <summary>Reads a little-endian short (2 bytes) from a byte array.</summary>
