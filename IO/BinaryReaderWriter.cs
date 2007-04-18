@@ -280,7 +280,8 @@ public abstract class BinaryReaderWriterBase : PinnedBuffer
 
 #region BinaryReader
 /// <summary>This class makes it easy to efficiently deserialize values from a stream.</summary>
-/// <remarks>The class buffers input, and so may read more bytes from the stream than you explicitly request.
+/// <remarks>The class buffers input, and so may read more bytes from the stream than you explicitly request. However,
+/// when the class is disposed, it will seek the stream to the end of the data read from the reader.
 /// This class in not safe for use by multiple threads concurrently.
 /// </remarks>
 public unsafe class BinaryReader : BinaryReaderWriterBase
@@ -391,7 +392,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public ushort ReadUInt16()
   {
     byte* data = ReadContiguousData(sizeof(ushort));
-    return LittleEndian ? ArrayIO.ReadLE2U(data, 0) : ArrayIO.ReadBE2U(data, 0);
+    return LittleEndian ? IOH.ReadLE2U(data, 0) : IOH.ReadBE2U(data, 0);
   }
 
   /// <summary>Reads a signed four-byte integer from the stream.</summary>
@@ -404,7 +405,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public uint ReadUInt32()
   {
     byte* data = ReadContiguousData(sizeof(uint));
-    return LittleEndian ? ArrayIO.ReadLE4U(data, 0) : ArrayIO.ReadBE4U(data, 0);
+    return LittleEndian ? IOH.ReadLE4U(data, 0) : IOH.ReadBE4U(data, 0);
   }
 
   /// <summary>Reads a signed eight-byte integer from the stream.</summary>
@@ -417,7 +418,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public ulong ReadUInt64()
   {
     byte* data = ReadContiguousData(sizeof(ulong));
-    return LittleEndian ? ArrayIO.ReadLE8U(data, 0) : ArrayIO.ReadBE8U(data, 0);
+    return LittleEndian ? IOH.ReadLE8U(data, 0) : IOH.ReadBE8U(data, 0);
   }
 
   /// <summary>Reads a four-byte float from the stream.</summary>
@@ -720,6 +721,12 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     return newBuffer;
   }
 
+  protected override void Dispose(bool finalizing)
+  {
+    BaseStream.Position = Position; // set the stream position to the end of the data read from the reader.
+    base.Dispose(finalizing);       // this way, the stream is not positioned at some seemingly random place.
+  }
+
   /// <summary>Gets the amount of data available in the buffer.</summary>
   protected int AvailableData
   {
@@ -972,8 +979,8 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(ushort value)
   {
     EnsureSpace(sizeof(ushort));
-    if(LittleEndian) ArrayIO.WriteLE2U(BufferPtr, writeIndex, value);
-    else ArrayIO.WriteBE2U(BufferPtr, writeIndex, value);
+    if(LittleEndian) IOH.WriteLE2U(BufferPtr, writeIndex, value);
+    else IOH.WriteBE2U(BufferPtr, writeIndex, value);
     writeIndex += sizeof(ushort);
   }
 
@@ -987,8 +994,8 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(uint value)
   {
     EnsureSpace(sizeof(uint));
-    if(LittleEndian) ArrayIO.WriteLE4U(BufferPtr, writeIndex, value);
-    else ArrayIO.WriteBE4U(BufferPtr, writeIndex, value);
+    if(LittleEndian) IOH.WriteLE4U(BufferPtr, writeIndex, value);
+    else IOH.WriteBE4U(BufferPtr, writeIndex, value);
     writeIndex += sizeof(uint);
   }
 
@@ -1002,8 +1009,8 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(ulong value)
   {
     EnsureSpace(sizeof(ulong));
-    if(LittleEndian) ArrayIO.WriteLE8U(BufferPtr, writeIndex, value);
-    else ArrayIO.WriteBE8U(BufferPtr, writeIndex, value);
+    if(LittleEndian) IOH.WriteLE8U(BufferPtr, writeIndex, value);
+    else IOH.WriteBE8U(BufferPtr, writeIndex, value);
     writeIndex += sizeof(ulong);
   }
 
@@ -1011,7 +1018,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(float value)
   {
     EnsureSpace(sizeof(float));
-    ArrayIO.WriteFloat(BufferPtr, writeIndex, value);
+    IOH.WriteFloat(BufferPtr, writeIndex, value);
     writeIndex += sizeof(float);
   }
 
@@ -1019,7 +1026,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(double value)
   {
     EnsureSpace(sizeof(double));
-    ArrayIO.WriteDouble(BufferPtr, writeIndex, value);
+    IOH.WriteDouble(BufferPtr, writeIndex, value);
     writeIndex += sizeof(double);
   }
 

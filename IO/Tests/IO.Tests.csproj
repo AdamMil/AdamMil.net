@@ -34,7 +34,7 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ArrayIO.cs" />
+    <Compile Include="IOH.cs" />
     <Compile Include="BinaryReaderWriter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
