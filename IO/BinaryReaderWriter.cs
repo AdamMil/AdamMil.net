@@ -13,15 +13,24 @@ namespace AdamMil.IO
 /// </summary>
 public unsafe abstract class PinnedBuffer : IDisposable
 {
-  /// <summary>Initializes an empty IOBuffer with the given buffer size.</summary>
+  /// <summary>Initializes an empty PinnedBuffer with the given buffer size.</summary>
   /// <param name="bufferSize">The initial buffer size. If zero, a default size of 4096 bytes will be used.</param>
-  public PinnedBuffer(int bufferSize)
+  protected PinnedBuffer(int bufferSize)
   {
     if(bufferSize < 0) throw new ArgumentOutOfRangeException();
     if(bufferSize == 0) bufferSize = 4096;
 
     buffer = new byte[bufferSize];
     PinBuffer();
+  }
+
+  /// <summary>Initializes a PinnedBuffer with the given array. The buffer cannot be further enlarged.</summary>
+  protected PinnedBuffer(byte[] array)
+  {
+    if(array == null) throw new ArgumentNullException();
+    buffer = array;
+    PinBuffer();
+    noResize = true;
   }
 
   ~PinnedBuffer()
@@ -73,6 +82,8 @@ public unsafe abstract class PinnedBuffer : IDisposable
   {
     if(capacity > buffer.Length)
     {
+      if(noResize) throw new InvalidOperationException("This buffer cannot be enlarged beyond its original size.");
+
       int newSize = buffer.Length, add = 4096;
 
       if((newSize & 0xFFF) != 0) // if the buffer size is not a multiple of 4096, grow the buffer in doubles
@@ -214,6 +225,7 @@ public unsafe abstract class PinnedBuffer : IDisposable
   byte[] buffer;
   byte*  bufferPtr;
   GCHandle handle;
+  bool noResize;
 }
 #endregion
 
@@ -230,6 +242,13 @@ public abstract class BinaryReaderWriterBase : PinnedBuffer
     this.littleEndian = littleEndian;
     this.shared       = shared;
     StoreStreamPosition();
+  }
+
+  internal BinaryReaderWriterBase(byte[] array, int index, int length, bool littleEndian) : base(array)
+  {
+    if(index < 0 || length < 0 || index+length > array.Length) throw new ArgumentOutOfRangeException();
+    this.littleEndian   = littleEndian;
+    this.externalBuffer = true;
   }
 
   /// <summary>Returns a reference to the underlying stream.</summary>
@@ -256,8 +275,14 @@ public abstract class BinaryReaderWriterBase : PinnedBuffer
     get { return shared; }
   }
 
+  /// <summary>Gets whether the buffer was passed to the constructor and cannot be enlarged or reallocated.</summary>
+  protected bool ExternalBuffer
+  {
+    get { return externalBuffer; }
+  }
+
   /// <summary>Seeks the underlying stream to the expected position if necessary.</summary>
-  internal void EnsureStreamPositioned()
+  protected void EnsureStreamPositioned()
   {
     if(shared && stream.Position != lastStreamPosition)
     {
@@ -266,23 +291,23 @@ public abstract class BinaryReaderWriterBase : PinnedBuffer
   }
 
   /// <summary>Stores the stream position if <see cref="Shared"/> is true.</summary>
-  internal void StoreStreamPosition()
+  protected void StoreStreamPosition()
   {
     if(shared) lastStreamPosition = stream.Position;
   }
 
   long lastStreamPosition;
   readonly Stream stream;
-  readonly bool shared;
+  readonly bool shared, externalBuffer;
   bool littleEndian;
 }
 #endregion
 
 #region BinaryReader
-/// <summary>This class makes it easy to efficiently deserialize values from a stream.</summary>
-/// <remarks>The class buffers input, and so may read more bytes from the stream than you explicitly request. However,
-/// when the class is disposed, it will seek the stream to the end of the data read from the reader.
-/// This class in not safe for use by multiple threads concurrently.
+/// <summary>This class makes it easy to efficiently deserialize values from a stream or array.</summary>
+/// <remarks>If initialized with a stream, the reader will buffer input, and so may read more bytes from the stream
+/// than you explicitly request. However, when the class is disposed, it will seek the stream to the end of the data
+/// read from the reader. This class in not safe for use by multiple threads concurrently.
 /// </remarks>
 public unsafe class BinaryReader : BinaryReaderWriterBase
 {
@@ -326,6 +351,24 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public BinaryReader(Stream stream, bool littleEndian, int bufferSize, bool shared)
     : base(stream, littleEndian, bufferSize, shared) { }
 
+  /// <summary>Initializes this <see cref="BinaryReader"/> to read from the given array with little endianness.</summary>
+  public BinaryReader(byte[] array) : this(array, 0, array.Length, true) { }
+
+  /// <summary>Initializes this <see cref="BinaryReader"/> to read from the given array with little endianness.</summary>
+  /// <param name="index">The starting index of the area within the buffer from which data will be read.</param>
+  /// <param name="length">The length of the area within the buffer from which data will be read.</param>
+  public BinaryReader(byte[] array, int index, int length) : this(array, index, length, true) { }
+
+  /// <summary>Initializes this <see cref="BinaryReader"/> to read from the given array with the given endianness.</summary>
+  /// <param name="index">The starting index of the area within the buffer from which data will be read.</param>
+  /// <param name="length">The length of the area within the buffer from which data will be read.</param>
+  public BinaryReader(byte[] array, int index, int length, bool littleEndian)
+    : base(array, index, length, littleEndian)
+  {
+    this.tailIndex = this.startIndex = index;
+    this.headIndex = index+length;
+  }
+
   /// <summary>Gets or sets the current position of the reader within the underlying stream. This equal to the
   /// underlying stream's position, minus the amount of data available in the reader's buffer.
   /// </summary>
@@ -336,25 +379,111 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   {
     get
     {
-      EnsureStreamPositioned();
-      return BaseStream.Position - AvailableData;
+      if(ExternalBuffer) return tailIndex - startIndex;
+      else
+      {
+        EnsureStreamPositioned();
+        return BaseStream.Position - AvailableData;
+      }
     }
     set
     {
-      EnsureStreamPositioned();
-      long dataEnd = BaseStream.Position, dataStart = dataEnd - AvailableData;
-
-      // if the new position is within the range of data in our buffer, we can simply tweak our tail
-      if(value >= dataStart && value < dataEnd)
+      if(ExternalBuffer)
       {
-        AdvanceTail((int)(value-dataStart));
+        if(value < 0 || value > headIndex-startIndex) throw new ArgumentOutOfRangeException();
+        tailIndex = (int)(value-startIndex);
       }
-      else // otherwise, we have to discard the whole buffer
+      else
       {
-        tailIndex = headIndex = 0;
-        BaseStream.Position = value;
+        EnsureStreamPositioned();
+        long dataEnd = BaseStream.Position, dataStart = dataEnd - AvailableData;
+
+        // if the new position is within the range of data in our buffer, we can simply tweak our tail
+        if(value >= dataStart && value < dataEnd)
+        {
+          AdvanceTail((int)(value-dataStart));
+        }
+        else // otherwise, we have to discard the whole buffer
+        {
+          tailIndex = headIndex = 0;
+          BaseStream.Position = value;
+          StoreStreamPosition();
+        }
+      }
+    }
+  }
+
+  /// <summary>Reads a number of bytes from the stream into the given memory region.</summary>
+  /// <param name="dest">A pointer to the location in memory where the data will be written.</param>
+  /// <param name="nbytes">The number of bytes to read from the stream.</param>
+  public void Read(void* dest, int nbytes)
+  {
+    if(nbytes < 0) throw new ArgumentOutOfRangeException();
+    
+    byte* ptr = (byte*)dest;
+
+    // attempt to satisfy the request with the contiguous data starting from the tail
+    ReadDataInternal(ref ptr, ref nbytes, Math.Min(ContiguousData, nbytes));
+
+    if(nbytes != 0)
+    {
+      if(ExternalBuffer) throw new EndOfStreamException(); // if the buffer is external, there's no more data
+
+      if(headIndex != 0) // attempt to satisfy the remaining request with contiguous data starting from index 0
+      {
+        ReadDataInternal(ref ptr, ref nbytes, Math.Min(headIndex, nbytes));
+      }
+
+      // if that wasn't enough either, we've exhausted the buffer and will read more in the loop below
+      if(nbytes != 0)
+      {
+        EnsureStreamPositioned();
+        do
+        {
+          headIndex = BaseStream.Read(Buffer, 0, Buffer.Length);
+          if(headIndex == 0) throw new EndOfStreamException();
+          ReadDataInternal(ref ptr, ref nbytes, Math.Min(headIndex, nbytes));
+        } while(nbytes != 0);
         StoreStreamPosition();
       }
+    }
+  }
+
+  /// <summary>Reads a number of items from the stream into the given memory region, optionally swapping the bytes in
+  /// each item.
+  /// </summary>
+  /// <param name="dest">The location in memory to which the data will be written.</param>
+  /// <param name="count">The number of items to read. Each item has a size of <paramref name="wordSize"/> bytes.</param>
+  /// <param name="wordSize">The size of each item to read. The bytes in each item will be swapped to ensure the
+  /// correct endianness. If you don't want any swapping to occur, use a value of one for the word size.
+  /// </param>
+  public void Read(void* dest, int count, int wordSize)
+  {
+    if(wordSize != 1 && wordSize != 2 && wordSize != 4 && wordSize != 8)
+    {
+      throw new ArgumentOutOfRangeException("Word size must be 1, 2, 4, or 8.");
+    }
+    if(count < 0) throw new ArgumentOutOfRangeException();
+
+    int shift = wordSize == 4 ? 2 : wordSize == 8 ? 3 : wordSize-1; // the shift to divide or multiply by the word size
+    byte* destPtr = (byte*)dest;
+
+    while(count != 0)
+    {
+      EnsureContiguousData(wordSize);
+      int toRead = Math.Min(ContiguousData>>shift, count), bytesRead = toRead<<shift;
+      Copy(BufferPtr+tailIndex, destPtr, bytesRead);
+
+      if(wordSize != 1)
+      {
+        if(wordSize == 4) MakeSystemEndian4(destPtr, toRead);
+        else if(wordSize == 2) MakeSystemEndian2(destPtr, toRead);
+        else MakeSystemEndian8(destPtr, toRead);
+      }
+
+      destPtr += bytesRead;
+      AdvanceTail(bytesRead);
+      count -= toRead;
     }
   }
 
@@ -380,6 +509,69 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public char ReadChar()
   {
     return (char)ReadUInt16();
+  }
+
+  /// <summary>Reads a variable-length signed integer from the stream.</summary>
+  public int ReadEncodedInt32()
+  {
+    int byteValue = ReadByte(), value = byteValue & 0x3F;
+    bool negative = (byteValue & 0x40) != 0;
+
+    int shift = 6;
+    while((byteValue & 0x80) != 0)
+    {
+      byteValue = ReadByte();
+      value |= (byteValue & 0x7F) << shift;
+      shift += 7;
+    }
+    return negative && shift < 32 ? value | (-1 << shift) : value; // if it's negative, fill in the bits for the sign-extension
+  }
+
+  /// <summary>Reads a variable-length unsigned integer from the stream.</summary>
+  public uint ReadEncodedUInt32()
+  {
+    uint value = 0, byteValue;
+    int shift = 0;
+    do
+    {
+      byteValue = ReadByte();
+      value |= (byteValue & 0x7F) << shift;
+      shift += 7;
+    } while((byteValue & 0x80) != 0);
+    return value;
+  }
+
+  /// <summary>Reads a variable-length signed long integer from the stream.</summary>
+  public long ReadEncodedInt64()
+  {
+    long value;
+    int byteValue = ReadByte();
+    bool negative = (byteValue & 0x40) != 0;
+
+    value = byteValue & 0x3F;
+    int shift = 6;
+    while((byteValue & 0x80) != 0)
+    {
+      byteValue = ReadByte();
+      value |= (long)(byteValue & 0x7F) << shift;
+      shift += 7;
+    }
+    return negative && shift < 64 ? value | ((long)-1 << shift) : value; // if it's negative, fill in the bits for the sign-extension
+  }
+
+  /// <summary>Reads a variable-length unsigned long integer from the stream.</summary>
+  public ulong ReadEncodedUInt64()
+  {
+    ulong value = 0;
+    uint byteValue;
+    int shift = 0;
+    do
+    {
+      byteValue = ReadByte();
+      value |= (ulong)(byteValue & 0x7F) << shift;
+      shift += 7;
+    } while((byteValue & 0x80) != 0);
+    return value;
   }
 
   /// <summary>Reads a signed two-byte integer from the stream.</summary>
@@ -438,7 +630,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
     byte[] data = new byte[count];
-    fixed(byte* ptr=data) ReadData(ptr, count);
+    fixed(byte* ptr=data) Read(ptr, count);
     return data;
   }
 
@@ -447,7 +639,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   {
     if(array == null) throw new ArgumentNullException();
     if(index < 0 || index+count > array.Length) throw new ArgumentOutOfRangeException();
-    fixed(byte* ptr=array) ReadData(ptr, count);
+    fixed(byte* ptr=array) Read(ptr, count);
   }
 
   /// <summary>Reads an array of two-byte characters from the stream.</summary>
@@ -515,7 +707,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public void ReadUInt16(ushort* array, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
-    ReadData(array, count*sizeof(ushort));
+    Read(array, count*sizeof(ushort));
     MakeSystemEndian2(array, count);
   }
 
@@ -561,7 +753,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public void ReadUInt32(uint* array, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
-    ReadData(array, count*sizeof(uint));
+    Read(array, count*sizeof(uint));
     MakeSystemEndian4(array, count);
   }
 
@@ -607,7 +799,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public void ReadUInt64(ulong* array, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
-    ReadData(array, count*sizeof(ulong));
+    Read(array, count*sizeof(ulong));
     MakeSystemEndian8(array, count);
   }
 
@@ -631,7 +823,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public void ReadSingle(float* array, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
-    ReadData(array, count*sizeof(float));
+    Read(array, count*sizeof(float));
   }
 
   /// <summary>Reads an array of eight-byte floats from the stream.</summary>
@@ -654,7 +846,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public void ReadDouble(double* array, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
-    ReadData(array, count*sizeof(double));
+    Read(array, count*sizeof(double));
   }
 
   /// <summary>Reads a string stored as an array of two-byte characters from the stream.</summary>
@@ -669,13 +861,13 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     return new string(data, 0, nchars);
   }
 
-  /// <summary>Reads a string that was written by <see cref="BinaryWriter.AddStringWithLength"/>.</summary>
-  /// <remarks>Essentially, the string is stored as a 4-byte integer holding the length, followed by that many two-byte
+  /// <summary>Reads a string that was written by <see cref="BinaryWriter.WriteStringWithLength"/>.</summary>
+  /// <remarks>The string is stored as a variable-length integer holding the length, followed by that many two-byte
   /// characters. A null string is represented with a length of -1.
   /// </remarks>
   public string ReadStringWithLength()
   {
-    int nchars = ReadInt32();
+    int nchars = ReadEncodedInt32();
     return nchars == -1 ? null : ReadString(nchars);
   }
 
@@ -689,10 +881,10 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     if(nbytes != 0) Position += nbytes;
   }
 
-  /// <summary>Skips a string that was written by <see cref="BinaryWriter.AddStringWithLength"/>.</summary>
+  /// <summary>Skips a string that was written by <see cref="BinaryWriter.WriteStringWithLength"/>.</summary>
   public void SkipStringWithLength()
   {
-    int length = ReadInt32();
+    int length = ReadEncodedInt32();
     if(length > 0) Skip(length * sizeof(char));
   }
 
@@ -723,8 +915,12 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
 
   protected override void Dispose(bool finalizing)
   {
-    BaseStream.Position = Position; // set the stream position to the end of the data read from the reader.
-    base.Dispose(finalizing);       // this way, the stream is not positioned at some seemingly random place.
+    if(!ExternalBuffer)
+    {
+      BaseStream.Position = Position; // set the stream position to the end of the data read from the reader.
+                                      // this way, the stream is not positioned at some seemingly random place.
+    }
+    base.Dispose(finalizing);
   }
 
   /// <summary>Gets the amount of data available in the buffer.</summary>
@@ -739,44 +935,17 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     get { return (tailIndex <= headIndex ? headIndex : Buffer.Length) - tailIndex; }
   }
 
-  /// <summary>Ensures that the data, which must consist of two-byte integers, has system endianness.</summary>
-  /// <param name="data">A pointer to the data.</param>
-  /// <param name="nwords">The number of words to potentially swap.</param>
-  protected void MakeSystemEndian2(void* data, int nwords)
-  {
-    if(LittleEndian != BitConverter.IsLittleEndian) SwapEndian2((byte*)data, nwords);
-  }
-
-  /// <summary>Ensures that the data, which must consist of four-byte integers, has system endianness.</summary>
-  /// <param name="data">A pointer to the data.</param>
-  /// <param name="dwords">The number of doublewords to potentially swap.</param>
-  protected void MakeSystemEndian4(void* data, int dwords)
-  {
-    if(LittleEndian != BitConverter.IsLittleEndian) SwapEndian4((byte*)data, dwords);
-  }
-
-  /// <summary>Ensures that the data, which must consist of eight-byte integers, has system endianness.</summary>
-  /// <param name="data">A pointer to the data.</param>
-  /// <param name="qwords">The number of quadwords to potentially swap.</param>
-  protected void MakeSystemEndian8(void* data, int qwords)
-  {
-    if(LittleEndian != BitConverter.IsLittleEndian) SwapEndian8((byte*)data, qwords);
-  }
-
   /// <summary>Ensures that the given number of bytes are available in a contiguous form in the buffer.</summary>
-  /// <param name="nbytes">The number of contiguous bytes to read.</param>
-  /// <returns>A pointer to the bytes requested.</returns>
-  /// <remarks>The buffer size will be enlarged if necessary, but this method is better suited for small reads. For
-  /// larger reads, consider using <see cref="ReadData"/>, which will not enlarge the buffer.
-  /// </remarks>
-  protected byte* ReadContiguousData(int nbytes)
+  protected void EnsureContiguousData(int nbytes)
   {
     if(ContiguousData < nbytes) // if there's not enough contiguous data, read more data and/or shift existing data
     {
+      if(ExternalBuffer) throw new EndOfStreamException(); // with an external buffer, there's no more data to read
+      
       if(Buffer.Length < nbytes) // if the buffer simply isn't big enough, we'll first enlarge it
       {
         EnsureCapacity(nbytes);
-        if(ContiguousData >= nbytes) goto done; // enlarging the buffer compacts the data, so there may be enough now
+        if(ContiguousData >= nbytes) return; // enlarging the buffer compacts the data, and there is enough now
       }
 
       // find out how many contiguous bytes we can fit without shifting data around
@@ -819,43 +988,46 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
       
       StoreStreamPosition();
     }
+  }
 
-    done:
+  /// <summary>Ensures that the data, which must consist of two-byte integers, has system endianness.</summary>
+  /// <param name="data">A pointer to the data.</param>
+  /// <param name="nwords">The number of words to potentially swap.</param>
+  protected void MakeSystemEndian2(void* data, int nwords)
+  {
+    if(LittleEndian != BitConverter.IsLittleEndian) SwapEndian2((byte*)data, nwords);
+  }
+
+  /// <summary>Ensures that the data, which must consist of four-byte integers, has system endianness.</summary>
+  /// <param name="data">A pointer to the data.</param>
+  /// <param name="dwords">The number of doublewords to potentially swap.</param>
+  protected void MakeSystemEndian4(void* data, int dwords)
+  {
+    if(LittleEndian != BitConverter.IsLittleEndian) SwapEndian4((byte*)data, dwords);
+  }
+
+  /// <summary>Ensures that the data, which must consist of eight-byte integers, has system endianness.</summary>
+  /// <param name="data">A pointer to the data.</param>
+  /// <param name="qwords">The number of quadwords to potentially swap.</param>
+  protected void MakeSystemEndian8(void* data, int qwords)
+  {
+    if(LittleEndian != BitConverter.IsLittleEndian) SwapEndian8((byte*)data, qwords);
+  }
+
+  /// <summary>Ensures that the given number of bytes are available in a contiguous form in the buffer, returns a
+  /// pointer to them, and advances past them.
+  /// </summary>
+  /// <param name="nbytes">The number of contiguous bytes to read.</param>
+  /// <returns>A pointer to the bytes requested.</returns>
+  /// <remarks>The buffer size will be enlarged if necessary, but this method is better suited for small reads. For
+  /// larger reads, consider using <see cref="ReadData"/>, which will not enlarge the buffer.
+  /// </remarks>
+  protected byte* ReadContiguousData(int nbytes)
+  {
+    EnsureContiguousData(nbytes);
     byte* data = BufferPtr + tailIndex;
     AdvanceTail(nbytes);
     return data;
-  }
-
-  /// <summary>Reads a number of bytes from the stream into the given memory region.</summary>
-  /// <param name="dest">A pointer to the location in memory where the data will be written.</param>
-  /// <param name="nbytes">The number of bytes to read from the stream.</param>
-  protected void ReadData(void* dest, int nbytes)
-  {
-    byte* ptr = (byte*)dest;
-
-    // attempt to satisfy the request with the contiguous data starting from the tail
-    ReadDataInternal(ref ptr, ref nbytes, Math.Min(ContiguousData, nbytes));
-
-    if(nbytes != 0)
-    {
-      if(headIndex != 0) // attempt to satisfy the remaining request with contiguous data starting from index 0
-      {
-        ReadDataInternal(ref ptr, ref nbytes, Math.Min(headIndex, nbytes));
-      }
-
-      // if that wasn't enough either, we've exhausted the buffer and will read more in the loop below
-      if(nbytes != 0)
-      {
-        EnsureStreamPositioned();
-        do
-        {
-          headIndex = BaseStream.Read(Buffer, 0, Buffer.Length);
-          if(headIndex == 0) throw new EndOfStreamException();
-          ReadDataInternal(ref ptr, ref nbytes, Math.Min(headIndex, nbytes));
-        } while(nbytes != 0);
-        StoreStreamPosition();
-      }
-    }
   }
 
   /// <summary>Advances the tail by the given number of bytes. It's assumed that this is not greater than
@@ -868,8 +1040,9 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     Debug.Assert(tailIndex <= Buffer.Length);
 
     // if the buffer becomes empty due to this move, put the pointers back at the front of the buffer to ensure that
-    // we have as much contiguous space as possible
-    if(tailIndex == headIndex) headIndex = tailIndex = 0;
+    // we have as much contiguous space as possible. we don't do this with external buffers, though, because we can't
+    // read any more data into them.
+    if(tailIndex == headIndex && !ExternalBuffer) headIndex = tailIndex = 0;
   }
 
   void ReadDataInternal(ref byte* ptr, ref int bytesNeeded, int bytesAvailable)
@@ -881,11 +1054,12 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   int headIndex, tailIndex;
+  readonly int startIndex;
 }
 #endregion
 
 #region BinaryWriter
-/// <summary>This class makes it easy to efficiently serialize values into a stream.</summary>
+/// <summary>This class makes it easy to efficiently serialize values into a stream or array.</summary>
 /// <remarks>This class in not safe for use by multiple threads concurrently.</remarks>
 public unsafe class BinaryWriter : BinaryReaderWriterBase
 {
@@ -929,16 +1103,39 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// </param>
   public BinaryWriter(Stream stream, bool littleEndian, int bufferSize, bool shared)
     : base(stream, littleEndian, bufferSize, shared) { }
-  
+
+  /// <summary>Initializes this <see cref="BinaryWriter"/> to write into the given array with little endianness.</summary>
+  public BinaryWriter(byte[] array) : this(array, 0, array.Length, true) { }
+
+  /// <summary>Initializes this <see cref="BinaryWriter"/> to write into the given array with little endianness.</summary>
+  /// <param name="index">The beginning of the area of the array to which the writer can write.</param>
+  /// <param name="length">The length of the area to which the writer can write.</param>
+  public BinaryWriter(byte[] array, int index, int length) : this(array, index, length, true) { }
+
+  /// <summary>Initializes this <see cref="BinaryWriter"/> to write into the given array with the given endianness.</summary>
+  /// <param name="index">The beginning of the area of the array to which the writer can write.</param>
+  /// <param name="length">The length of the area to which the writer can write.</param>
+  public BinaryWriter(byte[] array, int index, int length, bool littleEndian)
+    : base(array, index, length, littleEndian)
+  {
+    this.startIndex   = this.writeIndex = index;
+    this.bufferLength = length;
+  }
+
   /// <summary>Gets or sets the position of the writer. This is equal to the position of the underlying stream, plus
   /// the amount of data in the buffer.
   /// </summary>
   public long Position
   {
-    get { return BaseStream.Position + writeIndex; }
+    get { return ExternalBuffer ? writeIndex-startIndex : BaseStream.Position+writeIndex; }
     set
     {
-      if(value != Position)
+      if(ExternalBuffer)
+      {
+        if(value < 0 || value > bufferLength) throw new ArgumentOutOfRangeException();
+        writeIndex = (int)(value + startIndex);
+      }
+      else if(value != Position)
       {
         FlushBuffer();
         BaseStream.Position = value;
@@ -959,7 +1156,11 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
 
   public void Write(byte value)
   {
-    if(Buffer.Length == writeIndex) FlushBuffer(); // make sure there's room
+    if(ExternalBuffer)
+    {
+      if(writeIndex == bufferLength) RaiseFullError(); // if it's an external buffer, we can't enlarge it any more
+    }
+    else if(Buffer.Length == writeIndex) FlushBuffer();
     BufferPtr[writeIndex++] = value;
   }
 
@@ -1036,17 +1237,25 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     if(str == null) throw new ArgumentNullException();
     fixed(char* data=str) Write(data, str.Length);
   }
-  
+
+  /// <summary>Writes a string to the stream as an array of two-byte characters.</summary>
+  public void Write(string str, int index, int count)
+  {
+    if(str == null) throw new ArgumentNullException();
+    if(index < 0 || count < 0 || index+count > str.Length) throw new ArgumentOutOfRangeException();
+    fixed(char* data=str) Write(data+index, count);
+  }
+
   /// <summary>Writes a string to the stream with its length prefixed. Null strings are also supported by this method.</summary>
   public void WriteStringWithLength(string str)
   {
     if(str == null)
     {
-      Write(-1);
+      WriteEncoded(-1);
     }
     else
     {
-      Write(str.Length);
+      WriteEncoded(str.Length);
       Write(str);
     }
   }
@@ -1267,19 +1476,170 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     Write((void*)data, count*sizeof(double), 1);
   }
 
+  /// <summary>Writes data from the given region of memory to the stream.</summary>
+  /// <param name="data">The location in memory of the data to write.</param>
+  /// <param name="count">The number of items to write. Each item has a size of <paramref name="wordSize"/> bytes.</param>
+  /// <param name="wordSize">The size of each item to copy. The bytes in each item will be swapped to ensure the
+  /// correct endianness. If you don't want any swapping to occur, use a value of one for the word size.
+  /// </param>
+  /// <remarks>This method will not enlarge the buffer unless it is smaller than <paramref name="wordSize"/>. Rather,
+  /// it will fill and flush the buffer as many times as is necessary to write the data.
+  /// </remarks>
+  public void Write(void* data, int count, int wordSize)
+  {
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    else if(count == 0) return; // return so we don't throw an exception if we're at the end of an external buffer
+
+    if(wordSize != 1 && wordSize != 2 && wordSize != 4 && wordSize != 8)
+    {
+      throw new ArgumentOutOfRangeException("Word size must be 1, 2, 4, or 8.");
+    }
+
+    EnsureSpace(wordSize); // make sure the buffer is big enough to hold at least one word
+    
+    int shift = wordSize == 4 ? 2 : wordSize == 8 ? 3 : wordSize-1; // the shift to divide or mulitply by the word size
+    byte* src = (byte*)data;
+    while(count != 0)
+    {
+      int toCopy = Math.Min(AvailableSpace>>shift, count), bytesWritten = toCopy<<shift;
+      if(toCopy == 0) RaiseFullError();
+      Copy(src, WritePtr, bytesWritten);
+
+      src        += bytesWritten;
+      writeIndex += bytesWritten;
+
+      if(wordSize != 1) // make sure the data in the buffer has the correct endianness
+      {
+        if(wordSize == 4) MakeDesiredEndian4(toCopy);
+        else if(wordSize == 2) MakeDesiredEndian2(toCopy);
+        else MakeDesiredEndian8(toCopy);
+      }
+
+      if(AvailableSpace < wordSize) FlushBuffer();
+      count -= toCopy;
+    }
+  }
+
+  /// <summary>Writes a signed integer with a variable-length format, taking from one to five bytes.</summary>
+  public void WriteEncoded(int value)
+  {
+    // values from -64 to 63 will be encoded into a single byte, from -16384 to 16383 in 2 bytes, etc.
+    // the first byte will contain a sign bit in the 7th bit (0x40)
+    int byteValue = value & 0x3F | (value < 0 ? 0x40 : 0);
+
+    if(value <= 63 && value >= -64)
+    {
+      Write((byte)byteValue);
+    }
+    else
+    {
+      Write((byte)(byteValue | 0x80));
+      value >>= 6;
+
+      while(value > 127 || value < -128)
+      {
+        Write((byte)(value & 0x7F | 0x80));
+        value >>= 7;
+      }
+      Write((byte)(value & 0x7F));
+    }
+  }
+
+  /// <summary>Writes a signed long integer with a variable-length format, taking from one to ten bytes.</summary>
+  public void WriteEncoded(long value)
+  {
+    if(value <= int.MaxValue && value >= int.MinValue)
+    {
+      WriteEncoded((int)value);
+    }
+    else
+    {
+      // values from -64 to 63 will be encoded into a single byte, from -16384 to 16383 in 2 bytes, etc.
+      // the first byte will contain a sign bit in the 7th bit (0x40)
+      int byteValue = (byte)(value & 0x3F) | (value < 0 ? 0x40 : 0);
+
+      Write((byte)(byteValue | 0x80));
+      value >>= 6;
+
+      while(value > 127 || value < -128)
+      {
+        Write((byte)(value & 0x7F | 0x80));
+        value >>= 7;
+      }
+      Write((byte)(value & 0x7F));
+    }
+  }
+
+  /// <summary>Writes an unsigned integer with a variable-length format, taking from one to five bytes.</summary>
+  public void WriteEncoded(uint value)
+  {
+    // values from 0-127 will be encoded into a single byte, from 128 to 32767 in two bytes, etc
+    while(value > 127)
+    {
+      Write((byte)(value & 0x7F | 0x80));
+      value >>= 7;
+    }
+    Write((byte)(value & 0x7F));
+  }
+
+  /// <summary>Writes an unsigned long integer with a variable-length format, taking from one to ten bytes.</summary>
+  public void WriteEncoded(ulong value)
+  {
+    if(value <= uint.MaxValue)
+    {
+      WriteEncoded((uint)value);
+    }
+    else
+    {
+      // values from 0-127 will be encoded into a single byte, from 128 to 32767 in two bytes, etc
+      while(value > 127)
+      {
+        Write((byte)(value & 0x7F | 0x80));
+        value >>= 7;
+      }
+      Write((byte)(value & 0x7F));
+    }
+  }
+
+  /// <summary>Writes the given number of zero bytes.</summary>
+  public void WriteZeros(int count)
+  {
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    else if(count == 0) return; // return so we don't throw an exception if we're at the end of an external buffer
+
+    EnsureSpace(1);
+    while(count != 0)
+    {
+      int toWrite = Math.Min(count, AvailableSpace);
+      if(toWrite == 0) RaiseFullError();
+
+      Array.Clear(Buffer, writeIndex, toWrite);
+      writeIndex += toWrite;
+      count      -= toWrite;
+
+      if(AvailableSpace == 0) FlushBuffer();
+    }
+  }
+
   /// <summary>Writes the data from the buffer to the underlying stream and then flushes the underlying stream.</summary>
   public void Flush()
   {
-    FlushBuffer();
-    BaseStream.Flush();
+    if(!ExternalBuffer)
+    {
+      FlushBuffer();
+      BaseStream.Flush();
+    }
   }
 
   /// <summary>Writes the data from the buffer to the underlying stream, but does not flush the underlying stream. (Use
   /// <see cref="Flush"/> for that.)</summary>
   public void FlushBuffer()
   {
-    BaseStream.Write(Buffer, 0, writeIndex);
-    writeIndex = 0;
+    if(!ExternalBuffer)
+    {
+      BaseStream.Write(Buffer, 0, writeIndex);
+      writeIndex = 0;
+    }
   }
 
   /// <summary>Gets the position in the buffer where the next write should occur.</summary>
@@ -1314,6 +1674,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   {
     if(nbytes > AvailableSpace) // if there's not enough space...
     {
+      if(ExternalBuffer) RaiseFullError(); // if it's an external buffer, we can't enlarge it
       FlushBuffer(); // flushing the buffer may free up space.
       EnsureCapacity(nbytes); // now the buffer is empty, so ensure it's big enough
     }
@@ -1346,54 +1707,19 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     if(LittleEndian != BitConverter.IsLittleEndian) SwapEndian8(WritePtr-qwords*8, qwords);
   }
 
-  /// <summary>Writes data from the given region of memory to the stream.</summary>
-  /// <param name="data">The location in memory of the data to write.</param>
-  /// <param name="count">The number of items to write. Each item has a size of <paramref name="wordSize"/> bytes.</param>
-  /// <param name="wordSize">The size of each item to copy. The bytes in each item will be swapped to ensure the
-  /// correct endianness. If you don't want any swapping to occur, use a value of one for the word size.
-  /// </param>
-  /// <remarks>This method will not enlarge the buffer unless it is smaller than <paramref name="wordSize"/>. Rather,
-  /// it will fill and flush the buffer as many times as is necessary to write the data.
-  /// </remarks>
-  protected void Write(void* data, int count, int wordSize)
-  {
-    if(count < 0) throw new ArgumentOutOfRangeException();
-
-    if(wordSize != 1 && wordSize != 2 && wordSize != 4 && wordSize != 8)
-    {
-      throw new ArgumentOutOfRangeException("Word size must be 1, 2, 4, or 8.");
-    }
-
-    EnsureSpace(wordSize); // make sure the buffer is big enough to hold at least one word
-    
-    int shift = wordSize == 4 ? 2 : wordSize == 8 ? 3 : wordSize-1; // the shift to divide or mulitply by the word size
-    byte* src = (byte*)data;
-    while(count != 0)
-    {
-      int toCopy = Math.Min(AvailableSpace>>shift, count), bytesWritten = toCopy<<shift;
-      Copy(src, WritePtr, bytesWritten);
-
-      if(wordSize != 1) // make sure the data in the buffer has the correct endianness
-      {
-        if(wordSize == 4) MakeDesiredEndian4(toCopy);
-        else if(wordSize == 2) MakeDesiredEndian2(toCopy);
-        else MakeDesiredEndian8(toCopy);
-      }
-
-      count      -= toCopy;
-      src        += bytesWritten;
-      writeIndex += bytesWritten;
-      if(writeIndex == Buffer.Length) Flush();
-    }
-  }
-
   /// <summary>The amount of empty space in the buffer.</summary>
   int AvailableSpace
   {
-    get { return Buffer.Length - writeIndex; }
+    get { return ExternalBuffer ? bufferLength-writeIndex+startIndex : Buffer.Length-writeIndex; }
   }
 
   int writeIndex;
+  readonly int startIndex, bufferLength;
+
+  static void RaiseFullError()
+  {
+    throw new InvalidOperationException("The buffer is full.");
+  }
 }
 #endregion
 
