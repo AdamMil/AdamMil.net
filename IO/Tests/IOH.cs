@@ -27,6 +27,36 @@ public class IOHTest
     Test("Float", Float, *(uint*)&Float, sizeof(float), false);
   }
 
+  [Test]
+  public void TestFormatted()
+  {
+    Assert.AreEqual(13, IOH.CalculateSize("?s", "hello, world!"));
+
+    TestFormatted(8, "<ww>ww", 1, 2, -3, -4);
+    TestFormatted(8, "4w", new short[] { 1, 2, -3, -4 });
+    TestFormatted(1+2+3+5, "vvvv", 1, -1000, 10000, int.MinValue);
+    TestFormatted(17, "*Ds", "hello, world!");
+    TestFormatted(20, "20s", "hello, world!");
+    TestFormatted(14, "p", "hello, world!");
+    TestFormatted(6, "Ep", "hello");
+    TestFormatted(17, ">*v?d", new int[] { 1, 2, -3, -4 });
+    TestFormatted(19, ">*v?vp", new int[] { 1, 2, int.MaxValue, int.MinValue }, "hello");
+  }
+
+  static void TestFormatted(int expectedSize, string format, params object[] args)
+  {
+    Assert.AreEqual(expectedSize, IOH.CalculateSize(true, format, args));
+    
+    byte[] buffer = new byte[expectedSize];
+    Assert.AreEqual(expectedSize, IOH.Write(buffer, 0, format, args));
+
+    int bytesRead;
+    object[] values = IOH.Read(buffer, 0, format, out bytesRead);
+    Assert.AreEqual(expectedSize, bytesRead);
+    Assert.AreEqual(args.Length, values.Length);
+    for(int i=0; i<values.Length; i++) Assert.AreEqual(args[i], values[i]);
+  }
+
   static void Test(long value, int size)
   {
     Test(value, size, false, false);
