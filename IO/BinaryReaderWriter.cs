@@ -307,7 +307,8 @@ public abstract class BinaryReaderWriterBase : PinnedBuffer
 /// <summary>This class makes it easy to efficiently deserialize values from a stream or array.</summary>
 /// <remarks>If initialized with a stream, the reader will buffer input, and so may read more bytes from the stream
 /// than you explicitly request. However, when the class is disposed, it will seek the stream to the end of the data
-/// read from the reader. This class in not safe for use by multiple threads concurrently.
+/// read from the reader, if the stream supports seeking.
+/// This class in not safe for use by multiple threads concurrently.
 /// </remarks>
 public unsafe class BinaryReader : BinaryReaderWriterBase
 {
@@ -915,7 +916,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
 
   protected override void Dispose(bool finalizing)
   {
-    if(!ExternalBuffer)
+    if(!ExternalBuffer && BaseStream.CanSeek)
     {
       BaseStream.Position = Position; // set the stream position to the end of the data read from the reader.
                                       // this way, the stream is not positioned at some seemingly random place.
