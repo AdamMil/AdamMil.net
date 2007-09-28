@@ -60,8 +60,9 @@ public class PriorityQueue<T> : ICollection<T>
   {
     if(Count == 0) throw new InvalidOperationException("The collection is empty.");
     T max = array[0];
-    array.RemoveAt(0);
-    Heapify();
+    array[0] = array[array.Count-1];
+    array.RemoveAt(array.Count-1);
+    HeapifyNode(0);
     return max;
   }
 
