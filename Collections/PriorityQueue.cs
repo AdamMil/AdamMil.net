@@ -196,11 +196,8 @@ public sealed class PriorityQueue<T> : ICollection<T>
     {
       version = queue.version;
       index   = -1;
-      if(array == null || array.Length != queue.count)
-      {
-        array = new T[queue.count];
-        queue.CopyTo(array, 0);
-      }
+      if(array == null || array.Length != queue.count) array = new T[queue.count];
+      queue.CopyTo(array, 0);
     }
 
     object System.Collections.IEnumerator.Current
