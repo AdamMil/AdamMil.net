@@ -7,9 +7,9 @@ namespace AdamMil.Collections
 /// <summary>This class represents a priority queue.</summary>
 /// <remarks>
 /// <para>A priority queue works like a standard <see cref="Queue"/>, except that the items are ordered by a
-/// predicate. The value with the highest priority will always be dequeued first. The object with the highest priority
+/// predicate. The item with the highest priority will always be dequeued first. The object with the highest priority
 /// is the object with the greatest value, as determined by the <see cref="IComparer"/> used to initialize the queue.
-/// Multiple objects with the same priority level can be added to the queue.
+/// Multiple objects with the same priority can be added to the queue.
 /// </para>
 /// <para>The priority queue is implemented using a heap, which is a very efficient array structure that makes finding
 /// the highest priority item very fast (an O(1) operation), but makes finding the lowest priority item rather
@@ -133,8 +133,12 @@ public sealed class PriorityQueue<T> : ICollection<T>
   /// from the queue.
   /// </param>
   /// <param name="startIndex">The zero-based index in array at which copying begins.</param>
-  /// <remarks>See <see cref="ICollection.CopyTo"/> for more information. <seealso cref="ICollection.CopyTo"/></remarks>
-  public void CopyTo(T[] array, int startIndex) { this.array.CopyTo(array, startIndex); }
+  /// <remarks>The items in the array will be in the same order that they would be dequeued.</remarks>
+  public void CopyTo(T[] array, int startIndex)
+  {
+    Array.Copy(this.array, 0, array, startIndex, count);
+    Array.Sort(array, startIndex, count, new ReversedComparer(cmp));
+  }
   /// <summary>Removes an item from the queue.</summary>
   /// <param name="item">The item to remove.</param>
   /// <remarks>Removing an item in this fashion is not efficient.</remarks>
@@ -158,9 +162,6 @@ public sealed class PriorityQueue<T> : ICollection<T>
   #endregion
 
   #region IEnumerable
-  /// <summary>Returns an <see cref="IEnumerator"/> that can iterate through the queue in the same order as items would
-  /// be dequeued.
-  /// </summary>
   System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
   {
     return GetEnumerator();
@@ -172,9 +173,7 @@ public sealed class PriorityQueue<T> : ICollection<T>
   {
     public Enumerator(PriorityQueue<T> queue)
     {
-      // the enumerator works by simply creating a copy of the queue and dequeuing it
-      this.original = queue;
-      this.copy     = new PriorityQueue<T>(queue.cmp, queue.Capacity);
+      this.queue = queue;
       Reset();
     }
 
@@ -182,24 +181,26 @@ public sealed class PriorityQueue<T> : ICollection<T>
     {
       get
       {
-        if(!started || copy.count == 0) throw new InvalidOperationException();
-        return copy.Peek();
+        if(index < 0 || index == array.Length) throw new InvalidOperationException();
+        return array[index];
       }
     }
 
     public bool MoveNext()
     {
-      if(version != original.version) throw new InvalidOperationException();
-      if(!started) started = true;
-      else if(copy.count != 0) copy.Dequeue();
-      return copy.count != 0;
+      if(version != queue.version) throw new InvalidOperationException();
+      return index == array.Length ? false : ++index < array.Length;
     }
 
     public void Reset()
     {
-      version = original.version;
-      started = false;
-      copy.CloneFrom(original);
+      version = queue.version;
+      index   = -1;
+      if(array == null || array.Length != queue.count)
+      {
+        array = new T[queue.count];
+        queue.CopyTo(array, 0);
+      }
     }
 
     object System.Collections.IEnumerator.Current
@@ -209,22 +210,31 @@ public sealed class PriorityQueue<T> : ICollection<T>
     
     void IDisposable.Dispose() { }
     
-    readonly PriorityQueue<T> original, copy;
-    int version;
-    bool started;
+    readonly PriorityQueue<T> queue;
+    T[] array;
+    int index, version;
   }
 
   /// <summary>Returns an <see cref="IEnumerator{T}"/> that can iterate through the queue in the same order as items
   /// would be dequeued.
   /// </summary>
   public IEnumerator<T> GetEnumerator() { return new Enumerator(this); }
+  #endregion
 
-  void CloneFrom(PriorityQueue<T> other)
+  #region ReversedComparer
+  sealed class ReversedComparer : IComparer<T>
   {
-    array = (T[])other.array.Clone();
-    cmp   = other.cmp;
-    count = other.count;
-    version++;
+    public ReversedComparer(IComparer<T> cmp)
+    {
+      this.cmp = cmp;
+    }
+
+    public int Compare(T a, T b)
+    {
+      return -cmp.Compare(a, b);
+    }
+
+    readonly IComparer<T> cmp;
   }
   #endregion
 
