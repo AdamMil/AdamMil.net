@@ -46,6 +46,13 @@ public sealed class PriorityQueue<T> : ICollection<T>
     this.array     = new T[capacity == 0 ? 16 : capacity];
   }
 
+  PriorityQueue(T[] array, int count, IComparer<T> comparer)
+  {
+    this.array = array;
+    this.count = count;
+    this.cmp   = comparer;
+  }
+
   /// <summary>Gets or sets the number of elements that the internal array can contain.</summary>
   public int Capacity
   {
@@ -137,7 +144,7 @@ public sealed class PriorityQueue<T> : ICollection<T>
   public void CopyTo(T[] array, int startIndex)
   {
     Array.Copy(this.array, 0, array, startIndex, count);
-    Array.Sort(array, startIndex, count, new ReversedComparer(cmp));
+    Array.Sort(array, startIndex, count, new ReversedComparer<T>(cmp));
   }
   /// <summary>Removes an item from the queue.</summary>
   /// <param name="item">The item to remove.</param>
@@ -218,31 +225,13 @@ public sealed class PriorityQueue<T> : ICollection<T>
   public IEnumerator<T> GetEnumerator() { return new Enumerator(this); }
   #endregion
 
-  #region ReversedComparer
-  sealed class ReversedComparer : IComparer<T>
-  {
-    public ReversedComparer(IComparer<T> cmp)
-    {
-      this.cmp = cmp;
-    }
-
-    public int Compare(T a, T b)
-    {
-      return -cmp.Compare(a, b);
-    }
-
-    readonly IComparer<T> cmp;
-  }
-  #endregion
-
   /// <summary>Heapify the subtree at index <paramref name="i"/>, assuming that Right(i) and Left(i) are both valid
   /// heaps already.
   /// </summary>
-  /// <param name="i"></param>
   void HeapifySubtree(int i)
   {
-    T tmp;
-    int li, ri, largest, count=Count;
+    T temp;
+    int li, ri, largest;
     while(true)
     {
       ri=(i+1)*2; li=ri-1; // ri=Right(i), li=Left(i)
@@ -251,7 +240,7 @@ public sealed class PriorityQueue<T> : ICollection<T>
       if(ri<count && cmp.Compare(array[ri], array[largest])>0) largest=ri;
       if(largest == i) break; // if the largest is i, the heap property is satisfied
       // otherwise, swap i with largest, restoring the heap property for this triplet.
-      tmp=array[i]; array[i]=array[largest]; array[largest]=tmp;
+      temp = array[i]; array[i] = array[largest]; array[largest] = temp;
       // but that may have broken the heap property for the subtree 'largest', so repeat for that child
       i = largest;
     }

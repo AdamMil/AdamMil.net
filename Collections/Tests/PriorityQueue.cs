@@ -33,6 +33,13 @@ public class PriorityQueueTest
     SortedDequeue(queue, list);
 
     AddItems(queue, numbers);
+    Assert.AreEqual(queue.Count, numbers.Length);
+
+    int[] array = new int[queue.Count+5];
+    queue.CopyTo(array, 0);
+    for(int i=0; i<list.Count; i++) Assert.AreEqual(array[i], list[i]);
+    queue.CopyTo(array, 5);
+    for(int i=0; i<list.Count; i++) Assert.AreEqual(array[i+5], list[i]);
 
     queue.Capacity = 20;
     Assert.AreEqual(20, queue.Capacity);
