@@ -6,7 +6,7 @@ namespace AdamMil.Collections
 
 /// <summary>This class represents a stack, also known as a LIFO queue.</summary>
 [Serializable]
-public sealed class Stack<T> : ICollection<T>, IQueue<T>
+public sealed class Stack<T> : IQueue<T>
 {
   /// <summary>Initializes a new, empty instance of the <see cref="Stack"/> class, with a default capacity.</summary>
   public Stack() : this(0) { }

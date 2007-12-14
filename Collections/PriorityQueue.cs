@@ -17,7 +17,7 @@ namespace AdamMil.Collections
 /// </para>
 /// </remarks>
 [Serializable]
-public sealed class PriorityQueue<T> : ICollection<T>, IQueue<T>
+public sealed class PriorityQueue<T> : IQueue<T>
 {
   /// <summary>Initializes a new, empty instance of the <see cref="PriorityQueue"/> class, with a default capacity and
   /// using <see cref="Comparer.Default"/> to compare elements.
