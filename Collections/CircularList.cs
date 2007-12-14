@@ -4,7 +4,8 @@ using System.Collections.Generic;
 namespace AdamMil.Collections
 {
 
-public class CircularList<T> : IList<T>
+/// <summary>Represents a circular list, which can also be used as a FIFO queue.</summary>
+public class CircularList<T> : IList<T>, IQueue<T>
 {
   public CircularList() : this(0, true) { }
   public CircularList(int capacity) : this(capacity, true) { }
@@ -481,6 +482,23 @@ public class CircularList<T> : IList<T>
   System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
   {
     return GetEnumerator();
+  }
+  #endregion
+
+  #region IQueue<T> Members
+  void IQueue<T>.Enqueue(T item)
+  {
+    Add(item);
+  }
+
+  T IQueue<T>.Dequeue()
+  {
+    return RemoveFirst();
+  }
+
+  T IQueue<T>.Peek()
+  {
+    return this[0];
   }
   #endregion
 

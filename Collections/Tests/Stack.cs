@@ -8,20 +8,18 @@ namespace AdamMil.Collections.Tests
 {
 
 [TestFixture]
-public class PriorityQueueTest
+public class StackTest
 {
   [Test]
   public void Test()
   {
-    // these numbers were tweaked to exercise all paths within HeapifyNode()
     int[] numbers = new int[] { 8, 4, 0, 2, 5, 7, 1, 8, 6, 3, 8, 9 };
 
-    PriorityQueue<int> queue;
+    Stack<int> queue;
 
-    TestHelpers.TestException<ArgumentNullException>(delegate() { queue = new PriorityQueue<int>(null, 10); });
-    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { queue = new PriorityQueue<int>(-10); });
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { queue = new Stack<int>(-10); });
 
-    queue = new PriorityQueue<int>();
+    queue = new Stack<int>();
     Assert.IsFalse(queue.IsReadOnly);
 
     TestHelpers.TestException<InvalidOperationException>(delegate() { queue.Dequeue(); });
@@ -30,13 +28,12 @@ public class PriorityQueueTest
     List<int> list = new List<int>(numbers);
     AddItems(queue, numbers);
     Assert.AreEqual(queue.Peek(), 9);
-    SortedDequeue(queue, list);
+    ReversedDequeue(queue, list);
 
     AddItems(queue, numbers);
     Assert.AreEqual(queue.Count, numbers.Length);
 
     list = new List<int>(numbers);
-    list.Sort();
     list.Reverse();
     int[] array = new int[queue.Count+5];
     queue.CopyTo(array, 0);
@@ -54,13 +51,7 @@ public class PriorityQueueTest
     Assert.IsFalse(queue.Contains(20));
 
     list = new List<int>(numbers);
-    TestRemove(queue, list, 7);
-
-    list = new List<int>(numbers);
-    TestRemove(queue, list, 4, 1, 8, 8);
-
-    list = new List<int>(numbers);
-    TestRemove(queue, list, 8, 8, 4, 6);
+    TestRemove(queue, list, 7, 8, 9);
 
     Assert.IsFalse(((ICollection<int>)queue).Remove(20));
 
@@ -68,18 +59,17 @@ public class PriorityQueueTest
     Assert.AreEqual(0, queue.Count);
   }
 
-  static void AddItems(PriorityQueue<int> queue, IList<int> items)
+  static void AddItems(Stack<int> queue, IList<int> items)
   {
     int initialCount = queue.Count;
     foreach(int i in items) queue.Enqueue(i);
     Assert.AreEqual(initialCount+items.Count, queue.Count);
   }
 
-  static void SortedDequeue(PriorityQueue<int> queue, List<int> items)
+  static void ReversedDequeue(Stack<int> queue, List<int> items)
   {
     Assert.AreEqual(items.Count, queue.Count);
-    items.Sort();
-    items.Reverse(); // the queue will return items in reverse order (highest to lowest)
+    items.Reverse(); // the queue will return items in reverse order
 
     // first test using the enumerator
     int index = 0;
@@ -95,7 +85,7 @@ public class PriorityQueueTest
     Assert.AreEqual(queue.Count, 0);
   }
 
-  static void TestRemove(PriorityQueue<int> queue, List<int> items, params int[] toRemove)
+  static void TestRemove(Stack<int> queue, List<int> items, params int[] toRemove)
   {
     queue.Clear();
     AddItems(queue, items);
@@ -104,7 +94,7 @@ public class PriorityQueueTest
       items.Remove(i);
       ((ICollection<int>)queue).Remove(i);
     }
-    SortedDequeue(queue, items);
+    ReversedDequeue(queue, items);
   }
 }
 
