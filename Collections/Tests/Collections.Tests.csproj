@@ -33,6 +33,7 @@
     <Compile Include="CircularList.cs" />
     <Compile Include="PriorityQueue.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Stack.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\TestHelpers\AdamMil.TestHelpers.csproj">
