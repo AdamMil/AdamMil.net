@@ -89,7 +89,7 @@ public class CircularListTest
     list.AddRange(oneToTen);
     circ.Clear();
     circ.Capacity = 4;
-    circ.AddRange(list.ToArray()); // big resize code path (that goes through the while loop)
+    circ.AddRange(list.ToArray()); // test the big resize code path (that goes through the while loop)
     Compare(circ, list);
 
     // test Insert(0, T[])
@@ -110,23 +110,39 @@ public class CircularListTest
     Assert.AreEqual(0, circ.Count);
     list.Clear();
 
+    // test RemoveLast()
+    circ.MakeNonContiguous(oneToTen);
+    for(int i=oneToTen.Length-1; i >= 0; i--)
+    {
+      Assert.AreEqual(oneToTen[i], circ.RemoveLast());
+    }
+    Assert.AreEqual(0, circ.Count);
+
     // test RemoveFirst(T[])
     circ.Insert(0, oneToTen, 0, oneToTen.Length);
     int[] firstFive = new int[5];
     circ.RemoveFirst(firstFive, 0, 5);
-    
     CollectionHelpers.ArrayEquals(firstFive, 1, 2, 3, 4, 5);
     Compare(circ, 6, 7, 8, 9, 10);
 
     // test CopyTo
+    Array.Clear(firstFive, 0, firstFive.Length);
     circ.CopyTo(firstFive, 0);
     CollectionHelpers.ArrayEquals(firstFive, 6, 7, 8, 9, 10);
 
+    // test RemoveLast(T[])
+    circ.Clear();
+    circ.Insert(0, oneToTen, 0, oneToTen.Length);
+    int[] lastFive = new int[5];
+    circ.RemoveLast(lastFive, 0, 5);
+    CollectionHelpers.ArrayEquals(lastFive, 6, 7, 8, 9, 10);
+    Compare(circ, 1, 2, 3, 4, 5);
+
     // test RemoveRange()
     circ.RemoveRange(0, 2);
-    Compare(circ, 8, 9, 10);
+    Compare(circ, 3, 4, 5);
     circ.RemoveRange(circ.Count-2, 2);
-    Compare(circ, 8);
+    Compare(circ, 3);
 
     // test setter
     circ.Clear();
@@ -146,17 +162,16 @@ public class CircularListTest
 
     // test RemoveAt(int)
     circ.Clear();
-    circ.AddRange(1, 2, 3, 4, 5);
-    circ.RemoveAt(2);
-    Compare(circ, 1, 2, 4, 5);
-    circ.RemoveAt(0);
-    Compare(circ, 2, 4, 5);
-    circ.RemoveAt(circ.Count-1);
-    Compare(circ, 2, 4);
-
-    // test Remove(T)
-    circ.Clear();
     circ.AddRange(oneToTen);
+    circ.RemoveAt(2);
+    Compare(circ, 1, 2, 4, 5, 6, 7, 8, 9, 10);
+    circ.RemoveAt(0);
+    Compare(circ, 2, 4, 5, 6, 7, 8, 9, 10);
+    circ.RemoveAt(circ.Count-1);
+    Compare(circ, 2, 4, 5, 6, 7, 8, 9);
+
+    // test Remove(T) (and thus RemoveAt(int)) with a non-contiguous block
+    circ.MakeNonContiguous(oneToTen);
     Assert.IsTrue(circ.Remove(2));
     Assert.IsTrue(circ.Remove(4));
     Assert.IsTrue(circ.Remove(9));
@@ -222,7 +237,7 @@ public class CircularListTest
     circ.RemoveRange(2, 7);
     Compare(circ, 7, 8);
 
-    // bug: test CopyTo() when the list is empty
+    // test CopyTo() when the list is empty
     circ.Clear();
     circ.CopyTo(firstFive, 0);
 
@@ -277,6 +292,22 @@ public class CircularListTest
     circ.AddRange(oneToTen, 0, 5);
     circ.CopyTo(0, firstFive, 0, 5);
     CollectionHelpers.ArrayEquals(firstFive, 9, 10, 1, 2, 3);
+
+    // test IQueue<T> interface
+    circ.Clear();
+    IQueue<int> queue = circ;
+    // ... test addition
+    foreach(int i in oneToTen) queue.Add(i);
+    Assert.AreEqual(oneToTen.Length, queue.Count);
+    // ... test peeking and removal
+    foreach(int i in oneToTen)
+    {
+      Assert.AreEqual(i, queue.Peek());
+      Assert.AreEqual(i, queue.Dequeue());
+    }
+    Assert.AreEqual(0, queue.Count);
+
+    TestHelpers.TestEnumerator(queue);
   }
   #endregion
 
@@ -314,30 +345,15 @@ public class CircularListTest
     TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.Insert(0, array, 0, -1); }); // test bounds check inside Insert()
     TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.Insert(2, array, 0, 2); }); // test that insertion except from the beginning or end is disallowed
     TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.RemoveFirst(-1); }); // test simple bounds check inside RemoveFirst(int)
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.RemoveLast(-1); }); // test simple bounds check inside RemoveLast(int)
     TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.RemoveRange(-1, 6); }); // test the bounds check inside RemoveRange() for the "remove from end" case
     TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.RemoveRange(2, 2); }); // test that removal except from the beginning or end is disallowed
-
-    IEnumerator<int> e = circ.GetEnumerator();
-    TestHelpers.TestException<InvalidOperationException>(delegate() { int x = e.Current; }); // test that the enumerator will throw on BOF
-
-    for(int i=0; i<5; i++) Assert.IsTrue(e.MoveNext()); // move the enumerator to the end
-    Assert.AreEqual(5, e.Current);
-    Assert.IsFalse(e.MoveNext());
-
-    TestHelpers.TestException<InvalidOperationException>(delegate() { int x = e.Current; }); // test that the enumerator will throw on EOF
-    e.Reset();
-    TestHelpers.TestException<InvalidOperationException>(delegate() { int x = e.Current; }); // test that Current will throw after Reset()
-    Assert.IsTrue(e.MoveNext());
-    Assert.AreEqual(1, e.Current);
-
-    circ[2] = 4;
-
-    TestHelpers.TestException<InvalidOperationException>(delegate() { e.MoveNext(); }); // test that the enumerator throws when the collection is modified
 
     circ.Clear();
     circ.RemoveFirst(0); // test count == 0 case for removefirst
 
     TestHelpers.TestException<InvalidOperationException>(delegate() { circ.RemoveFirst(); }); // test that the list can't be underflowed
+    TestHelpers.TestException<InvalidOperationException>(delegate() { circ.RemoveLast(); }); // test that the list can't be underflowed
     TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ = new MyCircularList<int>(-5); }); // test the negative capacity check
   }
   #endregion

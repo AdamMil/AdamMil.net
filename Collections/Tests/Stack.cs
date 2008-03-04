@@ -19,20 +19,24 @@ public class StackTest
 
     TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { queue = new Stack<int>(-10); });
 
-    queue = new Stack<int>();
+    queue = new Stack<int>(4); // use a small capacity to force a resize
     Assert.IsFalse(queue.IsReadOnly);
 
     TestHelpers.TestException<InvalidOperationException>(delegate() { queue.Dequeue(); });
     TestHelpers.TestException<InvalidOperationException>(delegate() { queue.Peek(); });
+    TestHelpers.TestEnumerator(queue);
 
+    // test basic addition and removal
     List<int> list = new List<int>(numbers);
     AddItems(queue, numbers);
     Assert.AreEqual(queue.Peek(), 9);
     ReversedDequeue(queue, list);
 
+    // test Count
     AddItems(queue, numbers);
     Assert.AreEqual(queue.Count, numbers.Length);
 
+    // test CopyTo
     list = new List<int>(numbers);
     list.Reverse();
     int[] array = new int[queue.Count+5];
@@ -41,20 +45,37 @@ public class StackTest
     queue.CopyTo(array, 5);
     for(int i=0; i<list.Count; i++) Assert.AreEqual(array[i+5], list[i]);
 
+    // test indexer
+    for(int i=0; i<numbers.Length; i++) Assert.AreEqual(numbers[i], queue[i]);
+    int original = queue.Peek();
+    queue[queue.Count-1] = ~original;
+    Assert.AreEqual(~original, queue.Peek());
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { int x = queue[-1]; });
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { int x = queue[queue.Count]; });
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { queue[-1] = 0; });
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { queue[queue.Count] = 0; });
+
+    // test Capacity
     queue.Capacity = 20;
     Assert.AreEqual(20, queue.Capacity);
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { queue.Capacity = 1; });
 
+    // test TrimExcess
     queue.TrimExcess();
     Assert.AreEqual(numbers.Length, queue.Capacity);
 
+    // test Contains
+    queue.Clear();
+    AddItems(queue, numbers);
     foreach(int i in numbers) Assert.IsTrue(queue.Contains(i));
     Assert.IsFalse(queue.Contains(20));
 
+    // test Remove
     list = new List<int>(numbers);
     TestRemove(queue, list, 7, 8, 9);
-
     Assert.IsFalse(((ICollection<int>)queue).Remove(20));
 
+    // test Clear
     queue.Clear();
     Assert.AreEqual(0, queue.Count);
   }

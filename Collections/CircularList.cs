@@ -46,11 +46,10 @@ public class CircularList<T> : IList<T>, IQueue<T>
 
     public bool MoveNext()
     {
-      if(list.version != myVersion) throw new InvalidOperationException("The collection has been modified.");
-
-      if(index == list.count-1 || list.count == 0)
+      AssertNotModified();
+      if(index >= list.count-1)
       {
-        index = list.count;
+        index = list.count; // ensure that Current will throw if used again
         return false;
       }
 
@@ -60,8 +59,14 @@ public class CircularList<T> : IList<T>, IQueue<T>
 
     public void Reset()
     {
+      AssertNotModified();
       index = -1;
       item  = default(T);
+    }
+
+    void AssertNotModified()
+    {
+      if(list.version != myVersion) throw new InvalidOperationException("The collection has been modified.");
     }
 
     object System.Collections.IEnumerator.Current
@@ -191,6 +196,7 @@ public class CircularList<T> : IList<T>, IQueue<T>
     T item = array[tail];
     array[MoveTail()] = default(T);
     count--;
+    OnModified();
     return item;
   }
 
@@ -232,6 +238,57 @@ public class CircularList<T> : IList<T>, IQueue<T>
     RemoveFirst(count);
   }
 
+  /// <summary>Removes the last item from the circular list and returns it.</summary>
+  public T RemoveLast()
+  {
+    if(count == 0) throw new InvalidOperationException("The collection is empty.");
+    if(--head < 0) head += array.Length;
+    T item = array[head];
+    array[head] = default(T);
+    count--;
+    OnModified();
+    return item;
+  }
+
+  /// <summary>Removes and discards the last <paramref name="count"/> items from the list.</summary>
+  public void RemoveLast(int count)
+  {
+    if(count < 0) throw new ArgumentOutOfRangeException();
+
+    if(count != 0)
+    {
+      int newHead = head - count;
+      if(newHead < 0 && head != 0) // if the data to remove was split...
+      {
+        head = newHead + array.Length;
+        if(mustClear)
+        {
+          Array.Clear(array, head, -newHead);
+          Array.Clear(array, 0, count+newHead);
+        }
+      }
+      else if(mustClear)
+      {
+        head = newHead;
+        if(head < 0) head += array.Length;
+        Array.Clear(array, head, count);
+      }
+
+      this.count -= count;
+      OnModified();
+    }
+  }
+
+  /// <summary>Removes the last <paramref name="count"/> items from the circular list and copies them to an array.</summary>
+  /// <param name="array">The array to which the items should be copied.</param>
+  /// <param name="index">The index into <paramref name="array"/> to which the items will be copied.</param>
+  /// <param name="count">The number of items to copy.</param>
+  public void RemoveLast(T[] array, int index, int count)
+  {
+    CopyTo(this.count-count, array, index, count);
+    RemoveLast(count);
+  }
+
   /// <summary>Removes a range of items from the list.</summary>
   /// <param name="index">The index of the first item to remove.</param>
   /// <param name="count">The number of items to remove.</param>
@@ -241,54 +298,33 @@ public class CircularList<T> : IList<T>, IQueue<T>
   /// </remarks>
   public void RemoveRange(int index, int count)
   {
-    if(index == 0)
+    if(index == 0) // if removing from the beginning
     {
       RemoveFirst(count);
-      return;
     }
-    else if(index == this.count-count)
+    else if(index == this.count-count) // if removing from the end
     {
-      if(count < 0 || index < 0) throw new ArgumentOutOfRangeException();
-
-      if(count != 0)
-      {
-        int newHead = head - count;
-        if(newHead < 0 && head != 0) // if the data to remove was split...
-        {
-          head = newHead + array.Length;
-          if(mustClear)
-          {
-            Array.Clear(array, head, -newHead);
-            Array.Clear(array, 0, count+newHead);
-          }
-        }
-        else if(mustClear)
-        {
-          head = newHead;
-          if(head < 0) head += array.Length;
-          Array.Clear(array, head, count);
-        }
-
-        this.count -= count;
-        OnModified();
-      }
+      if(index < 0) throw new ArgumentOutOfRangeException();
+      RemoveLast(count);
     }
     else if(count == 1) // we'll implement the special case of count == 1 so that RemoveAt(int) and Remove(T) work
     {
       int rawIndex = GetRawIndex(index);
       this.count--;
-      if(rawIndex < head) // if the data's contiguous or the index is within the left block, shift the head data left.
-      {                   // TODO: this can be optimized by choosing the smallest chunk to shift.
-        Array.Copy(array, rawIndex+1, array, rawIndex, this.count-index);
-        array[--head] = default(T);
-      }
-      else // the data is split and we're removing from the right block. we'll have to shift data from the left into it
-      {
+
+      if(head <= tail && rawIndex >= tail && head != 0) // this is the tricky case. the data is split and we're
+      {                               // removing from the right block and we have to shift data from the left into it
         Array.Copy(array, rawIndex+1, array, rawIndex, array.Length-rawIndex-1);
         array[array.Length-1] = array[0];
         Array.Copy(array, 1, array, 0, --head);
-        array[head] = default(T);
       }
+      else // the data's contiguous or the index is within the left block, so we can just shift the head data left.
+      {    // TODO: this can be optimized by choosing the smallest chunk to shift.
+        Array.Copy(array, rawIndex+1, array, rawIndex, this.count-index);
+        if(--head < 0) head += array.Length;
+      }
+      array[head] = default(T);
+      OnModified();
     }
     else
     {

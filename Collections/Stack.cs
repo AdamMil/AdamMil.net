@@ -164,7 +164,8 @@ public sealed class Stack<T> : IQueue<T>
   {
     public Enumerator(Stack<T> stack)
     {
-      this.stack = stack;
+      this.stack   = stack;
+      this.version = stack.version;
       Reset();
     }
 
@@ -179,9 +180,9 @@ public sealed class Stack<T> : IQueue<T>
 
     public bool MoveNext()
     {
-      if(version != stack.version) throw new InvalidOperationException();
-      if(index == count) return false;
-      if(++index == count)
+      AssertNotModified();
+      if(index == -1) return false;
+      if(--index == -1)
       {
         current = default(T);
         return false;
@@ -195,9 +196,14 @@ public sealed class Stack<T> : IQueue<T>
 
     public void Reset()
     {
-      version = stack.version;
-      count   = -1;
+      AssertNotModified();
+      count   = stack.count;
       index   = count;
+    }
+
+    void AssertNotModified()
+    {
+      if(version != stack.version) throw new InvalidOperationException("The collection has been modified.");
     }
 
     object System.Collections.IEnumerator.Current
