@@ -46,13 +46,6 @@ public sealed class PriorityQueue<T> : IQueue<T>
     this.array     = new T[capacity == 0 ? 16 : capacity];
   }
 
-  PriorityQueue(T[] array, int count, IComparer<T> comparer)
-  {
-    this.array = array;
-    this.count = count;
-    this.cmp   = comparer;
-  }
-
   /// <summary>Gets or sets the number of elements that the internal array can contain.</summary>
   public int Capacity
   {
@@ -180,7 +173,10 @@ public sealed class PriorityQueue<T> : IQueue<T>
   {
     public Enumerator(PriorityQueue<T> queue)
     {
-      this.queue = queue;
+      this.queue   = queue;
+      this.version = queue.version;
+      array = new T[queue.count];
+      queue.CopyTo(array, 0);
       Reset();
     }
 
@@ -195,16 +191,19 @@ public sealed class PriorityQueue<T> : IQueue<T>
 
     public bool MoveNext()
     {
-      if(version != queue.version) throw new InvalidOperationException();
+      AssertNotModified();
       return index == array.Length ? false : ++index < array.Length;
     }
 
     public void Reset()
     {
-      version = queue.version;
-      index   = -1;
-      if(array == null || array.Length != queue.count) array = new T[queue.count];
-      queue.CopyTo(array, 0);
+      AssertNotModified();
+      index = -1;
+    }
+
+    void AssertNotModified()
+    {
+      if(version != queue.version) throw new InvalidOperationException();
     }
 
     object System.Collections.IEnumerator.Current

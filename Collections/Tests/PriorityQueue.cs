@@ -21,19 +21,33 @@ public class PriorityQueueTest
     TestHelpers.TestException<ArgumentNullException>(delegate() { queue = new PriorityQueue<int>(null, 10); });
     TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { queue = new PriorityQueue<int>(-10); });
 
-    queue = new PriorityQueue<int>();
-    Assert.IsFalse(queue.IsReadOnly);
+    queue = new PriorityQueue<int>(4); // set a small capacity to ensure that the queue will be resized
+    Assert.IsFalse(queue.IsReadOnly); // test IsReadOnly
 
-    TestHelpers.TestException<InvalidOperationException>(delegate() { queue.Dequeue(); });
+    TestHelpers.TestException<InvalidOperationException>(delegate() { queue.Dequeue(); }); // don't allow underflow
     TestHelpers.TestException<InvalidOperationException>(delegate() { queue.Peek(); });
+    TestHelpers.TestEnumerator(queue);
 
+    // test addition
     List<int> list = new List<int>(numbers);
     AddItems(queue, numbers);
     Assert.AreEqual(queue.Peek(), 9);
     SortedDequeue(queue, list);
 
+    // test enumerator
+    queue.Enqueue(1);
+    IEnumerator<int> e = queue.GetEnumerator();
+    Assert.IsTrue(e.MoveNext());
+    Assert.AreEqual(1, e.Current);
+    queue.Enqueue(2);
+    TestHelpers.TestException<InvalidOperationException>(delegate() { e.MoveNext(); }); // ensure MoveNext throws if the queue was modified
+    queue.Clear();
+
+    // test Count
     AddItems(queue, numbers);
     Assert.AreEqual(queue.Count, numbers.Length);
+
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { queue.Capacity = 1; }); // don't allow insufficient capacities
 
     list = new List<int>(numbers);
     list.Sort();
@@ -71,7 +85,11 @@ public class PriorityQueueTest
   static void AddItems(PriorityQueue<int> queue, IList<int> items)
   {
     int initialCount = queue.Count;
-    foreach(int i in items) queue.Enqueue(i);
+    foreach(int i in items)
+    {
+      if((i & 1) == 0) queue.Enqueue(i); // use Enqueue or Add interchangeably
+      else ((ICollection<int>)queue).Add(i);
+    }
     Assert.AreEqual(initialCount+items.Count, queue.Count);
   }
 
