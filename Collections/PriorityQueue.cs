@@ -17,7 +17,7 @@ namespace AdamMil.Collections
 /// </para>
 /// </remarks>
 [Serializable]
-public sealed class PriorityQueue<T> : IQueue<T>
+public sealed class PriorityQueue<T> : IQueue<T>, IReadOnlyCollection<T>
 {
   /// <summary>Initializes a new, empty instance of the <see cref="PriorityQueue"/> class, with a default capacity and
   /// using <see cref="Comparer.Default"/> to compare elements.
@@ -77,8 +77,8 @@ public sealed class PriorityQueue<T> : IQueue<T>
   }
 
   /// <summary>Adds an item to the queue.</summary>
-  /// <param name="value">The item to add to the queue.</param>
-  public void Enqueue(T value)
+  /// <param name="item">The item to add to the queue.</param>
+  public void Enqueue(T item)
   {
     if(count == Capacity) Capacity = count == 0 ? 16 : count*2;
     int i = count++, ip;
@@ -86,11 +86,11 @@ public sealed class PriorityQueue<T> : IQueue<T>
     while(i != 0) // heapify the array
     {
       ip = (i+1)/2-1;  // i=Parent(i)
-      if(cmp.Compare(array[ip], value)>=0) break;
+      if(cmp.Compare(array[ip], item)>=0) break;
       array[i] = array[ip];
       i = ip;
     }
-    array[i] = value;
+    array[i] = item;
 
     version++;
   }
@@ -132,12 +132,12 @@ public sealed class PriorityQueue<T> : IQueue<T>
   /// <param name="array">The one-dimensional <see cref="Array"/> that is the destination of the elements copied
   /// from the queue.
   /// </param>
-  /// <param name="startIndex">The zero-based index in array at which copying begins.</param>
+  /// <param name="arrayIndex">The zero-based index in array at which copying begins.</param>
   /// <remarks>The items in the array will be in the same order that they would be dequeued.</remarks>
-  public void CopyTo(T[] array, int startIndex)
+  public void CopyTo(T[] array, int arrayIndex)
   {
-    Array.Copy(this.array, 0, array, startIndex, count);
-    Array.Sort(array, startIndex, count, new ReversedComparer<T>(cmp));
+    Array.Copy(this.array, 0, array, arrayIndex, count);
+    Array.Sort(array, arrayIndex, count, new ReversedComparer<T>(cmp));
   }
   /// <summary>Removes an item from the queue.</summary>
   /// <param name="item">The item to remove.</param>

@@ -6,7 +6,7 @@ namespace AdamMil.Collections
 
 /// <summary>This class represents a stack, also known as a LIFO queue.</summary>
 [Serializable]
-public sealed class Stack<T> : IQueue<T>
+public sealed class Stack<T> : IQueue<T>, IReadOnlyList<T>
 {
   /// <summary>Initializes a new, empty instance of the <see cref="Stack"/> class, with a default capacity.</summary>
   public Stack() : this(0) { }
@@ -32,7 +32,7 @@ public sealed class Stack<T> : IQueue<T>
     else
     {
       array = new T[16];
-      foreach(T item in items) Enqueue(item);
+      foreach(T item in items) Push(item);
     }
   }
 
@@ -71,24 +71,12 @@ public sealed class Stack<T> : IQueue<T>
     }
   }
 
-  /// <summary>Removes and returns the element on top of the stack.</summary>
-  /// <exception cref="InvalidOperationException">Thrown if the collection is empty.</exception>
-  public T Dequeue()
+  /// <summary>Returns the index of the first item in the stack (starting from the bottom) that is equal to the given
+  /// value, or -1 if the item cannot be found.
+  /// </summary>
+  public int IndexOf(T item)
   {
-    if(count == 0) throw new InvalidOperationException("The collection is empty.");
-    T item = array[--count];
-    array[count] = default(T);
-    version++;
-    return item;
-  }
-
-  /// <summary>Adds an item to the stack.</summary>
-  /// <param name="value">The item to add to the stack.</param>
-  public void Enqueue(T value)
-  {
-    if(count == Capacity) Capacity = count == 0 ? 16 : count*2;
-    array[count++] = value;
-    version++;
+    return Array.IndexOf(array, item, 0, count);
   }
 
   /// <summary>Returns the element on top of the stack.</summary>
@@ -99,10 +87,44 @@ public sealed class Stack<T> : IQueue<T>
     return array[count-1];
   }
 
+  /// <summary>Removes and returns the element on top of the stack.</summary>
+  /// <exception cref="InvalidOperationException">Thrown if the collection is empty.</exception>
+  public T Pop()
+  {
+    if(count == 0) throw new InvalidOperationException("The collection is empty.");
+    T item = array[--count];
+    array[count] = default(T);
+    version++;
+    return item;
+  }
+
+  /// <summary>Adds an item to the stack.</summary>
+  /// <param name="item">The item to add to the stack.</param>
+  public void Push(T item)
+  {
+    if(count == Capacity) Capacity = count == 0 ? 16 : count*2;
+    array[count++] = item;
+    version++;
+  }
+
   /// <summary>Shrinks the capacity to the actual number of elements in the priority queue.</summary>
   public void TrimExcess() { Capacity = count; }
 
-  #region ICollection<>
+  /// <summary>Removes and returns the element on top of the stack.</summary>
+  /// <exception cref="InvalidOperationException">Thrown if the collection is empty.</exception>
+  T IQueue<T>.Dequeue()
+  {
+    return Pop();
+  }
+
+  /// <summary>Adds an item to the stack.</summary>
+  /// <param name="item">The item to add to the stack.</param>
+  void IQueue<T>.Enqueue(T item)
+  {
+    Push(item);
+  }
+
+  #region ICollection<T>
   /// <summary>Gets the number of elements contained in the stack.</summary>
   public int Count { get { return count; } }
   /// <summary>Gets a value indicating whether access to the stack is read-only.</summary>
@@ -111,7 +133,7 @@ public sealed class Stack<T> : IQueue<T>
   /// </remarks>
   public bool IsReadOnly { get { return false; } }
 
-  void ICollection<T>.Add(T item) { Enqueue(item); }
+  void ICollection<T>.Add(T item) { Push(item); }
   /// <summary>Removes all elements from the stack.</summary>
   public void Clear()
   {
@@ -127,12 +149,12 @@ public sealed class Stack<T> : IQueue<T>
   /// <param name="array">The one-dimensional <see cref="Array"/> that is the destination of the elements copied
   /// from the queue.
   /// </param>
-  /// <param name="startIndex">The zero-based index in array at which copying begins.</param>
+  /// <param name="arrayIndex">The zero-based index in array at which copying begins.</param>
   /// <remarks>The items in the array will be in the same order that they would be dequeued.</remarks>
-  public void CopyTo(T[] array, int startIndex)
+  public void CopyTo(T[] array, int arrayIndex)
   {
-    Array.Copy(this.array, 0, array, startIndex, count);
-    Array.Reverse(array, startIndex, count);
+    Array.Copy(this.array, 0, array, arrayIndex, count);
+    Array.Reverse(array, arrayIndex, count);
   }
   /// <summary>Removes an item from the stack.</summary>
   /// <param name="item">The item to remove.</param>
@@ -144,11 +166,6 @@ public sealed class Stack<T> : IQueue<T>
     array[count] = default(T); // remove the duplicated reference to the last item
     version++;
     return true;
-  }
-
-  int IndexOf(T item)
-  {
-    return Array.IndexOf(array, item, 0, count);
   }
   #endregion
 

@@ -4,11 +4,11 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProductVersion>8.0.50727</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{D9724C65-C54A-4671-BA0B-40B0B38464DD}</ProjectGuid>
+    <ProjectGuid>{72183DC2-7C98-4118-9264-FF7950851511}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>AdamMil.Collections</RootNamespace>
-    <AssemblyName>AdamMil.Collections</AssemblyName>
+    <RootNamespace>AdamMil.AI</RootNamespace>
+    <AssemblyName>AdamMil.AI</AssemblyName>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>AdamMil.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
@@ -20,9 +20,8 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <UseVSHostingProcess>true</UseVSHostingProcess>
-    <BaseAddress>5242880</BaseAddress>
-    <DocumentationFile>bin\Debug\AdamMil.Collections.xml</DocumentationFile>
+    <DocumentationFile>bin\Debug\AdamMil.AI.xml</DocumentationFile>
+    <NoWarn>419</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -31,20 +30,28 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <UseVSHostingProcess>true</UseVSHostingProcess>
-    <BaseAddress>5242880</BaseAddress>
-    <DocumentationFile>bin\Release\AdamMil.Collections.xml</DocumentationFile>
+    <DocumentationFile>bin\Release\AdamMil.AI.xml</DocumentationFile>
+    <NoWarn>419</NoWarn>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="AdversarialSearch.cs" />
+    <Compile Include="CSP.cs" />
+    <Compile Include="GraphSearch.cs" />
+    <Compile Include="LocalSearch.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Search.cs" />
+  </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CircularList.cs" />
-    <Compile Include="Interfaces.cs" />
-    <Compile Include="Miscellaneous.cs" />
-    <Compile Include="PriorityQueue.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Stack.cs" />
+    <ProjectReference Include="..\Collections\AdamMil.Collections.csproj">
+      <Project>{D9724C65-C54A-4671-BA0B-40B0B38464DD}</Project>
+      <Name>AdamMil.Collections</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="documentation.xml" />
   </ItemGroup>
   <ItemGroup>
     <None Include="AdamMil.snk" />

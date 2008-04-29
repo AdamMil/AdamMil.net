@@ -8,7 +8,8 @@ using System.Runtime.InteropServices;
 #else
 [assembly: AssemblyConfiguration("Release")]
 #endif
-[assembly: AssemblyCopyright("Copyright © Adam Milazzo 2007")]
+[assembly: AssemblyProduct("AdamMil.net")]
+[assembly: AssemblyCopyright("Copyright © Adam Milazzo 2007-2008")]
 
 [assembly: ComVisible(false)]
 

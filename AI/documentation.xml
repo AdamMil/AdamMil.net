@@ -1,0 +1,413 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<AI>
+  <CSP>
+    <typeparam name="VarType">
+      The type used to represent the values of the variables.
+    </typeparam>
+
+    <FiniteSolverBase>
+      <Search>
+        <param name="solution">
+          An <see cref="Assignment"/> that represents the mapping between variable indices and the values from the
+          variables' domains that are assigned to them.
+        </param>
+      </Search>
+    </FiniteSolverBase>
+
+    <INeighborList>
+      <Indexer>
+        <summary>
+          Given a variable index, returns an object that contains the indices of the variables connected to it by
+          constraints, ie, its neigbors.
+        </summary>
+        <remarks>
+          Because the returned collection has no methods for modifying it, it does not need to actually keep the
+          list of neighbors in memory, if they can be calculated on the fly. This allows some very large problems to be
+          represented in only a small amount of space.
+        </remarks>
+      </Indexer>
+    </INeighborList>
+  </CSP>
+  
+  <Search>
+    <typeparam name="ActionType">
+      The type of object used to represent actions that transition between states in the problem space. This is
+      specific to the problem being solved.
+    </typeparam>
+    <typeparam name="SolutionType">
+      The type of solution returned from the search. This depends on the type of search as well as the type of problem.
+    </typeparam>
+    <typeparam name="StateType">
+      The type of object used to represent a state in the problem space. This is specific to the problem being solved.
+    </typeparam>
+
+    <BidirectionalSearchDescription>
+      <remarks>
+        Bidirectional searching is not suitable for all problems, but can substantially reduce the search space
+        for some. The idea is that the total area of two equal-sized, barely-intersecting circles centered on the start
+        and goal states is less than the area of a single large circle that contains the start and goal states. The
+        circles in this case represent the area of the search space that needs to be examined before a path connecting
+        the initial state to the goal is found.
+      </remarks>
+    </BidirectionalSearchDescription>
+
+    <GameSearchBase>
+      <BeginIterativeDeepeningSearch>
+        <summary>Called at the beginning of an iterative deepening search.</summary>
+        <remarks>
+          Analogous to <see cref="IIterativeSearch{S,T}.BeginSearch(S)"/>, this method is used to set the class
+          up to begin searching. However, it is called before the entire iterative deepening search, which consists of
+          multiple standard searches with an incrementally larger depth limit. This method might be used, for instance,
+          to set up state about the search to be held between the iterations of the iterative deepening search, so that
+          one iteration can help tune the next. An example of this is dynamically reordering the states considered
+          during the search given the estimates of their utility obtained during the previous iteration.
+        </remarks>
+      </BeginIterativeDeepeningSearch>
+
+      <EndIterativeDeepeningSearch>
+        <summary>Called at the beginning of an iterative deepening search.</summary>
+        <remarks>
+          This method is used to free any state set up by <see cref="GameSearchBase{S,A}.BeginIterativeDeepeningSearch"/>.
+        </remarks>
+      </EndIterativeDeepeningSearch>
+      
+      <IterativeDeepeningSearch>
+        <summary>
+          Performs an iterative deepening search, which carries out multiple searches, increasing the depth limit
+          each time, and returns the result of the deepest completed search.
+        </summary>
+        <returns>
+          Returns the result of the search. If equal to <see cref="SearchResult.Success"/>, the search completed
+          and found the best move with certainty. If equal to <see cref="SearchResult.LimitReached"/>, the search
+          completed and found returned a move, but the move may not be the best move. If equal to
+          <see cref="SearchResult.Failed"/>, not even the shallowest search could be completed before the time limit
+          was up, and so solution was returned.
+        </returns>
+        <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/param[@name='solution']"/>
+      </IterativeDeepeningSearch>
+
+      <PerformSearch>
+        <summary>Called to perform the search.</summary>
+        <returns>
+          The method should return <see cref="SearchResult.Failed"/> if the search could not be completed because
+          the limiter caused it to abort, and only return <see cref="SearchResult.LimitReached"/> if the search completed
+          but was truncated due to the depth limit.
+        </returns>
+      </PerformSearch>
+      
+      <PrepareToStartSearch>
+        <summary>
+          Called before <see cref="IIterativeSearch{S,T}.BeginSearch(S)"/> to verify that the game is
+          compatible with the search.
+        </summary>
+        <remarks>If you override this method, note that it may be called multiple times before the search begins.</remarks>
+      </PrepareToStartSearch>
+    </GameSearchBase>
+
+    <GeneticAlgorithm>
+      <Constructor>
+        <param name="problem">
+          An <see cref="IGeneticallySearchable{S}"/> object representing the problem to be solved by the genetic
+          algorithm search. If the problem also implements <cref see="IClimbingSearchable{S}"/>, the additional
+          capabilities can to add successors of the initial state to the initial population.
+        </param>
+        <param name="populationSize">
+          The size of the population. A number of states equal to this value will be maintained, and on each iteration,
+          a new generation of the population will be calculated by combining states from the best members of the
+          previous generation.
+        </param>
+      </Constructor>
+    </GeneticAlgorithm>
+
+    <GraphSearchDescription>
+      <remarks>
+        A graph search traverses the problem space systematically, starting from a known initial state and
+        selecting successor nodes until a goal state is found. The goal of a graph search is to find a path from the
+        initial state to a goal state, and to return the path. Therefore, graph searches are best suited to problems
+        where the destination is generally known, and it's the path to get there that's most important.
+      </remarks>
+    </GraphSearchDescription>
+
+    <GraphSearchBase>
+      <BidirectionalSearch>
+        <summary>Performs a bidirectional search using a default initial state and running to its conclusion.</summary>
+        <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/param[@name='solution']"/>
+        <include file="documentation.xml" path="/AI/Search/GraphSearchBase/BidirectionalSearchRemarks/*"/>
+      </BidirectionalSearch>
+
+      <BidirectionalSearch_State>
+        <summary>Performs a bidirectional search using the given initial state and running to its conclusion.</summary>
+        <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/param[@name='solution']"/>
+        <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/param[@name='initialState']"/>
+        <include file="documentation.xml" path="/AI/Search/GraphSearchBase/BidirectionalSearchRemarks/*"/>
+      </BidirectionalSearch_State>
+
+      <BidirectionalSearchRemarks>
+        <remarks>This method is not supported for all search types and all problems.</remarks>
+        <exception cref="InvalidOperationException">
+          Thrown if:
+          <para>A search is already in progress, or</para>
+          <para>The problem does not support bidirectional search.</para>
+        </exception>
+      </BidirectionalSearchRemarks>
+    </GraphSearchBase>
+
+    <HillClimbingSearch>
+      <Constructor>
+        <param name="problem">The problem to be solved by hill-climbing search.</param>
+        <param name="maxSidewaysMoves">
+          The initial value of <see cref="MaxSidewaysMoves"/>.
+        </param>
+      </Constructor>
+    </HillClimbingSearch>
+
+    <IBidirectionalGraphSearch>
+      <BidirectionalSearch>
+        <summary>
+          Performs a bidirectional search using a default initial state and running to its conclusion, or until
+          the limit is reached.
+        </summary>
+      </BidirectionalSearch>
+
+      <BidirectionalSearch_State>
+        <summary>
+          Performs a bidirectional search using the given initial state and running to its conclusion, or until
+          the limit is reached.
+        </summary>
+      </BidirectionalSearch_State>
+    </IBidirectionalGraphSearch>
+
+    <IGraphSearch>
+      <EliminateDuplicateStates>
+        <summary>Gets or sets whether the search should eliminate duplicate states.</summary>
+        <remarks>
+          Enabling this option impacts both speed and memory usage by requiring all visited nodes to be kept in
+          memory, and all new nodes to be checked against the visited nodes. It should be enabled for
+          depth-first search in a graph with cycles, to prevent the search from going into an infinite loop. It is not
+          strictly required for breadth-first searches or cost-based searches where all action costs are positive, but
+          can greatly improve performance if there are many cycles in the graph. (Problems where actions are reversible
+          have an especially large number of cycles.) If the search space is a tree, this option should always be
+          disabled. This property cannot be changed while a search is in progress. The default value is false.
+        </remarks>
+        </EliminateDuplicateStates>
+    </IGraphSearch>
+
+    <IIterativeSearch>
+      <SearchInProgress>
+        <summary>Gets whether a search is currently in progress.</summary>
+        <remarks>
+          A search is in progress starting when <see cref="IIterativeSearch{T,S}.BeginSearch"/> is called and ends when
+          <see cref="IIterativeSearch{T,S}.EndSearch"/> is called.
+        </remarks>
+      </SearchInProgress>
+
+      <BeginSearchCommon>
+        <returns>
+          Returns the initial solution value, which should be passed to <see cref="IIterativeSearch{S,T}.Iterate"/>
+          to update the solution until the search completes. The solution is not guaranteed to be valid until the
+          search has completed.
+        </returns>
+        <remarks>An exception will be thrown if a search is already in progress.</remarks>
+      </BeginSearchCommon>
+
+      <BeginSearch>
+        <summary>Begins a new search with a default initial state.</summary>
+        <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearchCommon/*"/>
+      </BeginSearch>
+
+      <BeginSearch_State>
+        <summary>Begins a new search using the given initial state.</summary>
+        <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearchCommon/*"/>
+      </BeginSearch_State>
+
+      <AbortSearch>
+        <summary>Ends the current search.</summary>
+        <remarks>
+          The resources used by the search are kept in memory until EndSearch is called or the search object is
+          garbage collected, to allow you to query the search object about the final state of the search. For instance,
+          you can query the final population of a <see cref="GeneticAlgorithmSearch{S}" /> after the search completes.
+          You can also use this method to abort a search before it has completed, but this only works on searches that
+          are done piecewise using <see cref="IIterativeSearch{S,T}.BeginSearch" /> and
+          <see cref="IIterativeSearch{S,T}.Iterate" />. Don't attempt to call it from another thread to abort a search
+          like <see cref="SearchBase{S,T}.Search" />. An exception will be thrown if no search is currently in
+          progress.
+        </remarks>
+      </AbortSearch>
+
+      <Iterate>
+        <summary>Continues a search in progress.</summary>
+        <param name="solution">
+          A variable that will be updated with the solution to the problem when the search
+          completes. For some types of searches (local searches in particular), it may be available earlier, although
+          it won't be final until the search has completed.
+        </param>
+        <returns>
+          The result so far. This will be <see cref="SearchResult.Pending"/> if the search is not complete or
+          another value if the search has finished.
+        </returns>
+        <remarks>
+          After a search has completed, you must still call <see cref="IIterativeSearch{S,T}.EndSearch"/> to free all
+          of the search state. An exception will be thrown if a search is not in progress.
+        </remarks>
+      </Iterate>
+    </IIterativeSearch>
+
+    <ISearch>
+      <SearchCommon>
+        <param name="limiter">
+          If specified, this parameter places a limit on the search, forcing it to abort after the
+          limit is reached. An example is <see cref="TimeLimiter"/>, which places a time limit on the search. If null,
+          the search will be allowed to run until it completes with no artificial limits.
+        </param>
+        <param name="solution">A variable that receives the solution, if one was found.</param>
+        <returns>Returns a value indicating whether the search found a solution or not.</returns>
+      </SearchCommon>
+
+      <Search>
+        <summary>
+          Searches using a default initial state, and running until the search completes or reaches the given limit.
+        </summary>
+        <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*"/>
+      </Search>
+      
+      <Search_State>
+        <summary>
+          Searches using the given initial state, and running until the search completes or reaches the given limit.
+        </summary>
+        <param name="initialState">The initial state used in the search.</param>
+        <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*"/>
+      </Search_State>
+    </ISearch>
+
+    <IterativeSearchBase>
+      <ResetSearch>
+        <summary>Frees all data associated with the current search, if any.</summary>
+        <remarks>
+          This method should not throw an exception if called when a search is not in progress, or if called
+          multiple times.
+        </remarks>
+      </ResetSearch>
+
+    </IterativeSearchBase>
+
+    <LocalSearchBase>
+      <Search>
+        <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/summary"/>
+        <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*[@name != 'solution']"/>
+        <param name="initialSolution">
+          The initial state used in the solution, and the value that will be updated with
+          the final solution after the search completes.
+        </param>
+      </Search>
+    </LocalSearchBase>
+    
+    <SearchBase>
+      <Search_Timeout>
+        <param name="msTimeLimit">
+          The maximum time the search is allowed to run, in milliseconds. If equal to
+          <see cref="SearchBase.Infinite"/>, there is no time limit.
+        </param>
+        <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*[@name != 'limiter']"/>
+      </Search_Timeout>
+
+      <Search_State_Limit>
+        <summary>Performs a search using the given initial state and running to its conclusion or until the time limit
+          expires.
+        </summary>
+        <include file="documentation.xml" path="/AI/Search/SearchBase/Search/*"/>
+      </Search_State_Limit>
+    </SearchBase>
+
+    <SearchLimiter>
+      <LimitReached>
+        <summary>Gets whether the limit was reached.</summary>
+      </LimitReached>
+
+      <Start>
+        <summary>Called when the search starts running.</summary>
+      </Start>
+    </SearchLimiter>
+    
+    <SimulatedAnnealing>
+      <Constructor>
+        <param name="problem">The problem to be solved by simulated annealing. This must implement
+          <cref see="ILocallySearchable{S}"/>, and if the it also implements <cref see="IClimbingSearchable{S}"/>,
+          the additional capabilities can be used to allow quenching the final solution.
+        </param>
+        <param name="quench">The default value for <see cref="Quench"/>.</param>
+      </Constructor>
+
+      <ConstructorI>
+        <param name="startTemperature">
+          The initial temperature of the annealing process. The annealing schedule is an
+          exponential schedule created by <see cref="SimulatedAnnealingSearch.MakeExponentialSchedule"/> with the
+          ending temperature set to one-fiftieth of the starting temperature.
+        </param>
+        <param name="iterations">
+          The maximum number of iterations to run the search. The search will finish early if a
+          satisfactory state is found before the maximum number of iterations have been completed.
+        </param>
+        <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/Constructor/*[@name != 'quench']"/>
+      </ConstructorI>
+
+      <ConstructorD>
+        <param name="schedule">The initial value of <see cref="Schedule"/>.</param>
+        <param name="tunneler">The initial value of <see cref="Tunneler"/>.</param>
+        <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/Constructor/*[@name != 'quench']"/>
+      </ConstructorD>
+
+      <Tunneling>
+        Tunneling is a method of making the search less likely to get stuck on non-optimal local maxima. The tunneling
+        operation implemented here works by transforming states' fitness values according to a tunneling function. Since
+        the use of tunneling warps the fitness values, it may necessitate adjustments to the search's acceptance
+        criteria. (For instance, STUN tunneling with simulated annealing may require a different annealing schedule.)
+      </Tunneling>
+
+      <STUN>
+        <para>
+          STUN is a tunneling transform invented by Wenzel and Hamacher (1999) and slightly extended here.
+          STUN (as implemented here) compresses the entire region of the search space that's worse than the highest known
+          maximum into the interval [-1,0] (due to the fact that exp(x) is in (0,1) for all x&lt;0), while amplifying
+          all regions greater than the known highest maximum (due to exp(x) > x for all x > 0). This allows high local
+          maxima that are known to be nonoptimal to be flattened into a small region, helping to prevent the search from
+          getting stuck on them.
+        </para>
+        <para>
+          The standard formulation of STUN takes a single tuning parameter, gamma, and produces the fitness value
+          <c>1 - exp(gamma * (f(s) - best))</c> where <c>f(x)</c> is the original fitness value for state <c>s</c> and
+          <c>best</c> is the best known fitness value. In this implementation, we've reversed the transformation (because
+          the original formulation is for finding minima, while we're finding maxima). We've also added a slight
+          extension that allows gamma to take on different values depending on whether <c>f(s) - best</c> is negative or
+          not, thus allowing the amplifying effects of the exponential function to be scaled separately from the
+          compressing effects.
+        </para>
+        <para>
+          The tuning parameter, gamma, will need to be adjusted for each problem based on the variance in fitness values.
+          If the variance in fitness values is high, care must be taken to ensure that the attenuation properly flattens
+          out known non-optimal maxima while not overly-amplifying unknown maxima (and creating insurmountable peaks).
+          If the variance in fitness values is low, care must be taken to ensure that there is sufficient contrast
+          between the portion of the space being amplified and the portion being compressed.
+        </para>
+        <para>
+          When STUN is used with simulated annealing, the annealing schedule will most likely need to be altered to
+          account for the increased ratio of the magnitudes of uphill movements to downhill movements. (Since downhill
+          movements from the best known state can be at most 1.0, while uphill movements can be infinite.) It may help
+          to use
+        </para>
+        <para>
+          See http://en.wikipedia.org/wiki/Stochastic_tunneling and
+          http://iwrwww1.fzk.de/biostruct/Opti/stun.htm for more details.
+        </para>
+      </STUN>
+    </SimulatedAnnealing>
+    
+    <SingleQueueSearchBase>
+      <InitializeSearch>
+        <summary>
+          Called by <see cref="GraphSearchBase{S,A}.BeginSearch"/> and
+          <see cref="GraphSearchBase{S,A}.BeginBidirectionalSearch"/> to initialize variables needed by the search.
+        </summary>
+      </InitializeSearch>
+    </SingleQueueSearchBase>
+  </Search>
+</AI>
