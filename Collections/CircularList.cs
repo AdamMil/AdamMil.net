@@ -5,7 +5,7 @@ namespace AdamMil.Collections
 {
 
 /// <summary>Represents a circular list, which can also be used as a FIFO queue.</summary>
-public class CircularList<T> : IList<T>, IQueue<T>
+public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
 {
   public CircularList() : this(0, true) { }
   public CircularList(int capacity) : this(capacity, true) { }
@@ -165,8 +165,8 @@ public class CircularList<T> : IList<T>, IQueue<T>
 
   /// <summary>Inserts data into the list.</summary>
   /// <param name="destIndex">The index at which the data will be inserted.</param>
-  /// <param name="array">An array containing the data to insert.</param>
-  /// <param name="sourceIndex">The index into <paramref name="array"/> from which data will be read.</param>
+  /// <param name="items">An array containing the data to insert.</param>
+  /// <param name="sourceIndex">The index into <paramref name="items"/> from which data will be read.</param>
   /// <param name="count">The number of items to copy.</param>
   /// <remarks>With the current implementation, you can only insert items at the start or end of the list, so
   /// <paramref name="index"/> must be equal to zero or <see cref="Count"/>.
