@@ -107,6 +107,14 @@ public sealed class Stack<T> : IQueue<T>, IReadOnlyList<T>
     version++;
   }
 
+  /// <summary>Returns an array containing all of the items in the stack.</summary>
+  public T[] ToArray()
+  {
+    T[] array = new T[Count];
+    CopyTo(array, 0);
+    return array;
+  }
+
   /// <summary>Shrinks the capacity to the actual number of elements in the priority queue.</summary>
   public void TrimExcess() { Capacity = count; }
 

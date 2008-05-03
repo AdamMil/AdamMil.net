@@ -104,6 +104,14 @@ public sealed class PriorityQueue<T> : IQueue<T>, IReadOnlyCollection<T>
     return array[0];
   }
 
+  /// <summary>Returns an array containing all of the items in the queue.</summary>
+  public T[] ToArray()
+  {
+    T[] array = new T[Count];
+    CopyTo(array, 0);
+    return array;
+  }
+
   /// <summary>Shrinks the capacity to the actual number of elements in the priority queue.</summary>
   public void TrimExcess() { Capacity = count; }
 
