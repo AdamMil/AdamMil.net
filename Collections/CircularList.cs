@@ -332,6 +332,14 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
     }
   }
 
+  /// <summary>Returns an array containing all of the items in the list.</summary>
+  public T[] ToArray()
+  {
+    T[] array = new T[Count];
+    CopyTo(array, 0);
+    return array;
+  }
+
   /// <summary>Sets the capacity of the list to the number of items it currently contains.</summary>
   public void TrimExcess()
   {
