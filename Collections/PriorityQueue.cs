@@ -6,37 +6,37 @@ namespace AdamMil.Collections
 
 /// <summary>This class represents a priority queue.</summary>
 /// <remarks>
-/// <para>A priority queue works like a standard <see cref="Queue"/>, except that the items are ordered by a
+/// <para>A priority queue works like a standard <see cref="Queue{T}"/>, except that the items are ordered by a
 /// predicate. The item with the highest priority will always be dequeued first. The object with the highest priority
-/// is the object with the greatest value, as determined by the <see cref="IComparer"/> used to initialize the queue.
-/// Multiple objects with the same priority can be added to the queue.
+/// is the object with the greatest value, as determined by the <see cref="IComparer{T}"/> used to initialize the
+/// queue. Multiple objects with the same priority can be added to the queue.
 /// </para>
 /// <para>The priority queue is implemented using a heap, which is a very efficient array structure that makes finding
-/// the highest priority item very fast (an O(1) operation), but makes finding the lowest priority item rather
-/// slow (an O(n) operation).
+/// the highest priority item very fast (an O(1) operation), but makes finding the lowest priority item rather slow (an
+/// O(n) operation).
 /// </para>
 /// </remarks>
 [Serializable]
 public sealed class PriorityQueue<T> : IQueue<T>, IReadOnlyCollection<T>
 {
-  /// <summary>Initializes a new, empty instance of the <see cref="PriorityQueue"/> class, with a default capacity and
-  /// using <see cref="Comparer.Default"/> to compare elements.
+  /// <summary>Initializes a new, empty instance of the <see cref="PriorityQueue{T}"/> class, with a default capacity
+  /// and using <see cref="Comparer{T}.Default"/> to compare elements.
   /// </summary>
   public PriorityQueue() : this(Comparer<T>.Default, 0) { }
-  /// <summary>Initializes a new, empty instance of the <see cref="PriorityQueue"/> class, with the specified capacity
-  /// and using <see cref="Comparer.Default"/> to compare elements.
+  /// <summary>Initializes a new, empty instance of the <see cref="PriorityQueue{T}"/> class, with the specified
+  /// capacity and using <see cref="Comparer{T}.Default"/> to compare elements.
   /// </summary>
   /// <param name="capacity">The initial capacity of the queue.</param>
   public PriorityQueue(int capacity) : this(Comparer<T>.Default, capacity) { }
-  /// <summary>Initializes a new, empty instance of the <see cref="PriorityQueue"/> class, with a default capacity
-  /// and using the specified <see cref="IComparer"/> to compare elements.
+  /// <summary>Initializes a new, empty instance of the <see cref="PriorityQueue{T}"/> class, with a default capacity
+  /// and using the specified <see cref="IComparer{T}"/> to compare elements.
   /// </summary>
-  /// <param name="comparer">The <see cref="IComparer"/> that will be used to compare elements.</param>
+  /// <param name="comparer">The <see cref="IComparer{T}"/> that will be used to compare elements.</param>
   public PriorityQueue(IComparer<T> comparer) : this(comparer, 0) { }
-  /// <summary>Initializes a new, empty instance of the <see cref="PriorityQueue"/> class, with the specified capacity
-  /// and using the given <see cref="IComparer"/> to compare elements.
+  /// <summary>Initializes a new, empty instance of the <see cref="PriorityQueue{T}"/> class, with the specified
+  /// capacity and using the given <see cref="IComparer{T}"/> to compare elements.
   /// </summary>
-  /// <param name="comparer">The <see cref="IComparer"/> that will be used to compare elements.</param>
+  /// <param name="comparer">The <see cref="IComparer{T}"/> that will be used to compare elements.</param>
   /// <param name="capacity">The initial capacity of the queue.</param>
   public PriorityQueue(IComparer<T> comparer, int capacity)
   {
@@ -119,8 +119,8 @@ public sealed class PriorityQueue<T> : IQueue<T>, IReadOnlyCollection<T>
   /// <summary>Gets the number of elements contained in the priority queue.</summary>
   public int Count { get { return count; } }
   /// <summary>Gets a value indicating whether access to the queue is read-only.</summary>
-  /// <remarks>See the <see cref="ICollection.IsReadOnly"/> property for more information.
-  /// <seealso cref="ICollection.IsReadOnly"/>
+  /// <remarks>See the <see cref="ICollection{T}.IsReadOnly"/> property for more information.
+  /// <seealso cref="ICollection{T}.IsReadOnly"/>
   /// </remarks>
   public bool IsReadOnly { get { return false; } }
 

@@ -8,16 +8,16 @@ namespace AdamMil.Collections
 [Serializable]
 public sealed class Stack<T> : IQueue<T>, IReadOnlyList<T>
 {
-  /// <summary>Initializes a new, empty instance of the <see cref="Stack"/> class, with a default capacity.</summary>
+  /// <summary>Initializes a new, empty instance of the <see cref="Stack{T}"/> class, with a default capacity.</summary>
   public Stack() : this(0) { }
-  /// <summary>Initializes a new, empty instance of the <see cref="Stack"/> class, with the specified capacity.</summary>
+  /// <summary>Initializes a new, empty instance of the <see cref="Stack{T}"/> class, with the specified capacity.</summary>
   /// <param name="capacity">The initial capacity of the stack.</param>
   public Stack(int capacity)
   {
     if(capacity < 0) throw new ArgumentOutOfRangeException("capacity", capacity, "capacity must not be negative");
     this.array = new T[capacity == 0 ? 16 : capacity];
   }
-  /// <summary>Initializes a new instance of the <see cref="Stack"/> class, filled with items from the given object.</summary>
+  /// <summary>Initializes a new instance of the <see cref="Stack{T}"/> class, filled with items from the given object.</summary>
   /// <param name="items">An <see cref="IEnumerable{T}"/> containing objects to add to the stack.</param>
   public Stack(IEnumerable<T> items)
   {
@@ -136,8 +136,8 @@ public sealed class Stack<T> : IQueue<T>, IReadOnlyList<T>
   /// <summary>Gets the number of elements contained in the stack.</summary>
   public int Count { get { return count; } }
   /// <summary>Gets a value indicating whether access to the stack is read-only.</summary>
-  /// <remarks>See the <see cref="ICollection.IsReadOnly"/> property for more information.
-  /// <seealso cref="ICollection.IsReadOnly"/>
+  /// <remarks>See the <see cref="ICollection{T}.IsReadOnly"/> property for more information.
+  /// <seealso cref="ICollection{T}.IsReadOnly"/>
   /// </remarks>
   public bool IsReadOnly { get { return false; } }
 
