@@ -8,27 +8,33 @@ namespace AdamMil.Collections
 /// <summary>Represents a read-only wrapper around a list.</summary>
 public sealed class ReadOnlyCollectionWrapper<T> : IReadOnlyCollection<T>, ICollection<T>
 {
+  /// <summary>Initializes a new <see cref="ReadOnlyCollectionWrapper{T}"/> around the given collection.</summary>
+  /// <param name="collection"></param>
   public ReadOnlyCollectionWrapper(ICollection<T> collection)
   {
     if(collection == null) throw new ArgumentNullException();
     this.collection = collection;
   }
 
+  /// <summary>Gets the number of items in the collection.</summary>
   public int Count
   {
     get { return collection.Count; }
   }
 
+  /// <summary>Returns true if the collection contains the given item.</summary>
   public bool Contains(T item)
   {
     return collection.Contains(item);
   }
 
+  /// <summary>Copies the items from the collection into the array starting at the given index.</summary>
   public void CopyTo(T[] array, int arrayIndex)
   {
     collection.CopyTo(array, arrayIndex);
   }
 
+  /// <summary>Returns an enumerator that enumerates the items in the collection.</summary>
   public IEnumerator<T> GetEnumerator()
   {
     return collection.GetEnumerator();
@@ -90,37 +96,46 @@ public sealed class ReadOnlyCollectionWrapper<T> : IReadOnlyCollection<T>, IColl
 /// <summary>Represents a read-only wrapper around a list.</summary>
 public sealed class ReadOnlyListWrapper<T> : IReadOnlyList<T>, IList<T>
 {
+  /// <summary>Initializes a new <see cref="ReadOnlyListWrapper{T}"/> around the given list.</summary>
   public ReadOnlyListWrapper(IList<T> list)
   {
     if(list == null) throw new ArgumentNullException();
     this.list = list;
   }
 
+  /// <summary>Gets the item from the list at the given index.</summary>
   public T this[int index]
   {
     get { return list[index]; }
   }
 
+  /// <summary>Gets the number of items in the list.</summary>
   public int Count
   {
     get { return list.Count; }
   }
 
+  /// <summary>Returns true if the list contains the given item.</summary>
   public bool Contains(T item)
   {
     return list.Contains(item);
   }
 
+  /// <summary>Copies the items from the list to the given array, starting at the given index.</summary>
   public void CopyTo(T[] array, int arrayIndex)
   {
     list.CopyTo(array, arrayIndex);
   }
 
+  /// <summary>Returns an enumerator that enumerates the items in the list.</summary>
   public IEnumerator<T> GetEnumerator()
   {
     return list.GetEnumerator();
   }
 
+  /// <summary>Returns the index of the first item in the list equal to the given item, or -1 if the item could not
+  /// be found.
+  /// </summary>
   public int IndexOf(T item)
   {
     return list.IndexOf(item);
@@ -202,14 +217,19 @@ public sealed class ReadOnlyListWrapper<T> : IReadOnlyList<T>, IList<T>
 #endregion
 
 #region ReversedComparer
+/// <summary>Implements a comparer that wraps another comparer and returns the opposite comparison.</summary>
 public sealed class ReversedComparer<T> : IComparer<T>
 {
+  /// <summary>Initializes a new <see cref="ReversedComparer{T}"/> wrapping the given comparer.</summary>
   public ReversedComparer(IComparer<T> comparer)
   {
     if(comparer == null) throw new ArgumentNullException();
     cmp = comparer;
   }
 
+  /// <summary>Compares the two items, returning the opposite of the comparison given by the comparer with which this
+  /// object was initialized.
+  /// </summary>
   public int Compare(T a, T b)
   {
     return -cmp.Compare(a, b);
