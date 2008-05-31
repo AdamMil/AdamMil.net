@@ -1,0 +1,300 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+
+<UI>
+  <Common>
+    <Dispose>
+      <summary>Releases unmanaged resources held by the object.</summary>
+    </Dispose>
+    
+    <Dispose1>
+      <summary>Releases unmanaged resources held by the object.</summary>
+      <param name="finalizing">Indicates whether the object is currently being finalized.</param>
+    </Dispose1>
+
+    <Equals>
+      <summary>Returns true if the given object is equal to this one, and false if not.</summary>
+    </Equals>
+    
+    <GetHashCode>
+      <summary>Gets a hash code for the object.</summary>  
+    </GetHashCode>
+
+    <OpEquals>
+      <summary>Returns true if the two objects are equal, and false if not.</summary>
+    </OpEquals>
+
+    <OpNotEquals>
+      <summary>Returns false if the two objects are equal, and true if not.</summary>
+    </OpNotEquals>
+
+    <ToString>
+      <summary>Returns a human-readable description of the object.</summary>
+    </ToString>
+
+    <TrimExcess>
+      <summary>Removes unused space within the object.</summary>
+    </TrimExcess>
+  </Common>
+
+  <ChangeEvent>
+    <Do>
+      <summary>Performs the change.</summary>
+      <exception cref="InvalidOperationException">
+        Thrown if the change has already been applied, or if the document has
+        been altered such that the change cannot be applied.
+      </exception>
+    </Do>
+
+    <Undo>
+      <summary>Undoes the change.</summary>
+      <exception cref="InvalidOperationException">
+        Thrown if the change has not been applied yet, or if the document has
+        been altered such that the change cannot be applied.
+      </exception>
+    </Undo>
+  </ChangeEvent>
+  
+  <Document>
+    <OnNodeChanged>
+      <summary>
+        Called when a node (or one of the node's descendants) that belongs to this document has changed
+        such that it may need to be rerendered.
+      </summary>
+    </OnNodeChanged>  
+  </Document>
+
+  <DocumentEditor>
+    <LayoutRegion>
+      <Children>
+        <summary>
+          Gets an array containing the children of this region. Each child is a region that is contained within
+          this region, both visually and document-wise.
+        </summary>
+      </Children>
+    </LayoutRegion>
+
+    <LayoutSpan>
+      <CreateNew>
+        <summary>
+          Returns a new <see cref="LayoutSpan"/> of the same type as this, referencing the same
+          <see cref="DocumentNode"/>, but with all other fields at their default.
+        </summary>
+      </CreateNew>
+
+      <GetLineLengths>
+        <summary>
+          Given a graphics device, returns the natural line lengths of the content within the span's node, in
+          document index units.
+        </summary>
+      </GetLineLengths>
+
+      <GetSplitPieces>
+        <summary>
+          Given a graphics device and a span of index units relative to the beginning of the span's node, this
+          method splits the content within the span into pieces (based on where the content could be wrapped), and
+          measures each piece as it would be rendered.
+        </summary>
+      </GetSplitPieces>
+      
+      <Render>
+        <summary>Renders the span at the given point.</summary>
+      </Render>
+    </LayoutSpan>
+  </DocumentEditor>
+  
+  <DocumentNode>
+    <GetDescription>
+      <summary>Gets a short description of this node.</summary>
+      <remarks>
+        For instance, a root node may return "document" and a node that represents a picture may return
+        "Picture: ALT" where ALT represents the picture's alt text. This text will be displayed in the description of
+        change events.
+      </remarks>
+    </GetDescription>
+
+    <OnNodeChanged>
+      <summary>Called when the node has changed substantially, such that it may need to be rerendered.</summary>
+    </OnNodeChanged>
+  </DocumentNode>
+
+  <DocumentParser>
+    <Parse>
+      <summary>
+        Given a stream containing document data, converts it to a new <see cref="Document"/> and returns the
+        new document.
+      </summary>
+    </Parse>
+  </DocumentParser>
+  
+  <EditableTextBuffer>
+    <Indexer>
+      <summary>Gets or sets the character at the given index.</summary>
+    </Indexer>
+
+    <Capacity>
+      <summary>
+        Gets or sets the maximum number of characters the buffer can hold. The capacity cannot be set lower
+        than the current length.
+      </summary>
+    </Capacity>
+
+    <Length>
+      <summary>Gets the number of characters in the text buffer.</summary>
+    </Length>
+
+    <CopyTo2>
+      <summary>Copies all of the text to the given array.</summary>
+      <param name="destArray">The destination array.</param>
+      <param name="destIndex">The index within <paramref name="destArray"/> at which to write the text.</param>
+    </CopyTo2>
+
+    <CopyTo3>
+      <summary>
+        Writes text from the text buffer to the given <see cref="TextWriter"/>.
+      </summary>
+      <param name="writer">The text writer to which the text will be written.</param>
+      <param name="srcIndex">
+        The starting index of the text to write to <paramref name="writer"/>.
+      </param>
+      <param name="count">
+        The number of characters to write to <paramref name="writer"/>.
+      </param>
+    </CopyTo3>
+
+    <CopyTo4>
+      <summary>Copies characters from the buffer to the given character array.</summary>
+      <include file="documentation.xml" path="/UI/EditableTextBuffer/CopyTo2/param"/>
+      <param name="srcIndex">The starting index of the text to copy to <paramref name="destArray"/>.</param>
+      <param name="count">The number of characters to copy.</param>
+    </CopyTo4>
+
+    <Delete>
+      <summary>Deletes the character at the given index.</summary>
+    </Delete>
+
+    <Delete2>
+      <summary>Deletes deletes the specified number of characters starting at the given index.</summary>
+    </Delete2>
+
+    <FindNext>
+      <summary>Searches for the next occurence of the given character, starting from the given index.</summary>
+      <param name="c">The character to search for.</param>
+      <param name="startIndex">The index at which to begin the search.</param>
+      <returns>Returns the index of the next occurence of the character, or -1 if it could not be found.</returns>
+    </FindNext>
+
+    <GetText>
+      <summary>Retrieves all of the text in the text buffer.</summary>
+    </GetText>
+
+    <GetText2>
+      <summary>
+        Returns a string containing the given number of characters, starting at the given index, from the text
+        buffer.
+      </summary>
+    </GetText2>
+
+    <InsertChar>
+      <summary>Inserts a character into text buffer at the given index.</summary>
+    </InsertChar>
+
+    <InsertArray>
+      <summary>Inserts characters from a character array into the text buffer.</summary>
+    </InsertArray>
+
+    <InsertString>
+      <summary>Inserts a string into the text buffer at the given index.</summary>
+    </InsertString>
+
+    <InsertReader>
+      <summary>Inserts all text from the given <see cref="TextReader"/> into the text buffer.</summary>
+    </InsertReader>
+    
+    
+  </EditableTextBuffer>
+
+  <LineStorage>
+    <LineCount>
+      <summary>Gets the number of lines stored.</summary>
+    </LineCount>
+
+    <CharToLine>
+      <summary>Converts a character index to its line number.</summary>
+    </CharToLine>
+
+    <CharToLine2>
+      <summary>Converts a character index to its line number and column.</summary>
+    </CharToLine2>
+
+    <GetLineInfo>
+      <summary>Given a line number, returns its character offset and its length.</summary>
+      <param name="line">The line number to query.</param>
+      <param name="offset">Receives the character offset of the start of the line.</param>
+      <param name="length">Receives the length of the line.</param>
+    </GetLineInfo>
+
+    <GetLineLength>
+      <summary>Returns the length of the given line.</summary>
+    </GetLineLength>
+
+    <GetLineLengths>
+      <summary>Returns an array containing the lengths of all lines.</summary>
+    </GetLineLengths>
+    
+    <AddLine>
+      <summary>Inserts a line at the end of the document with the given length.</summary>
+    </AddLine>
+
+    <AlterLength>
+      <summary>Alters the length of a line, given a difference in length.</summary>
+      <param name="line">The line number whose length will be altered.</param>
+      <param name="lengthDelta">The difference in length, such as 1 to increase the length by 1, or -1 to decrease it.</param>
+    </AlterLength>
+
+    <Clear>
+      <summary>Removes all lines.</summary>
+    </Clear>
+
+    <InsertLine>
+      <summary>Inserts a line at the given index, with the given length.</summary>
+    </InsertLine>
+
+    <DeleteLine>
+      <summary>Removes the given line.</summary>
+    </DeleteLine>
+
+    <SetAllLengths>
+      <summary>Replaces all lines with the list of line lengths given.</summary>
+    </SetAllLengths>
+
+    <SetLength>
+      <summary>Sets the length of a line to the given value.</summary>
+    </SetLength>
+  </LineStorage>
+
+  <Style>
+    <GetOption>
+      <summary>Gets either the local or effective value of the given option.</summary>
+      <typeparam name="T">The type of the option value.</typeparam>
+      <param name="optionName">The name of the option.</param>
+      <param name="searchAncestors">
+        If true, the effective value will be returned. If false, the local value will be
+        returned.
+      </param>
+    </GetOption>
+    
+    <SetOption>
+      <summary>Sets or clears the local value of the given option.</summary>
+      <typeparam name="T">The type of the option value.</typeparam>
+      <param name="optionName">The name of the option.</param>
+      <param name="value">
+        The value of the option. If null, the local value will be cleared, allowing values from
+        ancestors to cascade to this style. If non-null, the local value will be set.
+      </param>
+      <param name="triggerNodeChange">
+        If true, <see cref="DocumentNode.OnNodeChanged"/> will be called on the owner
+        node.
+      </param>
+    </SetOption>
+  </Style>
+</UI>
