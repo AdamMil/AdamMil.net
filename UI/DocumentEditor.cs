@@ -611,6 +611,9 @@ public class DocumentEditor : Control
       get;
     }
 
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/BeginLayout/*"/>
+    public virtual void BeginLayout(Graphics gdi) { }
+
     /// <summary>The region's bounds, relative to the parent region.</summary>
     public Rectangle Bounds;
     /// <summary>The region's absolute position in the document.</summary>
@@ -812,16 +815,23 @@ public class DocumentEditor : Control
       Editor     = editor;
       StartIndex = startIndex;
       Font       = font;
-
-      // calculate the font descent, so that adjacent spans of text with different fonts render on the same baseline
-      Descent = Font.Height - (int)Math.Round(Font.Height * Font.FontFamily.GetCellAscent(Font.Style) /
-                                              (float)Font.FontFamily.GetLineSpacing(Font.Style));
     }
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/LineCount/*"/>
     public override int LineCount
     {
       get { return Node.LineCount; }
+    }
+
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/BeginLayout/*"/>
+    public override void BeginLayout(Graphics gdi)
+    {
+      base.BeginLayout(gdi);
+
+      // calculate the font descent, so that adjacent spans of text with different fonts render on the same baseline
+      float height = Font.GetHeight(gdi);
+      Descent = (int)Math.Round(height - (height * Font.FontFamily.GetCellAscent(Font.Style) /
+                                          (float)Font.FontFamily.GetLineSpacing(Font.Style)));
     }
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/CreateNew/*"/>
@@ -875,6 +885,7 @@ public class DocumentEditor : Control
         if(size.Width + wordSize.Width > spaceLeft) break; // if the word doesn't fit, then break out
 
         size.Width    += wordSize.Width;
+        // TODO: should we always return the font height, ensuring that we can add new characters without needing to enlarge the span vertically?
         size.Height    = Math.Max(size.Height, wordSize.Height);
         charactersFit += match.Length;
       }
@@ -972,6 +983,7 @@ public class DocumentEditor : Control
   BlockBase CreateBlock(Graphics gdi, DocumentNode node, int availableWidth, ref int startIndex)
   {
     Block newBlock = CreateLayoutBlock(node);
+    newBlock.BeginLayout(gdi);
 
     // first, determine whether any of the children are block nodes
     bool allInline = true;
@@ -1053,6 +1065,7 @@ public class DocumentEditor : Control
     if(rootBlock == null)
     {
       Block block = new Block();
+      block.BeginLayout(gdi);
       block.Blocks = new BlockBase[0];
       rootBlock = block;
     }
@@ -1110,13 +1123,14 @@ public class DocumentEditor : Control
       // TODO: implement padding, margin, etc
       span = CreateLayoutSpan(node, startIndex);
       if(span == null) continue; // if this node cannot be rendered, skip to the next one
+      span.BeginLayout(gdi);
 
       span.Start = startIndex;
       for(int lineIndex=0; lineIndex < span.LineCount; lineIndex++) // for each line in the document node
       {
         if(lineIndex != 0) // if there was a line break in the document node (and hence a line other than the first),
         {                  // start a new output line too
-          FinishLine(lines, spans, ref span, ref lineWidth, lineHeight, startIndex);
+          FinishLine(gdi, lines, spans, ref span, ref lineWidth, lineHeight, startIndex);
         }
 
         SplitPiece piece = null;
@@ -1135,7 +1149,7 @@ public class DocumentEditor : Control
           startIndex  += piece.Span.Length + piece.Skip; // and update the next document index
 
           // if we need to start a new line before we can receive more of the content, do so
-          if(piece.NewLine) FinishLine(lines, spans, ref span, ref lineWidth, lineHeight, startIndex);
+          if(piece.NewLine) FinishLine(gdi, lines, spans, ref span, ref lineWidth, lineHeight, startIndex);
         }
       }
 
@@ -1147,11 +1161,13 @@ public class DocumentEditor : Control
     if(spans.Count != 0)
     {
       span = null; // the span has already been added, so don't add it again
-      FinishLine(lines, spans, ref span, ref lineWidth, lineHeight, startIndex);
+      FinishLine(gdi, lines, spans, ref span, ref lineWidth, lineHeight, startIndex);
     }
 
     // now, loop through each of the lines that we've added and stack them vertically into a LineBlock
     LineBlock block = new LineBlock(lines.ToArray());
+    block.BeginLayout(gdi);
+
     foreach(Line line in block.Lines)
     {
       // calculate the line span
@@ -1197,8 +1213,8 @@ public class DocumentEditor : Control
   }
 
   /// <summary>A helper for <see cref="LayoutLines"/> which ends the current line.</summary>
-  static void FinishLine(List<Line> lines, List<LayoutSpan> spans, ref LayoutSpan span, ref int lineWidth,
-                         int lineHeight, int startIndex)
+  static void FinishLine(Graphics gdi, List<Line> lines, List<LayoutSpan> spans, ref LayoutSpan span, 
+                         ref int lineWidth, int lineHeight, int startIndex)
   {
     if(span != null)
     {
@@ -1206,11 +1222,13 @@ public class DocumentEditor : Control
       {
         spans.Add(span);
         span = span.CreateNew();
+        span.BeginLayout(gdi);
       }
       span.Start = startIndex;
     }
 
     Line line = new Line(spans.ToArray());
+    line.BeginLayout(gdi);
     line.Height = lineHeight;
     line.Start  = startIndex; // this will be overwritten later if the line is not empty...
     lines.Add(line);

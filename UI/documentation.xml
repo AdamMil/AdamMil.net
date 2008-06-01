@@ -71,6 +71,13 @@
           this region, both visually and document-wise.
         </summary>
       </Children>
+
+      <BeginLayout>
+        <summary>
+          Called before the region is laid out. This can be used to initialize members that will be used by the layout
+          code.
+        </summary>
+      </BeginLayout>
     </LayoutRegion>
 
     <LayoutSpan>
