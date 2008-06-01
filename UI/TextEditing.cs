@@ -1011,6 +1011,12 @@ public class TextDocument
     return lineStorage.GetLineLengths();
   }
 
+  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineInfo/*"/>
+  public void GetLineInfo(int line, out int offset, out int length)
+  {
+    lineStorage.GetLineInfo(line, out offset, out length);
+  }
+
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertChar/*"/>
   public void Insert(int index, char c)
   {

@@ -209,8 +209,6 @@
     <InsertReader>
       <summary>Inserts all text from the given <see cref="TextReader"/> into the text buffer.</summary>
     </InsertReader>
-    
-    
   </EditableTextBuffer>
 
   <LineStorage>
