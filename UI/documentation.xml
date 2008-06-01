@@ -74,6 +74,10 @@
     </LayoutRegion>
 
     <LayoutSpan>
+      <LineCount>
+        <summary>Gets the number of lines within the node's content, without considering the effects of line wrapping.</summary>
+      </LineCount>
+      
       <CreateNew>
         <summary>
           Returns a new <see cref="LayoutSpan"/> of the same type as this, referencing the same
@@ -81,21 +85,25 @@
         </summary>
       </CreateNew>
 
-      <GetLineLengths>
+      <GetNextSplitPiece>
         <summary>
-          Given a graphics device, returns the natural line lengths of the content within the span's node, in
-          document index units.
+          Assists the work of line wrapping by calculating how many document indices from the content line
+          can fit in amount of horizontal space of the layout line.
         </summary>
-      </GetLineLengths>
+        <param name="gdi">The graphics context.</param>
+        <param name="line">The index of the current content line.</param>
+        <param name="piece">
+          The previous piece returned from this method, or null if this is the first call for the
+          given content line.
+        </param>
+        <param name="spaceLeft">How much horizontal space is left in the current layout line, in pixels.</param>
+        <param name="lineIsEmpty">Whether the current layout line is empty.</param>
+        <returns>
+          Returns a <see cref="SplitPiece"/> representing the size and length of the content that can fit on
+          the layout line.
+        </returns>
+      </GetNextSplitPiece>
 
-      <GetSplitPieces>
-        <summary>
-          Given a graphics device and a span of index units relative to the beginning of the span's node, this
-          method splits the content within the span into pieces (based on where the content could be wrapped), and
-          measures each piece as it would be rendered.
-        </summary>
-      </GetSplitPieces>
-      
       <Render>
         <summary>Renders the span at the given point.</summary>
       </Render>
