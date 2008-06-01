@@ -54,16 +54,15 @@ public class DocumentEditor : Control
              ControlStyles.Selectable | ControlStyles.StandardClick | ControlStyles.StandardDoubleClick |
              ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer, true);
 
-    SetStyle(ControlStyles.ContainerControl | ControlStyles.FixedHeight | ControlStyles.FixedWidth |
-             ControlStyles.SupportsTransparentBackColor, false);
+    SetStyle(ControlStyles.ContainerControl | ControlStyles.SupportsTransparentBackColor, false);
 
     BackColor = SystemColors.Window;
     ForeColor = SystemColors.WindowText;
 
     controlWidth = Width;
 
-    ScrollBars = ScrollBars.Vertical; // create the vertical scrollbar immediately so we don't have to redo the initial
-  }                                   // layout
+    ScrollBars = ScrollBars.Vertical; // create the vertical scrollbar immediately so we don't
+  }                                   // have to redo the initial layout if the document is long
 
   /// <summary>Gets or sets the border style of the control. The default is
   /// <see cref="System.Windows.Forms.BorderStyle.Fixed3D"/>.
@@ -314,7 +313,7 @@ public class DocumentEditor : Control
   /// <summary>Clears the selection.</summary>
   public void DeselectAll()
   {
-    Selection = new Span(0, 0);
+    Selection = new Span();
   }
 
   /// <summary>Returns an array containing the formats that the data on the clipboard can be converted to. The array
@@ -625,8 +624,7 @@ public class DocumentEditor : Control
   /// <summary>Provides a base class for block regions, whose children are stacked vertically.</summary>
   protected abstract class BlockBase : LayoutRegion
   {
-    internal abstract void Render(Graphics gdi, ref Rectangle area, ref RenderData data,
-                                  int scrollXOffset, int scrollYOffset);
+    internal abstract void Render(Graphics gdi, ref Rectangle area, ref RenderData data);
   }
   #endregion
 
@@ -643,17 +641,15 @@ public class DocumentEditor : Control
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/Children/*"/>
     public BlockBase[] Blocks;
 
-    internal override void Render(Graphics gdi, ref Rectangle area, ref RenderData data,
-                                  int scrollXOffset, int scrollYOffset)
+    internal override void Render(Graphics gdi, ref Rectangle area, ref RenderData data)
     {
       foreach(BlockBase block in Blocks)
       {
-        Rectangle childArea = new Rectangle(area.Left+block.Left-scrollXOffset, area.Top+block.Top-scrollYOffset,
-                                            block.Width, block.Height);
+        Rectangle childArea = new Rectangle(area.Left+block.Left, area.Top+block.Top, block.Width, block.Height);
         if(childArea.IntersectsWith(data.ClipRectangle))
         {
-          block.Render(gdi, ref childArea, ref data, 0, 0);
-        }
+          block.Render(gdi, ref childArea, ref data);
+        }                                                   
       }
     }
   }
@@ -675,13 +671,11 @@ public class DocumentEditor : Control
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/Children/*"/>
     public Line[] Lines;
 
-    internal override void Render(Graphics gdi, ref Rectangle area, ref RenderData data,
-                                  int scrollXOffset, int scrollYOffset)
+    internal override void Render(Graphics gdi, ref Rectangle area, ref RenderData data)
     {
       foreach(Line line in Lines)
       {
-        Rectangle childArea = new Rectangle(area.Left+line.Left-scrollXOffset, area.Top+line.Top-scrollYOffset,
-                                            line.Width, line.Height);
+        Rectangle childArea = new Rectangle(area.Left+line.Left, area.Top+line.Top, line.Width, line.Height);
         if(childArea.IntersectsWith(data.ClipRectangle))
         {
           line.Render(gdi, ref childArea, ref data);
@@ -731,6 +725,7 @@ public class DocumentEditor : Control
       get { return NoChildren; }
     }
 
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/LineCount/*"/>
     public virtual int LineCount
     {
       get { return 1; }
@@ -739,11 +734,15 @@ public class DocumentEditor : Control
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/CreateNew/*"/>
     public abstract LayoutSpan CreateNew();
 
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/GetNextSplitPiece/*"/>
     public abstract SplitPiece GetNextSplitPiece(Graphics gdi, int line, SplitPiece piece, int spaceLeft,
                                                  bool lineIsEmpty);
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/Render/*"/>
     public abstract void Render(Graphics gdi, Point clientPoint, Span selection);
+
+    /// <summary>Gets or sets the number of pixels from the baseline to the bottom of the region.</summary>
+    public int Descent;
 
     static readonly LayoutRegion[] NoChildren = new LayoutRegion[0];
   }
@@ -769,8 +768,15 @@ public class DocumentEditor : Control
   /// <summary>Represents a piece of content within a document node, and its size as it would be rendered.</summary>
   protected sealed class SplitPiece
   {
+    /// <summary>Initializes this <see cref="SplitPiece"/> with the given index span and pixel size, and an indication
+    /// of whether there is more content to be added, but a new line must be started before it will fit.
+    /// </summary>
     public SplitPiece(Span span, Size size, bool newLine) : this(span, size, 0, newLine) { }
-    
+
+    /// <summary>Initializes this <see cref="SplitPiece"/> with the given index span and pixel size, a number of
+    /// indices to skip after this content chunk, and an indication of whether there is more content to be added, but
+    /// a new line must be started before it will fit.
+    /// </summary>
     public SplitPiece(Span span, Size size, int skip, bool newLine)
     {
       if(size.Width < 0 || size.Height < 0 || skip < 0) throw new ArgumentOutOfRangeException();
@@ -795,17 +801,24 @@ public class DocumentEditor : Control
   /// <summary>Represents a <see cref="LayoutSpan"/> to render a <see cref="TextNode"/>.</summary>
   protected class TextNodeSpan : LayoutSpan<TextNode>
   {
-    /// <summary>Initializes this <see cref="TextNodeSpan"/> given the owning <see cref="DocumentEditor"/> and a
-    /// <see cref="TextNode"/>.
+    /// <summary>Initializes this <see cref="TextNodeSpan"/> given the owning <see cref="DocumentEditor"/>, a
+    /// <see cref="TextNode"/> to render, and the starting index of the node within the document.
     /// </summary>
-    public TextNodeSpan(TextNode node, DocumentEditor editor) : this(node, editor, editor.GetEffectiveFont(node)) { }
+    public TextNodeSpan(TextNode node, DocumentEditor editor, int startIndex)
+      : this(node, editor, startIndex, editor.GetEffectiveFont(node)) { }
 
-    TextNodeSpan(TextNode node, DocumentEditor editor, Font font) : base(node)
+    TextNodeSpan(TextNode node, DocumentEditor editor, int startIndex, Font font) : base(node)
     {
-      Editor = editor;
-      Font   = font;
+      Editor     = editor;
+      StartIndex = startIndex;
+      Font       = font;
+
+      // calculate the font descent, so that adjacent spans of text with different fonts render on the same baseline
+      Descent = Font.Height - (int)Math.Round(Font.Height * Font.FontFamily.GetCellAscent(Font.Style) /
+                                              (float)Font.FontFamily.GetLineSpacing(Font.Style));
     }
 
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/LineCount/*"/>
     public override int LineCount
     {
       get { return Node.LineCount; }
@@ -814,9 +827,10 @@ public class DocumentEditor : Control
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/CreateNew/*"/>
     public override LayoutSpan CreateNew()
     {
-      return new TextNodeSpan(Node, Editor, Font);
+      return new TextNodeSpan(Node, Editor, StartIndex, Font);
     }
 
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/GetNextSplitPiece/*"/>
     public override SplitPiece GetNextSplitPiece(Graphics gdi, int line, SplitPiece piece, int spaceLeft,
                                                  bool lineIsEmpty)
     {
@@ -914,16 +928,18 @@ public class DocumentEditor : Control
 
       if(back.HasValue && back.Value.A != 0)
       {
-        TextRenderer.DrawText(gdi, Node.GetText(Start, Length), Font, clientPoint, fore, back.Value, DrawFlags);
+        TextRenderer.DrawText(gdi, Node.GetText(Start-StartIndex, Length), Font, clientPoint, fore, back.Value,
+                              DrawFlags);
       }
       else
       {
-        TextRenderer.DrawText(gdi, Node.GetText(Start, Length), Font, clientPoint, fore, DrawFlags);
+        TextRenderer.DrawText(gdi, Node.GetText(Start-StartIndex, Length), Font, clientPoint, fore, DrawFlags);
       }
     }
 
     readonly Font Font;
     readonly DocumentEditor Editor;
+    readonly int StartIndex;
     /// <summary>A string that holds the current line during word-wrapping.</summary>
     string cachedText;
 
@@ -940,13 +956,13 @@ public class DocumentEditor : Control
     return new Block();
   }
 
-  /// <summary>Given an inline <see cref="DocumentNode"/>, creates and returns an appropriate <see cref="LayoutSpan"/>
-  /// to render the node, or null if the node cannot be rendered.
+  /// <summary>Given an inline <see cref="DocumentNode"/>, and its starting index within the document, creates and
+  /// returns an appropriate <see cref="LayoutSpan"/> to render the node, or null if the node cannot be rendered.
   /// </summary>
-  protected virtual LayoutSpan CreateLayoutSpan(DocumentNode node)
+  protected virtual LayoutSpan CreateLayoutSpan(DocumentNode node, int startIndex)
   {
     TextNode textNode = node as TextNode;
-    if(textNode != null) return new TextNodeSpan(textNode, this);
+    if(textNode != null) return new TextNodeSpan(textNode, this, startIndex);
 
     return null;
   }
@@ -1092,7 +1108,7 @@ public class DocumentEditor : Control
     foreach(DocumentNode node in inlineNodes)
     {
       // TODO: implement padding, margin, etc
-      span = CreateLayoutSpan(node);
+      span = CreateLayoutSpan(node, startIndex);
       if(span == null) continue; // if this node cannot be rendered, skip to the next one
 
       span.Start = startIndex;
@@ -1145,18 +1161,20 @@ public class DocumentEditor : Control
         line.Length = line.Spans[line.Spans.Length-1].End - line.Start;
       }
 
-      // stack the spans horizontally within the line
+      // stack the spans horizontally within the line and calculate the maximum descent
+      int maxDescent = 0;
       foreach(LayoutSpan s in line.Spans)
       {
         s.Position  = new Point(line.Width, 0);
         line.Width += s.Width;
+        if(s.Descent > maxDescent) maxDescent = s.Descent;
       }
 
       // now go back through and position the spans vertically
       // TODO: implement vertical alignment
       foreach(LayoutSpan s in line.Spans)
       {
-        s.Top += line.Height - s.Height; // just do bottom alignment for now...
+        s.Top += line.Height - s.Height + s.Descent - maxDescent; // just do bottom alignment for now...
       }
 
       // TODO: implement horizontal alignment
@@ -1326,7 +1344,7 @@ public class DocumentEditor : Control
   {
     base.OnPaint(e);
 
-    if(layoutSuspended)
+    if(layoutSuspended) // if the layout is suspended, we'll repaint the control after layout resumes
     {
       repaintNeeded = true;
       return;
@@ -1344,7 +1362,12 @@ public class DocumentEditor : Control
     // render the document
     Point scrollPosition = ScrollPosition;
     RenderData data = new RenderData(Rectangle.Intersect(e.ClipRectangle, canvasRect), Selection);
-    rootBlock.Render(e.Graphics, ref canvasRect, ref data, scrollPosition.X, scrollPosition.Y);
+    Rectangle renderArea = new Rectangle(canvasRect.X - scrollPosition.X, canvasRect.Y - scrollPosition.Y,
+                                         canvasRect.Width, canvasRect.Height);
+    rootBlock.Render(e.Graphics, ref renderArea, ref data);
+
+    // since the text rendering is done with GDI rather than GDI+, it doesn't obey the GDI+ clip region. so the text
+    // may have overlapped the border or the corner between the scrollbars. so we'll redraw them unconditionally now.
 
     // if we have both scrollbars, fill in the corner between them
     if(hScrollBar != null && vScrollBar != null)
@@ -1717,7 +1740,6 @@ public class DocumentEditor : Control
   /// <remarks>This method uses an optimized system calls if they are available.</remarks>
   void ScrollCanvas(int xOffset, int yOffset)
   {
-Invalidate(CanvasRectangle); return;
     PlatformID platform = Environment.OSVersion.Platform;
     if(platform == PlatformID.Win32NT || platform == PlatformID.Win32Windows || platform == PlatformID.WinCE)
     {
@@ -1726,7 +1748,7 @@ Invalidate(CanvasRectangle); return;
     }
     else
     {
-      // TODO: attempt a manual scroll using the GDI and see how fast it is
+      // TODO: attempt a manual scroll using the GDI and see how fast it is compared to a full repaint
       Invalidate(CanvasRectangle);
     }
   }
