@@ -491,6 +491,7 @@ public class TextNode : DocumentNode
     DoChange(new DeleteTextChange(this, index, count));
   }
 
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Indexer/*"/>
   public char GetCharacter(int index)
   {
     return document[index];
@@ -512,6 +513,12 @@ public class TextNode : DocumentNode
   public int[] GetLineLengths()
   {
     return document.GetLineLengths();
+  }
+
+  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineInfo/*"/>
+  public void GetLineInfo(int line, out int offset, out int length)
+  {
+    document.GetLineInfo(line, out offset, out length);
   }
 
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/GetText/*"/>

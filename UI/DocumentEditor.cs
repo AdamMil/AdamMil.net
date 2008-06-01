@@ -652,7 +652,7 @@ public class DocumentEditor : Control
                                             block.Width, block.Height);
         if(childArea.IntersectsWith(data.ClipRectangle))
         {
-          block.Render(gdi, ref childArea, ref data, scrollXOffset, scrollYOffset);
+          block.Render(gdi, ref childArea, ref data, 0, 0);
         }
       }
     }
@@ -739,8 +739,8 @@ public class DocumentEditor : Control
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/CreateNew/*"/>
     public abstract LayoutSpan CreateNew();
 
-    public abstract SplitPiece GetNextSplitPiece(Graphics gdi, int line, SplitPiece piece, int totalWidth,
-                                                 int spaceLeft);
+    public abstract SplitPiece GetNextSplitPiece(Graphics gdi, int line, SplitPiece piece, int spaceLeft,
+                                                 bool lineIsEmpty);
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/Render/*"/>
     public abstract void Render(Graphics gdi, Point clientPoint, Span selection);
@@ -769,22 +769,25 @@ public class DocumentEditor : Control
   /// <summary>Represents a piece of content within a document node, and its size as it would be rendered.</summary>
   protected sealed class SplitPiece
   {
-    /// <summary>Initializes this <see cref="SplitPiece"/> given the index span and pixel size of the piece.</summary>
-    public SplitPiece(Span span, Size size) : this(span, size, span.End) { }
-    public SplitPiece(Span span, Size size, int nextStart)
+    public SplitPiece(Span span, Size size, bool newLine) : this(span, size, 0, newLine) { }
+    
+    public SplitPiece(Span span, Size size, int skip, bool newLine)
     {
-      if(size.Width < 0 || size.Height < 0 || nextStart < span.End) throw new ArgumentOutOfRangeException();
-      Span      = span;
-      Size      = size;
-      NextStart = nextStart;
+      if(size.Width < 0 || size.Height < 0 || skip < 0) throw new ArgumentOutOfRangeException();
+      Span    = span;
+      Size    = size;
+      Skip    = skip;
+      NewLine = newLine;
     }
 
     /// <summary>The span of the content within the document node, in index units.</summary>
     public Span Span;
     /// <summary>The size of the content in pixels, as it would be rendered.</summary>
     public Size Size;
-    /// <summary>Where the next split piece should begin, in index units.</summary>
-    public int NextStart;
+    /// <summary>How many indices after the end of the span should be skipped before starting the next span.</summary>
+    public int Skip;
+    /// <summary>Whether a new line must be started to receive more of the content of this node.</summary>
+    public bool NewLine;
   }
   #endregion
 
@@ -814,58 +817,90 @@ public class DocumentEditor : Control
       return new TextNodeSpan(Node, Editor, Font);
     }
 
-    public override SplitPiece GetNextSplitPiece(Graphics gdi, int line, SplitPiece piece, int totalWidth,
-                                                 int spaceLeft)
+    public override SplitPiece GetNextSplitPiece(Graphics gdi, int line, SplitPiece piece, int spaceLeft,
+                                                 bool lineIsEmpty)
     {
-      int start = piece != null ? piece.NextStart : 0, lineLength = Node.GetLineLength(line);
+      const TextFormatFlags MeasureFlags = TextFormatFlags.NoPrefix | TextFormatFlags.NoClipping |
+                                           TextFormatFlags.SingleLine | TextFormatFlags.NoPadding;
+
+      int start = piece != null ? piece.Span.End + piece.Skip : 0, lineLength = Node.GetLineLength(line);
       int charactersLeft = lineLength - start, skipCharacters = 0;
 
-      // ignore the newline character
-      if(charactersLeft != 0 && Node.GetCharacter(start+charactersLeft-1) == '\n')
+      // store the text of the line in 'cachedText'
+      if(piece == null || cachedText == null)
       {
-        skipCharacters++;
-        charactersLeft--;
+        int offset;
+        Node.GetLineInfo(line, out offset, out lineLength);
+        cachedText = Node.GetText(offset, lineLength);
       }
+
+      // ignore the newline character
+      bool skippedNewLine = charactersLeft != 0 && cachedText[start+charactersLeft-1] == '\n';
+      if(skippedNewLine) charactersLeft--;
 
       if(charactersLeft == 0) // if we're at the end of the line...
       {
-        // if we've already returned a piece, then we're done. otherwise, the line must be empty, so we need to return
-        // a piece that has some height just to ensure that the containing line acquires some height
-        return piece != null ? null : new SplitPiece(new Span(start, charactersLeft), new Size(0, Font.Height));
+        if(piece != null) // if we've already returned a piece, then we're done
+        {
+          cachedText = null; // clear the cached text
+          return null;
+        }
+        else // otherwise, the line must be empty, so we need to return a piece that has some height just to ensure
+        {    // that the containing line acquires some height
+          return new SplitPiece(new Span(start, 0), new Size(0, Font.Height), (skippedNewLine ? 1 : 0), false);
+        }
       }
 
-      // we're not at the end of the line, so retrieve the remaining text and see how many of the characters fit
-      string remainingText = Node.GetText(start, charactersLeft);
-      int charactersFit, linesFit;
-      SizeF sizef = gdi.MeasureString(remainingText, Font, new Size(spaceLeft, Font.Height),
-                                      StringFormat.GenericDefault, out charactersFit, out linesFit);
-      Size size = new Size((int)Math.Ceiling(sizef.Width), (int)Math.Ceiling(sizef.Height));
-
-      // if not all of the characters fit, and it wasn't broken on a word boundary, then we need to scan backwards from
-      // the break point until we find a word boundary
-      if(charactersFit < charactersLeft && // not all the characters fit, and...
-         (!char.IsWhiteSpace(Node.GetCharacter(start + charactersFit)) || // it wasn't broken on a word boundary
-          charactersFit != 0 && char.IsWhiteSpace(Node.GetCharacter(start + charactersFit - 1))))
+      // measure and accumulate words until we've run out of either text or space
+      Size size = new Size(), wordSize = new Size(), maxTextArea = new Size(int.MaxValue, int.MaxValue);
+      Match match;
+      int charactersFit = 0;
+      for(match = wordRE.Match(cachedText, start, charactersLeft); match.Success; match = match.NextMatch())
       {
-        Match match = splitRE.Match(remainingText);
-        if(match.Success) // we found a word boundary
+        wordSize = TextRenderer.MeasureText(gdi, match.Value, Font, maxTextArea, MeasureFlags);
+        if(size.Width + wordSize.Width > spaceLeft) break; // if the word doesn't fit, then break out
+
+        size.Width    += wordSize.Width;
+        size.Height    = Math.Max(size.Height, wordSize.Height);
+        charactersFit += match.Length;
+      }
+
+      bool lineWrapped = match.Success; // if the match is still valid, that means there was a word that didn't fit
+      if(lineWrapped)
+      {
+        // if there was one big word and it didn't fit...
+        if(charactersFit == 0 && !char.IsWhiteSpace(cachedText[start]))
         {
-          // since this piece will be at the end of a line, we'll trim the whitespace from the end of it
-          int charsToSkip = Math.Min(charactersFit, match.Groups[1].Length);
-          skipCharacters += charsToSkip;
-          charactersFit  -= charsToSkip;
-        }
-        else // we couldn't find a word boundary, so the text that doesn't fit must be one long word
-        {
-          if(spaceLeft < totalWidth) // if the line is not empty, then we'll return a piece with a physical width
-          {                              // but no span length. the layout algorithm will try again with an empty line
-            return new SplitPiece(new Span(start, 0), size);
+          if(!lineIsEmpty) // if the line is not empty, then we'll return an empty piece with NewLine set to true, so
+          {                // we can try again with an empty line, which may have enough space
+            return new SplitPiece(new Span(start, 0), new Size(), true);
           }
-          // otherwise, we'll just return it as-is.
+          else // otherwise, the line is empty, so starting a new line won't help. we need to add the word
+          {    // even though it doesn't fit
+            size.Width    += wordSize.Width;
+            size.Height    = Math.Max(size.Height, wordSize.Height);
+            charactersFit += match.Length;
+          }
+        }
+        else // otherwise, we have some words that fit, but one that doesn't
+        {
+          // there may be some whitespace at the start of the word that does fit, however. so we'll go through it
+          // character by character.
+          for(int index=start+charactersFit, accumulatedWidth=0; index < lineLength; index++)
+          {
+            char c = cachedText[index];
+            if(!char.IsWhiteSpace(c)) break;
+            Size charSize = TextRenderer.MeasureText(gdi, new string(c, 1), Font, maxTextArea, MeasureFlags);
+            accumulatedWidth += charSize.Width;
+            if(accumulatedWidth > spaceLeft) break; // if the character didn't fit, we're done
+            skipCharacters++; // we won't render the trailing whitespace though. instead, we'll skip it.
+          }
         }
       }
 
-      return new SplitPiece(new Span(start, charactersFit), size, start + charactersFit + skipCharacters);
+      // if this is the last piece, and the line ends in a newline character, then add 1 to skip over it
+      return new SplitPiece(new Span(start, charactersFit), size,
+                            skipCharacters + (!lineWrapped && skippedNewLine ? 1 : 0), lineWrapped);
     }
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/Render/*"/>
@@ -889,8 +924,10 @@ public class DocumentEditor : Control
 
     readonly Font Font;
     readonly DocumentEditor Editor;
+    /// <summary>A string that holds the current line during word-wrapping.</summary>
+    string cachedText;
 
-    static readonly Regex splitRE = new Regex(@"(\s+)\S*$", RegexOptions.Singleline | RegexOptions.Compiled);
+    static readonly Regex wordRE = new Regex(@"\s*\S+|\s+", RegexOptions.Singleline | RegexOptions.Compiled);
   }
   #endregion
 
@@ -937,6 +974,7 @@ public class DocumentEditor : Control
       if(lines == null) return null;
       newBlock.Blocks = new BlockBase[] { lines };
       newBlock.Span   = lines.Span;
+      newBlock.Size   = lines.Size;
     }
     else // otherwise, one or more nodes is a block
     {
@@ -1058,7 +1096,6 @@ public class DocumentEditor : Control
       if(span == null) continue; // if this node cannot be rendered, skip to the next one
 
       span.Start = startIndex;
-
       for(int lineIndex=0; lineIndex < span.LineCount; lineIndex++) // for each line in the document node
       {
         if(lineIndex != 0) // if there was a line break in the document node (and hence a line other than the first),
@@ -1066,29 +1103,23 @@ public class DocumentEditor : Control
           FinishLine(lines, spans, ref span, ref lineWidth, lineHeight, startIndex);
         }
 
-        SplitPiece split = null;
+        SplitPiece piece = null;
         while(true)
         {
           int spaceLeft = availableWidth - lineWidth;
-          split = span.GetNextSplitPiece(gdi, lineIndex, split, availableWidth, spaceLeft);
-          if(split == null) break;
+          piece = span.GetNextSplitPiece(gdi, lineIndex, piece, spaceLeft, spaceLeft == availableWidth);
+          if(piece == null) break;
 
-          // if the piece does not fit, and the current line is not empty, output the current line
-          if(split.Size.Width > spaceLeft && (spans.Count != 0 || span.Length != 0))
-          {
-            FinishLine(lines, spans, ref span, ref lineWidth, lineHeight, startIndex);
-          }
-          else
-          {
-            // there is either enough space in the line, or there's a new line that we have to add the piece to anyway,
-            // so extend the size of the current line and span to encompass the new piece
-            lineWidth += split.Size.Width;
-            lineHeight = Math.Max(lineHeight, split.Size.Height);
+          // so extend the size of the current line and span to encompass the new piece
+          lineWidth += piece.Size.Width;
+          lineHeight = Math.Max(lineHeight, piece.Size.Height);
 
-            span.Size = new Size(span.Width + split.Size.Width, Math.Max(span.Height, split.Size.Height));
-            span.Length += split.Span.Length; // increase the span length of the size of the split piece
-            startIndex  += split.NextStart - split.Span.Start; // and update the next document index
-          }
+          span.Size = new Size(span.Width + piece.Size.Width, Math.Max(span.Height, piece.Size.Height));
+          span.Length += piece.Span.Length; // increase the span length of the size of the split piece
+          startIndex  += piece.Span.Length + piece.Skip; // and update the next document index
+
+          // if we need to start a new line before we can receive more of the content, do so
+          if(piece.NewLine) FinishLine(lines, spans, ref span, ref lineWidth, lineHeight, startIndex);
         }
       }
 
@@ -1151,11 +1182,13 @@ public class DocumentEditor : Control
   static void FinishLine(List<Line> lines, List<LayoutSpan> spans, ref LayoutSpan span, ref int lineWidth,
                          int lineHeight, int startIndex)
   {
-    if(span != null && span.Length != 0) // if the current span contains something, add that to the line first
+    if(span != null)
     {
-      spans.Add(span);
-
-      span = span.CreateNew();
+      if(span.Length != 0) // if the current span contains something, add that to the line first
+      {
+        spans.Add(span);
+        span = span.CreateNew();
+      }
       span.Start = startIndex;
     }
 
@@ -1308,6 +1341,11 @@ public class DocumentEditor : Control
       using(Brush bgBrush = new SolidBrush(BackColor)) e.Graphics.FillRectangle(bgBrush, e.ClipRectangle);
     }
 
+    // render the document
+    Point scrollPosition = ScrollPosition;
+    RenderData data = new RenderData(Rectangle.Intersect(e.ClipRectangle, canvasRect), Selection);
+    rootBlock.Render(e.Graphics, ref canvasRect, ref data, scrollPosition.X, scrollPosition.Y);
+
     // if we have both scrollbars, fill in the corner between them
     if(hScrollBar != null && vScrollBar != null)
     {
@@ -1317,11 +1355,6 @@ public class DocumentEditor : Control
           new Rectangle(canvasRect.Right, canvasRect.Bottom, vScrollBar.Width, hScrollBar.Height));
       }
     }
-
-    // render the document
-    Point scrollPosition = ScrollPosition;
-    RenderData data = new RenderData(Rectangle.Intersect(e.ClipRectangle, canvasRect), Selection);
-    rootBlock.Render(e.Graphics, ref canvasRect, ref data, scrollPosition.X, scrollPosition.Y);
 
     // render the border
     if(BorderStyle != BorderStyle.None)
@@ -1429,7 +1462,7 @@ public class DocumentEditor : Control
     }
   }
 
-  [DllImport("user32")]
+  [DllImport("user32.dll", EntryPoint="ScrollWindow")]
   static extern bool W32ScrollWindow(IntPtr hWnd, int xOffset, int yOffset, ref RECT scrollRegion, ref RECT clipRect);
   #endregion
 
@@ -1644,12 +1677,15 @@ public class DocumentEditor : Control
         vScrollBar.Left   = canvasRect.Right;
         vScrollBar.Height = canvasRect.Height;
 
-        vScrollBar.Maximum     = rootBlock.Bounds.Bottom;
-        vScrollBar.SmallChange = (int)Math.Ceiling(font.GetHeight(gdi));
-        vScrollBar.LargeChange = Math.Max(0, canvasRect.Height - vScrollBar.SmallChange);
+        int smallChange = (int)Math.Ceiling(font.GetHeight(gdi));
+        int largeChange = Math.Max(0, canvasRect.Height - smallChange);
+        // the range (ie, .Maximum) has to be set before SmallChange and LargeChange, otherwise they may may be clipped
+        vScrollBar.Maximum     = Math.Max(0, rootBlock.Bounds.Bottom - canvasRect.Height + largeChange - 1);
+        vScrollBar.SmallChange = smallChange;
+        vScrollBar.LargeChange = largeChange;
         vScrollBar.Enabled     = rootBlock.Bounds.Bottom > canvasRect.Height; // disable the scrollbar if the document
                                                                               // already fits vertically
-        vScrollPos = vScrollBar.Value;
+        vScrollPos = Math.Min(vScrollBar.Value, vScrollBar.Maximum - vScrollBar.LargeChange + 1);
       }
 
       if(hScrollBar != null)
@@ -1658,12 +1694,15 @@ public class DocumentEditor : Control
         hScrollBar.Left  = canvasRect.Left;
         hScrollBar.Width = canvasRect.Width;
 
-        hScrollBar.Maximum     = rootBlock.Bounds.Right;
-        hScrollBar.SmallChange = (int)Math.Ceiling(gdi.MeasureString("W", font).Width);
-        hScrollBar.LargeChange = Math.Max(0, canvasRect.Width - hScrollBar.SmallChange);
+        int smallChange = (int)Math.Ceiling(gdi.MeasureString("W", font).Width);
+        int largeChange = Math.Max(0, canvasRect.Width - smallChange);
+        // the range (ie, .Maximum) has to be set before SmallChange and LargeChange, otherwise they may may be clipped
+        hScrollBar.Maximum     = Math.Max(0, rootBlock.Bounds.Right - canvasRect.Width + largeChange - 1);
+        hScrollBar.SmallChange = smallChange;
+        hScrollBar.LargeChange = largeChange;
         hScrollBar.Enabled     = rootBlock.Bounds.Right > canvasRect.Width; // disable the scrollbar if the document
                                                                             // already fits horizontally
-        hScrollPos = hScrollBar.Value;
+        hScrollPos = Math.Min(hScrollBar.Value, hScrollBar.Maximum - hScrollBar.LargeChange + 1);
       }
     }
   }
@@ -1678,6 +1717,7 @@ public class DocumentEditor : Control
   /// <remarks>This method uses an optimized system calls if they are available.</remarks>
   void ScrollCanvas(int xOffset, int yOffset)
   {
+Invalidate(CanvasRectangle); return;
     PlatformID platform = Environment.OSVersion.Platform;
     if(platform == PlatformID.Win32NT || platform == PlatformID.Win32Windows || platform == PlatformID.WinCE)
     {
