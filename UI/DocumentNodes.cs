@@ -61,8 +61,11 @@ public enum Layout
 
 #region DocumentNode
 /// <summary>Represents a rectangular section of content within a document.</summary>
-public abstract class DocumentNode
+public class DocumentNode
 {
+  /// <summary>Initializes a new <see cref="DocumentNode"/>.</summary>
+  public DocumentNode() : this(true) { }
+
   /// <summary>Initializes a new <see cref="DocumentNode"/>.</summary>
   protected DocumentNode(bool allowChildren)
   {
@@ -260,7 +263,10 @@ public abstract class DocumentNode
   }
 
   /// <include file="documentation.xml" path="/UI/DocumentNode/GetDescription/*"/>
-  public abstract string GetDescription();
+  public virtual string GetDescription()
+  {
+    return "a node";
+  }
 
   /// <summary>Adds the given change to this node's document if it has one, or simply executes the change if it
   /// doesn't.

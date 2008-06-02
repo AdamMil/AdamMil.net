@@ -192,14 +192,24 @@ public sealed class FourSide
   /// <include file="documentation.xml" path="/UI/Common/OpEquals/*"/>
   public static bool operator==(FourSide a, FourSide b)
   {
+    if((object)a == null || (object)b == null) return (object)a == (object)b;
     return a.Left == b.Left && a.Top == b.Top && a.Right == b.Right && a.Bottom == b.Bottom;
   }
 
   /// <include file="documentation.xml" path="/UI/Common/OpNotEquals/*"/>
   public static bool operator!=(FourSide a, FourSide b)
   {
+    if((object)a == null || (object)b == null) return (object)a != (object)b;
     return a.Left != b.Left || a.Top != b.Top || a.Right != b.Right || a.Bottom != b.Bottom;
   }
+}
+#endregion
+
+#region BorderStyle
+/// <summary>Defines the style of a border drawn around an object.</summary>
+public enum BorderStyle
+{
+  None, Dotted, Dashed, DashDotted, DashDoubleDotted, Solid
 }
 #endregion
 
@@ -259,6 +269,33 @@ public class Style
   public Color? EffectiveBackColor
   {
     get { return GetNullableOption<Color>("BackColor", true); }
+  }
+
+  /// <summary>Gets or sets the local border color. This is also the effective border color, as the border color is not
+  /// inheritable.
+  /// </summary>
+  public Color? BorderColor
+  {
+    get { return GetNullableOption<Color>("*BorderColor", false); }
+    set { SetNullableOption("*BorderColor", value, value != BorderColor); }
+  }
+
+  /// <summary>Gets or sets the local border style. This is also the effective border style, as the border style is not
+  /// inheritable.
+  /// </summary>
+  public BorderStyle BorderStyle
+  {
+    get { return GetOption<RichDocument.BorderStyle>("*BorderStyle", false, BorderStyle.Solid); }
+    set { SetOption("*BorderStyle", value, value != BorderStyle); }
+  }
+
+  /// <summary>Gets or sets the local border style. This is also the effective border style, as the border style is not
+  /// inheritable.
+  /// </summary>
+  public Measurement BorderWidth
+  {
+    get { return GetOption<Measurement>("*BorderWidth", false); }
+    set { SetOption("*BorderWidth", value, value != BorderWidth); }
   }
 
   /// <summary>Gets or sets the local foreground color.</summary>
@@ -366,6 +403,14 @@ public class Style
   /// <returns>Returns the option value, or null if no value was found.</returns>
   protected T GetOption<T>(string optionName, bool searchAncestors)
   {
+    return GetOption<T>(optionName, searchAncestors, default(T));
+  }
+
+  /// <include file="documentation.xml" path="/UI/Style/GetOption/*"/>
+  /// <param name="defaultValue">The default value which will be returned if the option is not set.</param>
+  /// <returns>Returns the option value, or null if no value was found.</returns>
+  protected T GetOption<T>(string optionName, bool searchAncestors, T defaultValue)
+  {
     object value;
     if(searchAncestors)
     {
@@ -378,11 +423,11 @@ public class Style
         style = parent == null ? null : parent.Style;
       } while(style != null);
 
-      return default(T);
+      return defaultValue;
     }
     else
     {
-      return options != null && options.TryGetValue(optionName, out value) ? (T)value : default(T);
+      return options != null && options.TryGetValue(optionName, out value) ? (T)value : defaultValue;
     }
   }
 
