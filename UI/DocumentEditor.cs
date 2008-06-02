@@ -68,9 +68,9 @@ public class DocumentEditor : Control
   /// <see cref="System.Windows.Forms.BorderStyle.Fixed3D"/>.
   /// </summary>
   [Category("Appearance")]
-  [DefaultValue(BorderStyle.Fixed3D)]
+  [DefaultValue(System.Windows.Forms.BorderStyle.Fixed3D)]
   [Description("Determines how the border of the control will be drawn.")]
-  public BorderStyle BorderStyle
+  public System.Windows.Forms.BorderStyle BorderStyle
   {
     get { return borderStyle; }
     set
@@ -506,8 +506,8 @@ public class DocumentEditor : Control
     Document.Undo();
   }
 
-  #region Layout classes and methods
-  #region Region
+  #region Layout classes and methods, including rendering code
+  #region LayoutRegion
   /// <summary>Represents a rectangular area within the document layout into which a span of the document indices are
   /// rendered.
   /// </summary>
@@ -605,14 +605,26 @@ public class DocumentEditor : Control
       set { Span.Length = value; }
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/Children/*"/>
-    public abstract LayoutRegion[] Children
-    {
-      get;
-    }
-
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/BeginLayout/*"/>
     public virtual void BeginLayout(Graphics gdi) { }
+
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetChildren/*"/>
+    public abstract LayoutRegion[] GetChildren();
+
+    public virtual DocumentNode GetNode() { return null; }
+
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/Render/*"/>
+    public virtual void Render(ref RenderData data, Point clientPoint)
+    {
+      RenderBorderAndBackground(ref data, clientPoint);
+
+      foreach(LayoutRegion child in GetChildren())
+      {
+        Rectangle childArea = new Rectangle(clientPoint.X + child.Left, clientPoint.Y + child.Top,
+                                            child.Width, child.Height);
+        if(childArea.IntersectsWith(data.ClipRectangle)) child.Render(ref data, childArea.Location);
+      }
+    }
 
     /// <summary>The region's bounds, relative to the parent region.</summary>
     public Rectangle Bounds;
@@ -620,98 +632,157 @@ public class DocumentEditor : Control
     public Point AbsolutePosition;
     /// <summary>The span of indices that this region contains.</summary>
     public Span Span;
-  }
-  #endregion
+    /// <summary>The thickness of the margin, in pixels.</summary>
+    public FourSideInt Margin;
+    /// <summary>The thickness of the padding, in pixels.</summary>
+    public FourSideInt Padding;
+    /// <summary>The thickness of the border, in pixels.</summary>
+    public Size Border;
 
-  #region BlockBase
-  /// <summary>Provides a base class for block regions, whose children are stacked vertically.</summary>
-  protected abstract class BlockBase : LayoutRegion
-  {
-    internal abstract void Render(Graphics gdi, ref Rectangle area, ref RenderData data);
-  }
-  #endregion
-
-  #region Block
-  /// <summary>Represents a block that contains only other blocks.</summary>
-  protected sealed class Block : BlockBase
-  {
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/Children/*"/>
-    public override LayoutRegion[] Children
+    protected void RenderBorderAndBackground(ref RenderData data, Point clientPoint)
     {
-      get { return Blocks; }
-    }
+      DocumentNode node = GetNode();
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/Children/*"/>
-    public BlockBase[] Blocks;
-
-    internal override void Render(Graphics gdi, ref Rectangle area, ref RenderData data)
-    {
-      foreach(BlockBase block in Blocks)
+      if(node != null)
       {
-        Rectangle childArea = new Rectangle(area.Left+block.Left, area.Top+block.Top, block.Width, block.Height);
-        if(childArea.IntersectsWith(data.ClipRectangle))
+        Color? color = node.Style.BackColor;
+        if(color.HasValue && color.Value.A != 0)
         {
-          block.Render(gdi, ref childArea, ref data);
-        }                                                   
-      }
-    }
-  }
-  #endregion
+          using(Brush brush = new SolidBrush(color.Value))
+          {
+            Rectangle paddingBox =
+              new Rectangle(clientPoint.X+Margin.Left+Border.Width, clientPoint.Y+Margin.Top+Border.Height,
+                            Width-Margin.TotalHorizontal-Border.Width*2, Height-Margin.TotalVertical-Border.Height*2);
+            data.Graphics.FillRectangle(brush, paddingBox);
+          }
+        }
 
-  #region LineBlock
-  /// <summary>Represents a block that contains only lines.</summary>
-  protected sealed class LineBlock : BlockBase
-  {
-    /// <summary>Initializes this <see cref="LineBlock"/> with the given list of <see cref="Line"/> objects.</summary>
-    public LineBlock(Line[] lines) { Lines = lines; }
-
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/Children/*"/>
-    public override LayoutRegion[] Children
-    {
-      get { return Lines; }
-    }
-
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/Children/*"/>
-    public Line[] Lines;
-
-    internal override void Render(Graphics gdi, ref Rectangle area, ref RenderData data)
-    {
-      foreach(Line line in Lines)
-      {
-        Rectangle childArea = new Rectangle(area.Left+line.Left, area.Top+line.Top, line.Width, line.Height);
-        if(childArea.IntersectsWith(data.ClipRectangle))
+        if(!Border.IsEmpty)
         {
-          line.Render(gdi, ref childArea, ref data);
+          BorderStyle borderStyle = node.Style.BorderStyle;
+          color = node.Style.BorderColor ?? node.Style.EffectiveForeColor ?? data.Editor.ForeColor;
+          if(borderStyle != RichDocument.BorderStyle.None && color.Value.A != 0)
+          {
+            using(Pen pen = new Pen(color.Value))
+            {
+              switch(borderStyle)
+              {
+                case RichDocument.BorderStyle.Dashed:
+                  pen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
+                  break;
+                case RichDocument.BorderStyle.Dotted:
+                  pen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dot;
+                  break;
+                case RichDocument.BorderStyle.DashDotted:
+                  pen.DashStyle = System.Drawing.Drawing2D.DashStyle.DashDot;
+                  break;
+                case RichDocument.BorderStyle.DashDoubleDotted:
+                  pen.DashStyle = System.Drawing.Drawing2D.DashStyle.DashDotDot;
+                  break;
+                default:
+                  pen.DashStyle = System.Drawing.Drawing2D.DashStyle.Solid;
+                  break;
+              }
+
+              // pen.Alignment doesn't work reliably (it's not implemented yet on Windows) so we need to handle the
+              // inset calculation ourselves
+              RectangleF borderRect = new RectangleF(clientPoint.X + Margin.Left + Border.Width*0.5f,
+                                                     clientPoint.Y + Margin.Top  + Border.Height*0.5f,
+                                                     Width  - Margin.TotalHorizontal - Border.Width,
+                                                     Height - Margin.TotalVertical   - Border.Height);
+              if(Border.Width == Border.Height) // if the horizontal border is the same width as the vertical border...
+              {
+                pen.Width = Border.Width; // then draw it using DrawRectangle
+                data.Graphics.DrawRectangle(pen, borderRect.X, borderRect.Y, borderRect.Width, borderRect.Height);
+              }
+              else // otherwise, the horizontal lines are of different widths than the vertical lines. this is due to
+              {    // the output device having different DPI values for the two dimensions
+                
+                // square the end caps so that the lines join together
+                pen.StartCap = pen.EndCap = System.Drawing.Drawing2D.LineCap.Square;
+                
+                // TODO: this code doesn't work with dashed or dotted borders because the dash pattern gets restarted
+                // for each line. i tried rewriting the whole layout engine to use inches rather than pixels, but that
+                // just ended up being very ugly because of GDI+ bugs that screw up the dash style when using non-pixel
+                // page units
+
+                // draw the horizontal lines first
+                pen.Width = Border.Height;
+                data.Graphics.DrawLine(pen, borderRect.Left, borderRect.Top,    borderRect.Right, borderRect.Top);
+                data.Graphics.DrawLine(pen, borderRect.Left, borderRect.Bottom, borderRect.Right, borderRect.Bottom);
+                // now draw the vertical lines
+                pen.Width = Border.Width;
+                data.Graphics.DrawLine(pen, borderRect.Left,  borderRect.Top, borderRect.Left,  borderRect.Bottom);
+                data.Graphics.DrawLine(pen, borderRect.Right, borderRect.Top, borderRect.Right, borderRect.Bottom);
+              }
+            }
+          }
         }
       }
     }
   }
   #endregion
 
-  #region Line
-  /// <summary>Represents a line region, whose children are stacked horizontally.</summary>
-  protected sealed class Line : LayoutRegion
+  #region LayoutRegion<ChildType>
+  /// <summary>Represents a <see cref="LayoutRegion"/> with a strongly-typed array of child regions.</summary>
+  /// <typeparam name="ChildType">The type of child region this region contains.</typeparam>
+  protected abstract class LayoutRegion<ChildType> : LayoutRegion where ChildType : LayoutRegion
   {
-    /// <summary>Initializes this <see cref="Line"/> with the given list of <see cref="LayoutSpan"/> objects.</summary>
-    public Line(LayoutSpan[] spans) { Spans = spans; }
+    /// <summary>Initializes this <see cref="LayoutRegion{T}"/> with a null child array.</summary>
+    public LayoutRegion() { }
+    /// <summary>Initializes this <see cref="LayoutRegion{T}"/> with the given child array.</summary>
+    public LayoutRegion(ChildType[] children) { Children = children; }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/Children/*"/>
-    public override LayoutRegion[] Children
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/BeginLayout/*"/>
+    public sealed override LayoutRegion[] GetChildren()
     {
-      get { return Spans; }
+      return Children;
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/Children/*"/>
-    public LayoutSpan[] Spans;
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetChildren/*"/>
+    public ChildType[] Children;
+  }
+  #endregion
 
-    internal void Render(Graphics gdi, ref Rectangle area, ref RenderData data)
+  #region Block
+  /// <summary>Represents a block region, whose children are stacked vertically.</summary>
+  protected class Block : LayoutRegion<LayoutRegion>
+  {
+    /// <summary>Initializes a new <see cref="Block"/> with a null child array.</summary>
+    public Block() { }
+    /// <summary>Initializes a new <see cref="Block"/> with the given child array.</summary>
+    public Block(LayoutRegion[] children) : base(children) { }
+  }
+  #endregion
+
+  #region Block<NodeType>
+  /// <summary>Represents a block region with a strongly-typed document node.</summary>
+  protected class Block<NodeType> : Block where NodeType : DocumentNode
+  {
+    /// <summary>Initializes a new <see cref="Block"/> with a null child array.</summary>
+    public Block(NodeType node) { Node = node; }
+    /// <summary>Initializes a new <see cref="Block"/> with the given child array.</summary>
+    public Block(NodeType node, LayoutRegion[] children) : base(children) { Node = node; }
+
+    public sealed override DocumentNode GetNode()
     {
-      foreach(LayoutSpan span in Spans)
-      {
-        Rectangle childArea = new Rectangle(area.Left+span.Left, area.Top+span.Top, span.Width, span.Height);
-        if(childArea.IntersectsWith(data.ClipRectangle)) span.Render(gdi, childArea.Location, data.Selection);
-      }
+      return Node;
     }
+
+    protected readonly NodeType Node;
+  }
+  #endregion
+
+  #region Line
+  /// <summary>Represents a line region, whose children are <see cref="LayoutSpan"/> regions that are stacked
+  /// horizontally.
+  /// </summary>
+  protected sealed class Line : LayoutRegion<LayoutSpan>
+  {
+    /// <summary>Initializes a new <see cref="Line"/> with a null child array.</summary>
+    public Line() { }
+    /// <summary>Initializes a new <see cref="Line"/> with the given child array.</summary>
+    public Line(LayoutSpan[] children) : base(children) { }
   }
   #endregion
 
@@ -722,12 +793,6 @@ public class DocumentEditor : Control
   /// </summary>
   protected abstract class LayoutSpan : LayoutRegion
   {
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/Children/*"/>
-    public sealed override LayoutRegion[] Children
-    {
-      get { return NoChildren; }
-    }
-
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/LineCount/*"/>
     public virtual int LineCount
     {
@@ -737,12 +802,15 @@ public class DocumentEditor : Control
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/CreateNew/*"/>
     public abstract LayoutSpan CreateNew();
 
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/BeginLayout/*"/>
+    public sealed override LayoutRegion[] GetChildren()
+    {
+      return NoChildren;
+    }
+
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/GetNextSplitPiece/*"/>
     public abstract SplitPiece GetNextSplitPiece(Graphics gdi, int line, SplitPiece piece, int spaceLeft,
                                                  bool lineIsEmpty);
-
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/Render/*"/>
-    public abstract void Render(Graphics gdi, Point clientPoint, Span selection);
 
     /// <summary>Gets or sets the number of pixels from the baseline to the bottom of the region.</summary>
     public int Descent;
@@ -751,7 +819,7 @@ public class DocumentEditor : Control
   }
   #endregion
 
-  #region LayoutSpan<T>
+  #region LayoutSpan<NodeType>
   /// <summary>Represents a <see cref="LayoutSpan"/> with a strongly-typed <see cref="DocumentNode"/>.</summary>
   protected abstract class LayoutSpan<NodeType> : LayoutSpan where NodeType : DocumentNode
   {
@@ -762,8 +830,64 @@ public class DocumentEditor : Control
       Node = node;
     }
 
+    public sealed override DocumentNode GetNode()
+    {
+      return Node;
+    }
+
     /// <summary>The <see cref="DocumentNode"/> associated with this <see cref="LayoutSpan"/>.</summary>
     protected readonly NodeType Node;
+  }
+  #endregion
+
+  #region FourSideInt
+  protected struct FourSideInt
+  {
+    public FourSideInt(int left, int top, int right, int bottom)
+    {
+      Left   = left;
+      Top    = top;
+      Right  = right;
+      Bottom = bottom;
+    }
+
+    public int TotalHorizontal
+    {
+      get { return Left + Right; }
+    }
+
+    public int TotalVertical
+    {
+      get { return Top + Bottom; }
+    }
+
+    public int Left, Top, Right, Bottom;
+  }
+  #endregion
+
+  #region RenderData
+  /// <summary>Contains render-related data that does not change during a rendering.</summary>
+  protected struct RenderData
+  {
+    /// <summary>Initializes a new <see cref="RenderData"/> structure with the given graphics context, clipping
+    /// rectangle, and span of selected document indices.
+    /// </summary>
+    public RenderData(Graphics graphics, DocumentEditor editor, Rectangle clipRect, Span selection)
+    {
+      Graphics      = graphics;
+      Editor        = editor;
+      ClipRectangle = clipRect;
+      Selection     = selection;
+    }
+
+    /// <summary>The graphics context used to render the document.</summary>
+    public readonly Graphics Graphics;
+    /// <summary>The editor that is being rendered.</summary>
+    public readonly DocumentEditor Editor;
+    /// <summary>The rectangle in which all rendering output should be contained, in client coordinates.</summary>
+    public readonly Rectangle ClipRectangle;
+    /// <summary>The span of document indices that are selected in the control.</summary>
+    public readonly Span Selection;
   }
   #endregion
 
@@ -928,24 +1052,17 @@ public class DocumentEditor : Control
                             skipCharacters + (!lineWrapped && skippedNewLine ? 1 : 0), lineWrapped);
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/Render/*"/>
-    public override void Render(Graphics gdi, Point clientPoint, Span selection)
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/Render/*"/>
+    public override void Render(ref RenderData data, Point clientPoint)
     {
+      RenderBorderAndBackground(ref data, clientPoint);
+
       const TextFormatFlags DrawFlags = TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding |
                                         TextFormatFlags.SingleLine;
       // TODO: render the selection too
       Color fore = Node.Style.EffectiveForeColor ?? Editor.ForeColor;
-      Color? back = Node.Style.BackColor; // assume the background is filled
-
-      if(back.HasValue && back.Value.A != 0)
-      {
-        TextRenderer.DrawText(gdi, Node.GetText(Start-StartIndex, Length), Font, clientPoint, fore, back.Value,
-                              DrawFlags);
-      }
-      else
-      {
-        TextRenderer.DrawText(gdi, Node.GetText(Start-StartIndex, Length), Font, clientPoint, fore, DrawFlags);
-      }
+      TextRenderer.DrawText(data.Graphics, Node.GetText(Start-StartIndex, Length), Font, clientPoint, fore,
+                            DrawFlags);
     }
 
     readonly Font Font;
@@ -964,7 +1081,7 @@ public class DocumentEditor : Control
   /// </summary>
   protected virtual Block CreateLayoutBlock(DocumentNode node)
   {
-    return new Block();
+    return new Block<DocumentNode>(node);
   }
 
   /// <summary>Given an inline <see cref="DocumentNode"/>, and its starting index within the document, creates and
@@ -980,7 +1097,7 @@ public class DocumentEditor : Control
 
   /// <summary>Creates a layout block given the rendering context, a document node, and the width available in pixels.
   /// </summary>
-  BlockBase CreateBlock(Graphics gdi, DocumentNode node, int availableWidth, ref int startIndex)
+  Block CreateBlock(Graphics gdi, DocumentNode node, int availableWidth, ref int startIndex)
   {
     Block newBlock = CreateLayoutBlock(node);
     newBlock.BeginLayout(gdi);
@@ -996,20 +1113,62 @@ public class DocumentEditor : Control
       }
     }
 
+    // calculate the horizontal margin and padding
+    int hShrinkage, vShrinkage;
+
+    FourSide fourSide = node.Style.Margin;
+    if(fourSide == null)
+    {
+      hShrinkage = vShrinkage = 0;
+    }
+    else
+    {
+      newBlock.Margin.Left   = (int)Math.Round(GetPixels(gdi, node, fourSide.Left, availableWidth, Orientation.Horizontal));
+      newBlock.Margin.Right  = (int)Math.Round(GetPixels(gdi, node, fourSide.Right, availableWidth, Orientation.Horizontal));
+      // TODO: we need a base measurement to use for relative calculations
+      newBlock.Margin.Top    = (int)Math.Round(GetPixels(gdi, node, fourSide.Top, 0, Orientation.Vertical));
+      newBlock.Margin.Bottom = (int)Math.Round(GetPixels(gdi, node, fourSide.Bottom, 0, Orientation.Vertical));
+      hShrinkage = newBlock.Margin.TotalHorizontal;
+      vShrinkage = newBlock.Margin.TotalVertical;
+    }
+
+    fourSide = node.Style.Padding;
+    if(fourSide != null)
+    {
+      newBlock.Padding.Left   = (int)Math.Round(GetPixels(gdi, node, fourSide.Left, availableWidth, Orientation.Horizontal));
+      newBlock.Padding.Right  = (int)Math.Round(GetPixels(gdi, node, fourSide.Right, availableWidth, Orientation.Horizontal));
+      // TODO: we need a base measurement to use for relative calculations
+      newBlock.Padding.Top    = (int)Math.Round(GetPixels(gdi, node, fourSide.Top, 0, Orientation.Vertical));
+      newBlock.Padding.Bottom = (int)Math.Round(GetPixels(gdi, node, fourSide.Bottom, 0, Orientation.Vertical));
+      hShrinkage += newBlock.Padding.TotalHorizontal;
+      vShrinkage += newBlock.Padding.TotalVertical;
+    }
+
+    Measurement measurement = node.Style.BorderWidth;
+    if(measurement.Size != 0 && node.Style.BorderStyle != RichDocument.BorderStyle.None)
+    {
+      // TODO: we need a base measurement to use for relative calculations
+      newBlock.Border =
+        new Size((int)Math.Round(GetPixels(gdi, node, measurement, availableWidth, Orientation.Horizontal)),
+                 (int)Math.Round(GetPixels(gdi, node, measurement, 0, Orientation.Vertical)));
+      hShrinkage += newBlock.Border.Width  * 2;
+      vShrinkage += newBlock.Border.Height * 2;
+    }
+
     if(allInline) // if there are no block children, lay them all out horizontally into a line
     {
-      LineBlock lines = LayoutLines(gdi, node.Children, availableWidth, ref startIndex);
+      Block lines = LayoutLines(gdi, node.Children, availableWidth - hShrinkage, ref startIndex);
       if(lines == null) return null;
-      newBlock.Blocks = new BlockBase[] { lines };
-      newBlock.Span   = lines.Span;
-      newBlock.Size   = lines.Size;
+      newBlock.Children = new LayoutRegion[] { lines };
+      newBlock.Span     = lines.Span;
+      newBlock.Size     = lines.Size;
     }
     else // otherwise, one or more nodes is a block
     {
       // TODO: implement float and clear
 
       // create a list of blocks by using block nodes as-is and gathering runs of inline nodes into a line block
-      List<BlockBase> blocks = new List<BlockBase>(node.Children.Count);
+      List<Block> blocks = new List<Block>(node.Children.Count);
       List<DocumentNode> inline = null; // a list of inline nodes waiting to be grouped into a line block
 
       foreach(DocumentNode child in node.Children)
@@ -1023,51 +1182,65 @@ public class DocumentEditor : Control
         {
           if(inline != null && inline.Count != 0) // if we have collected some inline nodes already, group and add them
           {
-            blocks.Add(LayoutLines(gdi, inline, availableWidth, ref startIndex));
+            blocks.Add(LayoutLines(gdi, inline, availableWidth - hShrinkage, ref startIndex));
             inline.Clear();
           }
 
-          // TODO: implement margin and padding
-          BlockBase block = CreateBlock(gdi, child, availableWidth, ref startIndex);
+          Block block = CreateBlock(gdi, child, availableWidth - hShrinkage, ref startIndex);
           if(block != null) blocks.Add(block);
         }
       }
 
       // if we have some inline nodes left, create a final line block to hold them
-      if(inline != null && inline.Count != 0) blocks.Add(LayoutLines(gdi, inline, availableWidth, ref startIndex));
+      if(inline != null && inline.Count != 0)
+      {
+        blocks.Add(LayoutLines(gdi, inline, availableWidth - hShrinkage, ref startIndex));
+      }
 
-      newBlock.Blocks = blocks.ToArray();
+      newBlock.Children = blocks.ToArray();
 
       // go through the blocks and stack them up, while simultaneously calculating the size of the container
-      foreach(BlockBase child in newBlock.Blocks)
+      foreach(LayoutRegion child in newBlock.Children)
       {
-        int effectiveChildHeight = child.Top + child.Height; // the height of the child, including the top margin
+        int effectiveChildHeight = child.Top + child.Height; // from the top of the block to the bottom of the child...
         child.Top += newBlock.Height; // stick the block at the bottom of the stack
 
-        // if the block is wider than the container, enlarge the container horizontally
+        // if the block is wider than the container, widen the container
         if(child.Bounds.Right > newBlock.Bounds.Right) newBlock.Width = child.Bounds.Right - newBlock.Left;
 
         newBlock.Height += effectiveChildHeight; // enlarge the container vertically
       }
 
       // calculate the span of the container
-      newBlock.Start  = newBlock.Blocks[0].Start;
-      newBlock.Length = newBlock.Blocks[newBlock.Blocks.Length-1].End - newBlock.Start;
+      newBlock.Start  = newBlock.Children[0].Start;
+      newBlock.Length = newBlock.Children[newBlock.Children.Length-1].End - newBlock.Start;
+    }
+
+    // now that the container is exactly the size of its content, we can go back and apply margin and padding
+    if(hShrinkage != 0 || vShrinkage != 0)
+    {
+      int leftAdd = newBlock.Margin.Left + newBlock.Padding.Left + newBlock.Border.Width;
+      int  topAdd = newBlock.Margin.Top  + newBlock.Padding.Top  + newBlock.Border.Height;
+      foreach(LayoutRegion child in newBlock.Children)
+      {
+        child.Left += leftAdd;
+        child.Top  += topAdd;
+      }
+      newBlock.Width  += hShrinkage;
+      newBlock.Height += vShrinkage;
     }
 
     return newBlock;
   }
 
-  BlockBase CreateRootBlock(Graphics gdi)
+  Block CreateRootBlock(Graphics gdi)
   {
     int startIndex = 0;
-    BlockBase rootBlock = CreateBlock(gdi, Document.Root, CanvasRectangle.Width, ref startIndex);
+    Block rootBlock = CreateBlock(gdi, Document.Root, CanvasRectangle.Width, ref startIndex);
     if(rootBlock == null)
     {
-      Block block = new Block();
-      block.BeginLayout(gdi);
-      block.Blocks = new BlockBase[0];
-      rootBlock = block;
+      rootBlock = new Block<DocumentNode>(Document.Root, new Block[0]);
+      rootBlock.BeginLayout(gdi);
     }
     return rootBlock;
   }
@@ -1081,6 +1254,8 @@ public class DocumentEditor : Control
   float GetPixels(Graphics gdi, DocumentNode node, Measurement measurement, int parentPixels,
                   Orientation orientation)
   {
+    if(measurement.Size == 0) return 0;
+
     switch(measurement.Unit)
     {
       case Unit.FontRelative:
@@ -1109,7 +1284,7 @@ public class DocumentEditor : Control
   /// <summary>Creates a line block given the rendering context, the inline nodes to place into the block, and the
   /// width available, in pixels.
   /// </summary>
-  LineBlock LayoutLines(Graphics gdi, ICollection<DocumentNode> inlineNodes, int availableWidth, ref int startIndex)
+  Block LayoutLines(Graphics gdi, ICollection<DocumentNode> inlineNodes, int availableWidth, ref int startIndex)
   {
     // the method creates a list of lines, each holding spans, from a list of nodes.
 
@@ -1165,21 +1340,21 @@ public class DocumentEditor : Control
     }
 
     // now, loop through each of the lines that we've added and stack them vertically into a LineBlock
-    LineBlock block = new LineBlock(lines.ToArray());
+    Block block = new Block(lines.ToArray());
     block.BeginLayout(gdi);
 
-    foreach(Line line in block.Lines)
+    foreach(Line line in block.Children)
     {
       // calculate the line span
-      if(line.Spans.Length != 0)
+      if(line.Children.Length != 0)
       {
-        line.Start  = line.Spans[0].Start;
-        line.Length = line.Spans[line.Spans.Length-1].End - line.Start;
+        line.Start  = line.Children[0].Start;
+        line.Length = line.Children[line.Children.Length-1].End - line.Start;
       }
 
       // stack the spans horizontally within the line and calculate the maximum descent
       int maxDescent = 0;
-      foreach(LayoutSpan s in line.Spans)
+      foreach(LayoutSpan s in line.Children)
       {
         s.Position  = new Point(line.Width, 0);
         line.Width += s.Width;
@@ -1188,7 +1363,7 @@ public class DocumentEditor : Control
 
       // now go back through and position the spans vertically
       // TODO: implement vertical alignment
-      foreach(LayoutSpan s in line.Spans)
+      foreach(LayoutSpan s in line.Children)
       {
         s.Top += line.Height - s.Height + s.Descent - maxDescent; // just do bottom alignment for now...
       }
@@ -1199,10 +1374,10 @@ public class DocumentEditor : Control
       block.Height += line.Height;
     }
 
-    if(block.Lines.Length == 0) return null;
+    if(block.Children.Length == 0) return null;
 
-    block.Start  = block.Lines[0].Start;
-    block.Length = block.Lines[block.Lines.Length-1].End - block.Start;
+    block.Start  = block.Children[0].Start;
+    block.Length = block.Children[block.Children.Length-1].End - block.Start;
     return block;
   }
 
@@ -1379,10 +1554,8 @@ public class DocumentEditor : Control
 
     // render the document
     Point scrollPosition = ScrollPosition;
-    RenderData data = new RenderData(Rectangle.Intersect(e.ClipRectangle, canvasRect), Selection);
-    Rectangle renderArea = new Rectangle(canvasRect.X - scrollPosition.X, canvasRect.Y - scrollPosition.Y,
-                                         canvasRect.Width, canvasRect.Height);
-    rootBlock.Render(e.Graphics, ref renderArea, ref data);
+    RenderData data = new RenderData(e.Graphics, this, Rectangle.Intersect(e.ClipRectangle, canvasRect), Selection);
+    rootBlock.Render(ref data, new Point(canvasRect.X - scrollPosition.X, canvasRect.Y - scrollPosition.Y));
 
     // since the text rendering is done with GDI rather than GDI+, it doesn't obey the GDI+ clip region. so the text
     // may have overlapped the border or the corner between the scrollbars. so we'll redraw them unconditionally now.
@@ -1398,10 +1571,10 @@ public class DocumentEditor : Control
     }
 
     // render the border
-    if(BorderStyle != BorderStyle.None)
+    if(BorderStyle != System.Windows.Forms.BorderStyle.None)
     {
-      ControlPaint.DrawBorder3D(e.Graphics, this.ClientRectangle, 
-                                BorderStyle == BorderStyle.Fixed3D ? Border3DStyle.Sunken : Border3DStyle.Flat);
+      ControlPaint.DrawBorder3D(e.Graphics, this.ClientRectangle,
+        BorderStyle == System.Windows.Forms.BorderStyle.Fixed3D ? Border3DStyle.Sunken : Border3DStyle.Flat);
     }
   }
 
@@ -1507,22 +1680,14 @@ public class DocumentEditor : Control
   static extern bool W32ScrollWindow(IntPtr hWnd, int xOffset, int yOffset, ref RECT scrollRegion, ref RECT clipRect);
   #endregion
 
-  internal struct RenderData
-  {
-    public RenderData(Rectangle clipRect, Span selection)
-    {
-      ClipRectangle = clipRect;
-      Selection     = selection;
-    }
-
-    public Rectangle ClipRectangle;
-    public Span Selection;
-  }
-
   /// <summary>Gets the thickness of the border, in pixels.</summary>
   int BorderWidth
-  { // TODO: we probably shouldn't be making assumptions about how the border will be drawn...
-    get { return BorderStyle == BorderStyle.Fixed3D ? 2 : BorderStyle == BorderStyle.FixedSingle ? 1 : 0; }
+  {
+    get
+    { // TODO: we probably shouldn't be making assumptions about how the border will be drawn...
+      return BorderStyle == System.Windows.Forms.BorderStyle.Fixed3D ?
+        2 : BorderStyle == System.Windows.Forms.BorderStyle.FixedSingle ? 1 : 0;
+    }
   }
 
   /// <summary>Handles the horizontal scrollbar value changing.</summary>
@@ -1772,13 +1937,13 @@ public class DocumentEditor : Control
   }
 
   readonly Document document;
-  BlockBase rootBlock;
+  Block rootBlock;
   HScrollBar hScrollBar;
   VScrollBar vScrollBar;
   int cursorIndex, hScrollPos, vScrollPos, controlWidth;
   Span selection;
   ScrollBars scrollBars;
-  BorderStyle borderStyle = BorderStyle.Fixed3D;
+  System.Windows.Forms.BorderStyle borderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
   bool readOnly, layoutSuspended, repaintNeeded;
 
   /// <summary>Given a graphics context, a measurement, the measurement unit, and the measurement orientation, returns
@@ -1803,7 +1968,7 @@ public class DocumentEditor : Control
   {
     region.AbsolutePosition = absPosition;
 
-    foreach(LayoutRegion child in region.Children)
+    foreach(LayoutRegion child in region.GetChildren())
     {
       SetAbsolutePositions(child, new Point(absPosition.X+child.Left, absPosition.Y+child.Top));
     }

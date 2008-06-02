@@ -65,19 +65,27 @@
 
   <DocumentEditor>
     <LayoutRegion>
-      <Children>
-        <summary>
-          Gets an array containing the children of this region. Each child is a region that is contained within
-          this region, both visually and document-wise.
-        </summary>
-      </Children>
-
       <BeginLayout>
         <summary>
           Called before the region is laid out. This can be used to initialize members that will be used by the layout
           code.
         </summary>
       </BeginLayout>
+
+      <GetChildren>
+        <summary>
+          Returns an array containing the children of this region. Each child is a region that is contained within
+          this region, both visually and document-wise.
+        </summary>
+      </GetChildren>
+
+      <Render>
+        <summary>Renders the region.</summary>
+        <param name="data">A structure containing render-related data that does not change during a render.</param>
+        <param name="clientPoint">The point in client coordinates where the top-left corner of the region should be
+          rendered.
+        </param>
+      </Render>
     </LayoutRegion>
 
     <LayoutSpan>
