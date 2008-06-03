@@ -721,9 +721,10 @@ public class DocumentEditor : Control
                 break;
             }
 
-            // pen.Alignment doesn't work reliably on Windows so we need to handle the inset calculation ourselves
-            RectangleF borderRect = new RectangleF(clientPoint.X+Border.Width*0.5f, clientPoint.Y+Border.Height*0.5f,
-                                                   Width - Border.Width, Height - Border.Height);
+            // pen.Alignment doesn't work reliably on Windows so we need to handle the inset calculation ourselves.
+            RectangleF borderRect =
+              new RectangleF(clientPoint.X + (Border.Width-1)*0.5f, clientPoint.Y + (Border.Height-1)*0.5f,
+                             Width - Border.Width, Height - Border.Height);
             switch(NodePart) // this code assumes that the layout code has already adjusted the region size to account
             {                // for the missing paddings, margins, and borders
               case NodePart.Full: // all four margins, paddings, borders will be rendered
@@ -747,7 +748,7 @@ public class DocumentEditor : Control
             }
 
             // if we can draw it with a single DrawRectangle call, then do so
-            // TODO: GDI+ sucks ass when drawing thick borders. we really need a replacement for this code
+            // TODO: GDI+ sucks ass when drawing thick borders with dash styles. we need a replacement for this code
             if(Border.Width == Border.Height && NodePart == NodePart.Full)
             {
               pen.Width = Border.Width;
@@ -1298,7 +1299,7 @@ public class DocumentEditor : Control
     newBlock.BeginLayout(gdi);
 
     // see if the node has a defined size.
-    Measurement? nodeWidth = node.Style.Width;
+    Measurement? nodeWidth = node.Style.Width, nodeHeight = node.Style.Height;
     if(nodeWidth.HasValue) // if it does, set the 'availableWidth'. later we'll set the node width.
     {
       availableWidth = (int)Math.Round(GetPixels(gdi, node, nodeWidth.Value, availableWidth, Orientation.Horizontal));
@@ -1322,10 +1323,13 @@ public class DocumentEditor : Control
     if(allInline) // if there are no block children, lay them all out horizontally into a line
     {
       Block lines = LayoutLines(gdi, node, node.Children, availableWidth - hShrinkage, ref startIndex);
-      if(lines == null) return null;
-      newBlock.Children = new LayoutRegion[] { lines };
-      newBlock.Span     = lines.Span;
-      newBlock.Size     = lines.Size;
+      if(lines == null) newBlock.Children = new LayoutRegion[0];
+      else
+      {
+        newBlock.Children = new LayoutRegion[] { lines };
+        newBlock.Span     = lines.Span;
+        newBlock.Size     = lines.Size;
+      }
     }
     else // otherwise, one or more nodes is a block
     {
@@ -1350,15 +1354,15 @@ public class DocumentEditor : Control
             inline.Clear();
           }
 
-          Block block = CreateBlock(gdi, child, availableWidth - hShrinkage, ref startIndex);
-          if(block != null) blocks.Add(block);
+          blocks.Add(CreateBlock(gdi, child, availableWidth - hShrinkage, ref startIndex));
         }
       }
 
       // if we have some inline nodes left, create a final line block to hold them
       if(inline != null && inline.Count != 0)
       {
-        blocks.Add(LayoutLines(gdi, node, inline, availableWidth - hShrinkage, ref startIndex));
+        Block lines = LayoutLines(gdi, node, inline, availableWidth - hShrinkage, ref startIndex);
+        if(lines != null) blocks.Add(lines);
       }
 
       newBlock.Children = blocks.ToArray();
@@ -1394,8 +1398,13 @@ public class DocumentEditor : Control
       newBlock.Height += vShrinkage;
     }
 
-    // now we'll force the node width if it has a defined width, but won't go smaller than the content
-    if(nodeWidth.HasValue) newBlock.Width = Math.Max(newBlock.Width, availableWidth);
+    // now we'll force the node size if it is defined, but won't go smaller than the content
+    if(nodeWidth.HasValue)  newBlock.Width = Math.Max(newBlock.Width, availableWidth);
+    if(nodeHeight.HasValue)
+    {
+      newBlock.Height = Math.Max(newBlock.Height,
+                                 (int)Math.Round(GetPixels(gdi, node, nodeHeight.Value, 0, Orientation.Vertical)));
+    }
 
     ApplyHorizontalAlignment(node.Style.HorizontalAlignment, newBlock);
     return newBlock;
@@ -1404,13 +1413,7 @@ public class DocumentEditor : Control
   Block CreateRootBlock(Graphics gdi)
   {
     int startIndex = 0;
-    Block rootBlock = CreateBlock(gdi, Document.Root, CanvasRectangle.Width, ref startIndex);
-    if(rootBlock == null)
-    {
-      rootBlock = new Block<DocumentNode>(Document.Root, new Block[0]);
-      rootBlock.BeginLayout(gdi);
-    }
-    return rootBlock;
+    return CreateBlock(gdi, Document.Root, CanvasRectangle.Width, ref startIndex);
   }
 
   /// <summary>Converts a <see cref="Measurement"/> into pixels.</summary>
