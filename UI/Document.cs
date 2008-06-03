@@ -391,11 +391,22 @@ public class Style
     set { SetOption("*Padding", value, value != Padding); }
   }
 
-  /// <summary>Gets or sets the local width. This is only applicable to block nodes, and is not inheritable.</summary>
+  /// <summary>Gets or sets the width of a node, including its padding, border, and margin. This is only applicable to
+  /// block nodes, and is not inheritable.
+  /// </summary>
   public Measurement? Width
   {
     get { return GetNullableOption<Measurement>("*Width", false); }
     set { SetNullableOption("*Width", value, value != Width); }
+  }
+
+  /// <summary>Gets or sets the height of a node, including its padding, border, and margin. This is only applicable to
+  /// block nodes, and is not inheritable.
+  /// </summary>
+  public Measurement? Height
+  {
+    get { return GetNullableOption<Measurement>("*Height", false); }
+    set { SetNullableOption("*Height", value, value != Height); }
   }
 
   /// <include file="documentation.xml" path="/UI/Style/GetOption/*"/>
