@@ -516,6 +516,62 @@ public class RemoveNodeChange : ChangeEvent
 #endregion
 #endregion
 
+#region ClearDocumentChange
+/// <summary>Represents a change that clears the entire document, restoring it to its original state.</summary>
+public class ClearDocumentChange : ChangeEvent
+{
+  /// <summary>Initializes this <see cref="ClearDocumentChange"/> with the document to clear.</summary>
+  public ClearDocumentChange(Document document) : base(document)
+  {
+    if(document == null) throw new ArgumentNullException();
+    originalRoot = (RootNode)document.Root;
+  }
+
+  /// <include file="documentation.xml" path="/UI/Common/ToString/*"/>
+  public override string ToString()
+  {
+    return "Clear the document";
+  }
+
+  /// <include file="documentation.xml" path="/UI/Common/Dispose1/*"/>
+  protected override void Dispose(bool finalizing)
+  {
+    if(cleared && originalRoot.Locked) originalRoot.Unlock();
+    base.Dispose(finalizing);
+  }
+
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/*"/>
+  protected internal override void Do()
+  {
+    ValidateVersionForDo(originalRoot.Document);
+    if(cleared) throw new InvalidOperationException(ChangeAlreadyAppliedError);
+    if(originalRoot.Locked || Document.Root != originalRoot) throw new InvalidOperationException(StateChangedError);
+
+    Document.InternalClear();
+    originalRoot.Lock();
+    cleared = true;
+  }
+
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Undo/*"/>
+  protected internal override void Undo()
+  {
+    ValidateVersionForUndo(originalRoot.Document);
+    if(!cleared) throw new InvalidOperationException(ChangeNotAppliedError);
+    if(!originalRoot.Locked || Document.Root.Children.Count != 0)
+    {
+      throw new InvalidOperationException(StateChangedError); // we expect that the document should be empty...
+    }
+
+    originalRoot.Unlock();
+    Document.InternalSetRoot(originalRoot);
+    cleared = false;
+  }
+
+  readonly RootNode originalRoot;
+  bool cleared;
+}
+#endregion
+
 #region Text changes
 #region DeleteTextChange
 /// <summary>Represents a change that deletes text from a <see cref="TextNode"/>.</summary>

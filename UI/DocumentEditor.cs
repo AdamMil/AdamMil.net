@@ -266,7 +266,7 @@ public class DocumentEditor : Control
   /// <summary>Clears the content of the document.</summary>
   public void Clear()
   {
-    document.AddChangeEvent(new ClearNodeChange(document.Root));
+    document.Clear();
   }
 
   /// <summary>Copies the content of the selection to the clipboard, if there is a selection.</summary>
@@ -1273,6 +1273,23 @@ public class DocumentEditor : Control
     return null;
   }
 
+  /// <summary>Applies the given horizontal alignment value to the region's children.</summary>
+  void ApplyHorizontalAlignment(HorizontalAlignment alignment, LayoutRegion region)
+  { 
+    // we only handle right and center because things are left-aligned by default
+    if(alignment == HorizontalAlignment.Right)
+    {
+      int contentRight = region.Bounds.Right - region.Border.Width - region.Margin.Right - region.Padding.Right;
+      foreach(LayoutRegion child in region.GetChildren()) child.Left += contentRight - child.Bounds.Right;
+    }
+    else if(alignment == HorizontalAlignment.Center)
+    {
+      int leftOffset = region.Border.Width + region.Margin.Left + region.Padding.Left;
+      int contentWidth = region.Width - leftOffset - region.Border.Width - region.Margin.Right - region.Padding.Right;
+      foreach(LayoutRegion child in region.GetChildren()) child.Left = leftOffset + (contentWidth - child.Width) / 2;
+    }
+  }
+
   /// <summary>Creates a layout block given the rendering context, a document node, and the width available in pixels.
   /// </summary>
   Block CreateBlock(Graphics gdi, DocumentNode node, int availableWidth, ref int startIndex)
@@ -1280,7 +1297,18 @@ public class DocumentEditor : Control
     Block newBlock = CreateLayoutBlock(node);
     newBlock.BeginLayout(gdi);
 
-    // first, determine whether any of the children are block nodes
+    // see if the node has a defined size.
+    Measurement? nodeWidth = node.Style.Width;
+    if(nodeWidth.HasValue) // if it does, set the 'availableWidth'. later we'll set the node width.
+    {
+      availableWidth = (int)Math.Round(GetPixels(gdi, node, nodeWidth.Value, availableWidth, Orientation.Horizontal));
+    }
+
+    // calculate the horizontal margin and padding
+    int hShrinkage, vShrinkage;
+    SetBorderMarginAndPadding(gdi, node, newBlock, availableWidth, out hShrinkage, out vShrinkage);
+
+    // now, determine whether any of the children are block nodes
     bool allInline = true;
     foreach(DocumentNode child in node.Children)
     {
@@ -1291,13 +1319,9 @@ public class DocumentEditor : Control
       }
     }
 
-    // calculate the horizontal margin and padding
-    int hShrinkage, vShrinkage;
-    SetBorderMarginAndPadding(gdi, node, newBlock, availableWidth, out hShrinkage, out vShrinkage);
-
     if(allInline) // if there are no block children, lay them all out horizontally into a line
     {
-      Block lines = LayoutLines(gdi, node.Children, availableWidth - hShrinkage, ref startIndex);
+      Block lines = LayoutLines(gdi, node, node.Children, availableWidth - hShrinkage, ref startIndex);
       if(lines == null) return null;
       newBlock.Children = new LayoutRegion[] { lines };
       newBlock.Span     = lines.Span;
@@ -1322,7 +1346,7 @@ public class DocumentEditor : Control
         {
           if(inline != null && inline.Count != 0) // if we have collected some inline nodes already, group and add them
           {
-            blocks.Add(LayoutLines(gdi, inline, availableWidth - hShrinkage, ref startIndex));
+            blocks.Add(LayoutLines(gdi, node, inline, availableWidth - hShrinkage, ref startIndex));
             inline.Clear();
           }
 
@@ -1334,7 +1358,7 @@ public class DocumentEditor : Control
       // if we have some inline nodes left, create a final line block to hold them
       if(inline != null && inline.Count != 0)
       {
-        blocks.Add(LayoutLines(gdi, inline, availableWidth - hShrinkage, ref startIndex));
+        blocks.Add(LayoutLines(gdi, node, inline, availableWidth - hShrinkage, ref startIndex));
       }
 
       newBlock.Children = blocks.ToArray();
@@ -1370,6 +1394,10 @@ public class DocumentEditor : Control
       newBlock.Height += vShrinkage;
     }
 
+    // now we'll force the node width if it has a defined width, but won't go smaller than the content
+    if(nodeWidth.HasValue) newBlock.Width = Math.Max(newBlock.Width, availableWidth);
+
+    ApplyHorizontalAlignment(node.Style.HorizontalAlignment, newBlock);
     return newBlock;
   }
 
@@ -1424,7 +1452,8 @@ public class DocumentEditor : Control
   /// <summary>Creates a line block given the rendering context, the inline nodes to place into the block, and the
   /// width available, in pixels.
   /// </summary>
-  Block LayoutLines(Graphics gdi, ICollection<DocumentNode> inlineNodes, int availableWidth, ref int startIndex)
+  Block LayoutLines(Graphics gdi, DocumentNode parent, ICollection<DocumentNode> inlineNodes,
+                    int availableWidth, ref int startIndex)
   {
     // the method creates a list of lines, each holding spans, from a list of nodes.
 
@@ -1518,15 +1547,10 @@ public class DocumentEditor : Control
 
     if(block.Children.Length == 0) return null;
 
+    ApplyHorizontalAlignment(parent.Style.HorizontalAlignment, block);
     block.Start  = block.Children[0].Start;
     block.Length = block.Children[block.Children.Length-1].End - block.Start;
     return block;
-  }
-
-  /// <summary>Incrementally updates the layout around the given node and repaints the canvas.</summary>
-  void RelayoutNode(DocumentNode node)
-  {
-    throw new NotImplementedException();
   }
 
   void SetBorderMarginAndPadding(Graphics gdi, DocumentNode node, LayoutRegion region, int availableWidth,
@@ -1708,17 +1732,26 @@ public class DocumentEditor : Control
     Invalidate(CanvasRectangle);
   }
 
-  /// <summary>Invalidates the layout of the given node, and triggers a repaint.</summary>
+  /// <summary>Invalidates the portion of the canvas containing the given node, causing it to be repainted.</summary>
   protected void InvalidateNode(DocumentNode node)
   {
-    if(HasLayout) RelayoutNode(node); // if we have a layout, update it and repaint incrementally
-    else Invalidate(CanvasRectangle); // otherwise, we have no layout, so just trigger a repaint
+    Rectangle visibleArea = GetVisibleArea(GetIndexSpan(node));
+    if(visibleArea.Width != 0) Invalidate(visibleArea);
+  }
+
+  /// <summary>Invalidates the layout of the given node, and triggers a repaint.</summary>
+  protected void InvalidateNodeLayout(DocumentNode node)
+  {
+    if(HasLayout) // if we have a layout, update it and repaint incrementally
+    {
+      throw new NotImplementedException();
+    }
   }
 
   /// <include file="documentation.xml" path="/UI/Document/OnNodeChanged/*"/>
   protected virtual void OnNodeChanged(Document document, DocumentNode node)
   {
-    InvalidateNode(node);
+    InvalidateNodeLayout(node);
   }
 
   /// <summary>Paints the control.</summary>
@@ -1783,7 +1816,7 @@ public class DocumentEditor : Control
     // it's a different size. (optimizing to detect fonts of the same size seems like overkill...)
     if(GetEffectiveFont(Document.Root) == Font)
     {
-      InvalidateLayout(); // and if the font is used and is a different size, we need to recaluclate the layout
+      InvalidateLayout(); // and if the font is used and is a different size, we need to recalculate the layout
     }
   }
 
@@ -1873,7 +1906,8 @@ public class DocumentEditor : Control
   int BorderWidth
   {
     get
-    { // TODO: we probably shouldn't be making assumptions about how the border will be drawn...
+    { 
+      // TODO: we probably shouldn't be making assumptions about how the border will be drawn...
       return BorderStyle == System.Windows.Forms.BorderStyle.Fixed3D ?
         2 : BorderStyle == System.Windows.Forms.BorderStyle.FixedSingle ? 1 : 0;
     }
