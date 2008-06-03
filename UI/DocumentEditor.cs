@@ -611,12 +611,13 @@ public class DocumentEditor : Control
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetChildren/*"/>
     public abstract LayoutRegion[] GetChildren();
 
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNode/*"/>
     public virtual DocumentNode GetNode() { return null; }
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/Render/*"/>
     public virtual void Render(ref RenderData data, Point clientPoint)
     {
-      RenderBorderAndBackground(ref data, clientPoint);
+      RenderBackgroundAndBorder(ref data, clientPoint);
 
       foreach(LayoutRegion child in GetChildren())
       {
@@ -638,8 +639,11 @@ public class DocumentEditor : Control
     public FourSideInt Padding;
     /// <summary>The thickness of the border, in pixels.</summary>
     public Size Border;
+    /// <summary>The portion of the <see cref="DocumentNode"/> represented by this region.</summary>
+    public NodePart NodePart;
 
-    protected void RenderBorderAndBackground(ref RenderData data, Point clientPoint)
+    /// <summary>Renders the background of the region if it is associated with a <see cref="DocumentNode"/>.</summary>
+    protected void RenderBackground(ref RenderData data, Point clientPoint)
     {
       DocumentNode node = GetNode();
 
@@ -650,71 +654,139 @@ public class DocumentEditor : Control
         {
           using(Brush brush = new SolidBrush(color.Value))
           {
-            Rectangle paddingBox =
-              new Rectangle(clientPoint.X+Margin.Left+Border.Width, clientPoint.Y+Margin.Top+Border.Height,
-                            Width-Margin.TotalHorizontal-Border.Width*2, Height-Margin.TotalVertical-Border.Height*2);
+            Rectangle paddingBox = new Rectangle(clientPoint.X, clientPoint.Y+Border.Height,
+                                                 Width, Height-Border.Height*2);
+            switch(NodePart) // this code assumes that the layout code has already adjusted the region size to account
+            {                // for the missing paddings, margins, and borders
+              case NodePart.Full: // all four margins, paddings, borders will be rendered
+                paddingBox.X      += Margin.Left + Border.Width;
+                paddingBox.Y      += Margin.Top;
+                paddingBox.Width  -= Margin.TotalHorizontal + Border.Width*2;
+                paddingBox.Height -= Margin.TotalVertical;
+                break;
+              // the top and left margins and paddings, and the top, left, and bottom borders will be rendered
+              case NodePart.Start:
+                paddingBox.X      += Margin.Left + Border.Width;
+                paddingBox.Y      += Margin.Top;
+                paddingBox.Width  -= Margin.Left + Border.Width;
+                paddingBox.Height -= Margin.Top;
+                break;
+              // the bottom and right margins and paddings, and the top, right, and bottom borders will be rendered
+              case NodePart.End:
+                paddingBox.Width  -= Margin.Right + Border.Width;
+                paddingBox.Height -= Margin.Bottom;
+                break;
+            }
             data.Graphics.FillRectangle(brush, paddingBox);
           }
         }
+      }
+    }
 
-        if(!Border.IsEmpty)
+    /// <summary>Renders the background and border of the region if it is associated with a <see cref="DocumentNode"/>.</summary>
+    /// <remarks>Calling this method is equivalent to calling <see cref="RenderBackground"/> and
+    /// <see cref="RenderBorder"/>.
+    /// </remarks>
+    protected void RenderBackgroundAndBorder(ref RenderData data, Point clientPoint)
+    {
+      RenderBackground(ref data, clientPoint);
+      RenderBorder(ref data, clientPoint);
+    }
+
+    /// <summary>Renders the border of the region if it is associated with a <see cref="DocumentNode"/>.</summary>
+    protected void RenderBorder(ref RenderData data, Point clientPoint)
+    {
+      DocumentNode node = GetNode();
+      if(node != null && !Border.IsEmpty)
+      {
+        BorderStyle borderStyle = node.Style.BorderStyle;
+        Color color = node.Style.BorderColor ?? node.Style.EffectiveForeColor ?? data.Editor.ForeColor;
+        if(borderStyle != RichDocument.BorderStyle.None && color.A != 0)
         {
-          BorderStyle borderStyle = node.Style.BorderStyle;
-          color = node.Style.BorderColor ?? node.Style.EffectiveForeColor ?? data.Editor.ForeColor;
-          if(borderStyle != RichDocument.BorderStyle.None && color.Value.A != 0)
+          using(Pen pen = new Pen(color)) 
           {
-            using(Pen pen = new Pen(color.Value))
+            switch(borderStyle)
             {
-              switch(borderStyle)
-              {
-                case RichDocument.BorderStyle.Dashed:
-                  pen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
-                  break;
-                case RichDocument.BorderStyle.Dotted:
-                  pen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dot;
-                  break;
-                case RichDocument.BorderStyle.DashDotted:
-                  pen.DashStyle = System.Drawing.Drawing2D.DashStyle.DashDot;
-                  break;
-                case RichDocument.BorderStyle.DashDoubleDotted:
-                  pen.DashStyle = System.Drawing.Drawing2D.DashStyle.DashDotDot;
-                  break;
-                default:
-                  pen.DashStyle = System.Drawing.Drawing2D.DashStyle.Solid;
-                  break;
-              }
+              case RichDocument.BorderStyle.Dashed:
+                pen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
+                break;
+              case RichDocument.BorderStyle.Dotted:
+                pen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dot;
+                break;
+              case RichDocument.BorderStyle.DashDotted:
+                pen.DashStyle = System.Drawing.Drawing2D.DashStyle.DashDot;
+                break;
+              default:
+                pen.DashStyle = System.Drawing.Drawing2D.DashStyle.Solid;
+                break;
+            }
 
-              // pen.Alignment doesn't work reliably (it's not implemented yet on Windows) so we need to handle the
-              // inset calculation ourselves
-              RectangleF borderRect = new RectangleF(clientPoint.X + Margin.Left + Border.Width*0.5f,
-                                                     clientPoint.Y + Margin.Top  + Border.Height*0.5f,
-                                                     Width  - Margin.TotalHorizontal - Border.Width,
-                                                     Height - Margin.TotalVertical   - Border.Height);
-              if(Border.Width == Border.Height) // if the horizontal border is the same width as the vertical border...
-              {
-                pen.Width = Border.Width; // then draw it using DrawRectangle
-                data.Graphics.DrawRectangle(pen, borderRect.X, borderRect.Y, borderRect.Width, borderRect.Height);
-              }
-              else // otherwise, the horizontal lines are of different widths than the vertical lines. this is due to
-              {    // the output device having different DPI values for the two dimensions
-                
-                // square the end caps so that the lines join together
-                pen.StartCap = pen.EndCap = System.Drawing.Drawing2D.LineCap.Square;
-                
-                // TODO: this code doesn't work with dashed or dotted borders because the dash pattern gets restarted
-                // for each line. i tried rewriting the whole layout engine to use inches rather than pixels, but that
-                // just ended up being very ugly because of GDI+ bugs that screw up the dash style when using non-pixel
-                // page units
+            // pen.Alignment doesn't work reliably on Windows so we need to handle the inset calculation ourselves
+            RectangleF borderRect = new RectangleF(clientPoint.X+Border.Width*0.5f, clientPoint.Y+Border.Height*0.5f,
+                                                   Width - Border.Width, Height - Border.Height);
+            switch(NodePart) // this code assumes that the layout code has already adjusted the region size to account
+            {                // for the missing paddings, margins, and borders
+              case NodePart.Full: // all four margins, paddings, borders will be rendered
+                borderRect.X      += Margin.Left;
+                borderRect.Y      += Margin.Top;
+                borderRect.Width  -= Margin.TotalHorizontal;
+                borderRect.Height -= Margin.TotalVertical;
+                break;
+              // the top and left margins and paddings, and the top, left, and bottom borders will be rendered
+              case NodePart.Start:
+                borderRect.X      += Margin.Left;
+                borderRect.Y      += Margin.Top;
+                borderRect.Width  -= Margin.Left;
+                borderRect.Height -= Margin.Top;
+                break;
+              // the bottom and right margins and paddings, and the top, right, and bottom borders will be rendered
+              case NodePart.End:
+                borderRect.Width  -= Margin.Right;
+                borderRect.Height -= Margin.Bottom;
+                break;
+            }
 
-                // draw the horizontal lines first
-                pen.Width = Border.Height;
-                data.Graphics.DrawLine(pen, borderRect.Left, borderRect.Top,    borderRect.Right, borderRect.Top);
-                data.Graphics.DrawLine(pen, borderRect.Left, borderRect.Bottom, borderRect.Right, borderRect.Bottom);
-                // now draw the vertical lines
+            // if we can draw it with a single DrawRectangle call, then do so
+            // TODO: GDI+ sucks ass when drawing thick borders. we really need a replacement for this code
+            if(Border.Width == Border.Height && NodePart == NodePart.Full)
+            {
+              pen.Width = Border.Width;
+              data.Graphics.DrawRectangle(pen, borderRect.X, borderRect.Y, borderRect.Width, borderRect.Height);
+            }
+            else // otherwise, we're either not drawing a rectangle, or the horizontal lines are of different widths
+            {    // than the vertical lines (due to the output device having different horizontal and vertical DPIs)
+
+              // square the end caps so that the lines join together
+              pen.StartCap = pen.EndCap = System.Drawing.Drawing2D.LineCap.Square;
+              
+              // TODO: i tried rewriting the whole layout engine to use inches rather than pixels, to enable using
+              // DrawRectangle with a device-independent PageUnit, but that just ended up being very ugly because of
+              // GDI+ bugs that screw up the dash style even more than usual when using non-integer dimensions
+
+              // draw the left border
+              if(NodePart == NodePart.Full || NodePart == NodePart.Start)
+              {
                 pen.Width = Border.Width;
-                data.Graphics.DrawLine(pen, borderRect.Left,  borderRect.Top, borderRect.Left,  borderRect.Bottom);
+                data.Graphics.DrawLine(pen, borderRect.Left, borderRect.Bottom, borderRect.Left, borderRect.Top);
+              }
+              pen.DashOffset += borderRect.Height;
+
+              // draw the top border
+              pen.Width = Border.Height;
+              data.Graphics.DrawLine(pen, borderRect.Left, borderRect.Top, borderRect.Right, borderRect.Top);
+              pen.DashOffset += borderRect.Width;
+
+              // draw the right border
+              if(NodePart == NodePart.Full || NodePart == NodePart.End)
+              {
+                pen.Width = Border.Width;
                 data.Graphics.DrawLine(pen, borderRect.Right, borderRect.Top, borderRect.Right, borderRect.Bottom);
               }
+              pen.DashOffset += borderRect.Height;
+
+              // draw the bottom border
+              pen.Width = Border.Height;
+              data.Graphics.DrawLine(pen, borderRect.Right, borderRect.Bottom, borderRect.Left, borderRect.Bottom);
             }
           }
         }
@@ -764,11 +836,13 @@ public class DocumentEditor : Control
     /// <summary>Initializes a new <see cref="Block"/> with the given child array.</summary>
     public Block(NodeType node, LayoutRegion[] children) : base(children) { Node = node; }
 
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNode/*"/>
     public sealed override DocumentNode GetNode()
     {
       return Node;
     }
 
+    /// <summary>The <see cref="DocumentNode"/> associated with this <see cref="Block{T}"/>.</summary>
     protected readonly NodeType Node;
   }
   #endregion
@@ -830,19 +904,22 @@ public class DocumentEditor : Control
       Node = node;
     }
 
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNode/*"/>
     public sealed override DocumentNode GetNode()
     {
       return Node;
     }
 
-    /// <summary>The <see cref="DocumentNode"/> associated with this <see cref="LayoutSpan"/>.</summary>
+    /// <summary>The <see cref="DocumentNode"/> associated with this <see cref="LayoutSpan{T}"/>.</summary>
     protected readonly NodeType Node;
   }
   #endregion
 
   #region FourSideInt
+  /// <summary>Represents the four measures of a four-sided object, like a margin, in pixels.</summary>
   protected struct FourSideInt
   {
+    /// <summary>Initializes this <see cref="FourSideInt"/> with the given pixel dimensions.</summary>
     public FourSideInt(int left, int top, int right, int bottom)
     {
       Left   = left;
@@ -851,17 +928,51 @@ public class DocumentEditor : Control
       Bottom = bottom;
     }
 
+    /// <summary>Returns the total horizontal measurement of the object, equal to <see cref="Left"/> +
+    /// <see cref="Right"/>.
+    /// </summary>
     public int TotalHorizontal
     {
       get { return Left + Right; }
     }
 
+    /// <summary>Returns the total vertical measurement of the object, equal to <see cref="Top"/> +
+    /// <see cref="Bottom"/>.
+    /// </summary>
     public int TotalVertical
     {
       get { return Top + Bottom; }
     }
 
-    public int Left, Top, Right, Bottom;
+    /// <summary>Gets or sets the measurment of the left side of the object, in pixels.</summary>
+    public int Left;
+    /// <summary>Gets or sets the measurment of the top side of the object, in pixels.</summary>
+    public int Top;
+    /// <summary>Gets or sets the measurment of the right side of the object, in pixels.</summary>
+    public int Right;
+    /// <summary>Gets or sets the measurment of the bottom side of the object, in pixels.</summary>
+    public int Bottom;
+  }
+  #endregion
+
+  #region NodePart
+  /// <summary>Describes the portion of the <see cref="DocumentNode"/> covered by this <see cref="LayoutRegion"/>.</summary>
+  protected enum NodePart : byte
+  {
+    /// <summary>The layout region covers all four sides of the document node.</summary>
+    Full,
+    /// <summary>The layout region covers only the top, left, and bottom sides of the document node, because
+    /// the node was wrapped onto at least two lines (and this is the first region of the node).
+    /// </summary>
+    Start,
+    /// <summary>The layout region covers only the top and bottom sides of the document node, because the node
+    /// was wrapped onto at least three lines (and this is one of the middle regions).
+    /// </summary>
+    Middle,
+    /// <summary>The layout region covers only the top, right, and bottom sides of the document node, because
+    /// the node was wrapped onto at least two lines (and this is the last region of the node).
+    /// </summary>
+    End
   }
   #endregion
 
@@ -967,7 +1078,25 @@ public class DocumentEditor : Control
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/GetNextSplitPiece/*"/>
     public override SplitPiece GetNextSplitPiece(Graphics gdi, int line, SplitPiece piece, int spaceLeft,
                                                  bool lineIsEmpty)
-    {
+    { // strategy for dealing with padding, border, and margin (PBM):
+      // for the first piece in the node:
+      //   subtract the full horizontal PBM from the available space and fit as many words as possible.
+      //   if all words fit
+      //     we're done. this span becomes a "Full" span
+      //   otherwise
+      //     add back the right PBM and add all words that fit, except the last word.      
+      //     this span becomes a "Start" span
+      // for pieces after the first:
+      //   subtract the right horizontal PBM from the available space and fit as many words as possible.
+      //   if all words fit
+      //     we're done, and this span becomes an "End" span
+      //   otherwise
+      //     add back the right PBM and add all words that fit, except the last word.      
+      //     this span becomes a "Middle" span
+      //
+      // before returning the piece, the height is increased by the appropriate PBM. the width is increased by the
+      // PBM that we subtracted and didn't add back later.
+      
       const TextFormatFlags MeasureFlags = TextFormatFlags.NoPrefix | TextFormatFlags.NoClipping |
                                            TextFormatFlags.SingleLine | TextFormatFlags.NoPadding;
 
@@ -1000,23 +1129,45 @@ public class DocumentEditor : Control
       }
 
       // measure and accumulate words until we've run out of either text or space
-      Size size = new Size(), wordSize = new Size(), maxTextArea = new Size(int.MaxValue, int.MaxValue);
-      Match match;
+      Size spanSize = new Size(0, (int)Math.Ceiling(Font.GetHeight(gdi))); // use the font line spacing as the height
+      Size wordSize = new Size(), maxTextArea = new Size(int.MaxValue, int.MaxValue);
+      Match match = wordRE.Match(cachedText, start, charactersLeft);
+      int leftPBM = Border.Width + Margin.Left + Padding.Left, rightPBM = Border.Width + Margin.Right + Padding.Right;
       int charactersFit = 0;
-      for(match = wordRE.Match(cachedText, start, charactersLeft); match.Success; match = match.NextMatch())
-      {
-        wordSize = TextRenderer.MeasureText(gdi, match.Value, Font, maxTextArea, MeasureFlags);
-        if(size.Width + wordSize.Width > spaceLeft) break; // if the word doesn't fit, then break out
+      bool addedRight = false; // whether the rightPBM has been 'added back'
 
-        size.Width    += wordSize.Width;
-        // TODO: should we always return the font height, ensuring that we can add new characters without needing to enlarge the span vertically?
-        size.Height    = Math.Max(size.Height, wordSize.Height);
-        charactersFit += match.Length;
+      spaceLeft -= rightPBM + (start == 0 ? leftPBM : 0); // subtract the PBM from the initial amount of space
+      while(match.Success)
+      {
+        Match nextMatch = match.NextMatch();
+
+        wordSize = TextRenderer.MeasureText(gdi, match.Value, Font, maxTextArea, MeasureFlags);
+        if(spanSize.Width + wordSize.Width > spaceLeft) // if the word doesn't fit...
+        {
+          if(addedRight || rightPBM == 0) break; // if we can't add any more space, then we're done
+
+          // otherwise, add the right PBM back to the available space, and see if the word fits now
+          spaceLeft += rightPBM;
+          addedRight = true;
+          // if we shouldn't add the word, or it doesn't fit, then give up
+          if(!nextMatch.Success || spanSize.Width + wordSize.Width > spaceLeft) break;
+        }
+
+        spanSize.Width += wordSize.Width;
+        charactersFit  += match.Length;
+
+        match = nextMatch;
       }
 
       bool lineWrapped = match.Success; // if the match is still valid, that means there was a word that didn't fit
-      if(lineWrapped)
+      if(!lineWrapped) // if all words fit...
       {
+        NodePart = start == 0 ? NodePart.Full : NodePart.End;
+      }
+      else // otherwise, not all words fit.
+      {
+        NodePart = start == 0 ? NodePart.Start : NodePart.Middle;
+
         // if there was one big word and it didn't fit...
         if(charactersFit == 0 && !char.IsWhiteSpace(cachedText[start]))
         {
@@ -1026,41 +1177,67 @@ public class DocumentEditor : Control
           }
           else // otherwise, the line is empty, so starting a new line won't help. we need to add the word
           {    // even though it doesn't fit
-            size.Width    += wordSize.Width;
-            size.Height    = Math.Max(size.Height, wordSize.Height);
-            charactersFit += match.Length;
+            spanSize.Width += wordSize.Width;
+            charactersFit  += match.Length;
           }
         }
         else // otherwise, we have some words that fit, but one that doesn't
         {
           // there may be some whitespace at the start of the word that does fit, however. so we'll go through it
           // character by character.
-          for(int index=start+charactersFit, accumulatedWidth=0; index < lineLength; index++)
+          for(int index=start+charactersFit, accumulatedWidth=spanSize.Width; index < lineLength; index++)
           {
             char c = cachedText[index];
             if(!char.IsWhiteSpace(c)) break;
             Size charSize = TextRenderer.MeasureText(gdi, new string(c, 1), Font, maxTextArea, MeasureFlags);
-            accumulatedWidth += charSize.Width;
+            accumulatedWidth += charSize.Width; // we don't add charSize to the piece size. mozilla doesn't.
             if(accumulatedWidth > spaceLeft) break; // if the character didn't fit, we're done
             skipCharacters++; // we won't render the trailing whitespace though. instead, we'll skip it.
           }
         }
       }
 
+      // now update the size and descent based on the PBM
+      switch(NodePart)
+      {
+        case NodePart.Full:
+          spanSize.Width  += leftPBM + rightPBM;
+          spanSize.Height += Margin.TotalVertical + Padding.TotalVertical;
+          break;
+        case NodePart.Start:
+          spanSize.Width  += leftPBM;
+          spanSize.Height += Margin.Top + Padding.Top;
+          break;
+        case NodePart.End:
+          spanSize.Width  += rightPBM;
+          spanSize.Height += Margin.Bottom + Padding.Bottom;
+          break;
+      }
+      spanSize.Height += Border.Height*2; // we'll display the top/bottom borders all the time
+      Descent += Margin.Bottom + Padding.Bottom + Border.Height; // add the bottom PBM to the descent
+
       // if this is the last piece, and the line ends in a newline character, then add 1 to skip over it
-      return new SplitPiece(new Span(start, charactersFit), size,
+      return new SplitPiece(new Span(start, charactersFit), spanSize,
                             skipCharacters + (!lineWrapped && skippedNewLine ? 1 : 0), lineWrapped);
     }
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/Render/*"/>
     public override void Render(ref RenderData data, Point clientPoint)
     {
-      RenderBorderAndBackground(ref data, clientPoint);
+      RenderBackgroundAndBorder(ref data, clientPoint);
 
       const TextFormatFlags DrawFlags = TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding |
                                         TextFormatFlags.SingleLine;
       // TODO: render the selection too
       Color fore = Node.Style.EffectiveForeColor ?? Editor.ForeColor;
+      
+      // account for the border, margin, and padding, depending on whether this span has them
+      if(NodePart == NodePart.Full || NodePart == NodePart.Start)
+      {
+        clientPoint.Offset(Border.Width + Margin.Left + Padding.Left, Margin.Top + Padding.Top);
+      }
+      clientPoint.Y += Border.Height; // we always draw the top border if it exists
+
       TextRenderer.DrawText(data.Graphics, Node.GetText(Start-StartIndex, Length), Font, clientPoint, fore,
                             DrawFlags);
     }
@@ -1071,6 +1248,7 @@ public class DocumentEditor : Control
     /// <summary>A string that holds the current line during word-wrapping.</summary>
     string cachedText;
 
+    // TODO: implement splitting at hyphens
     static readonly Regex wordRE = new Regex(@"\s*\S+|\s+", RegexOptions.Singleline | RegexOptions.Compiled);
   }
   #endregion
@@ -1115,45 +1293,7 @@ public class DocumentEditor : Control
 
     // calculate the horizontal margin and padding
     int hShrinkage, vShrinkage;
-
-    FourSide fourSide = node.Style.Margin;
-    if(fourSide == null)
-    {
-      hShrinkage = vShrinkage = 0;
-    }
-    else
-    {
-      newBlock.Margin.Left   = (int)Math.Round(GetPixels(gdi, node, fourSide.Left, availableWidth, Orientation.Horizontal));
-      newBlock.Margin.Right  = (int)Math.Round(GetPixels(gdi, node, fourSide.Right, availableWidth, Orientation.Horizontal));
-      // TODO: we need a base measurement to use for relative calculations
-      newBlock.Margin.Top    = (int)Math.Round(GetPixels(gdi, node, fourSide.Top, 0, Orientation.Vertical));
-      newBlock.Margin.Bottom = (int)Math.Round(GetPixels(gdi, node, fourSide.Bottom, 0, Orientation.Vertical));
-      hShrinkage = newBlock.Margin.TotalHorizontal;
-      vShrinkage = newBlock.Margin.TotalVertical;
-    }
-
-    fourSide = node.Style.Padding;
-    if(fourSide != null)
-    {
-      newBlock.Padding.Left   = (int)Math.Round(GetPixels(gdi, node, fourSide.Left, availableWidth, Orientation.Horizontal));
-      newBlock.Padding.Right  = (int)Math.Round(GetPixels(gdi, node, fourSide.Right, availableWidth, Orientation.Horizontal));
-      // TODO: we need a base measurement to use for relative calculations
-      newBlock.Padding.Top    = (int)Math.Round(GetPixels(gdi, node, fourSide.Top, 0, Orientation.Vertical));
-      newBlock.Padding.Bottom = (int)Math.Round(GetPixels(gdi, node, fourSide.Bottom, 0, Orientation.Vertical));
-      hShrinkage += newBlock.Padding.TotalHorizontal;
-      vShrinkage += newBlock.Padding.TotalVertical;
-    }
-
-    Measurement measurement = node.Style.BorderWidth;
-    if(measurement.Size != 0 && node.Style.BorderStyle != RichDocument.BorderStyle.None)
-    {
-      // TODO: we need a base measurement to use for relative calculations
-      newBlock.Border =
-        new Size((int)Math.Round(GetPixels(gdi, node, measurement, availableWidth, Orientation.Horizontal)),
-                 (int)Math.Round(GetPixels(gdi, node, measurement, 0, Orientation.Vertical)));
-      hShrinkage += newBlock.Border.Width  * 2;
-      vShrinkage += newBlock.Border.Height * 2;
-    }
+    SetBorderMarginAndPadding(gdi, node, newBlock, availableWidth, out hShrinkage, out vShrinkage);
 
     if(allInline) // if there are no block children, lay them all out horizontally into a line
     {
@@ -1295,17 +1435,19 @@ public class DocumentEditor : Control
     LayoutSpan span = null;
     foreach(DocumentNode node in inlineNodes)
     {
-      // TODO: implement padding, margin, etc
       span = CreateLayoutSpan(node, startIndex);
       if(span == null) continue; // if this node cannot be rendered, skip to the next one
       span.BeginLayout(gdi);
+      
+      int hShrinkage, vShrinkage;
+      SetBorderMarginAndPadding(gdi, node, span, availableWidth, out hShrinkage, out vShrinkage);
 
       span.Start = startIndex;
       for(int lineIndex=0; lineIndex < span.LineCount; lineIndex++) // for each line in the document node
       {
         if(lineIndex != 0) // if there was a line break in the document node (and hence a line other than the first),
         {                  // start a new output line too
-          FinishLine(gdi, lines, spans, ref span, ref lineWidth, lineHeight, startIndex);
+          FinishLine(gdi, lines, spans, ref span, ref lineWidth, ref lineHeight, startIndex);
         }
 
         SplitPiece piece = null;
@@ -1324,7 +1466,7 @@ public class DocumentEditor : Control
           startIndex  += piece.Span.Length + piece.Skip; // and update the next document index
 
           // if we need to start a new line before we can receive more of the content, do so
-          if(piece.NewLine) FinishLine(gdi, lines, spans, ref span, ref lineWidth, lineHeight, startIndex);
+          if(piece.NewLine) FinishLine(gdi, lines, spans, ref span, ref lineWidth, ref lineHeight, startIndex);
         }
       }
 
@@ -1336,7 +1478,7 @@ public class DocumentEditor : Control
     if(spans.Count != 0)
     {
       span = null; // the span has already been added, so don't add it again
-      FinishLine(gdi, lines, spans, ref span, ref lineWidth, lineHeight, startIndex);
+      FinishLine(gdi, lines, spans, ref span, ref lineWidth, ref lineHeight, startIndex);
     }
 
     // now, loop through each of the lines that we've added and stack them vertically into a LineBlock
@@ -1387,17 +1529,64 @@ public class DocumentEditor : Control
     throw new NotImplementedException();
   }
 
+  void SetBorderMarginAndPadding(Graphics gdi, DocumentNode node, LayoutRegion region, int availableWidth,
+                                 out int hShrinkage, out int vShrinkage)
+  {
+    FourSide fourSide = node.Style.Margin;
+    if(fourSide == null)
+    {
+      hShrinkage = vShrinkage = 0;
+    }
+    else
+    {
+      region.Margin.Left   = (int)Math.Round(GetPixels(gdi, node, fourSide.Left, availableWidth, Orientation.Horizontal));
+      region.Margin.Right  = (int)Math.Round(GetPixels(gdi, node, fourSide.Right, availableWidth, Orientation.Horizontal));
+      // TODO: we need a base measurement to use for relative calculations
+      region.Margin.Top    = (int)Math.Round(GetPixels(gdi, node, fourSide.Top, 0, Orientation.Vertical));
+      region.Margin.Bottom = (int)Math.Round(GetPixels(gdi, node, fourSide.Bottom, 0, Orientation.Vertical));
+      hShrinkage = region.Margin.TotalHorizontal;
+      vShrinkage = region.Margin.TotalVertical;
+    }
+
+    fourSide = node.Style.Padding;
+    if(fourSide != null)
+    {
+      region.Padding.Left   = (int)Math.Round(GetPixels(gdi, node, fourSide.Left, availableWidth, Orientation.Horizontal));
+      region.Padding.Right  = (int)Math.Round(GetPixels(gdi, node, fourSide.Right, availableWidth, Orientation.Horizontal));
+      // TODO: we need a base measurement to use for relative calculations
+      region.Padding.Top    = (int)Math.Round(GetPixels(gdi, node, fourSide.Top, 0, Orientation.Vertical));
+      region.Padding.Bottom = (int)Math.Round(GetPixels(gdi, node, fourSide.Bottom, 0, Orientation.Vertical));
+      hShrinkage += region.Padding.TotalHorizontal;
+      vShrinkage += region.Padding.TotalVertical;
+    }
+
+    Measurement measurement = node.Style.BorderWidth;
+    if(measurement.Size != 0 && node.Style.BorderStyle != RichDocument.BorderStyle.None)
+    {
+      // TODO: we need a base measurement to use for relative calculations
+      region.Border =
+        new Size((int)Math.Round(GetPixels(gdi, node, measurement, availableWidth, Orientation.Horizontal)),
+                 (int)Math.Round(GetPixels(gdi, node, measurement, 0, Orientation.Vertical)));
+      hShrinkage += region.Border.Width  * 2;
+      vShrinkage += region.Border.Height * 2;
+    }
+  }
+
   /// <summary>A helper for <see cref="LayoutLines"/> which ends the current line.</summary>
   static void FinishLine(Graphics gdi, List<Line> lines, List<LayoutSpan> spans, ref LayoutSpan span, 
-                         ref int lineWidth, int lineHeight, int startIndex)
+                         ref int lineWidth, ref int lineHeight, int startIndex)
   {
     if(span != null)
     {
       if(span.Length != 0) // if the current span contains something, add that to the line first
       {
         spans.Add(span);
-        span = span.CreateNew();
-        span.BeginLayout(gdi);
+        LayoutSpan newSpan = span.CreateNew();
+        newSpan.BeginLayout(gdi);
+        newSpan.Border  = span.Border;
+        newSpan.Margin  = span.Margin;
+        newSpan.Padding = span.Padding;
+        span = newSpan;
       }
       span.Start = startIndex;
     }
@@ -1409,7 +1598,7 @@ public class DocumentEditor : Control
     lines.Add(line);
 
     spans.Clear();
-    lineWidth = 0;
+    lineHeight = lineWidth = 0;
   }
   #endregion
 

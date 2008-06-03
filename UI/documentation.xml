@@ -79,6 +79,12 @@
         </summary>
       </GetChildren>
 
+      <GetNode>
+        <summary>Gets the <see cref="DocumentNode"/> rendered by this region, or null if the node is not directly
+          correlated with any document node.
+        </summary>
+      </GetNode>
+      
       <Render>
         <summary>Renders the region.</summary>
         <param name="data">A structure containing render-related data that does not change during a render.</param>
