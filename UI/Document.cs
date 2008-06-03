@@ -206,10 +206,19 @@ public sealed class FourSide
 #endregion
 
 #region BorderStyle
-/// <summary>Defines the style of a border drawn around an object.</summary>
+/// <summary>Defines the style of a border drawn around a <see cref="DocumentNode"/>.</summary>
 public enum BorderStyle
 {
-  None, Dotted, Dashed, DashDotted, DashDoubleDotted, Solid
+  /// <summary>The node has no border.</summary>
+  None,
+  /// <summary>The node has a dotted border.</summary>
+  Dotted,
+  /// <summary>The node has a dashed border.</summary>
+  Dashed,
+  /// <summary>The node has a border with alternating dots and dashes.</summary>
+  DashDotted,
+  /// <summary>The node has a solid border.</summary>
+  Solid
 }
 #endregion
 
