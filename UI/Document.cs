@@ -370,6 +370,13 @@ public class Style
     get { return GetNullableOption<FontStyle>("FontStyle", true); }
   }
 
+  /// <summary>Gets or sets the horizontal alignment for child nodes. This style is not inheritable.</summary>
+  public HorizontalAlignment HorizontalAlignment
+  {
+    get { return GetOption<HorizontalAlignment>("*HorizontalAlignment", false, HorizontalAlignment.Left); }
+    set { SetOption<HorizontalAlignment>("*HorizontalAlignment", value, value != HorizontalAlignment); }
+  }
+
   /// <summary>Gets or sets the local margin. This is also the effective margin, as the margin is not inheritable.</summary>
   public FourSide Margin
   {
@@ -382,6 +389,13 @@ public class Style
   {
     get { return GetOption<FourSide>("*Padding", false); }
     set { SetOption("*Padding", value, value != Padding); }
+  }
+
+  /// <summary>Gets or sets the local width. This is only applicable to block nodes, and is not inheritable.</summary>
+  public Measurement? Width
+  {
+    get { return GetNullableOption<Measurement>("*Width", false); }
+    set { SetNullableOption("*Width", value, value != Width); }
   }
 
   /// <include file="documentation.xml" path="/UI/Style/GetOption/*"/>
@@ -486,7 +500,7 @@ public class Document
   /// <summary>Initializes a new, empty document.</summary>
   public Document()
   {
-    rootNode = new RootNode(this);
+    InternalClear();
   }
 
   /// <summary>This event is raised when a node (or one of the node's descendants) has changed such that it may need
@@ -567,6 +581,12 @@ public class Document
     }
   }
 
+  /// <summary>Clears the document, restoring it to its original state.</summary>
+  public void Clear()
+  {
+    AddChangeEvent(new ClearDocumentChange(this));
+  }
+
   /// <summary>Redoes the next change to the document.</summary>
   public void Redo()
   {
@@ -598,6 +618,22 @@ public class Document
   internal uint Version
   {
     get { return version; }
+  }
+
+  /// <summary>Clears the document content, restoring it to its default state.</summary>
+  internal void InternalClear()
+  {
+    if(rootNode != null) rootNode.RecursivelySetDocument(null); // rootNode will be null when this method is called
+    rootNode = new RootNode(this);                              // from the constructor
+  }
+
+  /// <summary>Replaces the root node with the given one.</summary>
+  internal void InternalSetRoot(RootNode root)
+  {
+    if(root == null) throw new ArgumentNullException();
+    if(root.Locked || root.Document != null) throw new ArgumentException();
+    rootNode = root;
+    rootNode.RecursivelySetDocument(this);
   }
 
   /// <summary>Removes all change events from the document.</summary>
@@ -642,7 +678,7 @@ public class Document
   }
 
   /// <summary>The root node of the document.</summary>
-  readonly DocumentNode rootNode;
+  DocumentNode rootNode;
 
   /// <summary>The change events in the document.</summary>
   readonly CircularList<ChangeEvent> changeEvents = new CircularList<ChangeEvent>();
