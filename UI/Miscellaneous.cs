@@ -174,6 +174,12 @@ public struct Span
  	  return Start ^ (Length<<16);
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/ToString/*"/>
+  public override string ToString()
+  {
+    return Start.ToString() + " - " + End.ToString();
+  }
+
   /// <summary>Determines if the two spans are identical.</summary>
   public static bool operator==(Span a, Span b) { return a.Start == b.Start && a.Length == b.Length; }
   /// <summary>Determines if the two spans are not identical.</summary>

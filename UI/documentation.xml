@@ -79,11 +79,25 @@
         </summary>
       </GetChildren>
 
+      <GetPixelOffset>
+        <summary>Gets the pixel offset into the region, given an index offset relative to the start of the region. The
+          index is allowed to be equal to <see cref="LayoutRegion.Length"/>, in which case the point after the content
+          should be returned.
+        </summary>
+      </GetPixelOffset>
+      
       <GetNode>
         <summary>Gets the <see cref="DocumentNode"/> rendered by this region, or null if the node is not directly
           correlated with any document node.
         </summary>
       </GetNode>
+
+      <GetRegion>
+        <summary>
+          Given a document index, returns the innermost region that contains the given index, or null if no
+          region contains it.
+        </summary>
+      </GetRegion>
       
       <Render>
         <summary>Renders the region.</summary>
@@ -101,8 +115,8 @@
       
       <CreateNew>
         <summary>
-          Returns a new <see cref="LayoutSpan"/> of the same type as this, referencing the same
-          <see cref="DocumentNode"/>, but with all other fields at their default.
+          Given the starting offset within the node, returns a new <see cref="LayoutSpan"/> of the same type as this,
+          referencing the same <see cref="DocumentNode"/>, but with all other fields at their default.
         </summary>
       </CreateNew>
 
