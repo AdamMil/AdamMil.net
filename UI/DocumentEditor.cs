@@ -102,8 +102,8 @@ public class DocumentEditor : Control
     }
   }
 
-  /// <summary>Gets or sets the index at which the text cursor is displayed, from 0 to <see cref="IndexLength"/>
-  /// inclusive.
+  /// <summary>Gets or sets the index at which the text cursor (caret) is displayed, from 0 to
+  /// <see cref="IndexLength"/> inclusive.
   /// </summary>
   [Browsable(false)]
   public int CursorIndex
@@ -111,8 +111,12 @@ public class DocumentEditor : Control
     get { return cursorIndex; }
     set
     {
-      if(value < 0 || value > IndexLength) throw new ArgumentOutOfRangeException();
-      cursorIndex = value;
+      if(value != CursorIndex)
+      {
+        if(value < 0 || value > IndexLength) throw new ArgumentOutOfRangeException();
+        if(HasLayout) SetCursor(value); // if we have a layout, move the cursor immediately
+        else cursorIndex = value; // otherwise, just set the index and it'll be moved when the layout is redone
+      }
     }
   }
 
@@ -163,7 +167,7 @@ public class DocumentEditor : Control
   }
 
   /// <summary>Gets or sets the position within the document that is being rendered at the top-left pixel of the
-  /// control's render area.
+  /// control's canvas area.
   /// </summary>
   [Browsable(false)]
   public Point ScrollPosition
@@ -357,12 +361,12 @@ public class DocumentEditor : Control
   }
 
   /// <summary>Pastes the content of the clipboard over the current selection, or at the text cursor position if
-  /// there's no selection, or at the end of the document if there's no text cursor.
+  /// there's no selection.
   /// </summary>
   public void Paste()
   {
     Span span = Selection;
-    if(span.Length == 0) span.Start = CursorIndex == -1 ? IndexLength : CursorIndex;
+    if(span.Length == 0) span.Start = CursorIndex;
     Paste(span);
   }
 
@@ -513,25 +517,25 @@ public class DocumentEditor : Control
   /// </summary>
   protected abstract class LayoutRegion
   {
-    /// <summary>Gets the absolute horizontal position of Gets the leftmost pixel of Gets the region.</summary>
+    /// <summary>Gets the absolute horizontal position of the leftmost pixel of the region.</summary>
     public int AbsoluteLeft
     {
       get { return AbsolutePosition.X; }
     }
 
-    /// <summary>Gets the absolute vertical position of Gets the topmost pixel of Gets the region.</summary>
+    /// <summary>Gets the absolute vertical position of the topmost pixel of the region.</summary>
     public int AbsoluteTop
     {
       get { return AbsolutePosition.Y; }
     }
 
-    /// <summary>Gets the absolute horizontal position of Gets the pixel just to Gets the right of Gets the region.</summary>
+    /// <summary>Gets the absolute horizontal position of the pixel just to the right of the region.</summary>
     public int AbsoluteRight
     {
       get { return AbsolutePosition.X+Width; }
     }
 
-    /// <summary>Gets the absolute vertical position of Gets the pixel just below Gets the region.</summary>
+    /// <summary>Gets the absolute vertical position of the pixel just below the region.</summary>
     public int AbsoluteBottom
     {
       get { return AbsolutePosition.Y+Height; }
@@ -585,6 +589,30 @@ public class DocumentEditor : Control
       set { Bounds.Height = value; }
     }
 
+    /// <summary>Gets the width of the left border, margin, and padding.</summary>
+    public int LeftPBM
+    {
+      get { return Border.Width + Margin.Left + Padding.Left; }
+    }
+
+    /// <summary>Gets the width of the right border, margin, and padding.</summary>
+    public int RightPBM
+    {
+      get { return Border.Width + Margin.Right + Padding.Right; }
+    }
+
+    /// <summary>Gets the width of the top border, margin, and padding.</summary>
+    public int TopPBM
+    {
+      get { return Border.Height + Margin.Top + Padding.Top; }
+    }
+
+    /// <summary>Gets the width of the bottom border, margin, and padding.</summary>
+    public int BottomPBM
+    {
+      get { return Border.Height + Margin.Bottom + Padding.Bottom; }
+    }
+
     /// <summary>Gets or sets the start of the span within the document node that is rendered in this region.</summary>
     public int Start
     {
@@ -610,6 +638,31 @@ public class DocumentEditor : Control
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetChildren/*"/>
     public abstract LayoutRegion[] GetChildren();
+
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetPixelOffset/*"/>
+    public virtual Size GetPixelOffset(Graphics gdi, int indexOffset)
+    {
+      if(indexOffset < 0 || indexOffset > Length) throw new ArgumentOutOfRangeException();
+      if(indexOffset > 0 && indexOffset < Length) throw new NotImplementedException(); // the base implementation only supports indivisible nodes
+
+      // if the border is one pixel wide, the cursor will cause the border to flash on and off, so we'll move the
+      // cursor one pixel to the outside of the border
+      int borderAdjustment = Border.Width == 1 ? 1 : 0;
+      return new Size(indexOffset == 0 ? Margin.Left-borderAdjustment : Width-RightPBM+borderAdjustment, 0);
+    }
+
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetRegion/*"/>
+    public virtual LayoutRegion GetRegion(int index)
+    {
+      if(!Span.Contains(index)) return null;
+
+      foreach(LayoutRegion child in GetChildren())
+      {
+        LayoutRegion descendant = child.GetRegion(index);
+        if(descendant != null) return descendant;
+      }
+      return this;
+    }
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNode/*"/>
     public virtual DocumentNode GetNode() { return null; }
@@ -850,7 +903,7 @@ public class DocumentEditor : Control
 
   #region Line
   /// <summary>Represents a line region, whose children are <see cref="LayoutSpan"/> regions that are stacked
-  /// horizontally.
+  /// horizontally, and which render a portion of a span of inline document nodes.
   /// </summary>
   protected sealed class Line : LayoutRegion<LayoutSpan>
   {
@@ -861,6 +914,17 @@ public class DocumentEditor : Control
   }
   #endregion
 
+  #region LineBlock
+  /// <summary>Represents a line block region, whose children are <see cref="Line"/> regions that are stacked
+  /// vertically, and which render a span of inline document nodes.
+  /// </summary>
+  protected sealed class LineBlock : LayoutRegion<Line>
+  {
+    /// <summary>Initializes this <see cref="LineBlock"/> with the given array of <see cref="Line"/> children.</summary>
+    public LineBlock(Line[] children) : base(children) { }
+  }
+  #endregion
+
   #region LayoutSpan
   /// <summary>Represents a portion of a <see cref="DocumentNode"/> that can be rendered without line wrapping. There
   /// may be multiple <see cref="LayoutSpan"/> regions referencing the same <see cref="DocumentNode"/> if the document
@@ -868,6 +932,25 @@ public class DocumentEditor : Control
   /// </summary>
   protected abstract class LayoutSpan : LayoutRegion
   {
+    /// <summary>Gets the length of the content from the document node that is rendered in this layout region. This may
+    /// be less than <see cref="LayoutRegion.Length"/>, which refers to document indices, depending on
+    /// <see cref="HasTrailingNewline"/>.
+    /// </summary>
+    public int ContentLength
+    {
+      get { return Length - (HasTrailingNewline ? 1 : 0); }
+    }
+
+    /// <summary>Gets or sets the number of pixels from the baseline to the bottom of the region.</summary>
+    public int Descent;
+
+    /// <summary>Gets or sets whether the region contains a virtual trailing newline. If true, the length of the
+    /// content from the document node is one index less than <see cref="LayoutRegion.Length"/>, to account for the
+    /// virtual newline character appended to the region. The <see cref="ContentLength"/> property can be used to
+    /// retrieve the correct content length.
+    /// </summary>
+    public bool HasTrailingNewline;
+
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/LineCount/*"/>
     public virtual int LineCount
     {
@@ -875,7 +958,7 @@ public class DocumentEditor : Control
     }
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/CreateNew/*"/>
-    public abstract LayoutSpan CreateNew();
+    public abstract LayoutSpan CreateNew(int contentStartIndex);
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/BeginLayout/*"/>
     public sealed override LayoutRegion[] GetChildren()
@@ -886,9 +969,6 @@ public class DocumentEditor : Control
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/GetNextSplitPiece/*"/>
     public abstract SplitPiece GetNextSplitPiece(Graphics gdi, int line, SplitPiece piece, int spaceLeft,
                                                  bool lineIsEmpty);
-
-    /// <summary>Gets or sets the number of pixels from the baseline to the bottom of the region.</summary>
-    public int Descent;
 
     static readonly LayoutRegion[] NoChildren = new LayoutRegion[0];
   }
@@ -913,6 +993,39 @@ public class DocumentEditor : Control
 
     /// <summary>The <see cref="DocumentNode"/> associated with this <see cref="LayoutSpan{T}"/>.</summary>
     protected readonly NodeType Node;
+  }
+  #endregion
+
+  #region RootRegion
+  /// <summary>A region that wraps the region created for the document root node, and provides the ability to reference
+  /// the end of the document.
+  /// </summary>
+  sealed class RootRegion : Block
+  {
+    public RootRegion(LayoutRegion child) : base(new LayoutRegion[] { child })
+    {
+      Span = child.Span;
+      Size = child.Size;
+    }
+
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetRegion/*"/>
+    public override LayoutRegion GetRegion(int index)
+    {
+      if(index == Length) // if the index is at the end of the document, normally no region would contain it. but we
+      {                   // want the end of the document to be a valid index, so we'll return something
+        // return the innermost child that is not a LineBlock
+        LayoutRegion child = Children[0];
+        while(true)
+        {
+          LayoutRegion[] descendants = child.GetChildren();
+          LayoutRegion lastDescendant = descendants.Length == 0 ? null : descendants[descendants.Length-1];
+          if(lastDescendant == null || lastDescendant is LineBlock) break;
+          child = lastDescendant;
+        }
+        return child;
+      }
+      else return Children[0].GetRegion(index); // otherwise, just defer to the wrapped region
+    }
   }
   #endregion
 
@@ -1040,17 +1153,17 @@ public class DocumentEditor : Control
   /// <summary>Represents a <see cref="LayoutSpan"/> to render a <see cref="TextNode"/>.</summary>
   protected class TextNodeSpan : LayoutSpan<TextNode>
   {
-    /// <summary>Initializes this <see cref="TextNodeSpan"/> given the owning <see cref="DocumentEditor"/>, a
-    /// <see cref="TextNode"/> to render, and the starting index of the node within the document.
+    /// <summary>Initializes this <see cref="TextNodeSpan"/> given the owning <see cref="DocumentEditor"/>, and a
+    /// <see cref="TextNode"/> to render.
     /// </summary>
-    public TextNodeSpan(TextNode node, DocumentEditor editor, int startIndex)
-      : this(node, editor, startIndex, editor.GetEffectiveFont(node)) { }
+    public TextNodeSpan(TextNode node, DocumentEditor editor)
+      : this(node, editor, editor.GetEffectiveFont(node), 0) { }
 
-    TextNodeSpan(TextNode node, DocumentEditor editor, int startIndex, Font font) : base(node)
+    TextNodeSpan(TextNode node, DocumentEditor editor, Font font, int startIndex) : base(node)
     {
       Editor     = editor;
-      StartIndex = startIndex;
       Font       = font;
+      StartIndex = startIndex;
     }
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/LineCount/*"/>
@@ -1071,9 +1184,29 @@ public class DocumentEditor : Control
     }
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/CreateNew/*"/>
-    public override LayoutSpan CreateNew()
+    public override LayoutSpan CreateNew(int contentStartIndex)
     {
-      return new TextNodeSpan(Node, Editor, StartIndex, Font);
+      return new TextNodeSpan(Node, Editor, Font, contentStartIndex);
+    }
+
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetPixelOffset/*"/>
+    public override Size GetPixelOffset(Graphics gdi, int indexOffset)
+    {
+      if(indexOffset < 0 || indexOffset > Length) throw new ArgumentOutOfRangeException();
+
+      int xPos;
+      if(indexOffset == 0) xPos = LeftPBM;
+      else if(indexOffset >= ContentLength) xPos = Width - RightPBM;
+      else
+      {
+        const TextFormatFlags MeasureFlags = TextFormatFlags.NoPrefix | TextFormatFlags.NoClipping |
+                                             TextFormatFlags.SingleLine | TextFormatFlags.NoPadding;
+        Size textSize = TextRenderer.MeasureText(gdi, Node.GetText(StartIndex, indexOffset), Font,
+                                                 new Size(int.MaxValue, int.MaxValue), MeasureFlags);
+        xPos = textSize.Width + LeftPBM;
+      }
+
+      return new Size(xPos, TopPBM);
     }
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/GetNextSplitPiece/*"/>
@@ -1102,7 +1235,7 @@ public class DocumentEditor : Control
                                            TextFormatFlags.SingleLine | TextFormatFlags.NoPadding;
 
       int start = piece != null ? piece.Span.End + piece.Skip : 0, lineLength = Node.GetLineLength(line);
-      int charactersLeft = lineLength - start, skipCharacters = 0;
+      int charactersLeft = lineLength - start;
 
       // store the text of the line in 'cachedText'
       if(piece == null || cachedText == null)
@@ -1133,11 +1266,10 @@ public class DocumentEditor : Control
       Size spanSize = new Size(0, (int)Math.Ceiling(Font.GetHeight(gdi))); // use the font line spacing as the height
       Size wordSize = new Size(), maxTextArea = new Size(int.MaxValue, int.MaxValue);
       Match match = wordRE.Match(cachedText, start, charactersLeft);
-      int leftPBM = Border.Width + Margin.Left + Padding.Left, rightPBM = Border.Width + Margin.Right + Padding.Right;
       int charactersFit = 0;
       bool addedRight = false; // whether the rightPBM has been 'added back'
 
-      spaceLeft -= rightPBM + (start == 0 ? leftPBM : 0); // subtract the PBM from the initial amount of space
+      spaceLeft -= RightPBM + (start == 0 ? LeftPBM : 0); // subtract the PBM from the initial amount of space
       while(match.Success)
       {
         Match nextMatch = match.NextMatch();
@@ -1145,10 +1277,10 @@ public class DocumentEditor : Control
         wordSize = TextRenderer.MeasureText(gdi, match.Value, Font, maxTextArea, MeasureFlags);
         if(spanSize.Width + wordSize.Width > spaceLeft) // if the word doesn't fit...
         {
-          if(addedRight || rightPBM == 0) break; // if we can't add any more space, then we're done
+          if(addedRight || RightPBM == 0) break; // if we can't add any more space, then we're done
 
           // otherwise, add the right PBM back to the available space, and see if the word fits now
-          spaceLeft += rightPBM;
+          spaceLeft += RightPBM;
           addedRight = true;
           // if we shouldn't add the word, or it doesn't fit, then give up
           if(!nextMatch.Success || spanSize.Width + wordSize.Width > spaceLeft) break;
@@ -1186,14 +1318,14 @@ public class DocumentEditor : Control
         {
           // there may be some whitespace at the start of the word that does fit, however. so we'll go through it
           // character by character.
-          for(int index=start+charactersFit, accumulatedWidth=spanSize.Width; index < lineLength; index++)
+          for(int index=start+charactersFit; index < lineLength; index++)
           {
             char c = cachedText[index];
             if(!char.IsWhiteSpace(c)) break;
             Size charSize = TextRenderer.MeasureText(gdi, new string(c, 1), Font, maxTextArea, MeasureFlags);
-            accumulatedWidth += charSize.Width; // we don't add charSize to the piece size. mozilla doesn't.
-            if(accumulatedWidth > spaceLeft) break; // if the character didn't fit, we're done
-            skipCharacters++; // we won't render the trailing whitespace though. instead, we'll skip it.
+            if(spanSize.Width + charSize.Width > spaceLeft) break; // if the character didn't fit, we're done
+            spanSize.Width += charSize.Width;
+            charactersFit++;
           }
         }
       }
@@ -1202,15 +1334,15 @@ public class DocumentEditor : Control
       switch(NodePart)
       {
         case NodePart.Full:
-          spanSize.Width  += leftPBM + rightPBM;
+          spanSize.Width  += LeftPBM + RightPBM;
           spanSize.Height += Margin.TotalVertical + Padding.TotalVertical;
           break;
         case NodePart.Start:
-          spanSize.Width  += leftPBM;
+          spanSize.Width  += LeftPBM;
           spanSize.Height += Margin.Top + Padding.Top;
           break;
         case NodePart.End:
-          spanSize.Width  += rightPBM;
+          spanSize.Width  += RightPBM;
           spanSize.Height += Margin.Bottom + Padding.Bottom;
           break;
       }
@@ -1218,8 +1350,8 @@ public class DocumentEditor : Control
       Descent += Margin.Bottom + Padding.Bottom + Border.Height; // add the bottom PBM to the descent
 
       // if this is the last piece, and the line ends in a newline character, then add 1 to skip over it
-      return new SplitPiece(new Span(start, charactersFit), spanSize,
-                            skipCharacters + (!lineWrapped && skippedNewLine ? 1 : 0), lineWrapped);
+      return new SplitPiece(new Span(start, charactersFit), spanSize, (!lineWrapped && skippedNewLine ? 1 : 0),
+                            lineWrapped);
     }
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/Render/*"/>
@@ -1239,12 +1371,13 @@ public class DocumentEditor : Control
       }
       clientPoint.Y += Border.Height; // we always draw the top border if it exists
 
-      TextRenderer.DrawText(data.Graphics, Node.GetText(Start-StartIndex, Length), Font, clientPoint, fore,
-                            DrawFlags);
+      TextRenderer.DrawText(data.Graphics, Node.GetText(StartIndex, ContentLength),
+                            Font, clientPoint, fore, DrawFlags);
     }
 
     readonly Font Font;
     readonly DocumentEditor Editor;
+    /// <summary>The index within the document node at which this span begins.</summary>
     readonly int StartIndex;
     /// <summary>A string that holds the current line during word-wrapping.</summary>
     string cachedText;
@@ -1263,13 +1396,14 @@ public class DocumentEditor : Control
     return new Block<DocumentNode>(node);
   }
 
-  /// <summary>Given an inline <see cref="DocumentNode"/>, and its starting index within the document, creates and
-  /// returns an appropriate <see cref="LayoutSpan"/> to render the node, or null if the node cannot be rendered.
+  /// <summary>Given an inline <see cref="DocumentNode"/>, creates and returns an appropriate <see cref="LayoutSpan"/>
+  /// to render the node, or null if the node cannot be rendered. The layout span should render starting from the
+  /// beginning of the document node.
   /// </summary>
-  protected virtual LayoutSpan CreateLayoutSpan(DocumentNode node, int startIndex)
+  protected virtual LayoutSpan CreateLayoutSpan(DocumentNode node)
   {
     TextNode textNode = node as TextNode;
-    if(textNode != null) return new TextNodeSpan(textNode, this, startIndex);
+    if(textNode != null) return new TextNodeSpan(textNode, this);
 
     return null;
   }
@@ -1320,15 +1454,17 @@ public class DocumentEditor : Control
       }
     }
 
+    newBlock.Start = startIndex++; // create an index for the block so the cursor can be placed in front of it
+
     if(allInline) // if there are no block children, lay them all out horizontally into a line
     {
-      Block lines = LayoutLines(gdi, node, node.Children, availableWidth - hShrinkage, ref startIndex);
+      LineBlock lines = LayoutLines(gdi, node, node.Children, availableWidth - hShrinkage, ref startIndex);
       if(lines == null) newBlock.Children = new LayoutRegion[0];
       else
       {
         newBlock.Children = new LayoutRegion[] { lines };
-        newBlock.Span     = lines.Span;
-        newBlock.Size     = lines.Size;
+        newBlock.Length = lines.End - newBlock.Start;
+        newBlock.Size   = lines.Size;
       }
     }
     else // otherwise, one or more nodes is a block
@@ -1336,7 +1472,7 @@ public class DocumentEditor : Control
       // TODO: implement float and clear
 
       // create a list of blocks by using block nodes as-is and gathering runs of inline nodes into a line block
-      List<Block> blocks = new List<Block>(node.Children.Count);
+      List<LayoutRegion> blocks = new List<LayoutRegion>(node.Children.Count);
       List<DocumentNode> inline = null; // a list of inline nodes waiting to be grouped into a line block
 
       foreach(DocumentNode child in node.Children)
@@ -1361,7 +1497,7 @@ public class DocumentEditor : Control
       // if we have some inline nodes left, create a final line block to hold them
       if(inline != null && inline.Count != 0)
       {
-        Block lines = LayoutLines(gdi, node, inline, availableWidth - hShrinkage, ref startIndex);
+        LineBlock lines = LayoutLines(gdi, node, inline, availableWidth - hShrinkage, ref startIndex);
         if(lines != null) blocks.Add(lines);
       }
 
@@ -1380,7 +1516,6 @@ public class DocumentEditor : Control
       }
 
       // calculate the span of the container
-      newBlock.Start  = newBlock.Children[0].Start;
       newBlock.Length = newBlock.Children[newBlock.Children.Length-1].End - newBlock.Start;
     }
 
@@ -1410,10 +1545,13 @@ public class DocumentEditor : Control
     return newBlock;
   }
 
-  Block CreateRootBlock(Graphics gdi)
+  /// <summary>Performs the layout of the document and returns the layout, represented by a <see cref="RootRegion"/>
+  /// object.
+  /// </summary>
+  RootRegion CreateRootBlock(Graphics gdi)
   {
     int startIndex = 0;
-    return CreateBlock(gdi, Document.Root, CanvasRectangle.Width, ref startIndex);
+    return new RootRegion(CreateBlock(gdi, Document.Root, CanvasRectangle.Width, ref startIndex));
   }
 
   /// <summary>Converts a <see cref="Measurement"/> into pixels.</summary>
@@ -1455,22 +1593,23 @@ public class DocumentEditor : Control
   /// <summary>Creates a line block given the rendering context, the inline nodes to place into the block, and the
   /// width available, in pixels.
   /// </summary>
-  Block LayoutLines(Graphics gdi, DocumentNode parent, ICollection<DocumentNode> inlineNodes,
-                    int availableWidth, ref int startIndex)
+  LineBlock LayoutLines(Graphics gdi, DocumentNode parent, ICollection<DocumentNode> inlineNodes,
+                        int availableWidth, ref int startIndex)
   {
     // the method creates a list of lines, each holding spans, from a list of nodes.
 
     List<Line> lines = new List<Line>(); // holds the lines for all of these nodes
     List<LayoutSpan> spans = new List<LayoutSpan>(); // holds the spans in the current line
-    int lineWidth = 0, lineHeight = 0; // the size of the current line so far
+    Size lineSize = new Size(); // the size of the current line so far
 
     LayoutSpan span = null;
     foreach(DocumentNode node in inlineNodes)
     {
-      span = CreateLayoutSpan(node, startIndex);
+      span = CreateLayoutSpan(node);
       if(span == null) continue; // if this node cannot be rendered, skip to the next one
       span.BeginLayout(gdi);
-      
+      int nodeIndex = 0; // the index within the node at which the current span begins
+
       int hShrinkage, vShrinkage;
       SetBorderMarginAndPadding(gdi, node, span, availableWidth, out hShrinkage, out vShrinkage);
 
@@ -1479,26 +1618,31 @@ public class DocumentEditor : Control
       {
         if(lineIndex != 0) // if there was a line break in the document node (and hence a line other than the first),
         {                  // start a new output line too
-          FinishLine(gdi, lines, spans, ref span, ref lineWidth, ref lineHeight, startIndex);
+          FinishLine(gdi, lines, spans, ref span, ref lineSize, ref startIndex, nodeIndex);
         }
 
         SplitPiece piece = null;
         while(true)
         {
-          int spaceLeft = availableWidth - lineWidth;
+          int spaceLeft = availableWidth - lineSize.Width;
           piece = span.GetNextSplitPiece(gdi, lineIndex, piece, spaceLeft, spaceLeft == availableWidth);
           if(piece == null) break;
 
           // so extend the size of the current line and span to encompass the new piece
-          lineWidth += piece.Size.Width;
-          lineHeight = Math.Max(lineHeight, piece.Size.Height);
+          lineSize.Width += piece.Size.Width;
+          lineSize.Height = Math.Max(lineSize.Height, piece.Size.Height);
 
           span.Size = new Size(span.Width + piece.Size.Width, Math.Max(span.Height, piece.Size.Height));
+          
           span.Length += piece.Span.Length; // increase the span length of the size of the split piece
-          startIndex  += piece.Span.Length + piece.Skip; // and update the next document index
+          startIndex   = span.End; // and update the document index
+          nodeIndex    = piece.Span.End + piece.Skip; // and update the node index
 
           // if we need to start a new line before we can receive more of the content, do so
-          if(piece.NewLine) FinishLine(gdi, lines, spans, ref span, ref lineWidth, ref lineHeight, startIndex);
+          if(piece.NewLine)
+          {
+            FinishLine(gdi, lines, spans, ref span, ref lineSize, ref startIndex, nodeIndex);
+          }
         }
       }
 
@@ -1509,12 +1653,20 @@ public class DocumentEditor : Control
     // if the last line is not empty, add it
     if(spans.Count != 0)
     {
+      if(span.Length != 0)
+      {
+        // add a virtual newline to the end of the final span (which has already been added to the line)
+        span.HasTrailingNewline = true;
+        span.Length++;
+        startIndex++;
+      }
+
       span = null; // the span has already been added, so don't add it again
-      FinishLine(gdi, lines, spans, ref span, ref lineWidth, ref lineHeight, startIndex);
+      FinishLine(gdi, lines, spans, ref span, ref lineSize, ref startIndex, 0);
     }
 
     // now, loop through each of the lines that we've added and stack them vertically into a LineBlock
-    Block block = new Block(lines.ToArray());
+    LineBlock block = new LineBlock(lines.ToArray());
     block.BeginLayout(gdi);
 
     foreach(Line line in block.Children)
@@ -1601,31 +1753,39 @@ public class DocumentEditor : Control
 
   /// <summary>A helper for <see cref="LayoutLines"/> which ends the current line.</summary>
   static void FinishLine(Graphics gdi, List<Line> lines, List<LayoutSpan> spans, ref LayoutSpan span, 
-                         ref int lineWidth, ref int lineHeight, int startIndex)
+                         ref Size lineSize, ref int docStartIndex, int nodeStartIndex)
   {
     if(span != null)
     {
       if(span.Length != 0) // if the current span contains something, add that to the line first
       {
+        // the line is being wrapped, so add a virtual newline character to the end of the final span, and account for
+        // it in the document index
+        span.HasTrailingNewline = true;
+        span.Length++;
+        docStartIndex++;
         spans.Add(span);
-        LayoutSpan newSpan = span.CreateNew();
+
+        LayoutSpan newSpan = span.CreateNew(nodeStartIndex);
         newSpan.BeginLayout(gdi);
         newSpan.Border  = span.Border;
         newSpan.Margin  = span.Margin;
         newSpan.Padding = span.Padding;
         span = newSpan;
       }
-      span.Start = startIndex;
+
+      span.Start = docStartIndex;
     }
 
     Line line = new Line(spans.ToArray());
     line.BeginLayout(gdi);
-    line.Height = lineHeight;
-    line.Start  = startIndex; // this will be overwritten later if the line is not empty...
+    line.Height = lineSize.Height;
+    line.Start  = docStartIndex; // this span will be overwritten later if the line is not empty...
+    line.Length = 1;
     lines.Add(line);
 
     spans.Clear();
-    lineHeight = lineWidth = 0;
+    lineSize = new Size();
   }
   #endregion
 
@@ -1724,14 +1884,15 @@ public class DocumentEditor : Control
 
       SetAbsolutePositions(rootBlock, rootBlock.Position);
       ResizeScrollbars(gdi);
+      SetCursor(Math.Min(cursorIndex, IndexLength));
     }
   }
 
   /// <summary>Invalidates the entire layout.</summary>
   protected void InvalidateLayout()
   {
-    DeselectAll();
     rootBlock = null;
+    DeselectAll();
     Invalidate(CanvasRectangle);
   }
 
@@ -1833,6 +1994,57 @@ public class DocumentEditor : Control
     if(!rootColor.HasValue) Invalidate(CanvasRectangle);
   }
 
+  /// <summary>Called when the control receives input focus.</summary>
+  protected override void OnGotFocus(EventArgs e)
+  {
+    base.OnGotFocus(e);
+
+    // restore the cursor if it should be visible
+    UpdateCursor();
+  }
+
+  /// <summary>Determines whether the given key is an input key that should be passed through <see cref="OnKeyDown"/>.</summary>
+  protected override bool IsInputKey(Keys keyData)
+  {
+    switch(keyData)
+    {
+      case Keys.Left: case Keys.Right: case Keys.Up: case Keys.Down:
+        return true;
+      default: return base.IsInputKey(keyData);
+    }
+  }
+
+  /// <summary>Called when a key on the keyboard is depressed.</summary>
+  protected override void OnKeyDown(KeyEventArgs e)
+  {
+    base.OnKeyDown(e);
+    if(e.Handled) return;
+
+    if(e.KeyCode == Keys.Left)
+    {
+      CursorIndex = Math.Max(0, CursorIndex-1);
+    }
+    else if(e.KeyCode == Keys.Right)
+    {
+      CursorIndex = Math.Min(IndexLength, CursorIndex+1);
+    }
+    else if(e.KeyCode == Keys.Home && e.Modifiers == Keys.Control)
+    {
+      CursorIndex = 0;
+    }
+    else if(e.KeyCode == Keys.End && e.Modifiers == Keys.Control)
+    {
+      CursorIndex = IndexLength;
+    }
+  }
+
+  /// <summary>Called when the control loses input focus.</summary>
+  protected override void OnLostFocus(EventArgs e)
+  {
+    base.OnLostFocus(e);
+    HideCursor();
+  }
+
   /// <summary>Called when the size of the control changes.</summary>
   protected override void OnSizeChanged(EventArgs e)
   {
@@ -1846,9 +2058,15 @@ public class DocumentEditor : Control
       {
         InvalidateLayout();
       }
-      else if(hScrollBar != null || vScrollBar != null) // otherwise, the layout is still valid, so we just need to
-      {                                                 // resize the scrollbars to fit the control
-        using(Graphics gdi = Graphics.FromHwnd(Handle)) ResizeScrollbars(gdi);
+      else // otherwise, the layout is still valid
+      {
+        if(hScrollBar != null || vScrollBar != null) // we need to resize the scrollbars to fit the control
+        {
+          using(Graphics gdi = Graphics.FromHwnd(Handle)) ResizeScrollbars(gdi);
+        }
+
+        // and, we need to update the cursor, which may be need to be hidden or shown, depending on the new size
+        UpdateCursor();
       }
     }
 
@@ -1901,6 +2119,16 @@ public class DocumentEditor : Control
     }
   }
 
+  [DllImport("user32.dll", EntryPoint="CreateCaret")]
+  static extern bool W32CreateCaret(IntPtr hWnd, IntPtr hBitmap, int width, int height);
+  [DllImport("user32.dll", EntryPoint="DestroyCaret")]
+  static extern bool W32DestroyCaret();
+  [DllImport("user32.dll", EntryPoint="HideCaret")]
+  static extern bool W32HideCaret(IntPtr hWnd);
+  [DllImport("user32.dll", EntryPoint="SetCaretPos")]
+  static extern bool W32SetCaretPos(int x, int y);
+  [DllImport("user32.dll", EntryPoint="ShowCaret")]
+  static extern bool W32ShowCaret(IntPtr hWnd);
   [DllImport("user32.dll", EntryPoint="ScrollWindow")]
   static extern bool W32ScrollWindow(IntPtr hWnd, int xOffset, int yOffset, ref RECT scrollRegion, ref RECT clipRect);
   #endregion
@@ -2084,7 +2312,8 @@ public class DocumentEditor : Control
   /// <summary>Gets the innermost <see cref="LayoutRegion"/> that contains the given index.</summary>
   LayoutRegion GetRegion(int index)
   {
-    throw new NotImplementedException();
+    Layout();
+    return rootBlock.GetRegion(index);
   }
 
   /// <summary>Given a span within the document, returns the portion of the span that is visible within the control,
@@ -2149,8 +2378,7 @@ public class DocumentEditor : Control
   /// <remarks>This method uses an optimized system calls if they are available.</remarks>
   void ScrollCanvas(int xOffset, int yOffset)
   {
-    PlatformID platform = Environment.OSVersion.Platform;
-    if(platform == PlatformID.Win32NT || platform == PlatformID.Win32Windows || platform == PlatformID.WinCE)
+    if(PlatformIsWindows)
     {
       RECT canvasRect = new RECT(CanvasRectangle);
       W32ScrollWindow(Handle, xOffset, yOffset, ref canvasRect, ref canvasRect);
@@ -2160,17 +2388,107 @@ public class DocumentEditor : Control
       // TODO: attempt a manual scroll using the GDI and see how fast it is compared to a full repaint
       Invalidate(CanvasRectangle);
     }
+
+    // update the position of the text cursor as well
+    cursorRect.Offset(xOffset, yOffset);
+    UpdateCursor();
+  }
+
+  /// <summary>Given a document index, moves the graphical text cursor to the given index, and sets
+  /// <see cref="CursorIndex"/> to the given value.
+  /// </summary>
+  void SetCursor(int index)
+  {
+    using(Graphics gdi = Graphics.FromHwnd(Handle)) SetCursor(gdi, index);
+  }
+
+  /// <summary>Given a document index, moves the graphical text cursor to the given index, and sets
+  /// <see cref="CursorIndex"/> to the given value.
+  /// </summary>
+  void SetCursor(Graphics gdi, int index)
+  {
+    if(index < 0 || index > IndexLength) throw new ArgumentOutOfRangeException();
+
+    Point canvasOffset = CanvasRectangle.Location;
+    LayoutRegion region = GetRegion(index);
+    Size pixelOffset = region.GetPixelOffset(gdi, index-region.Start);
+
+    cursorIndex = index;
+    SetCursor(new Point(region.AbsoluteLeft + canvasOffset.X + ScrollPosition.X + pixelOffset.Width,
+                        region.AbsoluteTop  + canvasOffset.Y + ScrollPosition.Y + pixelOffset.Height),
+              region.Height);
+  }
+
+  /// <summary>Given the position of the text cursor's top-left corner in client units and its height, moves the
+  /// graphical text cursor to the given position and sets <see cref="cursorRect"/>.
+  /// </summary>
+  void SetCursor(Point clientPoint, int height)
+  {
+    if(height != cursorRect.Height) HideCursor(); // if the height changed, destroy the old cursor so it'll be recreated
+
+    cursorRect = new Rectangle(clientPoint, new Size(1, height));
+
+    // show the cursor if the control has input focus and the cursor is visible. otherwise, hide it.
+    if(Focused && cursorRect.IntersectsWith(CanvasRectangle)) ShowCursor();
+    else HideCursor();
+  }
+
+  /// <summary>To be called when the cursor may need to be redrawn, for instance because the canvas was scrolled or
+  /// resized.
+  /// </summary>
+  void UpdateCursor()
+  {
+    if(cursorRect.Width != 0) SetCursor(cursorRect.Location, cursorRect.Height);
+    else SetCursor(cursorIndex);
+  }
+
+  /// <summary>Creates the background task that draws the text cursor at the position specified by
+  /// <see cref="cursorRect"/>, or updates the background task when <see cref="cursorRect"/> has changed.
+  /// </summary>
+  void ShowCursor()
+  {
+    if(PlatformIsWindows)
+    {
+      if(!cursorVisible)
+      {
+        W32CreateCaret(Handle, IntPtr.Zero, cursorRect.Width, cursorRect.Height);
+        cursorVisible = true;
+      }
+      W32SetCaretPos(cursorRect.X, cursorRect.Y);
+      W32ShowCaret(Handle);
+    }
+    else
+    {
+      throw new NotImplementedException();
+    }
+  }
+
+  /// <summary>Terminates the background task that draws the text cursor.</summary>
+  void HideCursor()
+  {
+    if(cursorVisible)
+    {
+      if(PlatformIsWindows)
+      {
+        W32HideCaret(Handle);
+        W32DestroyCaret();
+      }
+      else throw new NotImplementedException();
+      cursorVisible = false;
+    }
   }
 
   readonly Document document;
-  Block rootBlock;
+  RootRegion rootBlock;
   HScrollBar hScrollBar;
   VScrollBar vScrollBar;
+  /// <summary>The area of the text cursor within the control.</summary>
+  Rectangle cursorRect;
   int cursorIndex, hScrollPos, vScrollPos, controlWidth;
   Span selection;
   ScrollBars scrollBars;
   System.Windows.Forms.BorderStyle borderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
-  bool readOnly, layoutSuspended, repaintNeeded;
+  bool readOnly, layoutSuspended, repaintNeeded, cursorVisible;
 
   /// <summary>Given a graphics context, a measurement, the measurement unit, and the measurement orientation, returns
   /// the size of the measurement in pixels.
@@ -2199,6 +2517,10 @@ public class DocumentEditor : Control
       SetAbsolutePositions(child, new Point(absPosition.X+child.Left, absPosition.Y+child.Top));
     }
   }
+
+  static readonly bool PlatformIsWindows = Environment.OSVersion.Platform == PlatformID.Win32NT || 
+                                           Environment.OSVersion.Platform == PlatformID.Win32Windows ||
+                                           Environment.OSVersion.Platform == PlatformID.WinCE;
 }
 
 } // namespace AdamMil.UI.RichDocument
