@@ -491,6 +491,18 @@ public class TextNode : DocumentNode
     get { return document.Length; }
   }
 
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Copy3/*"/>
+  public void CopyText(System.IO.TextWriter writer, int srcIndex, int count)
+  {
+    document.CopyTo(writer, srcIndex, count);
+  }
+
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Copy4/*"/>
+  public void CopyText(int srcIndex, char[] destArray, int destIndex, int count)
+  {
+    document.CopyTo(srcIndex, destArray, destIndex, count);
+  }
+
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Delete2/*"/>
   public void Delete(int index, int count)
   {

@@ -954,6 +954,18 @@ public class TextDocument
     lineStorage.Clear();
   }
 
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Copy3/*"/>
+  public void CopyTo(TextWriter writer, int srcIndex, int count)
+  {
+    textBuffer.CopyTo(writer, srcIndex, count);
+  }
+
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Copy4/*"/>
+  public void CopyTo(int srcIndex, char[] destArray, int destIndex, int count)
+  {
+    textBuffer.CopyTo(srcIndex, destArray, destIndex, count);
+  }
+
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Delete/*"/>
   public void Delete(int index)
   {

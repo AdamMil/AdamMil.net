@@ -65,6 +65,10 @@
 
   <DocumentEditor>
     <LayoutRegion>
+      <ContentSpan>
+        <summary>Gets or sets the span of the associated document node's content that is rendered within this region.</summary>  
+      </ContentSpan>
+      
       <BeginLayout>
         <summary>
           Called before the region is laid out. This can be used to initialize members that will be used by the layout
@@ -78,6 +82,13 @@
           this region, both visually and document-wise.
         </summary>
       </GetChildren>
+
+      <GetNearestIndex>
+        <summary>
+          Given a graphics context and a point relative to this region, returns the document index within the
+          region nearest to the point.
+        </summary>
+      </GetNearestIndex>
 
       <GetPixelOffset>
         <summary>Gets the pixel offset into the region, given an index offset relative to the start of the region. The
@@ -115,7 +126,7 @@
       
       <CreateNew>
         <summary>
-          Given the starting offset within the node, returns a new <see cref="LayoutSpan"/> of the same type as this,
+          Returns a new <see cref="LayoutSpan"/> of the same type as this,
           referencing the same <see cref="DocumentNode"/>, but with all other fields at their default.
         </summary>
       </CreateNew>
