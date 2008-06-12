@@ -34,7 +34,7 @@ public delegate void DocumentNodeEvent(Document document, DocumentNode node);
 
 #region Unit
 /// <summary>Represents a unit of measurement.</summary>
-public enum Unit
+public enum Unit : byte
 {
   /// <summary>The measurement is in pixels on the output device.</summary>
   Pixels,
@@ -99,6 +99,25 @@ public struct Measurement
     return size.GetHashCode() ^ (int)unit;
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/ToString/*"/>
+  public override string ToString()
+  {
+    string sizeString = size.ToString("g3"), suffix;
+
+    switch(Unit)
+    {
+      case Unit.FontRelative: suffix = " fr"; break;
+      case Unit.Inches: suffix = " in"; break;
+      case Unit.Millimeters: suffix = " mm"; break;
+      case Unit.Percent: suffix = "%"; break;
+      case Unit.Pixels: suffix = " px"; break;
+      case Unit.Points: suffix = " pt"; break;
+      default: throw new NotImplementedException();
+    }
+
+    return sizeString + suffix;
+  }
+
   /// <include file="documentation.xml" path="/UI/Common/OpEquals/*"/>
   public static bool operator==(Measurement a, Measurement b)
   {
@@ -120,10 +139,8 @@ public struct Measurement
 /// <summary>Contains four measurements, representing the four sides of a rectangle. This object is used, for instance,
 /// to specify the padding or margin around an object.
 /// </summary>
-public sealed class FourSide
+public struct FourSide
 {
-  /// <summary>Initializes this <see cref="FourSide"/> with all sides equal to 0 pixels.</summary>
-  public FourSide() { }
   /// <summary>Initializes this <see cref="FourSide"/> with all sides equal to the given measurement.</summary>
   public FourSide(Measurement amount) : this(amount, amount, amount, amount) { }
   /// <summary>Initializes this <see cref="FourSide"/> with the left and right sides equal to the horizontal
@@ -137,26 +154,70 @@ public sealed class FourSide
   /// <summary>Initializes this <see cref="FourSide"/> with the given measurements.</summary>
   public FourSide(Measurement left, Measurement top, Measurement right, Measurement bottom)
   {
-    Left   = left;
-    Top    = top;
-    Right  = right;
-    Bottom = bottom;
+    this.left       = left.Size;
+    this.top        = top.Size;
+    this.right      = right.Size;
+    this.bottom     = bottom.Size;
+    this.leftUnit   = left.Unit;
+    this.topUnit    = top.Unit;
+    this.rightUnit  = right.Unit;
+    this.bottomUnit = bottom.Unit;
   }
 
-  /// <summary>The measurement of the left side.</summary>
-  public Measurement Left;
-  /// <summary>The measurement of the top side.</summary>
-  public Measurement Top;
-  /// <summary>The measurement of the right side.</summary>
-  public Measurement Right;
-  /// <summary>The measurement of the bottom side.</summary>
-  public Measurement Bottom;
+  /// <summary>Gets whether all four sides have a zero-length measurement.</summary>
+  public bool IsEmpty
+  {
+    get { return left == 0 && top == 0 && right == 0 && bottom == 0; }
+  }
+
+  /// <summary>Gets or sets the measurement of the left side.</summary>
+  public Measurement Left
+  {
+    get { return new Measurement(left, leftUnit); }
+    set
+    {
+      left     = value.Size;
+      leftUnit = value.Unit;
+    }
+  }
+
+  /// <summary>Gets or sets the measurement of the top side.</summary>
+  public Measurement Top
+  {
+    get { return new Measurement(top, topUnit); }
+    set
+    {
+      top     = value.Size;
+      topUnit = value.Unit;
+    }
+  }
+
+  /// <summary>Gets or sets the measurement of the right side.</summary>
+  public Measurement Right
+  {
+    get { return new Measurement(right, rightUnit); }
+    set
+    {
+      right     = value.Size;
+      rightUnit = value.Unit;
+    }
+  }
+
+  /// <summary>Gets or sets the measurement of the bottom side.</summary>
+  public Measurement Bottom
+  {
+    get { return new Measurement(bottom, bottomUnit); }
+    set
+    {
+      bottom     = value.Size;
+      bottomUnit = value.Unit;
+    }
+  }
 
   /// <include file="documentation.xml" path="/UI/Common/Equals/*"/>
   public override bool Equals(object obj)
   {
-    FourSide other = obj as FourSide;
-    return other == null ? false : this == other;
+    return obj is FourSide ? this == (FourSide)obj : false;
   }
 
   /// <include file="documentation.xml" path="/UI/Common/Equals/*"/>
@@ -168,40 +229,50 @@ public sealed class FourSide
   /// <include file="documentation.xml" path="/UI/Common/GetHashCode/*"/>
   public override int GetHashCode()
   {
-    return Left.GetHashCode() ^ Top.GetHashCode() ^ Right.GetHashCode() ^ Bottom.GetHashCode();
+    return left.GetHashCode() ^ top.GetHashCode() ^ right.GetHashCode() ^ bottom.GetHashCode();
   }
 
   /// <summary>Sets all sides to the given measurement.</summary>
   public void SetAll(Measurement value)
   {
-    Top = Left = Right = Bottom = value;
+    top = left = right = bottom = value.Size;
+    topUnit = leftUnit = rightUnit = bottomUnit = value.Unit;
   }
 
   /// <summary>Sets the left and right sides to the given measurement.</summary>
   public void SetHorizontal(Measurement value)
   {
-    Left = Right = value;
+    left = right = value.Size;
+    leftUnit = rightUnit = value.Unit;
   }
 
   /// <summary>Sets the top and bottom sides to the given measurement.</summary>
   public void SetVertical(Measurement value)
   {
-    Top = Bottom = value;
+    top = bottom = value.Size;
+    topUnit = bottomUnit = value.Unit;
   }
 
   /// <include file="documentation.xml" path="/UI/Common/OpEquals/*"/>
   public static bool operator==(FourSide a, FourSide b)
   {
-    if((object)a == null || (object)b == null) return (object)a == (object)b;
-    return a.Left == b.Left && a.Top == b.Top && a.Right == b.Right && a.Bottom == b.Bottom;
+    return a.left == b.left && a.top == b.top && a.right == b.right && a.bottom == b.bottom &&
+           a.leftUnit == b.leftUnit && a.topUnit == b.topUnit &&
+           a.rightUnit == b.rightUnit && a.bottomUnit == b.bottomUnit;
   }
 
   /// <include file="documentation.xml" path="/UI/Common/OpNotEquals/*"/>
   public static bool operator!=(FourSide a, FourSide b)
   {
-    if((object)a == null || (object)b == null) return (object)a != (object)b;
-    return a.Left != b.Left || a.Top != b.Top || a.Right != b.Right || a.Bottom != b.Bottom;
+    return a.left != b.left || a.top != b.top || a.right != b.right || a.bottom != b.bottom ||
+           a.leftUnit != b.leftUnit || a.topUnit != b.topUnit ||
+           a.rightUnit != b.rightUnit || a.bottomUnit != b.bottomUnit;
   }
+
+  // separating the components of each measurement like this allows us to represent the structure in 20 bytes, by
+  // packing the four units together. if we simply stored four Measurement objects, the structure would take 32 bytes
+  float left, top, right, bottom;
+  Unit leftUnit, topUnit, rightUnit, bottomUnit;
 }
 #endregion
 
