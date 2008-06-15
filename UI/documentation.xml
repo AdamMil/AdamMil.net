@@ -65,16 +65,15 @@
 
   <DocumentEditor>
     <LayoutRegion>
-      <ContentSpan>
-        <summary>Gets or sets the span of the associated document node's content that is rendered within this region.</summary>  
-      </ContentSpan>
-      
       <BeginLayout>
         <summary>
-          Called before the region is laid out. This can be used to initialize members that will be used by the layout
-          code.
+          Called before the region is laid out. This can be used to initialize members that will affect layout.
         </summary>
       </BeginLayout>
+
+      <EndLayout>
+        <summary>Called after the region is laid out.</summary>
+      </EndLayout>
 
       <GetChildren>
         <summary>
