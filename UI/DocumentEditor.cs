@@ -115,8 +115,8 @@ public class DocumentEditor : Control
       if(value != CursorIndex)
       {
         if(value < 0 || value > IndexLength) throw new ArgumentOutOfRangeException();
-        if(HasLayout) SetCursor(value); // if we have a layout, move the cursor immediately
-        else cursorIndex = value; // otherwise, just set the index and it'll be moved when the layout is redone
+        CursorIndexSetter(value);
+        idealCursorX = GetDocumentPoint(cursorRect.Location).X;
       }
     }
   }
@@ -169,7 +169,7 @@ public class DocumentEditor : Control
   /// <summary>Gets the width and height of the area that can be scrolled into.</summary>
   public Size ScrollArea
   {
-    get { return new Size(hScrollBar == null ? 0 : hScrollBar.Maximum, vScrollBar == null ? 0 : vScrollBar.Maximum); }
+    get { return new Size(HScrollMaximum, VScrollMaximum); }
   }
 
   /// <summary>Gets or sets the position within the document that is being rendered at the top-left pixel of the
@@ -190,8 +190,8 @@ public class DocumentEditor : Control
         throw new ArgumentOutOfRangeException();
       }
 
-      if(hScrollBar != null) hScrollBar.Value = value.X;
-      if(vScrollBar != null) vScrollBar.Value = value.Y;
+      if(hScrollBar != null) hScrollBar.Value = Math.Min(HScrollMaximum, value.X);
+      if(vScrollBar != null) vScrollBar.Value = Math.Min(VScrollMaximum, value.Y);
     }
   }
 
@@ -236,15 +236,18 @@ public class DocumentEditor : Control
       {
         if(value.End > IndexLength) throw new ArgumentOutOfRangeException();
 
-        // get the bounding boxes of the previous and new selection
-        Rectangle oldArea = GetVisibleArea(selection), newArea = GetVisibleArea(value);
+        if(selection.Length != 0 || value.Length != 0)
+        {
+          // get the bounding boxes of the previous and new selection
+          Rectangle oldArea = GetVisibleArea(selection), newArea = GetVisibleArea(value);
 
-        // set the new value
-        selection = value;
-        
-        // and invalidate the affected areas of the control, if any
-        if(oldArea.Width != 0) Invalidate(oldArea);
-        if(newArea.Width != 0) Invalidate(newArea);
+          // set the new value
+          selection = value;
+
+          // and invalidate the affected areas of the control, if any
+          if(oldArea.Width != 0) Invalidate(oldArea);
+          if(newArea.Width != 0) Invalidate(newArea);
+        }
       }
     }
   }
@@ -518,7 +521,7 @@ public class DocumentEditor : Control
   /// <summary>Represents a rectangular area within the document layout into which a span of the document indices are
   /// rendered.
   /// </summary>
-  protected abstract class LayoutRegion
+  protected abstract class LayoutRegion : IDisposable
   {
     /// <summary>Gets the absolute horizontal position of the leftmost pixel of the region.</summary>
     public int AbsoluteLeft
@@ -636,14 +639,6 @@ public class DocumentEditor : Control
       set { Span.Length = value; }
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/ContentSpan/*"/>
-    /// <remarks>The default implementation simply gets and sets the <see cref="LayoutRegion.Span"/> property.</remarks>
-    public virtual Span ContentSpan
-    {
-      get { return Span; }
-      set { Span = value; }
-    }
-
     /// <summary>Gets or sets the <see cref="AdamMil.UI.Span.Length"/> member of the <see cref="ContentSpan"/>
     /// property.
     /// </summary>
@@ -662,8 +657,32 @@ public class DocumentEditor : Control
       set { ContentSpan = new Span(value, ContentLength); }
     }
 
+    /// <summary>Gets a span containing the document indices that render actual content.</summary>
+    public Span DocumentContentSpan
+    {
+      get { return new Span(Start, ContentLength); }
+    }
+
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/BeginLayout/*"/>
     public virtual void BeginLayout(Graphics gdi) { }
+
+    /// <include file="documentation.xml" path="/UI/Common/Dispose/*"/>
+    public virtual void Dispose()
+    {
+      foreach(LayoutRegion child in GetChildren()) child.Dispose();
+    }
+
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/EndLayout/*"/>
+    public virtual void EndLayout(Graphics gdi)
+    {
+      int index = 0;
+      foreach(LayoutRegion child in GetChildren())
+      {
+        child.Parent = this;
+        child.Index  = index++;
+        child.EndLayout(gdi);
+      }
+    }
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetChildren/*"/>
     public abstract LayoutRegion[] GetChildren();
@@ -671,7 +690,7 @@ public class DocumentEditor : Control
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNearestIndex/*"/>
     public virtual int GetNearestIndex(Graphics gdi, Point regionPt)
     {
-      int end = Start + ContentLength;
+      int end = DocumentContentSpan.End;
 
       // if the point is not contained within the region vertically, return the start or end depending on where it is
       if(regionPt.Y < Margin.Top+Border.Height) return Start;
@@ -705,7 +724,26 @@ public class DocumentEditor : Control
     public virtual Size GetPixelOffset(Graphics gdi, int indexOffset)
     {
       if(indexOffset < 0 || indexOffset > Length) throw new ArgumentOutOfRangeException();
-      if(indexOffset > 0 && indexOffset < Length) throw new NotImplementedException(); // the base implementation only supports indivisible nodes
+
+      if(indexOffset > 0 && indexOffset < Length)
+      {
+        // the base implementation only supports indivisible nodes, so try delegating to a descendant
+        indexOffset += Start; // make the index absolute
+        LayoutRegion descendant = GetRegion(indexOffset);
+        if(descendant != this)
+        {
+          Size offset = descendant.GetPixelOffset(gdi, indexOffset - descendant.Start);
+          do
+          {
+            offset.Width  += descendant.Left;
+            offset.Height += descendant.Top;
+            descendant = descendant.Parent;
+          } while(descendant != this);
+
+          return offset;
+        }
+        else if(indexOffset < ContentLength) throw new NotImplementedException();
+      }
 
       // if the border is one pixel wide, the cursor will cause the border to flash on and off, so we'll move the
       // cursor one pixel to the outside of the border
@@ -742,12 +780,18 @@ public class DocumentEditor : Control
       }
     }
 
+    /// <summary>The layout region that contains this region, or null if this is the root region.</summary>
+    public LayoutRegion Parent;
+    /// <summary>The region's index within the parent's collection of children.</summary>
+    public int Index;
     /// <summary>The region's bounds, relative to the parent region.</summary>
     public Rectangle Bounds;
     /// <summary>The region's absolute position in the document.</summary>
     public Point AbsolutePosition;
     /// <summary>The span of indices that this region contains.</summary>
     public Span Span;
+    /// <summary>Gets or sets the span of the associated document node's content that is rendered within this region.</summary>
+    public Span ContentSpan;
     /// <summary>The thickness of the margin, in pixels.</summary>
     public FourSideInt Margin;
     /// <summary>The thickness of the padding, in pixels.</summary>
@@ -762,9 +806,10 @@ public class DocumentEditor : Control
     {
       DocumentNode node = GetNode();
 
-      if(node != null)
+      bool isSelected = data.Selection.Contains(DocumentContentSpan);
+      if(node != null || isSelected)
       {
-        Color? color = node.Style.BackColor;
+        Color? color = isSelected ? SystemColors.Highlight : node.Style.BackColor;
         if(color.HasValue && color.Value.A != 0)
         {
           using(Brush brush = new SolidBrush(color.Value))
@@ -814,8 +859,10 @@ public class DocumentEditor : Control
       DocumentNode node = GetNode();
       if(node != null && !Border.IsEmpty)
       {
+        bool isSelected = data.Selection.Contains(DocumentContentSpan);
         BorderStyle borderStyle = node.Style.BorderStyle;
-        Color color = node.Style.BorderColor ?? node.Style.EffectiveForeColor ?? data.Editor.ForeColor;
+        Color color = isSelected ? SystemColors.HighlightText
+          : node.Style.BorderColor ?? node.Style.EffectiveForeColor ?? data.Editor.ForeColor;
         if(borderStyle != RichDocument.BorderStyle.None && color.A != 0)
         {
           using(Pen pen = new Pen(color)) 
@@ -942,7 +989,7 @@ public class DocumentEditor : Control
     /// <summary>Initializes this <see cref="LayoutRegion{T}"/> with the given child array.</summary>
     public LayoutRegion(ChildType[] children) { Children = children; }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/BeginLayout/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetChildren/*"/>
     public sealed override LayoutRegion[] GetChildren()
     {
       return Children;
@@ -994,16 +1041,6 @@ public class DocumentEditor : Control
     public Line() { }
     /// <summary>Initializes a new <see cref="Line"/> with the given child array.</summary>
     public Line(LayoutSpan[] children) : base(children) { }
-
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/ContentSpan/*"/>
-    /// <remarks>This implementation gets and sets the <see cref="LayoutRegion.Span"/> property, but offsets the length
-    /// by one to account for the virtual newline character at the end of each line.
-    /// </remarks>
-    public override Span ContentSpan
-    {
-      get { return new Span(Start, Length-1); }
-      set { Span = new Span(value.Start, value.Length+1); }
-    }
   }
   #endregion
 
@@ -1036,16 +1073,6 @@ public class DocumentEditor : Control
   /// </summary>
   protected abstract class LayoutSpan : LayoutRegion
   {
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/ContentSpan/*"/>
-    /// <remarks>This implementation is decoupled from the <see cref="LayoutRegion.Span"/> property and may be shorter,
-    /// but must not be longer.
-    /// </remarks>
-    public override Span ContentSpan
-    {
-      get { return contentSpan; }
-      set { contentSpan = value; }
-    }
-
     /// <summary>Gets or sets the number of pixels from the baseline to the bottom of the region.</summary>
     public int Descent;
 
@@ -1058,7 +1085,7 @@ public class DocumentEditor : Control
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/CreateNew/*"/>
     public abstract LayoutSpan CreateNew();
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/BeginLayout/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetChildren/*"/>
     public sealed override LayoutRegion[] GetChildren()
     {
       return NoChildren;
@@ -1067,8 +1094,6 @@ public class DocumentEditor : Control
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/GetNextSplitPiece/*"/>
     public abstract SplitPiece GetNextSplitPiece(Graphics gdi, int line, SplitPiece piece, int spaceLeft,
                                                  bool lineIsEmpty);
-
-    Span contentSpan;
 
     static readonly LayoutRegion[] NoChildren = new LayoutRegion[0];
   }
@@ -1287,10 +1312,24 @@ public class DocumentEditor : Control
       return new TextNodeSpan(Node, Editor, Font);
     }
 
+    /// <include file="documentation.xml" path="/UI/Common/Dispose/*"/>
+    public override void Dispose()
+    {
+      base.Dispose();
+      Font.Dispose();
+    }
+
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/EndLayout/*"/>
+    public override void EndLayout(Graphics gdi)
+    {
+      base.EndLayout(gdi);
+      cachedText = null;
+    }
+
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetPixelOffset/*"/>
     public override int GetNearestIndex(Graphics gdi, Point regionPt)
     {
-      int end = Start + ContentLength;
+      int end = DocumentContentSpan.End;
 
       // if the point is not contained within the region horizontally, return the start or end depending on where it is
       if(regionPt.X < (NodePart == NodePart.Full || NodePart == NodePart.Start ? Margin.Left+Border.Width : 0))
@@ -1544,9 +1583,6 @@ public class DocumentEditor : Control
 
       const TextFormatFlags DrawFlags = TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding |
                                         TextFormatFlags.SingleLine;
-      // TODO: render the selection too
-      Color fore = Node.Style.EffectiveForeColor ?? Editor.ForeColor;
-      
       // account for the border, margin, and padding, depending on whether this span has them
       // TODO: see if this code can be incorporated into LeftPBM, etc.
       if(NodePart == NodePart.Full || NodePart == NodePart.Start)
@@ -1555,8 +1591,44 @@ public class DocumentEditor : Control
       }
       else clientPoint.Y += Border.Height; // we always draw the top border if it exists
 
-      TextRenderer.DrawText(data.Graphics, Node.GetText(ContentStart, ContentLength),
-                            Font, clientPoint, fore, DrawFlags);
+      string text = Node.GetText(ContentStart, ContentLength);
+      Span contentSpan = DocumentContentSpan;
+
+      if(!data.Selection.Intersects(contentSpan)) // if the text is completely outside the selection...
+      {
+        Color fore = Node.Style.EffectiveForeColor ?? Editor.ForeColor;
+        TextRenderer.DrawText(data.Graphics, text, Font, clientPoint, fore, DrawFlags);
+      }
+      else if(data.Selection.Contains(contentSpan)) // if the text is completely inside the selection...
+      {
+        TextRenderer.DrawText(data.Graphics, text, Font, clientPoint,
+                              SystemColors.HighlightText, SystemColors.Highlight, DrawFlags);
+      }
+      else // if the text is partly inside and partly outside
+      {
+        Color fore = Node.Style.EffectiveForeColor ?? Editor.ForeColor;
+        // draw the portion of the text before the selection
+        if(Start < data.Selection.Start)
+        {
+          string subText = text.Substring(0, data.Selection.Start - Start);
+          TextRenderer.DrawText(data.Graphics, subText, Font, clientPoint, fore, DrawFlags);
+          clientPoint.X += TextRenderer.MeasureText(data.Graphics, subText, Font, Size, DrawFlags).Width;
+        }
+        // draw the portion within the selection
+        {
+          string subText = text.Substring(Math.Max(0, data.Selection.Start - Start),
+                             Math.Min(contentSpan.End, data.Selection.End) - Math.Max(data.Selection.Start, Start));
+          TextRenderer.DrawText(data.Graphics, subText, Font, clientPoint,
+                                SystemColors.HighlightText, SystemColors.Highlight, DrawFlags);
+          clientPoint.X += TextRenderer.MeasureText(data.Graphics, subText, Font, Size, DrawFlags).Width;
+        }
+        // draw the portion after the selection
+        if(contentSpan.End > data.Selection.End)
+        {
+          string subText = text.Substring(data.Selection.End - Start, contentSpan.End - data.Selection.End);
+          TextRenderer.DrawText(data.Graphics, subText, Font, clientPoint, fore, DrawFlags);
+        }
+      }
     }
 
     readonly Font Font;
@@ -1658,8 +1730,8 @@ public class DocumentEditor : Control
       else
       {
         newBlock.Children = new LayoutRegion[] { lines };
-        newBlock.Length = lines.End - newBlock.Start;
-        newBlock.Size   = lines.Size;
+        newBlock.Length   = lines.End - newBlock.Start;
+        newBlock.Size     = lines.Size;
       }
     }
     else // otherwise, one or more nodes is a block
@@ -1685,7 +1757,10 @@ public class DocumentEditor : Control
             inline.Clear();
           }
 
-          blocks.Add(CreateBlock(gdi, child, shrunkSize, ref startIndex));
+          Block block = CreateBlock(gdi, child, shrunkSize, ref startIndex);
+          block.Length++; // add a virtual newline to the end of the block, to allow the cursor to be positioned at the
+          startIndex++;   // left or right side of it
+          blocks.Add(block);
         }
       }
 
@@ -1713,6 +1788,8 @@ public class DocumentEditor : Control
       // calculate the span of the container
       newBlock.Length = newBlock.Children[newBlock.Children.Length-1].End - newBlock.Start;
     }
+
+    newBlock.ContentSpan = newBlock.Span; // set the content span
 
     // now that the container is exactly the size of its content, we can go back and apply margin and padding
     if(hShrinkage != 0 || vShrinkage != 0)
@@ -1742,7 +1819,9 @@ public class DocumentEditor : Control
   RootRegion CreateRootBlock(Graphics gdi)
   {
     int startIndex = 0;
-    return new RootRegion(CreateBlock(gdi, Document.Root, CanvasRectangle.Size, ref startIndex));
+    RootRegion root = new RootRegion(CreateBlock(gdi, Document.Root, CanvasRectangle.Size, ref startIndex));
+    root.EndLayout(gdi);
+    return root;
   }
 
   /// <summary>Converts a <see cref="Measurement"/> into pixels.</summary>
@@ -1881,6 +1960,7 @@ public class DocumentEditor : Control
         line.Start  = line.Children[0].Start;
         line.Length = line.Children[line.Children.Length-1].End - line.Start;
       }
+      line.ContentSpan = new Span(line.Start, line.Length-1); // account for the virtual newline in the content length
 
       // stack the spans horizontally within the line and calculate the maximum descent
       int maxDescent = 0;
@@ -1907,8 +1987,9 @@ public class DocumentEditor : Control
     if(block.Children.Length == 0) return null;
 
     ApplyHorizontalAlignment(parent.Style.HorizontalAlignment, block);
-    block.Start  = block.Children[0].Start;
-    block.Length = block.Children[block.Children.Length-1].End - block.Start;
+    block.Start       = block.Children[0].Start;
+    block.Length      = block.Children[block.Children.Length-1].End - block.Start;
+    block.ContentSpan = block.Span;
     return block;
   }
 
@@ -1997,35 +2078,194 @@ public class DocumentEditor : Control
   /// <summary>Moves the cursor by the given amount, clipped to the bounds of the document, and scrolls the canvas
   /// until the cursor is visible.
   /// </summary>
-  protected void MoveCursor(int offset)
+  protected void MoveCursor(int offset, bool extendSelection)
   {
-    MoveCursorTo(offset < 0 ? Math.Max(0, CursorIndex+offset) : Math.Min(IndexLength, CursorIndex+offset));
+    MoveCursorTo(offset < 0 ? Math.Max(0, CursorIndex+offset) : Math.Min(IndexLength, CursorIndex+offset),
+                 extendSelection);
   }
 
   /// <summary>Moves the cursor to the given location, and scrolls the canvas until the cursor is visible.</summary>
-  protected void MoveCursorTo(int index)
+  protected void MoveCursorTo(int index, bool extendSelection)
   {
     if(index < 0 || index > IndexLength) throw new ArgumentOutOfRangeException();
+    UpdateSelection(index, extendSelection);
     CursorIndex = index;
     ScrollTo(index);
   }
 
   /// <summary>Moves the cursor to the previous line, and scrolls the canvas until the cursor is visible.</summary>
-  protected void MoveCursorUp()
+  protected void MoveCursorUp(bool extendSelection)
   {
-    // TODO: FIXME: this doesn't work well. first, moving down and then back up doesn't necessarily return to the same
-    // offset. second, it won't necessarily move down past the end of a block and into the next block
-    CursorIndex = GetNearestIndex(new Point(cursorRect.X, cursorRect.Y - (cursorRect.Height+1)/2));
-    ScrollTo(CursorIndex);
+    LayoutRegion region = GetRegion(CursorIndex);
+    // since we're moving to the previous line, we need to move up the region tree until we get to a block region that
+    // has a previous sibling
+    while(region != null && (region is LayoutSpan || region.Index == 0)) region = region.Parent;
+    if(region == null) return; // if there is no such node, then there's no where to move
+
+    LayoutRegion sibling = region.Parent.GetChildren()[region.Index-1];
+    int newIndex;
+    using(Graphics gdi = Graphics.FromHwnd(Handle))
+    {
+      newIndex = sibling.GetNearestIndex(gdi, new Point(idealCursorX - sibling.AbsoluteLeft,
+                                                        Math.Max(0, sibling.Height - sibling.BottomPBM - 1)));
+    }
+
+    UpdateSelection(newIndex, extendSelection);
+    CursorIndexSetter(newIndex);
+    ScrollTo(newIndex);
   }
 
   /// <summary>Moves the cursor to the next line, and scrolls the canvas until the cursor is visible.</summary>
-  protected void MoveCursorDown()
+  protected void MoveCursorDown(bool extendSelection)
   {
-    // TODO: FIXME: this doesn't work well. first, moving down and then back up doesn't necessarily return to the same
-    // offset. second, it won't necessarily move down past the end of a block and into the next block
-    CursorIndex = GetNearestIndex(new Point(cursorRect.X, cursorRect.Y + cursorRect.Height + (cursorRect.Height+1)/2));
-    ScrollTo(CursorIndex);
+    LayoutRegion region = GetRegion(CursorIndex);
+    LayoutRegion[] children = null;
+
+    // since we're moving to the next line, we need to move up the region tree until we get to a block region that
+    // has a next sibling
+    while(region.Parent != null)
+    {
+      if(!(region is LayoutSpan))
+      {
+        children = region.Parent.GetChildren();
+        if(region.Index != children.Length-1) break;
+      }
+      region = region.Parent;
+    }
+    if(region.Parent == null) return; // if there is no such node, then there's no where to move
+
+    LayoutRegion sibling = children[region.Index+1];
+    int newIndex;
+    using(Graphics gdi = Graphics.FromHwnd(Handle))
+    {
+      newIndex = sibling.GetNearestIndex(gdi, new Point(idealCursorX - sibling.AbsoluteLeft,
+                                                        Math.Min(sibling.Height, sibling.TopPBM)));
+    }
+
+    UpdateSelection(newIndex, extendSelection);
+    CursorIndexSetter(newIndex);
+    ScrollTo(newIndex);
+  }
+
+  /// <summary>Moves the cursor to the previous page, and scrolls the canvas until the cursor is visible.</summary>
+  protected void MoveCursorUpAPage(bool extendSelection)
+  {
+    if(vScrollBar == null) return;
+
+    // calculate the document Y position one page above the top of the cursor
+    int docY = Math.Max(0, GetDocumentPoint(cursorRect.Location).Y - vScrollBar.LargeChange - 1);
+
+    // move up the region tree until we get to a block region that contains or is above the desired document point
+    LayoutRegion origRegion = GetRegion(CursorIndex), region = origRegion;
+    while(region != null)
+    {
+      if(region.AbsoluteBottom < docY || region.AbsoluteTop <= docY) break;
+      region = region.Parent;
+    }
+
+    if(region != null)
+    {
+      int newIndex;
+      using(Graphics gdi = Graphics.FromHwnd(Handle))
+      {
+        newIndex = region.GetNearestIndex(gdi,
+                                          new Point(idealCursorX - region.AbsoluteLeft, docY - region.AbsoluteTop));
+      }
+
+      if(GetRegion(newIndex) == origRegion) // if it ended up in the same space, then maybe the cursor is in a region
+      {                                     // that's bigger than a page. move up to the previous line at least.
+        MoveCursorUp(extendSelection);
+      }
+      else
+      {
+        UpdateSelection(newIndex, extendSelection);
+        CursorIndexSetter(newIndex);
+        ScrollTo(newIndex);
+      }
+    }
+  }
+
+  /// <summary>Moves the cursor to the next page, and scrolls the canvas until the cursor is visible.</summary>
+  protected void MoveCursorDownAPage(bool extendSelection)
+  {
+    if(vScrollBar == null) return;
+
+    // calculate the document Y position one page below the bottom of the cursor
+    int docY = Math.Min(vScrollBar.Maximum,
+                        GetDocumentPoint(cursorRect.Location).Y + cursorRect.Height + vScrollBar.LargeChange - 1);
+
+    // move up the region tree until we get to a block region that contains or is below the desired document point
+    LayoutRegion origRegion = GetRegion(CursorIndex), region = origRegion;
+    while(region != null)
+    {
+      if(region.AbsoluteTop >= docY || region.AbsoluteBottom > docY) break;
+      region = region.Parent;
+    }
+
+    if(region != null)
+    {
+      int newIndex;
+      using(Graphics gdi = Graphics.FromHwnd(Handle))
+      {
+        newIndex = region.GetNearestIndex(gdi,
+                                          new Point(idealCursorX - region.AbsoluteLeft, docY - region.AbsoluteTop));
+      }
+
+      if(GetRegion(newIndex) == origRegion) // if it ended up in the same space, then maybe the cursor is in a region
+      {                                     // that's bigger than a page. move down to the next line at least.
+        MoveCursorDown(extendSelection);
+      }
+      else
+      {
+        UpdateSelection(newIndex, extendSelection);
+        CursorIndexSetter(newIndex);
+        ScrollTo(newIndex);
+      }
+    }
+  }
+
+  /// <summary>Moves the cursor to the beginning of the current line, or to the beginning of the outer region if it's
+  /// already at the beginning of the current line.
+  /// </summary>
+  protected void MoveCursorHome(bool extendSelection)
+  {
+    LayoutRegion region = GetRegion(CursorIndex);
+    while(region is LayoutSpan) region = region.Parent; // skip over spans
+
+    if(CursorIndex != region.Start) // if the cursor not at the beginning of the line, put it there
+    {
+      UpdateSelection(region.Start, extendSelection);
+      CursorIndex = region.Start;
+    }
+    else if(region.Parent != null) // otherwise, it's at the beginning already, so move it to the outer region
+    {
+      if(region.Parent is LineBlock) region = region.Parent; // skip over line blocks
+      UpdateSelection(region.Parent.Start, extendSelection);
+      CursorIndex = region.Parent.Start;
+    }
+  }
+
+  /// <summary>Moves the cursor to the end of the current line, or to the end of the outer region if it's already at
+  /// the end of the current line.
+  /// </summary>
+  protected void MoveCursorEnd(bool extendSelection)
+  {
+    LayoutRegion region = GetRegion(CursorIndex);
+    while(region is LayoutSpan) region = region.Parent; // skip over spans
+
+    int end = region.DocumentContentSpan.End;
+    if(CursorIndex != end) // if the cursor not at the end of the line, put it there
+    {
+      UpdateSelection(end, extendSelection);
+      CursorIndex = end;
+    }
+    else if(region.Parent != null) // otherwise, it's at the end already, so move it to the outer region
+    {
+      if(region.Parent is LineBlock) region = region.Parent; // skip over line blocks
+      int newIndex = region.Parent.DocumentContentSpan.End;
+      UpdateSelection(newIndex, extendSelection);
+      CursorIndex = newIndex;
+    }
   }
 
   /// <summary>Scrolls by the given number of pixels.</summary>
@@ -2039,8 +2279,7 @@ public class DocumentEditor : Control
       }
       else
       {
-        int max = hScrollBar.Maximum - hScrollBar.LargeChange + 1;
-        if(hScrollBar.Value < max) hScrollBar.Value += Math.Min(hPixels, max-hScrollBar.Value);
+        if(hScrollBar.Value < HScrollMaximum) hScrollBar.Value += Math.Min(hPixels, HScrollMaximum-hScrollBar.Value);
       }
     }
 
@@ -2052,8 +2291,7 @@ public class DocumentEditor : Control
       }
       else
       {
-        int max = vScrollBar.Maximum - vScrollBar.LargeChange + 1;
-        if(vScrollBar.Value < max) vScrollBar.Value += Math.Min(vPixels, max-vScrollBar.Value);
+        if(vScrollBar.Value < VScrollMaximum) vScrollBar.Value += Math.Min(vPixels, VScrollMaximum-vScrollBar.Value);
       }
     }
   }
@@ -2091,6 +2329,18 @@ public class DocumentEditor : Control
     ScrollByChunks(0, 1);
   }
 
+  /// <summary>Scrolls up by one page.</summary>
+  protected void ScrollUpAPage()
+  {
+    if(vScrollBar != null) Scroll(0, -vScrollBar.LargeChange);
+  }
+
+  /// <summary>Scrolls down by one page.</summary>
+  protected void ScrollDownAPage()
+  {
+    if(vScrollBar != null) Scroll(0, vScrollBar.LargeChange);
+  }
+
   /// <summary>Scrolls to the top of the document.</summary>
   protected void ScrollToTop()
   {
@@ -2101,17 +2351,35 @@ public class DocumentEditor : Control
   /// <summary>Scrolls to the bottom of the document.</summary>
   protected void ScrollToBottom()
   {
-    if(vScrollBar != null)
-    {
-      int maximum = vScrollBar.Maximum - vScrollBar.LargeChange + 1;
-      if(vScrollBar.Value != maximum) vScrollBar.Value = maximum;
-    }
+    if(vScrollBar != null && vScrollBar.Value != VScrollMaximum) vScrollBar.Value = VScrollMaximum;
+    if(hScrollBar != null && hScrollBar.Value != HScrollMaximum) hScrollBar.Value = HScrollMaximum;
+  }
 
-    if(hScrollBar != null)
+  void UpdateSelection(int newIndex, bool extendSelection)
+  {
+    if(extendSelection)
     {
-      int maximum = hScrollBar.Maximum - hScrollBar.LargeChange + 1;
-      if(hScrollBar.Value != maximum) hScrollBar.Value = maximum;
+      int newStart, newLength;
+
+      if(Selection.Length == 0)
+      {
+        newStart  = CursorIndex;
+        newLength = newIndex - CursorIndex;
+      }
+      else if(CursorIndex == Selection.Start)
+      {
+        newStart  = newIndex;
+        newLength = Selection.Length + (Selection.Start - newIndex);
+      }
+      else
+      {
+        newStart  = Selection.Start;
+        newLength = newIndex - Selection.Start;
+      }
+
+      Selection = newLength < 0 ? new Span(newStart + newLength, -newLength) : new Span(newStart, newLength);
     }
+    else DeselectAll();
   }
   #endregion
 
@@ -2119,6 +2387,18 @@ public class DocumentEditor : Control
   protected bool HasLayout
   {
     get { return rootBlock != null; }
+  }
+
+  /// <summary>Gets the maximum value to which the horizontal scrollbar can be set by the user.</summary>
+  protected int HScrollMaximum
+  {
+    get { return hScrollBar == null ? 0 : hScrollBar.Maximum - hScrollBar.LargeChange + 1; }
+  }
+
+  /// <summary>Gets the maximum value to which the vertical scrollbar can be set by the user.</summary>
+  protected int VScrollMaximum
+  {
+    get { return vScrollBar == null ? 0 : vScrollBar.Maximum - vScrollBar.LargeChange + 1; }
   }
 
   /// <summary>Adds all of the data formats available on the clipboard, like those found in
@@ -2136,20 +2416,6 @@ public class DocumentEditor : Control
     // TODO: verify that SymbolicLink is what I think it is. maybe it would be more fitting under "Files"
     if(Clipboard.ContainsData(DataFormats.SymbolicLink)) formats.Add(ClipboardDataFormats.Link);
     // TODO: see about DataFormats.StringFormat and DataFormats.OemText
-  }
-
-  /// <summary>Given a point relative to the control, converts it to a point relative to the canvas.</summary>
-  protected Point ClientToCanvas(Point clientPoint)
-  {
-    Rectangle canvas = CanvasRectangle;
-    return new Point(clientPoint.X - canvas.X, clientPoint.Y - canvas.Y);
-  }
-
-  /// <summary>Given a point relative to the control, converts it to a point relative to the document layout.</summary>
-  protected Point ClientToDocument(Point clientPoint)
-  {
-    Point scrollPosition = ScrollPosition, canvasPoint = ClientToCanvas(clientPoint);
-    return new Point(canvasPoint.X + scrollPosition.X, canvasPoint.Y + scrollPosition.Y);
   }
 
   /// <summary>Converts the data on the clipboard, in the given format, into nodes that can be inserted into the
@@ -2191,7 +2457,14 @@ public class DocumentEditor : Control
   protected override void Dispose(bool disposing)
   {
     base.Dispose(disposing);
+
     document.NodeChanged -= OnNodeChanged;
+
+    if(rootBlock != null)
+    {
+      rootBlock.Dispose();
+      rootBlock = null;
+    }
   }
 
   /// <summary>Updates the layout using the given graphics device if the layout is currently invalid.</summary>
@@ -2245,7 +2518,12 @@ public class DocumentEditor : Control
   /// <summary>Invalidates the entire layout.</summary>
   protected void InvalidateLayout()
   {
-    rootBlock = null;
+    if(rootBlock != null)
+    {
+      rootBlock.Dispose();
+      rootBlock = null;
+    }
+
     DeselectAll();
     Invalidate(CanvasRectangle);
   }
@@ -2294,9 +2572,8 @@ public class DocumentEditor : Control
     }
 
     // render the document
-    Point scrollPosition = ScrollPosition;
     RenderData data = new RenderData(e.Graphics, this, Rectangle.Intersect(e.ClipRectangle, canvasRect), Selection);
-    rootBlock.Render(ref data, new Point(canvasRect.X - scrollPosition.X, canvasRect.Y - scrollPosition.Y));
+    rootBlock.Render(ref data, GetClientPoint(new Point()));
 
     // since the text rendering is done with GDI rather than GDI+, it doesn't obey the GDI+ clip region. so the text
     // may have overlapped the border or the corner between the scrollbars. so we'll redraw them unconditionally now.
@@ -2361,7 +2638,9 @@ public class DocumentEditor : Control
   /// <summary>Determines whether the given key is an input key that should be passed through <see cref="OnKeyDown"/>.</summary>
   protected override bool IsInputKey(Keys keyData)
   {
-    switch(keyData)
+    if((keyData & Keys.Alt) != 0) return false;
+
+    switch(keyData & ~Keys.Modifiers)
     {
       // the base implementation preprocesses these keys, but we want to handle them ourselves
       case Keys.Left: case Keys.Right: case Keys.Up: case Keys.Down: case Keys.Tab: case Keys.Enter:
@@ -2382,8 +2661,12 @@ public class DocumentEditor : Control
       case Keys.Left:
         if(e.Modifiers == Keys.None) // the left arrow moves the cursor backward by one index, or scrolls to the left
         {                            // by a small amount
-          if(EnableCursor) MoveCursor(-1);
+          if(EnableCursor) MoveCursor(-1, false);
           else ScrollLeft();
+        }
+        else if(e.Modifiers == Keys.Shift && EnableCursor) // shift-left moves the cursor backwards and extends the selection
+        {
+          MoveCursor(-1, true);
         }
         else if(e.Modifiers == Keys.Control) ScrollLeft(); // ctrl-left scrolls to the left by a small amount
         else goto default;
@@ -2392,8 +2675,12 @@ public class DocumentEditor : Control
       case Keys.Right:
         if(e.Modifiers == Keys.None) // the right arrow moves the cursor forward by one index, or scrolls to the right
         {                            // by a small amount
-          if(EnableCursor) MoveCursor(1);
+          if(EnableCursor) MoveCursor(1, false);
           else ScrollRight();
+        }
+        else if(e.Modifiers == Keys.Shift && EnableCursor)
+        {
+          MoveCursor(1, true);
         }
         else if(e.Modifiers == Keys.Control) ScrollRight(); // ctrl-right scrolls to the right by a small amount
         else goto default;
@@ -2402,8 +2689,12 @@ public class DocumentEditor : Control
       case Keys.Up:
         if(e.Modifiers == Keys.None) // up moves the cursor up one line, or scrolls up by a small amount
         {
-          if(EnableCursor) MoveCursorUp();
+          if(EnableCursor) MoveCursorUp(false);
           else ScrollUp();
+        }
+        else if(e.Modifiers == Keys.Shift && EnableCursor) // shift-up moves the cursor up and extends the selection
+        {
+          MoveCursorUp(true);
         }
         else if(e.Modifiers == Keys.Control) ScrollUp(); // ctrl-up scrolls up by a small amount
         else goto default;
@@ -2412,27 +2703,73 @@ public class DocumentEditor : Control
       case Keys.Down:
         if(e.Modifiers == Keys.None) // up moves the cursor up one line, or scrolls up by a small amount
         {
-          if(EnableCursor) MoveCursorDown();
+          if(EnableCursor) MoveCursorDown(false);
           else ScrollDown();
+        }
+        else if(e.Modifiers == Keys.Shift && EnableCursor) // shift-down moves the cursor down and extends the selection
+        {
+          MoveCursorDown(true);
         }
         else if(e.Modifiers == Keys.Control) ScrollDown(); // ctrl-down scrolls down by a small amount
         else goto default;
         break;
 
       case Keys.Home:
-        if(e.Modifiers == Keys.Control) // ctrl-home moves to the top of the document
+        if(e.Modifiers == Keys.None && EnableCursor) // home moves to the beginning of the line, or to the outer region
+        {                                            // if it's already at the beginning
+          MoveCursorHome(false);
+        }
+        else if(e.Modifiers == Keys.Shift && EnableCursor) // shift-home does the same, but extends the selection
         {
-          if(EnableCursor) MoveCursorTo(0);
+          MoveCursorHome(true);
+        }
+        else if(e.Modifiers == Keys.Control) // ctrl-home moves to the top of the document
+        {
+          if(EnableCursor) MoveCursorTo(0, false);
           else ScrollToTop();
         }
         else goto default;
         break;
 
       case Keys.End:
-        if(e.Modifiers == Keys.Control) // ctrl-end moves to the end of the document
+        if(e.Modifiers == Keys.None && EnableCursor) // end moves to the end of the line, or to the outer region if
+        {                                            // it's already at the end
+          MoveCursorEnd(false);
+        }
+        else if(e.Modifiers == Keys.Shift && EnableCursor) // shift-end does the same, but extends the selection
         {
-          if(EnableCursor) MoveCursorTo(IndexLength);
+          MoveCursorEnd(true);
+        }
+        else if(e.Modifiers == Keys.Control) // ctrl-end moves to the end of the document
+        {
+          if(EnableCursor) MoveCursorTo(IndexLength, false);
           else ScrollToBottom();
+        }
+        else goto default;
+        break;
+
+      case Keys.PageUp:
+        if(e.Modifiers == Keys.None) // page up moves the cursor up a page, or scrolls up a page
+        {
+          if(EnableCursor) MoveCursorUpAPage(false);
+          else ScrollUpAPage();
+        }
+        else if(e.Modifiers == Keys.Shift && EnableCursor)
+        {
+          MoveCursorUpAPage(true);
+        }
+        else goto default;
+        break;
+
+      case Keys.PageDown:
+        if(e.Modifiers == Keys.None) // page down moves the cursor down a page, or scrolls down a page
+        {
+          if(EnableCursor) MoveCursorDownAPage(false);
+          else ScrollDownAPage();
+        }
+        else if(e.Modifiers == Keys.Shift && EnableCursor)
+        {
+          MoveCursorDownAPage(true);
         }
         else goto default;
         break;
@@ -2463,7 +2800,12 @@ public class DocumentEditor : Control
 
       // TODO: depressing a button within the selection shouldn't move the cursor until a click has been confirmed,
       // and only then if it was a left click
-      if(EnableCursor) CursorIndex = GetNearestIndex(e.Location);
+      if(EnableCursor)
+      {
+        int newIndex = GetNearestIndex(e.Location);
+        UpdateSelection(newIndex, (Control.ModifierKeys & Keys.Shift) != 0);
+        CursorIndex = newIndex;
+      }
     }
   }
 
@@ -2585,6 +2927,15 @@ public class DocumentEditor : Control
   {
     ScrollCanvas(0, vScrollPos - vScrollBar.Value);
     vScrollPos = vScrollBar.Value;
+  }
+
+  /// <summary>Performs the work of setting <see cref="CursorIndex"/>, except that it does not alter the desired
+  /// cursor X position.
+  /// </summary>
+  void CursorIndexSetter(int index)
+  {
+    if(HasLayout) SetCursor(index); // if we have a layout, move the cursor immediately
+    else cursorIndex = index; // otherwise, just set the index and it'll be moved when the layout is redone
   }
 
   /// <summary>Adds scrollbars to the document or removes them, depending on the size of the document and the size of
@@ -2752,7 +3103,45 @@ public class DocumentEditor : Control
   /// </summary>
   Rectangle GetVisibleArea(Span span)
   {
-    throw new NotImplementedException();
+    Rectangle area = new Rectangle();
+    if(HasLayout && span.Length != 0)
+    {
+      LayoutRegion region = GetRegion(span.Start);
+      using(Graphics gdi = Graphics.FromHwnd(Handle))
+      {
+        Point docOffset = GetClientPoint(new Point());
+        LayoutRegion[] children = region.Parent == null ? null : region.Parent.GetChildren();
+        while(true)
+        {
+          int endIndex = Math.Min(span.End, region.End);
+          int start = region.GetPixelOffset(gdi, span.Start - region.Start).Width;
+          int   end = region.GetPixelOffset(gdi, endIndex - region.Start).Width;
+          
+          Rectangle newArea = new Rectangle(region.AbsoluteLeft + docOffset.X + start,
+                                            region.AbsoluteTop + docOffset.Y, end - start, region.Height);
+          if(newArea.Width != 0) area = area.Width == 0 ? newArea : Rectangle.Union(area, newArea);
+
+          // if this region contains the rest of the span, or there are no more regions to check, we're done
+          if(region.Span.End >= span.End || children == null) break;
+
+          // this region doesn't contain the whole span, so try the next sibling
+          if(region.Index < children.Length-1 && children[region.Index+1].Span.Contains(endIndex))
+          {
+            region = children[region.Index+1]; // the next sibling does contain it, so we'll search downward from there
+          }
+          else // there is no next sibling, or the sibling doesn't contain the next portion, so we'll move upwards until
+          {    // we find the region containing the next portion, and then search downward again
+            do region = region.Parent; while(region != null && !region.Span.Contains(endIndex));
+          }
+
+          // search downward from the region found above
+          region = region.GetRegion(endIndex);
+          children = region.Parent == null ? null : region.Parent.GetChildren();
+          span = new Span(endIndex, span.End-endIndex);
+        }
+      }
+    }
+    return area;
   }
 
   /// <summary>Places and sizes the scrollbars based on the size of the control and the size of the document.</summary>
@@ -2777,7 +3166,7 @@ public class DocumentEditor : Control
         vScrollBar.LargeChange = largeChange;
         vScrollBar.Enabled     = rootBlock.Bounds.Bottom > canvasRect.Height; // disable the scrollbar if the document
                                                                               // already fits vertically
-        vScrollPos = Math.Min(vScrollBar.Value, vScrollBar.Maximum - vScrollBar.LargeChange + 1);
+        vScrollPos = Math.Min(vScrollBar.Value, VScrollMaximum);
       }
 
       if(hScrollBar != null)
@@ -2794,7 +3183,7 @@ public class DocumentEditor : Control
         hScrollBar.LargeChange = largeChange;
         hScrollBar.Enabled     = rootBlock.Bounds.Right > canvasRect.Width; // disable the scrollbar if the document
                                                                             // already fits horizontally
-        hScrollPos = Math.Min(hScrollBar.Value, hScrollBar.Maximum - hScrollBar.LargeChange + 1);
+        hScrollPos = Math.Min(hScrollBar.Value, HScrollMaximum);
       }
     }
   }
@@ -2840,13 +3229,12 @@ public class DocumentEditor : Control
   {
     if(index < 0 || index > IndexLength) throw new ArgumentOutOfRangeException();
 
-    Point canvasOffset = CanvasRectangle.Location;
     LayoutRegion region = GetRegion(index);
     Size pixelOffset = region.GetPixelOffset(gdi, index-region.Start);
 
     cursorIndex = index;
-    SetCursor(new Point(region.AbsoluteLeft + pixelOffset.Width  + canvasOffset.X - ScrollPosition.X,
-                        region.AbsoluteTop  + pixelOffset.Height + canvasOffset.Y - ScrollPosition.Y),
+    SetCursor(GetClientPoint(new Point(region.AbsoluteLeft + pixelOffset.Width,
+                                       region.AbsoluteTop  + pixelOffset.Height)),
               region.Height);
   }
 
@@ -2920,7 +3308,7 @@ public class DocumentEditor : Control
   /// <summary>The area of the text cursor within the control.</summary>
   Rectangle cursorRect;
   Size controlSize;
-  int cursorIndex, hScrollPos, vScrollPos;
+  int cursorIndex, hScrollPos, vScrollPos, idealCursorX;
   Span selection;
   ScrollBars scrollBars;
   System.Windows.Forms.BorderStyle borderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
