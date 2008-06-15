@@ -164,7 +164,10 @@ public sealed class PriorityQueue<T> : IQueue<T>, IReadOnlyCollection<T>
   int IndexOf(T item)
   {
     // TODO: this could be optimized to exclude whole subtrees from the search based on the tree structure 
-    for(int i=0; i<count; i++) if(cmp.Compare(array[i], item) == 0) return i;
+    for(int i=0; i<count; i++)
+    {
+      if(cmp.Compare(array[i], item) == 0) return i;
+    }
     return -1;
   }
   #endregion

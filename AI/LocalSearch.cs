@@ -548,7 +548,7 @@ public class GeneticAlgorithmSearch<StateType> : LocalSearchBase<StateType, IGen
 /// <remarks>A hill-climbing search works by simply examining all successors of the current state and moving to the
 /// successor with the highest fitness value, if it is better than the current state. If there are multiple successors
 /// tied for the highest fitness value, it chooses one at random. Of course, such a search will get stuck on local
-/// maxima, and cannot navigate ridges in the search space. To improve the algorithm, sideways moves may be allowed,
+/// maxima, and cannot navigate ridges in the search space. To improve the algorithm, sideways moves are allowed,
 /// where the search can move to successors of equal value in hopes that the flat region it is currently on turns out
 /// to be a ridge rather than a plateau. In addition, when the search has reached a local maximum, if the state is not
 /// good enough, it can be restarted from a random position in the search space. With these improvements, hill-climbing

@@ -544,8 +544,8 @@ public enum ConstraintPropagation : byte
 [Flags]
 public enum Heuristics : byte
 {
-  /// <summary>Disable all heuristics except the degree heuristic (which is always enabled). This is rarely a good
-  /// idea. At the very least, the <see cref="Degree"/> heuristic should be used.
+  /// <summary>Disable all heuristics. This is rarely a good idea. At the very least, the <see cref="Degree"/>
+  /// heuristic, which is almost free, should be used.
   /// </summary>
   None=0,
   /// <summary>The degree heuristic causes the search to prefer to select variables that are involved in more

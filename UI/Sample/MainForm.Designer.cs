@@ -40,11 +40,11 @@ namespace Sample
       this.documentEditor1.ForeColor = System.Drawing.SystemColors.WindowText;
       this.documentEditor1.Location = new System.Drawing.Point(0, 0);
       this.documentEditor1.Name = "documentEditor1";
-      this.documentEditor1.ScrollBars = System.Windows.Forms.ScrollBars.Both;
+      this.documentEditor1.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
       this.documentEditor1.ScrollPosition = new System.Drawing.Point(0, 0);
       this.documentEditor1.Size = new System.Drawing.Size(292, 273);
       this.documentEditor1.TabIndex = 0;
-      this.documentEditor1.Text = "Hello, world!\nHow are you?";
+      this.documentEditor1.Text = "In grid-fitted rendering (the default), font hinting usually changes the width of glyphs. When a sequence of glyphs all increase significantly in width GDI+ may have to close up the text to remain resolution independent. In pathological cases (such as a long run of bold lower case 'l's in 8 pt Microsoft Sans Serif on a 96 dpi display), the space between some letters can disappear completely.\n\nthisisoneverylongwordthatshouldn'tbreaksoeasily";
       // 
       // MainForm
       // 

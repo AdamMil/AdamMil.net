@@ -33,7 +33,7 @@ public enum Layout
 {
   /// <summary>The node is positioned horizontally adjacent to its inline siblings, and is capable of wrapping from
   /// one line onto the next, similar to the CSS attribute display:inline. An inline block cannot float and cannot
-  /// clear other floating blocks.
+  /// clear other floating blocks. Only inline nodes can directly render content.
   /// </summary>
   Inline=0,
   /// <summary>The node normally is a rectangle that cannot wrap and occupies its own line unless it is floating.
@@ -476,31 +476,31 @@ public class TextNode : DocumentNode
   /// <summary>Initializes the <see cref="TextNode"/> with the given initial document.</summary>
   public TextNode(TextDocument initialDocument) : base(false)
   {
-    this.document = initialDocument != null ? initialDocument : new TextDocument();
+    textDocument = initialDocument != null ? initialDocument : new TextDocument();
   }
 
   /// <include file="documentation.xml" path="/UI/TextDocument/LineCount/*"/>
   public int LineCount
   {
-    get { return document.LineCount; }
+    get { return textDocument.LineCount; }
   }
 
   /// <summary>Gets the length of the text within the node.</summary>
   public int TextLength
   {
-    get { return document.Length; }
+    get { return textDocument.Length; }
   }
 
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Copy3/*"/>
   public void CopyText(System.IO.TextWriter writer, int srcIndex, int count)
   {
-    document.CopyTo(writer, srcIndex, count);
+    textDocument.CopyTo(writer, srcIndex, count);
   }
 
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Copy4/*"/>
   public void CopyText(int srcIndex, char[] destArray, int destIndex, int count)
   {
-    document.CopyTo(srcIndex, destArray, destIndex, count);
+    textDocument.CopyTo(srcIndex, destArray, destIndex, count);
   }
 
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Delete2/*"/>
@@ -512,43 +512,43 @@ public class TextNode : DocumentNode
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Indexer/*"/>
   public char GetCharacter(int index)
   {
-    return document[index];
+    return textDocument[index];
   }
 
   /// <include file="documentation.xml" path="/UI/DocumentNode/GetDescription/*"/>
   public override string GetDescription()
   {
-    return "\"" + document.GetText() + "\"";
+    return "\"" + textDocument.GetText() + "\"";
   }
 
   /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLength/*"/>
   public int GetLineLength(int line)
   {
-    return document.GetLineLength(line);
+    return textDocument.GetLineLength(line);
   }
 
   /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLengths/*"/>
   public int[] GetLineLengths()
   {
-    return document.GetLineLengths();
+    return textDocument.GetLineLengths();
   }
 
   /// <include file="documentation.xml" path="/UI/LineStorage/GetLineInfo/*"/>
   public void GetLineInfo(int line, out int offset, out int length)
   {
-    document.GetLineInfo(line, out offset, out length);
+    textDocument.GetLineInfo(line, out offset, out length);
   }
 
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/GetText/*"/>
   public string GetText()
   {
-    return document.GetText();
+    return textDocument.GetText();
   }
 
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/GetText2/*"/>
   public string GetText(int index, int count)
   {
-    return document.GetText(index, count);
+    return textDocument.GetText(index, count);
   }
 
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertChar/*"/>
@@ -566,14 +566,14 @@ public class TextNode : DocumentNode
   /// <summary>Deletes the given text and notifies the document that the text has been changed.</summary>
   internal void InternalDelete(int index, int count)
   {
-    document.Delete(index, count);
+    textDocument.Delete(index, count);
     OnNodeChanged();
   }
 
   /// <summary>Inserts the given text and notifies the document that the text has been changed.</summary>
   internal void InternalInsert(int index, string text)
   {
-    document.Insert(index, text);
+    textDocument.Insert(index, text);
     OnNodeChanged();
   }
 
@@ -581,12 +581,12 @@ public class TextNode : DocumentNode
   internal void InternalSetText(int index, int count, string text)
   {
     if(text == null) throw new ArgumentNullException();
-    document.Delete(index, count);
-    document.Insert(index, text);
+    textDocument.Delete(index, count);
+    textDocument.Insert(index, text);
     OnNodeChanged();
   }
 
-  readonly TextDocument document;
+  readonly TextDocument textDocument;
 }
 #endregion
 
