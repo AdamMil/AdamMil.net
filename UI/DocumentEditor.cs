@@ -245,8 +245,8 @@ public class DocumentEditor : Control
           selection = value;
 
           // and invalidate the affected areas of the control, if any
-          if(oldArea.Width != 0) Invalidate(oldArea);
-          if(newArea.Width != 0) Invalidate(newArea);
+          if(ClientRectangle.IntersectsWith(oldArea)) Invalidate(oldArea);
+          if(ClientRectangle.IntersectsWith(newArea)) Invalidate(newArea);
         }
       }
     }
@@ -1281,12 +1281,14 @@ public class DocumentEditor : Control
     /// <summary>Initializes this <see cref="TextNodeSpan"/> given the owning <see cref="DocumentEditor"/>, and a
     /// <see cref="TextNode"/> to render.
     /// </summary>
-    public TextNodeSpan(TextNode node, DocumentEditor editor) : this(node, editor, editor.GetEffectiveFont(node)) { }
+    public TextNodeSpan(TextNode node, DocumentEditor editor)
+      : this(node, editor, editor.GetEffectiveFont(node), null) { }
 
-    TextNodeSpan(TextNode node, DocumentEditor editor, Font font) : base(node)
+    TextNodeSpan(TextNode node, DocumentEditor editor, Font font, string cachedText) : base(node)
     {
       Editor = editor;
       Font   = font;
+      this.cachedText = cachedText;
     }
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/LineCount/*"/>
@@ -1309,7 +1311,7 @@ public class DocumentEditor : Control
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/CreateNew/*"/>
     public override LayoutSpan CreateNew()
     {
-      return new TextNodeSpan(Node, Editor, Font);
+      return new TextNodeSpan(Node, Editor, Font, cachedText);
     }
 
     /// <include file="documentation.xml" path="/UI/Common/Dispose/*"/>
@@ -1475,7 +1477,6 @@ public class DocumentEditor : Control
       {
         if(piece != null) // if we've already returned a piece, then we're done
         {
-          cachedText = null; // clear the cached text
           return null;
         }
         else // otherwise, the line must be empty, so we need to return a piece that has some height just to ensure
@@ -1701,20 +1702,20 @@ public class DocumentEditor : Control
     }
 
     // calculate the horizontal margin and padding
-    int hShrinkage, vShrinkage;
-    SetBorderMarginAndPadding(gdi, node, newBlock, available, out hShrinkage, out vShrinkage);
+    Size shrinkage;
+    SetBorderMarginAndPadding(gdi, node, newBlock, available, out shrinkage);
     
     // calculate the size available for child controls. the available height doesn't shrink the same way as the width
     // because we can always make the document taller, but we don't want to make it wider.
-    Size shrunkSize = new Size(available.Width - hShrinkage, available.Height);
+    Size shrunkSize = new Size(available.Width - shrinkage.Width, available.Height);
 
     // now, determine whether any of the children are block nodes
-    bool allInline = true;
+    bool noBlocks = true;
     foreach(DocumentNode child in node.Children)
     {
       if((child.Layout & RichDocument.Layout.Block) != 0) // if the child is a block node
       {
-        allInline = false;
+        noBlocks = false;
         break;
       }
     }
@@ -1723,7 +1724,7 @@ public class DocumentEditor : Control
     // of it. (it doesn't make sense for the cursor to be in front of the root of the document...)
     if(node != Document.Root) newBlock.Start = startIndex++;
 
-    if(allInline) // if there are no block children, lay them all out horizontally into a line
+    if(noBlocks) // if there are no block children, lay them all out horizontally into a line
     {
       LineBlock lines = LayoutLines(gdi, node, node.Children, shrunkSize, ref startIndex);
       if(lines == null) newBlock.Children = new LayoutRegion[0];
@@ -1792,7 +1793,7 @@ public class DocumentEditor : Control
     newBlock.ContentSpan = newBlock.Span; // set the content span
 
     // now that the container is exactly the size of its content, we can go back and apply margin and padding
-    if(hShrinkage != 0 || vShrinkage != 0)
+    if(!shrinkage.IsEmpty)
     {
       int leftAdd = newBlock.Margin.Left + newBlock.Padding.Left + newBlock.Border.Width;
       int  topAdd = newBlock.Margin.Top  + newBlock.Padding.Top  + newBlock.Border.Height;
@@ -1801,8 +1802,8 @@ public class DocumentEditor : Control
         child.Left += leftAdd;
         child.Top  += topAdd;
       }
-      newBlock.Width  += hShrinkage;
-      newBlock.Height += vShrinkage;
+      newBlock.Width  += shrinkage.Width;
+      newBlock.Height += shrinkage.Height;
     }
 
     // now we'll force the node size if it is defined, but won't go smaller than the content
@@ -1868,8 +1869,8 @@ public class DocumentEditor : Control
     return (int)Math.Round(pixels);
   }
 
-  /// <summary>Creates a line block given the rendering context, the inline nodes to place into the block, and the
-  /// width available, in pixels.
+  /// <summary>Creates a line block given the rendering context, the inline and content nodes to place into the block,
+  /// and the width available, in pixels.
   /// </summary>
   LineBlock LayoutLines(Graphics gdi, DocumentNode parent, ICollection<DocumentNode> inlineNodes, Size available,
                         ref int startIndex)
@@ -1891,8 +1892,8 @@ public class DocumentEditor : Control
       span.BeginLayout(gdi);
       int nodeIndex = 0; // the index within the node at which the current span begins
 
-      int hShrinkage, vShrinkage;
-      SetBorderMarginAndPadding(gdi, node, span, available, out hShrinkage, out vShrinkage);
+      Size shrinkage;
+      SetBorderMarginAndPadding(gdi, node, span, available, out shrinkage);
 
       span.Start = startIndex;
       for(int lineIndex=0; lineIndex < span.LineCount; lineIndex++) // for each line in the document node
@@ -1948,6 +1949,9 @@ public class DocumentEditor : Control
       FinishLine(gdi, lines, spans, ref span, ref lineSize, ref startIndex, 0);
     }
 
+    // if there was no content, we don't need to create an empty lineblock
+    if(lines.Count == 0) return null;
+
     // now, loop through each of the lines that we've added and stack them vertically into a LineBlock
     LineBlock block = new LineBlock(lines.ToArray());
     block.BeginLayout(gdi);
@@ -1978,13 +1982,10 @@ public class DocumentEditor : Control
         s.Top += line.Height - s.Height + s.Descent - maxDescent; // just do bottom alignment for now...
       }
 
-      // TODO: implement horizontal alignment
       line.Position = new Point(0, block.Height);
       block.Width   = Math.Max(line.Width, block.Width);
       block.Height += line.Height;
     }
-
-    if(block.Children.Length == 0) return null;
 
     ApplyHorizontalAlignment(parent.Style.HorizontalAlignment, block);
     block.Start       = block.Children[0].Start;
@@ -1994,12 +1995,12 @@ public class DocumentEditor : Control
   }
 
   void SetBorderMarginAndPadding(Graphics gdi, DocumentNode node, LayoutRegion region, Size available,
-                                 out int hShrinkage, out int vShrinkage)
+                                 out Size shrinkage)
   {
     FourSide fourSide = node.Style.Margin;
     if(fourSide.IsEmpty)
     {
-      hShrinkage = vShrinkage = 0;
+      shrinkage = new Size();
     }
     else
     {
@@ -2008,8 +2009,7 @@ public class DocumentEditor : Control
       // TODO: we need a base measurement to use for relative calculations
       region.Margin.Top    = GetPixels(gdi, node, fourSide.Top,    available.Height, Orientation.Vertical);
       region.Margin.Bottom = GetPixels(gdi, node, fourSide.Bottom, available.Height, Orientation.Vertical);
-      hShrinkage = region.Margin.TotalHorizontal;
-      vShrinkage = region.Margin.TotalVertical;
+      shrinkage = new Size(region.Margin.TotalHorizontal, region.Margin.TotalVertical);
     }
 
     fourSide = node.Style.Padding;
@@ -2020,8 +2020,8 @@ public class DocumentEditor : Control
       // TODO: we need a base measurement to use for relative calculations
       region.Padding.Top    = GetPixels(gdi, node, fourSide.Top,    available.Height, Orientation.Vertical);
       region.Padding.Bottom = GetPixels(gdi, node, fourSide.Bottom, available.Height, Orientation.Vertical);
-      hShrinkage += region.Padding.TotalHorizontal;
-      vShrinkage += region.Padding.TotalVertical;
+      shrinkage.Width  += region.Padding.TotalHorizontal;
+      shrinkage.Height += region.Padding.TotalVertical;
     }
 
     Measurement measurement = node.Style.BorderWidth;
@@ -2031,8 +2031,8 @@ public class DocumentEditor : Control
       region.Border =
         new Size(GetPixels(gdi, node, measurement, available.Width,  Orientation.Horizontal),
                  GetPixels(gdi, node, measurement, available.Height, Orientation.Vertical));
-      hShrinkage += region.Border.Width  * 2;
-      vShrinkage += region.Border.Height * 2;
+      shrinkage.Width  += region.Border.Width  * 2;
+      shrinkage.Height += region.Border.Height * 2;
     }
   }
 
@@ -3141,6 +3141,7 @@ public class DocumentEditor : Control
         }
       }
     }
+
     return area;
   }
 
