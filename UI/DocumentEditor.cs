@@ -595,28 +595,131 @@ public class DocumentEditor : Control
       set { Bounds.Height = value; }
     }
 
+    /// <summary>Returns the rectangle that encloses the border of the control, relative to its top-left corner.</summary>
+    public Rectangle BorderBox
+    {
+      get
+      {
+        Rectangle borderBox = new Rectangle(new Point(), Size);
+        switch(NodePart)
+        {
+          case NodePart.Full:
+            borderBox.Offset(Margin.Left, Margin.Top);
+            borderBox.Width  -= Margin.TotalHorizontal;
+            borderBox.Height -= Margin.TotalVertical;
+            break;
+          case NodePart.Start:
+            borderBox.Offset(Margin.Left, Margin.Top);
+            borderBox.Width  -= Margin.Left;
+            borderBox.Height -= Margin.Top;
+            break;
+          case NodePart.End:
+            borderBox.Width  -= Margin.Right;
+            borderBox.Height -= Margin.Bottom;
+            break;
+        }
+        return borderBox;
+      }
+    }
+
+    /// <summary>Returns the area of the control, relative to its top-left corner, that is within the padding, border,
+    /// and margin.
+    /// </summary>
+    public Rectangle ContentArea
+    {
+      get
+      {
+        Rectangle contentArea = new Rectangle(0, Border.Height + Padding.Top,
+                                              Width, Height - Border.Height*2 - Padding.TotalVertical);
+        switch(NodePart)
+        {
+          case NodePart.Full:
+            contentArea.Offset(Border.Width + Margin.Left + Padding.Left, Padding.Top + Margin.Top);
+            contentArea.Width  -= Border.Width*2 + Margin.TotalHorizontal + Padding.TotalHorizontal;
+            contentArea.Height -= Margin.TotalVertical;
+            break;
+          case NodePart.Start:
+            contentArea.Offset(Border.Width + Margin.Left + Padding.Left, Padding.Top + Margin.Top);
+            contentArea.Width  -= Border.Width + Margin.Left + Padding.Left;
+            contentArea.Height -= Margin.Top;
+            break;
+          case NodePart.End:
+            contentArea.Width  -= Border.Width + Margin.Right + Padding.Right;
+            contentArea.Height -= Margin.Bottom;
+            break;
+        }
+        return contentArea;
+      }
+    }
+
+    /// <summary>Returns the area of the control, relative to its top-left corner, that is within the border and
+    /// margin.
+    /// </summary>
+    public Rectangle PaddingArea
+    {
+      get
+      {
+        Rectangle paddingArea = new Rectangle(0, Border.Height, Width, Height - Border.Height*2);
+        switch(NodePart)
+        {
+          case NodePart.Full:
+            paddingArea.Offset(Border.Width + Margin.Left, Margin.Top);
+            paddingArea.Width  -= Border.Width*2 + Margin.TotalHorizontal;
+            paddingArea.Height -= Margin.TotalVertical;
+            break;
+          case NodePart.Start:
+            paddingArea.Offset(Border.Width + Margin.Left, Margin.Top);
+            paddingArea.Width  -= Border.Width + Margin.Left;
+            paddingArea.Height -= Margin.Top;
+            break;
+          case NodePart.End:
+            paddingArea.Width  -= Border.Width + Margin.Right;
+            paddingArea.Height -= Margin.Bottom;
+            break;
+        }
+        return paddingArea;
+      }
+    }
+
     /// <summary>Gets the width of the left border, margin, and padding.</summary>
     public int LeftPBM
     {
-      get { return Border.Width + Margin.Left + Padding.Left; }
+      get 
+      {
+        return NodePart == NodePart.Full || NodePart == NodePart.Start ?
+          Border.Width + Margin.Left + Padding.Left : 0; 
+      }
     }
 
     /// <summary>Gets the width of the right border, margin, and padding.</summary>
     public int RightPBM
     {
-      get { return Border.Width + Margin.Right + Padding.Right; }
+      get 
+      {
+        return NodePart == NodePart.Full || NodePart == NodePart.End ? Border.Width + Margin.Right + Padding.Right : 0;
+      }
     }
 
     /// <summary>Gets the width of the top border, margin, and padding.</summary>
     public int TopPBM
     {
-      get { return Border.Height + Margin.Top + Padding.Top; }
+      get 
+      {
+        int thickness = Border.Height + Padding.Top;
+        if(NodePart == NodePart.Full || NodePart == NodePart.Start) thickness += Margin.Top;
+        return thickness;
+      }
     }
 
     /// <summary>Gets the width of the bottom border, margin, and padding.</summary>
     public int BottomPBM
     {
-      get { return Border.Height + Margin.Bottom + Padding.Bottom; }
+      get 
+      {
+        int thickness = Border.Height + Padding.Bottom;
+        if(NodePart == NodePart.Full || NodePart == NodePart.End) thickness += Margin.Bottom;
+        return thickness;
+      }
     }
 
     /// <summary>Gets or sets the start of the span within the document node that is rendered in this region.</summary>
@@ -663,6 +766,12 @@ public class DocumentEditor : Control
       get { return new Span(Start, ContentLength); }
     }
 
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/CursorHeight/*"/>
+    public virtual int CursorHeight
+    {
+      get { return Math.Max(BorderBox.Height, 1); }
+    }
+
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/BeginLayout/*"/>
     public virtual void BeginLayout(Graphics gdi) { }
 
@@ -693,10 +802,11 @@ public class DocumentEditor : Control
       int end = DocumentContentSpan.End;
 
       // if the point is not contained within the region vertically, return the start or end depending on where it is
-      if(regionPt.Y < Margin.Top+Border.Height) return Start;
-      else if(regionPt.Y >= Height-Margin.Bottom-Border.Height) return end;
-      else if(regionPt.X < Margin.Left+Border.Width) return Start;
-      else if(regionPt.X >= Width-Margin.Right-Border.Width) return end;
+      Rectangle paddingArea = PaddingArea;
+      if(regionPt.Y < paddingArea.Top) return Start;
+      else if(regionPt.Y >= paddingArea.Bottom) return end;
+      else if(regionPt.X < paddingArea.Left) return Start;
+      else if(regionPt.X >= paddingArea.Right) return end;
  
       // the point is contained within this region, so find the child node closest to the point
       LayoutRegion closestChild = null;
@@ -721,7 +831,7 @@ public class DocumentEditor : Control
     }
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetPixelOffset/*"/>
-    public virtual Size GetPixelOffset(Graphics gdi, int indexOffset)
+    public virtual Point GetPixelOffset(Graphics gdi, int indexOffset)
     {
       if(indexOffset < 0 || indexOffset > Length) throw new ArgumentOutOfRangeException();
 
@@ -732,11 +842,10 @@ public class DocumentEditor : Control
         LayoutRegion descendant = GetRegion(indexOffset);
         if(descendant != this)
         {
-          Size offset = descendant.GetPixelOffset(gdi, indexOffset - descendant.Start);
+          Point offset = descendant.GetPixelOffset(gdi, indexOffset - descendant.Start);
           do
           {
-            offset.Width  += descendant.Left;
-            offset.Height += descendant.Top;
+            offset.Offset(descendant.Position);
             descendant = descendant.Parent;
           } while(descendant != this);
 
@@ -748,7 +857,8 @@ public class DocumentEditor : Control
       // if the border is one pixel wide, the cursor will cause the border to flash on and off, so we'll move the
       // cursor one pixel to the outside of the border
       int borderAdjustment = Border.Width == 1 ? 1 : 0;
-      return new Size(indexOffset == 0 ? Margin.Left-borderAdjustment : Width-RightPBM+borderAdjustment, 0);
+      return new Point(indexOffset == 0 ? Margin.Left-borderAdjustment : Width-RightPBM+borderAdjustment,
+                       BorderBox.Top);
     }
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetRegion/*"/>
@@ -814,29 +924,8 @@ public class DocumentEditor : Control
         {
           using(Brush brush = new SolidBrush(color.Value))
           {
-            Rectangle paddingBox = new Rectangle(clientPoint.X, clientPoint.Y+Border.Height,
-                                                 Width, Height-Border.Height*2);
-            switch(NodePart) // this code assumes that the layout code has already adjusted the region size to account
-            {                // for the missing paddings, margins, and borders
-              case NodePart.Full: // all four margins, paddings, borders will be rendered
-                paddingBox.X      += Margin.Left + Border.Width;
-                paddingBox.Y      += Margin.Top;
-                paddingBox.Width  -= Margin.TotalHorizontal + Border.Width*2;
-                paddingBox.Height -= Margin.TotalVertical;
-                break;
-              // the top and left margins and paddings, and the top, left, and bottom borders will be rendered
-              case NodePart.Start:
-                paddingBox.X      += Margin.Left + Border.Width;
-                paddingBox.Y      += Margin.Top;
-                paddingBox.Width  -= Margin.Left + Border.Width;
-                paddingBox.Height -= Margin.Top;
-                break;
-              // the bottom and right margins and paddings, and the top, right, and bottom borders will be rendered
-              case NodePart.End:
-                paddingBox.Width  -= Margin.Right + Border.Width;
-                paddingBox.Height -= Margin.Bottom;
-                break;
-            }
+            Rectangle paddingBox = PaddingArea;
+            paddingBox.Offset(clientPoint);
             data.Graphics.FillRectangle(brush, paddingBox);
           }
         }
@@ -884,30 +973,10 @@ public class DocumentEditor : Control
             }
 
             // pen.Alignment doesn't work reliably on Windows so we need to handle the inset calculation ourselves.
-            RectangleF borderRect =
-              new RectangleF(clientPoint.X + (Border.Width-1)*0.5f, clientPoint.Y + (Border.Height-1)*0.5f,
-                             Width - Border.Width, Height - Border.Height);
-            switch(NodePart) // this code assumes that the layout code has already adjusted the region size to account
-            {                // for the missing paddings, margins, and borders
-              case NodePart.Full: // all four margins, paddings, borders will be rendered
-                borderRect.X      += Margin.Left;
-                borderRect.Y      += Margin.Top;
-                borderRect.Width  -= Margin.TotalHorizontal;
-                borderRect.Height -= Margin.TotalVertical;
-                break;
-              // the top and left margins and paddings, and the top, left, and bottom borders will be rendered
-              case NodePart.Start:
-                borderRect.X      += Margin.Left;
-                borderRect.Y      += Margin.Top;
-                borderRect.Width  -= Margin.Left;
-                borderRect.Height -= Margin.Top;
-                break;
-              // the bottom and right margins and paddings, and the top, right, and bottom borders will be rendered
-              case NodePart.End:
-                borderRect.Width  -= Margin.Right;
-                borderRect.Height -= Margin.Bottom;
-                break;
-            }
+            RectangleF borderRect = BorderBox;
+            borderRect.Offset(clientPoint.X + (Border.Width-1)*0.5f, clientPoint.Y + (Border.Height-1)*0.5f);
+            borderRect.Width  -= Border.Width;
+            borderRect.Height -= Border.Height;
 
             // if we can draw it with a single DrawRectangle call, then do so
             // TODO: GDI+ sucks ass when drawing thick borders with dash styles. we need a replacement for this code
@@ -1091,9 +1160,8 @@ public class DocumentEditor : Control
       return NoChildren;
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/GetNextSplitPiece/*"/>
-    public abstract SplitPiece GetNextSplitPiece(Graphics gdi, int line, SplitPiece piece, int spaceLeft,
-                                                 bool lineIsEmpty);
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/Split/*"/>
+    public abstract IEnumerable<SplitPiece> Split(Graphics gdi, int line);
 
     static readonly LayoutRegion[] NoChildren = new LayoutRegion[0];
   }
@@ -1138,7 +1206,7 @@ public class DocumentEditor : Control
     {
       if(index == Length) // if the index is at the end of the document, normally no region would contain it. but we
       {                   // want the end of the document to be a valid index, so we'll return something
-        // return the innermost child that is not a LineBlock
+        // return the innermost child that is not a LineBlock, Line, or LayoutSpan
         LayoutRegion child = Children[0];
         while(true)
         {
@@ -1241,36 +1309,47 @@ public class DocumentEditor : Control
   }
   #endregion
 
+  #region PieceType
+  /// <summary>Represents the type of a <see cref="SplitPiece"/>.</summary>
+  protected enum PieceType
+  {
+    /// <summary>The split piece is a word. The line wrapping algorithm will wrap at word boundaries.</summary>
+    Word,
+    /// <summary>The split piece is a piece of whitespace that trails after a word and must not be separated from the
+    /// word unless horizontal justification is being performed.
+    /// </summary>
+    TrailingSpace,
+    /// <summary>The split piece is a piece of whitespace between words. The whitespace may be split from the preceding
+    /// word and placed on the next line.
+    /// </summary>
+    Space,
+    /// <summary>The split piece represents a span of the node content that will be skipped, although its height will
+    /// still affect the height of the line that would have contained it.
+    /// </summary>
+    Skip
+  }
+  #endregion
+
   #region SplitPiece
-  /// <summary>Represents a piece of content within a document node, and its size as it would be rendered.</summary>
+  /// <summary>Represents a piece of content from a document node, that is used by the line wrapping to decide where
+  /// to break lines.
+  /// </summary>
   protected sealed class SplitPiece
   {
-    /// <summary>Initializes this <see cref="SplitPiece"/> with the given index span and pixel size, and an indication
-    /// of whether there is more content to be added, but a new line must be started before it will fit.
-    /// </summary>
-    public SplitPiece(Span span, Size size, bool newLine) : this(span, size, 0, newLine) { }
-
-    /// <summary>Initializes this <see cref="SplitPiece"/> with the given index span and pixel size, a number of
-    /// indices to skip after this content chunk, and an indication of whether there is more content to be added, but
-    /// a new line must be started before it will fit.
-    /// </summary>
-    public SplitPiece(Span span, Size size, int skip, bool newLine)
+    /// <summary>Initializes a new <see cref="SplitPiece"/> with the given size, content length, and type.</summary>
+    public SplitPiece(Size pixelSize, int contentLength, PieceType type)
     {
-      if(size.Width < 0 || size.Height < 0 || skip < 0) throw new ArgumentOutOfRangeException();
-      Span    = span;
-      Size    = size;
-      Skip    = skip;
-      NewLine = newLine;
+      PixelSize     = pixelSize;
+      ContentLength = contentLength;
+      Type          = type;
     }
 
-    /// <summary>The span of the content within the document node, in index units.</summary>
-    public Span Span;
-    /// <summary>The size of the content in pixels, as it would be rendered.</summary>
-    public Size Size;
-    /// <summary>How many indices after the end of the span should be skipped before starting the next span.</summary>
-    public int Skip;
-    /// <summary>Whether a new line must be started to receive more of the content of this node.</summary>
-    public bool NewLine;
+    /// <summary>The size of the piece when rendered, in pixels.</summary>
+    public Size PixelSize;
+    /// <summary>The length of the content from the document that this piece represents.</summary>
+    public int ContentLength;
+    /// <summary>The type of the piece, which determines how it will be treated by the line wrapping algorithm.</summary>
+    public PieceType Type;
   }
   #endregion
 
@@ -1281,14 +1360,18 @@ public class DocumentEditor : Control
     /// <summary>Initializes this <see cref="TextNodeSpan"/> given the owning <see cref="DocumentEditor"/>, and a
     /// <see cref="TextNode"/> to render.
     /// </summary>
-    public TextNodeSpan(TextNode node, DocumentEditor editor)
-      : this(node, editor, editor.GetEffectiveFont(node), null) { }
+    public TextNodeSpan(TextNode node, DocumentEditor editor) : this(node, editor, editor.GetEffectiveFont(node)) { }
 
-    TextNodeSpan(TextNode node, DocumentEditor editor, Font font, string cachedText) : base(node)
+    TextNodeSpan(TextNode node, DocumentEditor editor, Font font) : base(node)
     {
       Editor = editor;
       Font   = font;
-      this.cachedText = cachedText;
+    }
+
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/CursorHeight/*"/>
+    public override int CursorHeight
+    {
+      get { return Math.Max(ContentArea.Height, 1); }
     }
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/LineCount/*"/>
@@ -1311,7 +1394,7 @@ public class DocumentEditor : Control
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/CreateNew/*"/>
     public override LayoutSpan CreateNew()
     {
-      return new TextNodeSpan(Node, Editor, Font, cachedText);
+      return new TextNodeSpan(Node, Editor, Font);
     }
 
     /// <include file="documentation.xml" path="/UI/Common/Dispose/*"/>
@@ -1321,28 +1404,15 @@ public class DocumentEditor : Control
       Font.Dispose();
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/EndLayout/*"/>
-    public override void EndLayout(Graphics gdi)
-    {
-      base.EndLayout(gdi);
-      cachedText = null;
-    }
-
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetPixelOffset/*"/>
     public override int GetNearestIndex(Graphics gdi, Point regionPt)
     {
       int end = DocumentContentSpan.End;
 
       // if the point is not contained within the region horizontally, return the start or end depending on where it is
-      if(regionPt.X < (NodePart == NodePart.Full || NodePart == NodePart.Start ? Margin.Left+Border.Width : 0))
-      {
-        return Start;
-      }
-      else if(regionPt.X >=
-              Width - (NodePart == NodePart.Full || NodePart == NodePart.End ? Margin.Right+Border.Width : 0))
-      {
-        return end;
-      }
+      Rectangle paddingArea = PaddingArea;
+      if(regionPt.X < paddingArea.Left) return Start;
+      else if(regionPt.X >= paddingArea.Right) return end;
 
       // this clever code works by taking advantage of the ability of the TextRenderer to modify a string by replacing
       // the part of a string that wouldn't fit into a rectangle with an ellipsis. by giving a rectangle with a width
@@ -1364,9 +1434,7 @@ public class DocumentEditor : Control
       for(int i=ContentLength; i<chars.Length; i++) chars[i] = ' '; // fill the rest of the text with spaces
       string text = new string(chars);
 
-      // account for the border, margin, and padding, depending on whether this span has them
-      // TODO: see if this code can be incorporated into LeftPBM.
-      if(NodePart == NodePart.Full || NodePart == NodePart.Start) regionPt.X -= LeftPBM;
+      regionPt.X -= LeftPBM; // account for the border, margin, and padding
 
       int fitWidth = TextRenderer.MeasureText(gdi, text, Font, 
                        new Size(regionPt.X + cachedEllipsisWidth, int.MaxValue),
@@ -1414,167 +1482,67 @@ public class DocumentEditor : Control
     }
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNearestIndex/*"/>
-    public override Size GetPixelOffset(Graphics gdi, int indexOffset)
+    public override Point GetPixelOffset(Graphics gdi, int indexOffset)
     {
       if(indexOffset < 0 || indexOffset > Length) throw new ArgumentOutOfRangeException();
 
       int xPos;
-      if(indexOffset == 0) xPos = LeftPBM;
-      else if(indexOffset >= ContentLength) xPos = Width - RightPBM;
+      if(indexOffset >= ContentLength)
+      {
+        xPos = Width - RightPBM;
+      }
       else
       {
-        const TextFormatFlags MeasureFlags = TextFormatFlags.NoPrefix | TextFormatFlags.NoClipping |
-                                             TextFormatFlags.SingleLine | TextFormatFlags.NoPadding;
-        Size textSize = TextRenderer.MeasureText(gdi, Node.GetText(ContentStart, indexOffset), Font,
-                                                 new Size(int.MaxValue, int.MaxValue), MeasureFlags);
-        xPos = textSize.Width + LeftPBM;
+        xPos = (indexOffset == 0 ? 0 : MeasureWidth(gdi, Node.GetText(ContentStart, indexOffset))) + LeftPBM;
       }
 
-      return new Size(xPos, TopPBM);
+      return new Point(xPos, TopPBM);
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/GetNextSplitPiece/*"/>
-    public override SplitPiece GetNextSplitPiece(Graphics gdi, int line, SplitPiece piece, int spaceLeft,
-                                                 bool lineIsEmpty)
-    { // strategy for dealing with padding, border, and margin (PBM):
-      // for the first piece in the node:
-      //   subtract the full horizontal PBM from the available space and fit as many words as possible.
-      //   if all words fit
-      //     we're done. this span becomes a "Full" span
-      //   otherwise
-      //     add back the right PBM and add all words that fit, except the last word.      
-      //     this span becomes a "Start" span
-      // for pieces after the first:
-      //   subtract the right horizontal PBM from the available space and fit as many words as possible.
-      //   if all words fit
-      //     we're done, and this span becomes an "End" span
-      //   otherwise
-      //     add back the right PBM and add all words that fit, except the last word.      
-      //     this span becomes a "Middle" span
-      //
-      // before returning the piece, the height is increased by the appropriate PBM. the width is increased by the
-      // PBM that we subtracted and didn't add back later.
-      
-      const TextFormatFlags MeasureFlags = TextFormatFlags.NoPrefix | TextFormatFlags.NoClipping |
-                                           TextFormatFlags.SingleLine | TextFormatFlags.NoPadding;
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/Split/*"/>
+    public override IEnumerable<SplitPiece> Split(Graphics gdi, int line)
+    {
+      int lineOffset, lineLength, fontHeight = (int)Math.Ceiling(Font.GetHeight(gdi));
+      Node.GetLineInfo(line, out lineOffset, out lineLength);
+      string text = Node.GetText(lineOffset, lineLength);
 
-      int start = piece != null ? piece.Span.End + piece.Skip : 0, lineLength = Node.GetLineLength(line);
-      int charactersLeft = lineLength - start;
-
-      // store the text of the line in 'cachedText'
-      if(piece == null || cachedText == null)
+      int skipChars = text.Length != 0 && text[text.Length-1] == '\n' ? 1 : 0;
+      bool pieceReturned = false;
+      for(Match match = wordRE.Match(text, 0, text.Length - skipChars);
+          match.Success; match = match.NextMatch())
       {
-        int offset;
-        Node.GetLineInfo(line, out offset, out lineLength);
-        cachedText = Node.GetText(offset, lineLength);
-      }
+        string word = match.Value;
 
-      // ignore the newline character
-      bool skippedNewLine = charactersLeft != 0 && cachedText[start+charactersLeft-1] == '\n';
-      if(skippedNewLine) charactersLeft--;
-
-      if(charactersLeft == 0) // if we're at the end of the line...
-      {
-        if(piece != null) // if we've already returned a piece, then we're done
+        if(!char.IsWhiteSpace(word[word.Length-1])) // the last character is not whitespace, so it's a single word
         {
-          return null;
+          yield return new SplitPiece(new Size(MeasureWidth(gdi, word), fontHeight), word.Length, PieceType.Word);
         }
-        else // otherwise, the line must be empty, so we need to return a piece that has some height just to ensure
-        {    // that the containing line acquires some height
-          return new SplitPiece(new Span(start, 0), new Size(0, Font.Height), (skippedNewLine ? 1 : 0), false);
-        }
-      }
-
-      // measure and accumulate words until we've run out of either text or space
-      Size spanSize = new Size(0, (int)Math.Ceiling(Font.GetHeight(gdi))); // use the font line spacing as the height
-      Size wordSize = new Size(), maxTextArea = new Size(int.MaxValue, int.MaxValue);
-      Match match = wordRE.Match(cachedText, start, charactersLeft);
-      int charactersFit = 0;
-      bool addedRight = false; // whether the rightPBM has been 'added back'
-
-      spaceLeft -= RightPBM + (start == 0 ? LeftPBM : 0); // subtract the PBM from the initial amount of space
-      while(match.Success)
-      {
-        Match nextMatch = match.NextMatch();
-
-        wordSize = TextRenderer.MeasureText(gdi, match.Value, Font, maxTextArea, MeasureFlags);
-        if(spanSize.Width + wordSize.Width > spaceLeft) // if the word doesn't fit...
+        else if(word.Length > 1 && !char.IsWhiteSpace(word[word.Length-2])) // it's a word followed by a space
         {
-          if(addedRight || RightPBM == 0) break; // if we can't add any more space, then we're done
-
-          // otherwise, add the right PBM back to the available space, and see if the word fits now
-          spaceLeft += RightPBM;
-          addedRight = true;
-          // if we shouldn't add the word, or it doesn't fit, then give up
-          if(!nextMatch.Success || spanSize.Width + wordSize.Width > spaceLeft) break;
+          yield return new SplitPiece(new Size(MeasureWidth(gdi, word.Substring(0, word.Length-1)), fontHeight),
+                                      word.Length-1, PieceType.Word);
+          yield return new SplitPiece(new Size(MeasureWidth(gdi, new string(word[word.Length-1], 1)), fontHeight),
+                                      1, PieceType.TrailingSpace);
         }
-
-        spanSize.Width += wordSize.Width;
-        charactersFit  += match.Length;
-
-        match = nextMatch;
-      }
-
-      bool lineWrapped = match.Success; // if the match is still valid, that means there was a word that didn't fit
-      if(!lineWrapped) // if all words fit...
-      {
-        NodePart = start == 0 ? NodePart.Full : NodePart.End;
-      }
-      else // otherwise, not all words fit.
-      {
-        NodePart = start == 0 ? NodePart.Start : NodePart.Middle;
-
-        // if there was one big word and it didn't fit...
-        if(charactersFit == 0 && !char.IsWhiteSpace(cachedText[start]))
+        else // it's all space, so allow the text to be split at each character
         {
-          if(!lineIsEmpty) // if the line is not empty, then we'll return an empty piece with NewLine set to true, so
-          {                // we can try again with an empty line, which may have enough space
-            return new SplitPiece(new Span(start, 0), new Size(), true);
-          }
-          else // otherwise, the line is empty, so starting a new line won't help. we need to add the word
-          {    // even though it doesn't fit
-            spanSize.Width += wordSize.Width;
-            charactersFit  += match.Length;
-          }
-        }
-        else // otherwise, we have some words that fit, but one that doesn't
-        {
-          // there may be some whitespace at the start of the word that does fit, however. so we'll go through it
-          // character by character.
-          for(int index=start+charactersFit; index < lineLength; index++)
+          for(int lastWidth=0, i=0; i<word.Length; i++)
           {
-            char c = cachedText[index];
-            if(!char.IsWhiteSpace(c)) break;
-            Size charSize = TextRenderer.MeasureText(gdi, new string(c, 1), Font, maxTextArea, MeasureFlags);
-            if(spanSize.Width + charSize.Width > spaceLeft) break; // if the character didn't fit, we're done
-            spanSize.Width += charSize.Width;
-            charactersFit++;
+            // the space is likely to be composed of a run of the repeated spaces, so cache the last measurement
+            int charWidth = i != 0 || word[i] == word[i-1] ? lastWidth : MeasureWidth(gdi, new string(word[i], 1));
+            yield return new SplitPiece(new Size(charWidth, fontHeight), 1, PieceType.Space);
+            lastWidth = charWidth;
           }
         }
+
+        pieceReturned = true;
       }
 
-      // now update the size and descent based on the PBM
-      switch(NodePart)
+      // if there are characters to skip, or if we haven't returned anything, return a piece with just a height
+      if(skipChars != 0 || !pieceReturned)
       {
-        case NodePart.Full:
-          spanSize.Width  += LeftPBM + RightPBM;
-          spanSize.Height += Margin.TotalVertical + Padding.TotalVertical;
-          break;
-        case NodePart.Start:
-          spanSize.Width  += LeftPBM;
-          spanSize.Height += Margin.Top + Padding.Top;
-          break;
-        case NodePart.End:
-          spanSize.Width  += RightPBM;
-          spanSize.Height += Margin.Bottom + Padding.Bottom;
-          break;
+        yield return new SplitPiece(new Size(0, fontHeight), skipChars, PieceType.Skip);
       }
-      spanSize.Height += Border.Height*2; // we'll display the top/bottom borders all the time
-      Descent += Margin.Bottom + Padding.Bottom + Border.Height; // add the bottom PBM to the descent
-
-      // if this is the last piece, and the line ends in a newline character, then add 1 to skip over it
-      return new SplitPiece(new Span(start, charactersFit), spanSize, (!lineWrapped && skippedNewLine ? 1 : 0),
-                            lineWrapped);
     }
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/Render/*"/>
@@ -1584,13 +1552,8 @@ public class DocumentEditor : Control
 
       const TextFormatFlags DrawFlags = TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding |
                                         TextFormatFlags.SingleLine;
-      // account for the border, margin, and padding, depending on whether this span has them
-      // TODO: see if this code can be incorporated into LeftPBM, etc.
-      if(NodePart == NodePart.Full || NodePart == NodePart.Start)
-      {
-        clientPoint.Offset(LeftPBM, TopPBM);
-      }
-      else clientPoint.Y += Border.Height; // we always draw the top border if it exists
+
+      clientPoint.Offset(LeftPBM, TopPBM); // account for the border, margin, and padding
 
       string text = Node.GetText(ContentStart, ContentLength);
       Span contentSpan = DocumentContentSpan;
@@ -1613,7 +1576,7 @@ public class DocumentEditor : Control
         {
           string subText = text.Substring(0, data.Selection.Start - Start);
           TextRenderer.DrawText(data.Graphics, subText, Font, clientPoint, fore, DrawFlags);
-          clientPoint.X += TextRenderer.MeasureText(data.Graphics, subText, Font, Size, DrawFlags).Width;
+          clientPoint.X += MeasureWidth(data.Graphics, subText);
         }
         // draw the portion within the selection
         {
@@ -1621,7 +1584,7 @@ public class DocumentEditor : Control
                              Math.Min(contentSpan.End, data.Selection.End) - Math.Max(data.Selection.Start, Start));
           TextRenderer.DrawText(data.Graphics, subText, Font, clientPoint,
                                 SystemColors.HighlightText, SystemColors.Highlight, DrawFlags);
-          clientPoint.X += TextRenderer.MeasureText(data.Graphics, subText, Font, Size, DrawFlags).Width;
+          clientPoint.X += MeasureWidth(data.Graphics, subText);
         }
         // draw the portion after the selection
         if(contentSpan.End > data.Selection.End)
@@ -1632,15 +1595,19 @@ public class DocumentEditor : Control
       }
     }
 
+    int MeasureWidth(Graphics gdi, string text)
+    {
+      return TextRenderer.MeasureText(gdi, text, Font, new Size(int.MaxValue, int.MaxValue),
+        TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine | TextFormatFlags.NoPadding).Width;
+    }
+
     readonly Font Font;
     readonly DocumentEditor Editor;
-    /// <summary>A string that holds the current line during word-wrapping.</summary>
-    string cachedText;
     /// <summary>Holds the width of an ellipsis drawn with the <see cref="Font"/>.</summary>
     int cachedEllipsisWidth = -1;
 
     // TODO: implement splitting at hyphens
-    static readonly Regex wordRE = new Regex(@"\s*\S+|\s+", RegexOptions.Singleline | RegexOptions.Compiled);
+    static readonly Regex wordRE = new Regex(@"\s*\S+\s?|\s+", RegexOptions.Singleline | RegexOptions.Compiled);
   }
   #endregion
 
@@ -1759,9 +1726,9 @@ public class DocumentEditor : Control
           }
 
           Block block = CreateBlock(gdi, child, shrunkSize, ref startIndex);
-          block.Length++; // add a virtual newline to the end of the block, to allow the cursor to be positioned at the
-          startIndex++;   // left or right side of it
-          blocks.Add(block);
+          block.Length++;    // add a virtual newline to the end of the block, to allow the cursor to be positioned at
+          startIndex++;      // the left or right side of it. we actually don't want this for the last position, but
+          blocks.Add(block); // we'll fix that later (below)
         }
       }
 
@@ -1770,6 +1737,11 @@ public class DocumentEditor : Control
       {
         LineBlock lines = LayoutLines(gdi, node, inline, shrunkSize, ref startIndex);
         if(lines != null) blocks.Add(lines);
+      }
+      else if(node == Document.Root) // if the final child was a non-line block and this is the root node, then we
+      {                              // added too many document indices. we'll remove one.
+        blocks[blocks.Count-1].Length--;
+        startIndex--;
       }
 
       newBlock.Children = blocks.ToArray();
@@ -1882,17 +1854,19 @@ public class DocumentEditor : Control
 
     List<Line> lines = new List<Line>(); // holds the lines for all of these nodes
     List<LayoutSpan> spans = new List<LayoutSpan>(); // holds the spans in the current line
+    List<LayoutSpan> nodeSpans = new List<LayoutSpan>(); // holds the spans in the current node
     Size lineSize = new Size(); // the size of the current line so far
 
     LayoutSpan span = null;
     foreach(DocumentNode node in inlineNodes)
     {
-      span = CreateLayoutSpan(node);
-      if(span == null) continue; // if this node cannot be rendered, skip to the next one
-      span.BeginLayout(gdi);
-      int nodeIndex = 0; // the index within the node at which the current span begins
+      span = CreateLayoutSpan(node); // create the first span for the node
+      if(span == null) continue;     // if the node cannot be rendered, skip it
 
+      int nodeIndex = 0; // the index within the node at which the current span begins
       Size shrinkage;
+
+      span.BeginLayout(gdi);
       SetBorderMarginAndPadding(gdi, node, span, available, out shrinkage);
 
       span.Start = startIndex;
@@ -1900,39 +1874,114 @@ public class DocumentEditor : Control
       {
         if(lineIndex != 0) // if there was a line break in the document node (and hence a line other than the first),
         {                  // start a new output line too
-          FinishLine(gdi, lines, spans, ref span, ref lineSize, ref startIndex, nodeIndex);
+          FinishLine(gdi, lines, spans, nodeSpans, ref span, ref lineSize, ref startIndex, nodeIndex);
         }
 
-        SplitPiece piece = null;
-        while(true)
+        int availableWidth = Math.Max(0, available.Width - lineSize.Width -
+                                         (nodeSpans.Count == 0 ? shrinkage.Width : span.RightPBM));
+        bool addedRight = false;
+
+        List<SplitPiece> pieces = new List<SplitPiece>(span.Split(gdi, lineIndex));
+        for(int i=0; i<pieces.Count; )
         {
-          int spaceLeft = available.Width - lineSize.Width;
-          piece = span.GetNextSplitPiece(gdi, lineIndex, piece, spaceLeft, spaceLeft == available.Width);
-          if(piece == null) break;
+          Size spaceNeeded = pieces[i].PixelSize;
+          int docLength    = pieces[i].ContentLength;
+          PieceType type   = pieces[i].Type;
+          i++;
 
-          // so extend the size of the current line and span to encompass the new piece
-          lineSize.Width += piece.Size.Width;
-          lineSize.Height = Math.Max(lineSize.Height, piece.Size.Height);
-
-          span.Size = new Size(span.Width + piece.Size.Width, Math.Max(span.Height, piece.Size.Height));
-
-          // increase the document and content span lengths by the size of the split piece
-          span.ContentLength += piece.Span.Length;
-          span.Length        += piece.Span.Length;
-
-          startIndex   = span.End; // and update the document index
-          nodeIndex    = piece.Span.End + piece.Skip; // and update the node index
-
-          // if we need to start a new line before we can receive more of the content, do so
-          if(piece.NewLine)
+          if(type == PieceType.Word)
           {
-            FinishLine(gdi, lines, spans, ref span, ref lineSize, ref startIndex, nodeIndex);
+            // trailing spaces are attached to the previous word and must not be split from it unless we're doing
+            // horizontal justification, so tack them on too.
+            while(i < pieces.Count && pieces[i].Type == PieceType.TrailingSpace)
+            {
+              spaceNeeded.Width  += pieces[i].PixelSize.Width;
+              spaceNeeded.Height  = Math.Max(spaceNeeded.Height, pieces[i].PixelSize.Height);
+              docLength          += pieces[i].ContentLength;
+              i++;
+            }
           }
+
+          if(spaceNeeded.Width > availableWidth) // if the pieces don't fit
+          {
+            bool startNewLine = true;
+            
+            // if this is the first span, and we haven't done so already, try to add some more space by removing the
+            // right padding, border, and margin
+            if(!addedRight && lineSize.Width != 0)
+            {
+              availableWidth += span.RightPBM; // add back the right PBM
+              addedRight = true;
+
+              // if the piece fits now, see if it's the last one. if so, we can't add it, because we can't remove the
+              // right PBM from the last span
+              startNewLine = spaceNeeded.Width > availableWidth;
+              if(!startNewLine)
+              {
+                startNewLine = true;
+                for(int j=i; j<pieces.Count; j++)
+                {
+                  if(pieces[j].Type != PieceType.Skip)
+                  {
+                    startNewLine = false;
+                    break;
+                  }
+                }
+              }
+            }
+
+            if(startNewLine)
+            {
+              FinishLine(gdi, lines, spans, nodeSpans, ref span, ref lineSize, ref startIndex, nodeIndex);
+              availableWidth = Math.Max(0, available.Width - span.RightPBM);
+              addedRight = false;
+            }
+          }
+
+          // pieces of skipped content don't add to the rendering, but they do affect the line height
+          if(type == PieceType.Skip)
+          {
+            lineSize.Height = Math.Max(lineSize.Height, spaceNeeded.Height);
+            span.Height     = Math.Max(span.Height, spaceNeeded.Height);
+          }
+          else
+          {
+            // now extend the size of the current line and span to encompass the new piece
+            lineSize  = new Size(lineSize.Width + spaceNeeded.Width, Math.Max(lineSize.Height, spaceNeeded.Height));
+            span.Size = new Size(span.Width + spaceNeeded.Width, Math.Max(span.Height, spaceNeeded.Height));
+            availableWidth -= spaceNeeded.Width;
+            // increase the document and content span lengths by the size of the split piece
+            span.ContentLength += docLength;
+            span.Length        += docLength;
+            startIndex = span.End;  // and update the document index
+          }
+
+          nodeIndex += docLength; // and update the node index
         }
       }
 
       // now we've finished the current document node, so output the span (if it's not empty)
-      if(span.Length != 0) spans.Add(span);
+      if(span.Length != 0)
+      {
+        spans.Add(span);
+        nodeSpans.Add(span);
+      }
+
+      // now update the NodePart and size of each span based on their padding, border, and margin
+      if(nodeSpans.Count == 1)
+      {
+        int widthIncrease = UpdateSpanPBM(nodeSpans[0], NodePart.Full);
+        if(spans.Count != 0) lineSize.Width += widthIncrease;
+      }
+      else if(nodeSpans.Count > 1)
+      {
+        UpdateSpanPBM(nodeSpans[0], NodePart.Start);
+        for(int i=1; i<nodeSpans.Count-1; i++) UpdateSpanPBM(nodeSpans[i], NodePart.Middle);
+        int widthIncrease = UpdateSpanPBM(nodeSpans[nodeSpans.Count-1], NodePart.End);
+        if(spans.Count != 0) lineSize.Width += widthIncrease;
+      }
+
+      nodeSpans.Clear();
     }
 
     // if the last line is not empty, add it
@@ -1946,7 +1995,7 @@ public class DocumentEditor : Control
       }
 
       span = null; // the span has already been added, so don't add it again
-      FinishLine(gdi, lines, spans, ref span, ref lineSize, ref startIndex, 0);
+      FinishLine(gdi, lines, spans, null, ref span, ref lineSize, ref startIndex, 0);
     }
 
     // if there was no content, we don't need to create an empty lineblock
@@ -1972,6 +2021,7 @@ public class DocumentEditor : Control
       {
         s.Position  = new Point(line.Width, 0);
         line.Width += s.Width;
+        line.Height = Math.Max(line.Height, s.Height);
         if(s.Descent > maxDescent) maxDescent = s.Descent;
       }
 
@@ -2037,8 +2087,8 @@ public class DocumentEditor : Control
   }
 
   /// <summary>A helper for <see cref="LayoutLines"/> which ends the current line.</summary>
-  static void FinishLine(Graphics gdi, List<Line> lines, List<LayoutSpan> spans, ref LayoutSpan span, 
-                         ref Size lineSize, ref int docStartIndex, int nodeStartIndex)
+  static void FinishLine(Graphics gdi, List<Line> lines, List<LayoutSpan> spans, List<LayoutSpan> nodeSpans,
+                         ref LayoutSpan span, ref Size lineSize, ref int docStartIndex, int nodeStartIndex)
   {
     if(span != null)
     {
@@ -2049,6 +2099,7 @@ public class DocumentEditor : Control
         span.Length++;
         docStartIndex++;
         spans.Add(span);
+        nodeSpans.Add(span);
 
         LayoutSpan newSpan = span.CreateNew();
         newSpan.BeginLayout(gdi);
@@ -2071,6 +2122,36 @@ public class DocumentEditor : Control
 
     spans.Clear();
     lineSize = new Size();
+  }
+
+  /// <summary>A helper for <see cref="LayoutLines"/> that updates the size of a span based on the given
+  /// <see cref="NodePart"/>, and returns the span's width increase.
+  /// </summary>
+  static int UpdateSpanPBM(LayoutSpan span, NodePart part)
+  {
+    // update the NodePart and size of the span
+    span.NodePart = part;
+
+    int originalWidth = span.Width;
+    switch(part)
+    {
+      case NodePart.Full:
+        span.Width  += span.LeftPBM + span.RightPBM;
+        span.Height += span.Margin.TotalVertical;
+        break;
+      case NodePart.Start:
+        span.Width  += span.LeftPBM;
+        span.Height += span.Margin.Top;
+        break;
+      case NodePart.End:
+        span.Width  += span.RightPBM;
+        span.Height += span.Margin.Bottom;
+        break;
+    }
+    span.Height  += span.Padding.TotalVertical + span.Border.Height*2; // we always add the vertical borders and padding
+    span.Descent += span.BottomPBM;  // update the descent as well, shifting it upward by the bottom PBM
+
+    return span.Width - originalWidth; // return the width increase
   }
   #endregion
 
@@ -3114,8 +3195,8 @@ public class DocumentEditor : Control
         while(true)
         {
           int endIndex = Math.Min(span.End, region.End);
-          int start = region.GetPixelOffset(gdi, span.Start - region.Start).Width;
-          int   end = region.GetPixelOffset(gdi, endIndex - region.Start).Width;
+          int start = region.GetPixelOffset(gdi, span.Start - region.Start).X;
+          int   end = region.GetPixelOffset(gdi, endIndex - region.Start).X;
           
           Rectangle newArea = new Rectangle(region.AbsoluteLeft + docOffset.X + start,
                                             region.AbsoluteTop + docOffset.Y, end - start, region.Height);
@@ -3231,12 +3312,11 @@ public class DocumentEditor : Control
     if(index < 0 || index > IndexLength) throw new ArgumentOutOfRangeException();
 
     LayoutRegion region = GetRegion(index);
-    Size pixelOffset = region.GetPixelOffset(gdi, index-region.Start);
+    Point pixelOffset = region.GetPixelOffset(gdi, index-region.Start);
 
     cursorIndex = index;
-    SetCursor(GetClientPoint(new Point(region.AbsoluteLeft + pixelOffset.Width,
-                                       region.AbsoluteTop  + pixelOffset.Height)),
-              region.Height);
+    SetCursor(GetClientPoint(new Point(region.AbsoluteLeft + pixelOffset.X, region.AbsoluteTop  + pixelOffset.Y)),
+              region.CursorHeight);
   }
 
   /// <summary>Given the position of the text cursor's top-left corner in client units and its height, moves the

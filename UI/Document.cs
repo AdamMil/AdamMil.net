@@ -293,6 +293,23 @@ public enum BorderStyle
 }
 #endregion
 
+#region HorizontalAlignment
+/// <summary>Specifies how the children of a node should be aligned horizontally.</summary>
+public enum HorizontalAlignment
+{
+  /// <summary>The children will be aligned along the left of the parent's content area.</summary>
+  Left,
+  /// <summary>The children will be aligned along the right of the parent's content area.</summary>
+  Right,
+  /// <summary>The children will be centered horizontally within the parent's content area.</summary>
+  Center,
+  /// <summary>If possible, the spacing among the children will be set so that the first child is flush with the left
+  /// side of the parent's content area, and the last child is flush with the right side.
+  /// </summary>
+  Justify
+}
+#endregion
+
 #region Style
 /// <summary>Represents the style of a node and its descendants.</summary>
 /// <remarks>The style option values are stored in a dictionary indexed by strings. Options normally cascade from
