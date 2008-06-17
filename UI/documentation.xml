@@ -65,6 +65,10 @@
 
   <DocumentEditor>
     <LayoutRegion>
+      <CursorHeight>
+        <summary>Gets the height of the text cursor when it's within the region.</summary>
+      </CursorHeight>
+      
       <BeginLayout>
         <summary>
           Called before the region is laid out. This can be used to initialize members that will affect layout.
@@ -130,28 +134,18 @@
         </summary>
       </CreateNew>
 
-      <GetNextSplitPiece>
-        <summary>
-          Assists the work of line wrapping by calculating how many document indices from the content line
-          can fit in amount of horizontal space of the layout line.
-        </summary>
-        <param name="gdi">The graphics context.</param>
-        <param name="line">The index of the current content line.</param>
-        <param name="piece">
-          The previous piece returned from this method, or null if this is the first call for the
-          given content line.
-        </param>
-        <param name="spaceLeft">How much horizontal space is left in the current layout line, in pixels.</param>
-        <param name="lineIsEmpty">Whether the current layout line is empty.</param>
-        <returns>
-          Returns a <see cref="SplitPiece"/> representing the size and length of the content that can fit on
-          the layout line.
-        </returns>
-      </GetNextSplitPiece>
-
       <Render>
         <summary>Renders the span at the given point.</summary>
       </Render>
+
+      <Split>
+        <summary>
+          Splits a line of content from the associated document node into pieces that are used by the layout
+          algorithm to wrap lines.
+        </summary>
+        <param name="gdi">The graphics context of the layout.</param>
+        <param name="line">The line number of the original content.</param>
+      </Split>
     </LayoutSpan>
   </DocumentEditor>
   
