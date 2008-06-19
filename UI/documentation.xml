@@ -65,10 +65,6 @@
 
   <DocumentEditor>
     <LayoutRegion>
-      <CursorHeight>
-        <summary>Gets the height of the text cursor when it's within the region.</summary>
-      </CursorHeight>
-      
       <BeginLayout>
         <summary>
           Called before the region is laid out. This can be used to initialize members that will affect layout.
@@ -85,6 +81,10 @@
           this region, both visually and document-wise.
         </summary>
       </GetChildren>
+
+      <GetCursorHeight>
+        <summary>Returns the height of the text cursor when it's at the given index, relative to the region.</summary>
+      </GetCursorHeight>
 
       <GetNearestIndex>
         <summary>
@@ -112,7 +112,42 @@
           region contains it.
         </summary>
       </GetRegion>
-      
+
+      <OnClick>
+        <summary>
+          Called when the mouse is clicked within the region. If the region does not handle the click, it should
+          call its parent's implementation.
+        </summary>  
+      </OnClick>
+
+      <OnDoubleClick>
+        <summary>
+          Called when the mouse is double-clicked within the region. If the region does not handle the click, it should
+          call its parent's implementation.
+        </summary>
+      </OnDoubleClick>
+
+      <OnMouseEnter>
+        <summary>
+          Called when the mouse cursor enters the region. Derived classes that override this method should not
+          call their parent's implementation.
+        </summary>
+      </OnMouseEnter>
+
+      <OnMouseLeave>
+        <summary>
+          Called when the mouse cursor leaves the region. Derived classes that override this method should not
+          call their parent's implementation.
+        </summary>
+      </OnMouseLeave>
+
+      <OnMouseHover>
+        <summary>
+          Called when the mouse is hovered over the region. If the region does not handle the hover, it should
+          call its parent's implementation.
+        </summary>
+      </OnMouseHover>
+
       <Render>
         <summary>Renders the region.</summary>
         <param name="data">A structure containing render-related data that does not change during a render.</param>
