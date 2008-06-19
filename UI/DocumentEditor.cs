@@ -25,6 +25,7 @@ using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
+using AC = AdamMil.Collections;
 
 namespace AdamMil.UI.RichDocument
 {
@@ -801,7 +802,7 @@ public class DocumentEditor : Control
     {
       int end = DocumentContentSpan.End;
 
-      // if the point is not contained within the region vertically, return the start or end depending on where it is
+      // if the point is not contained within the region, return the start or end depending on where it is
       Rectangle paddingArea = PaddingArea;
       if(regionPt.Y < paddingArea.Top) return Start;
       else if(regionPt.Y >= paddingArea.Bottom) return end;
@@ -856,9 +857,8 @@ public class DocumentEditor : Control
 
       // if the border is one pixel wide, the cursor will cause the border to flash on and off, so we'll move the
       // cursor one pixel to the outside of the border
-      int borderAdjustment = Border.Width == 1 ? 1 : 0;
-      return new Point(indexOffset == 0 ? Margin.Left-borderAdjustment : Width-RightPBM+borderAdjustment,
-                       BorderBox.Top);
+      // TODO: FIXME: if the side of the region is flush with the canvas, the cursor will be off-canvas and disappear :-(
+      return new Point(indexOffset == 0 ? Margin.Left-(Border.Width == 1 ? 1 : 0) : Width-Margin.Right, BorderBox.Top);
     }
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetRegion/*"/>
@@ -1157,13 +1157,52 @@ public class DocumentEditor : Control
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetChildren/*"/>
     public sealed override LayoutRegion[] GetChildren()
     {
-      return NoChildren;
+      return Children;
+    }
+
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNearestIndex/*"/>
+    public override int GetNearestIndex(Graphics gdi, Point regionPt)
+    {
+      Rectangle paddingRect = PaddingArea;
+      if(regionPt.Y < paddingRect.Top) regionPt.Y = paddingRect.Top;
+      else if(regionPt.Y >= paddingRect.Bottom) regionPt.Y = paddingRect.Bottom-1;
+      return base.GetNearestIndex(gdi, regionPt);
     }
 
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/Split/*"/>
     public abstract IEnumerable<SplitPiece> Split(Graphics gdi, int line);
 
-    static readonly LayoutRegion[] NoChildren = new LayoutRegion[0];
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetChildren/*"/>
+    public LayoutSpan[] Children = NoChildren;
+
+    static readonly LayoutSpan[] NoChildren = new LayoutSpan[0];
+  }
+  #endregion
+
+  #region ContainerSpan
+  /// <summary>A generic span used to render an inline container node.</summary>
+  protected class ContainerSpan<NodeType> : LayoutSpan<NodeType> where NodeType : DocumentNode
+  {
+    /// <summary>Initializes a new <see cref="ContainerSpan{T}"/> with the given node.</summary>
+    public ContainerSpan(NodeType node) : base(node) { }
+
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/LineCount/*"/>
+    public override int LineCount
+    {
+      get { return 0; }
+    }
+
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/CreateNew/*"/>
+    public override LayoutSpan CreateNew()
+    {
+      return new ContainerSpan<NodeType>(Node);
+    }
+
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/Split/*"/>
+    public override IEnumerable<SplitPiece> Split(Graphics gdi, int line)
+    {
+      throw new NotSupportedException();
+    }
   }
   #endregion
 
@@ -1207,15 +1246,25 @@ public class DocumentEditor : Control
       if(index == Length) // if the index is at the end of the document, normally no region would contain it. but we
       {                   // want the end of the document to be a valid index, so we'll return something
         // return the innermost child that is not a LineBlock, Line, or LayoutSpan
-        LayoutRegion child = Children[0];
-        while(true)
+        LayoutRegion child = Children[0], aboveLineBlock = null;
+        do
         {
           LayoutRegion[] descendants = child.GetChildren();
           LayoutRegion lastDescendant = descendants.Length == 0 ? null : descendants[descendants.Length-1];
-          if(lastDescendant == null || lastDescendant is LineBlock) break;
+
+          if(aboveLineBlock == null)
+          {
+            if(lastDescendant == null || lastDescendant is LineBlock) aboveLineBlock = child;
+          }
+          else if(child is LayoutSpan && lastDescendant is LayoutSpan && lastDescendant.GetChildren().Length == 0)
+          {
+            break;
+          }
+
           child = lastDescendant;
-        }
-        return child;
+        } while(child != null);
+
+        return child != null ? child : aboveLineBlock;
       }
       else return Children[0].GetRegion(index); // otherwise, just defer to the wrapped region
     }
@@ -1350,6 +1399,8 @@ public class DocumentEditor : Control
     public int ContentLength;
     /// <summary>The type of the piece, which determines how it will be treated by the line wrapping algorithm.</summary>
     public PieceType Type;
+    /// <summary>The span that generated the piece.</summary>
+    internal LayoutSpan Container;
   }
   #endregion
 
@@ -1489,6 +1540,7 @@ public class DocumentEditor : Control
       int xPos;
       if(indexOffset >= ContentLength)
       {
+        // TODO: FIXME: if the side of the region is flush with the canvas, the cursor will be off-canvas and disappear :-(
         xPos = Width - RightPBM;
       }
       else
@@ -1629,8 +1681,112 @@ public class DocumentEditor : Control
     TextNode textNode = node as TextNode;
     if(textNode != null) return new TextNodeSpan(textNode, this);
 
+    if(node.Children.Count != 0) return new ContainerSpan<DocumentNode>(node);
+
     return null;
   }
+
+  #region Container
+  /// <summary>A helper class used during layout to represent a span and whether its left and right PBM have been
+  /// considered yet.
+  /// </summary>
+  new sealed class Container
+  {
+    public Container(LayoutRegion span)
+    {
+      Span = span;
+    }
+
+    public readonly LayoutRegion Span;
+    /// <summary>A value indicating whether the left PBM of the span has been output yet.</summary>
+    public bool OutputLeft;
+    /// <summary>A value indicating whether the right PBM of the span has pushed onto the next line.</summary>
+    public bool BrokeRight;
+  }
+  #endregion
+
+  #region PieceEnumerator
+  /// <summary>A class that takes a list of node trees and returns lists of <see cref="SplitPiece"/> objects 
+  /// corresponding to the natural line breaks within the content.
+  /// </summary>
+  sealed class PieceEnumerator
+  {
+    public PieceEnumerator(DocumentEditor owner, Graphics gdi, IEnumerable<DocumentNode> nodes, Size available)
+    {
+      this.owner     = owner;
+      this.gdi       = gdi;
+      this.states    = new AC.Stack<State>();
+      this.available = available;
+
+      states.Push(new State(nodes));
+    }
+
+    /// <summary>Gets whether all pieces have been enumerated.</summary>
+    public bool IsDone
+    {
+      get { return states.Count == 0; }
+    }
+
+    /// <summary>Enumerates the pieces in the next line of document content.</summary>
+    public IEnumerable<SplitPiece> GetNextLine()
+    {
+      while(!IsDone)
+      {
+        State state = states.Peek();
+
+        if(state.Span == null || state.LineIndex == state.Span.LineCount)
+        {
+          if(!state.Nodes.MoveNext())
+          {
+            states.Pop();
+            continue;
+          }
+
+          state.Span = owner.CreateLayoutSpan(state.Nodes.Current);
+          if(state.Span == null) continue;
+
+          owner.SetBorderMarginAndPadding(gdi, state.Nodes.Current, state.Span, available);
+          state.LineIndex = 0;
+
+          if(state.Nodes.Current.Children.Count != 0)
+          {
+            states.Push(new State(state.Nodes.Current.Children));
+            continue;
+          }
+        }
+
+        if(states.Count > 1) state.Span.Parent = states[states.Count-2].Span;
+
+        foreach(SplitPiece piece in state.Span.Split(gdi, state.LineIndex++))
+        {
+          piece.Container = state.Span;
+          yield return piece;
+        }
+
+        if(state.LineIndex != state.Span.LineCount) break;
+      }
+    }
+
+    #region State
+    sealed class State
+    {
+      public State(IEnumerable<DocumentNode> nodes)
+      {
+        Nodes = nodes.GetEnumerator();
+      }
+
+      public readonly IEnumerator<DocumentNode> Nodes;
+      public LayoutSpan Span;
+      public int LineIndex;
+    }
+    #endregion
+
+    readonly DocumentEditor owner;
+    readonly Graphics gdi;
+    readonly AC.Stack<State> states;
+    readonly Size available;
+  }
+  #endregion
 
   /// <summary>Applies the given horizontal alignment value to the region's children.</summary>
   void ApplyHorizontalAlignment(HorizontalAlignment alignment, LayoutRegion region)
@@ -1651,7 +1807,7 @@ public class DocumentEditor : Control
 
   /// <summary>Creates a layout block given the rendering context, a document node, and the width available in pixels.
   /// </summary>
-  // TODO: we should make CreateBlock and LayoutLines virtual to allow the layout to be overridden
+  // TODO: we should virtualize CreateBlock and LayoutLines to allow the layout logic to be overridden
   Block CreateBlock(Graphics gdi, DocumentNode node, Size available, ref int startIndex)
   {
     Block newBlock = CreateLayoutBlock(node);
@@ -1669,8 +1825,7 @@ public class DocumentEditor : Control
     }
 
     // calculate the horizontal margin and padding
-    Size shrinkage;
-    SetBorderMarginAndPadding(gdi, node, newBlock, available, out shrinkage);
+    Size shrinkage = SetBorderMarginAndPadding(gdi, node, newBlock, available);
     
     // calculate the size available for child controls. the available height doesn't shrink the same way as the width
     // because we can always make the document taller, but we don't want to make it wider.
@@ -1844,162 +1999,195 @@ public class DocumentEditor : Control
   /// <summary>Creates a line block given the rendering context, the inline and content nodes to place into the block,
   /// and the width available, in pixels.
   /// </summary>
-  LineBlock LayoutLines(Graphics gdi, DocumentNode parent, ICollection<DocumentNode> inlineNodes, Size available,
-                        ref int startIndex)
+  LineBlock LayoutLines(Graphics gdi, DocumentNode parent, ICollection<DocumentNode> inlineNodes,
+                        Size available, ref int startIndex)
   {
-    // the method creates a list of lines, each holding spans, from a list of nodes.
-
     // TODO: FIXME: make sure this code can handle a very narrow (insufficient) available width
-    // TODO: this code needs to handle the children of an inline node
 
-    List<Line> lines = new List<Line>(); // holds the lines for all of these nodes
-    List<LayoutSpan> spans = new List<LayoutSpan>(); // holds the spans in the current line
-    List<LayoutSpan> nodeSpans = new List<LayoutSpan>(); // holds the spans in the current node
-    Size lineSize = new Size(); // the size of the current line so far
+    // a dictionary mapping document nodes to the spans that render the node
+    Dictionary<DocumentNode, List<LayoutSpan>> nodeSpans = new Dictionary<DocumentNode, List<LayoutSpan>>();
+    List<Line> lines = new List<Line>(); // the final output of lines
 
-    LayoutSpan span = null;
-    foreach(DocumentNode node in inlineNodes)
+    List<LayoutSpan> spans = new List<LayoutSpan>(); // the leaf spans in the current output line
+    List<SplitPiece> pieces = new List<SplitPiece>(); // the pieces in the current content line
+    // lists containing the span of the current piece and its ancestors
+    List<Container> ancestors = new List<Container>();
+    List<LayoutRegion> newAncestors = new List<LayoutRegion>();
+
+    // an enumerator that turns a list of node trees into sets of spans for each line of content
+    PieceEnumerator pieceEnum = new PieceEnumerator(this, gdi, inlineNodes, available);
+    while(!pieceEnum.IsDone) // while there are lines of content remaining
     {
-      span = CreateLayoutSpan(node); // create the first span for the node
-      if(span == null) continue;     // if the node cannot be rendered, skip it
+      pieces.AddRange(pieceEnum.GetNextLine()); // get the pieces in the line
+      if(pieces.Count == 0) continue; // if there are no pieces at all (not even height placeholders), skip this line
 
-      int nodeIndex = 0; // the index within the node at which the current span begins
-      Size shrinkage;
+      Size lineSize = new Size(); // the size of the output current line so far
+      LayoutSpan span = null;     // the span of the current piece
+      int nodeIndex = 0;          // the index within the content of the current document node
+      int availableWidth = available.Width; // the amount of space left in the current line
 
-      span.BeginLayout(gdi);
-      SetBorderMarginAndPadding(gdi, node, span, available, out shrinkage);
-
-      span.Start = startIndex;
-      for(int lineIndex=0; lineIndex < span.LineCount; lineIndex++) // for each line in the document node
+      for(int pieceIndex=0,nextIndex=0; pieceIndex<pieces.Count; pieceIndex=nextIndex)
       {
-        if(lineIndex != 0) // if there was a line break in the document node (and hence a line other than the first),
-        {                  // start a new output line too
-          FinishLine(gdi, lines, spans, nodeSpans, ref span, ref lineSize, ref startIndex, nodeIndex);
-        }
+        // get the size and content length of the current piece
+        SplitPiece piece = pieces[nextIndex++];
+        Size spaceNeeded = piece.PixelSize;
+        int  docLength   = piece.ContentLength;
 
-        int availableWidth = Math.Max(0, available.Width - lineSize.Width -
-                                         (nodeSpans.Count == 0 ? shrinkage.Width : span.RightPBM));
-        bool addedRight = false;
-
-        List<SplitPiece> pieces = new List<SplitPiece>(span.Split(gdi, lineIndex));
-        for(int i=0; i<pieces.Count; )
+        // if the piece's span changed, update the set of ancestors for the current span and the available width
+        if(piece.Container != span)
         {
-          Size spaceNeeded = pieces[i].PixelSize;
-          int docLength    = pieces[i].ContentLength;
-          PieceType type   = pieces[i].Type;
-          i++;
+          FinishSpan(spans, span); // output the old span
 
-          if(type == PieceType.Word)
+          // fill 'newAncestors' with the new span and its ancestors
+          for(LayoutRegion region = piece.Container; region != null; region = region.Parent) newAncestors.Add(region);
+          newAncestors.Reverse();
+
+          // now we have two ancestor lists. find the point of divergence and remove spans that are no longer used
+          int i=0;
+          for(int count=Math.Min(ancestors.Count, newAncestors.Count); i<count; i++)
           {
-            // trailing spaces are attached to the previous word and must not be split from it unless we're doing
-            // horizontal justification, so tack them on too.
-            while(i < pieces.Count && pieces[i].Type == PieceType.TrailingSpace)
+            if(newAncestors[i] != ancestors[i].Span)
             {
-              spaceNeeded.Width  += pieces[i].PixelSize.Width;
-              spaceNeeded.Height  = Math.Max(spaceNeeded.Height, pieces[i].PixelSize.Height);
-              docLength          += pieces[i].ContentLength;
-              i++;
+              ancestors.RemoveRange(i, ancestors.Count-i);
+              break;
             }
           }
 
-          if(spaceNeeded.Width > availableWidth) // if the pieces don't fit
+          // add the new ancestors and remove their horizontal PBM from 'availableWidth', giving a conservative
+          // estimate of the amount of space available on the current line
+          for(; i<newAncestors.Count; i++)
           {
-            bool startNewLine = true;
-            
-            // if this is the first span, and we haven't done so already, try to add some more space by removing the
-            // right padding, border, and margin
-            if(!addedRight && lineSize.Width != 0)
-            {
-              availableWidth += span.RightPBM; // add back the right PBM
-              addedRight = true;
+            ancestors.Add(new Container(newAncestors[i]));
+            availableWidth -= newAncestors[i].LeftPBM + newAncestors[i].RightPBM;
+          }
+          newAncestors.Clear(); // clear the 'newAncestors' list for use next time
 
-              // if the piece fits now, see if it's the last one. if so, we can't add it, because we can't remove the
-              // right PBM from the last span
-              startNewLine = spaceNeeded.Width > availableWidth;
-              if(!startNewLine)
+          // if the span changed, it's because the node changed, so reset the nodeIndex
+          nodeIndex = 0;
+          span = ResetSpan(piece.Container, startIndex, nodeIndex); // set 'span' to the new span
+        }
+
+        // if the piece is a word, it may have trailing space attached. these spaces should be grouped along with it
+        // unless we're doing justification.
+        if(piece.Type == PieceType.Word)
+        {
+          while(nextIndex < pieces.Count && pieces[nextIndex].Type == PieceType.TrailingSpace &&
+                pieces[nextIndex].Container == span)
+          {
+            spaceNeeded.Width += pieces[nextIndex].PixelSize.Width;
+            spaceNeeded.Height = Math.Min(spaceNeeded.Height, pieces[nextIndex].PixelSize.Height);
+            docLength += pieces[nextIndex].ContentLength;
+            nextIndex++;
+          }
+        }
+
+        if(spaceNeeded.Width > availableWidth) // if the pieces don't fit
+        {
+          bool startNewLine = true;
+
+          // if the current output line is not empty, try to add some more space by breaking the parent containers
+          // onto the next line, causing the space taken by their right PBM to be freed up on the current line.
+          // (if the line is empty, we're going to add the piece regardless, so there's no point.)
+          if(lineSize.Width != 0)
+          {
+            // add back the right PBM from the outermost container inwards
+            int containerI;
+            for(containerI=0; containerI<ancestors.Count; containerI++)
+            {
+              if(!ancestors[containerI].BrokeRight)
               {
-                startNewLine = true;
-                for(int j=i; j<pieces.Count; j++)
-                {
-                  if(pieces[j].Type != PieceType.Skip)
-                  {
-                    startNewLine = false;
-                    break;
-                  }
-                }
+                availableWidth += ancestors[containerI].Span.RightPBM;
+                ancestors[containerI].BrokeRight = true;
+                startNewLine = spaceNeeded.Width > availableWidth;
+                if(!startNewLine) break; // if adding the PBM allowed the piece to fit, then stop adding PBM
               }
             }
 
-            if(startNewLine)
+            // now, adding the PBM has the effect of breaking the parent container onto the next line. but we don't
+            // want to do that if it would cause a sliver of border to be on its own line. so we have to make sure
+            // that there's another word before the end of the the innermost container that added its right PBM.
+            if(!startNewLine)
             {
-              FinishLine(gdi, lines, spans, nodeSpans, ref span, ref lineSize, ref startIndex, nodeIndex);
-              availableWidth = Math.Max(0, available.Width - span.RightPBM);
-              addedRight = false;
+              startNewLine = true;
+
+              for(int i=nextIndex; i<pieces.Count; i++)
+              {
+                if(pieces[i].Type == PieceType.Word) // find the next word piece
+                {
+                  // see if the piece is within the innermost container that added its right PBM
+                  for(LayoutRegion region = pieces[i].Container; region != null; region = region.Parent)
+                  {
+                    if(region == ancestors[containerI].Span)
+                    {
+                      startNewLine = false; // it is, so that's good
+                      break;
+                    }
+                  }
+
+                  break; // if the word is not within the container, then no others will be either, so we can stop now
+                }
+              }
             }
           }
 
-          // pieces of skipped content don't add to the rendering, but they do affect the line height
-          if(type == PieceType.Skip)
+          if(startNewLine) // if we need to finish the current line before adding the new pieces
           {
-            lineSize.Height = Math.Max(lineSize.Height, spaceNeeded.Height);
-            span.Height     = Math.Max(span.Height, spaceNeeded.Height);
-          }
-          else
-          {
-            // now extend the size of the current line and span to encompass the new piece
-            lineSize  = new Size(lineSize.Width + spaceNeeded.Width, Math.Max(lineSize.Height, spaceNeeded.Height));
-            span.Size = new Size(span.Width + spaceNeeded.Width, Math.Max(span.Height, spaceNeeded.Height));
-            availableWidth -= spaceNeeded.Width;
-            // increase the document and content span lengths by the size of the split piece
-            span.ContentLength += docLength;
-            span.Length        += docLength;
-            startIndex = span.End;  // and update the document index
-          }
+            FinishLine(gdi, lines, spans, span, nodeSpans, ref startIndex, ref lineSize); // then do so
+            
+            span = ResetSpan(span, startIndex, nodeIndex); // and reset the current span so it doesn't include content
+                                                           // from the previous line
 
-          nodeIndex += docLength; // and update the node index
+            // recalculate the available width for the new line. we'll conservatively remove the right PBM from all
+            // containers and the left PBM for all that have not yet been involved in any output
+            availableWidth = available.Width;
+            foreach(Container container in ancestors)
+            {
+              container.BrokeRight = false;
+              availableWidth -= container.Span.RightPBM;
+              if(!container.OutputLeft) availableWidth -= container.Span.LeftPBM;
+            }
+          }
         }
+
+        // pieces of skipped content don't add to the rendering, but they do affect the line height
+        if(piece.Type == PieceType.Skip)
+        {
+          lineSize.Height = Math.Max(lineSize.Height, spaceNeeded.Height);
+          span.Height     = Math.Max(span.Height, spaceNeeded.Height);
+        }
+        else
+        {
+          // at this point, a word is ready to be added, which "starts" all of its containing spans. we'll signify
+          // this by marking that each container has output its left PBM
+          foreach(Container container in ancestors) container.OutputLeft = true;
+
+          // enlarge the line and span, and reduce the available width, by the size of the pieces
+          lineSize  = new Size(lineSize.Width + spaceNeeded.Width, Math.Max(lineSize.Height, spaceNeeded.Height));
+          span.Size = new Size(span.Width + spaceNeeded.Width, Math.Max(span.Height, spaceNeeded.Height));
+          availableWidth -= spaceNeeded.Width;
+          
+          // update the content and document spans, as well as the starting index
+          span.ContentLength += docLength;
+          span.Length        += docLength;
+          startIndex = span.End;
+        }
+
+        nodeIndex += docLength; // finally, update the node index regardless of the piece type
       }
 
-      // now we've finished the current document node, so output the span (if it's not empty)
-      if(span.Length != 0)
-      {
-        spans.Add(span);
-        nodeSpans.Add(span);
-      }
+      FinishSpan(spans, span); // add the final span
+      
+      // at this point, all pieces have been added. if there are any spans left, output them
+      if(spans.Count != 0) FinishLine(gdi, lines, spans, span, nodeSpans, ref startIndex, ref lineSize);
 
-      // now update the NodePart and size of each span based on their padding, border, and margin
-      if(nodeSpans.Count == 1)
-      {
-        int widthIncrease = UpdateSpanPBM(nodeSpans[0], NodePart.Full);
-        if(spans.Count != 0) lineSize.Width += widthIncrease;
-      }
-      else if(nodeSpans.Count > 1)
-      {
-        UpdateSpanPBM(nodeSpans[0], NodePart.Start);
-        for(int i=1; i<nodeSpans.Count-1; i++) UpdateSpanPBM(nodeSpans[i], NodePart.Middle);
-        int widthIncrease = UpdateSpanPBM(nodeSpans[nodeSpans.Count-1], NodePart.End);
-        if(spans.Count != 0) lineSize.Width += widthIncrease;
-      }
-
-      nodeSpans.Clear();
+      pieces.Clear(); // clear the pieces list for the next line
     }
 
-    // if the last line is not empty, add it
-    if(spans.Count != 0)
-    {
-      if(span.Length != 0)
-      {
-        // add a virtual newline to the end of the final span (which has already been added to the line)
-        span.Length++;
-        startIndex++;
-      }
-
-      span = null; // the span has already been added, so don't add it again
-      FinishLine(gdi, lines, spans, null, ref span, ref lineSize, ref startIndex, 0);
-    }
-
-    // if there was no content, we don't need to create an empty lineblock
+    // if there was no content, we can return null. there's no point in creating an empty LineBlock
     if(lines.Count == 0) return null;
+
+    // now that all spans are processed, we have the information needed to set their NodePart members
+    UpdateSpansWithPBM(nodeSpans);
 
     // now, loop through each of the lines that we've added and stack them vertically into a LineBlock
     LineBlock block = new LineBlock(lines.ToArray());
@@ -2015,23 +2203,10 @@ public class DocumentEditor : Control
       }
       line.ContentSpan = new Span(line.Start, line.Length-1); // account for the virtual newline in the content length
 
-      // stack the spans horizontally within the line and calculate the maximum descent
-      int maxDescent = 0;
-      foreach(LayoutSpan s in line.Children)
-      {
-        s.Position  = new Point(line.Width, 0);
-        line.Width += s.Width;
-        line.Height = Math.Max(line.Height, s.Height);
-        if(s.Descent > maxDescent) maxDescent = s.Descent;
-      }
+      // lay out all the line's children horizontally
+      StackSpans(line, line.Children);
 
-      // now go back through and position the spans vertically
-      // TODO: implement vertical alignment
-      foreach(LayoutSpan s in line.Children)
-      {
-        s.Top += line.Height - s.Height + s.Descent - maxDescent; // just do bottom alignment for now...
-      }
-
+      // and position the line vertically within the block
       line.Position = new Point(0, block.Height);
       block.Width   = Math.Max(line.Width, block.Width);
       block.Height += line.Height;
@@ -2044,19 +2219,21 @@ public class DocumentEditor : Control
     return block;
   }
 
-  void SetBorderMarginAndPadding(Graphics gdi, DocumentNode node, LayoutRegion region, Size available,
-                                 out Size shrinkage)
+  /// <summary>Sets the <see cref="LayoutRegion.Border"/>, <see cref="LayoutRegion.Margin"/>, and
+  /// <see cref="LayoutRegion.Padding"/> members of the given region, based on the given node.
+  /// </summary>
+  Size SetBorderMarginAndPadding(Graphics gdi, DocumentNode node, LayoutRegion region, Size available)
   {
     FourSide fourSide = node.Style.Margin;
+    Size shrinkage;
     if(fourSide.IsEmpty)
     {
       shrinkage = new Size();
     }
     else
     {
-      region.Margin.Left   = GetPixels(gdi, node, fourSide.Left,  available.Width, Orientation.Horizontal);
-      region.Margin.Right  = GetPixels(gdi, node, fourSide.Right, available.Width, Orientation.Horizontal);
-      // TODO: we need a base measurement to use for relative calculations
+      region.Margin.Left   = GetPixels(gdi, node, fourSide.Left,   available.Width,  Orientation.Horizontal);
+      region.Margin.Right  = GetPixels(gdi, node, fourSide.Right,  available.Width,  Orientation.Horizontal);
       region.Margin.Top    = GetPixels(gdi, node, fourSide.Top,    available.Height, Orientation.Vertical);
       region.Margin.Bottom = GetPixels(gdi, node, fourSide.Bottom, available.Height, Orientation.Vertical);
       shrinkage = new Size(region.Margin.TotalHorizontal, region.Margin.TotalVertical);
@@ -2065,9 +2242,8 @@ public class DocumentEditor : Control
     fourSide = node.Style.Padding;
     if(!fourSide.IsEmpty)
     {
-      region.Padding.Left   = GetPixels(gdi, node, fourSide.Left,  available.Width, Orientation.Horizontal);
-      region.Padding.Right  = GetPixels(gdi, node, fourSide.Right, available.Width, Orientation.Horizontal);
-      // TODO: we need a base measurement to use for relative calculations
+      region.Padding.Left   = GetPixels(gdi, node, fourSide.Left,   available.Width,  Orientation.Horizontal);
+      region.Padding.Right  = GetPixels(gdi, node, fourSide.Right,  available.Width,  Orientation.Horizontal);
       region.Padding.Top    = GetPixels(gdi, node, fourSide.Top,    available.Height, Orientation.Vertical);
       region.Padding.Bottom = GetPixels(gdi, node, fourSide.Bottom, available.Height, Orientation.Vertical);
       shrinkage.Width  += region.Padding.TotalHorizontal;
@@ -2077,81 +2253,244 @@ public class DocumentEditor : Control
     Measurement measurement = node.Style.BorderWidth;
     if(measurement.Size != 0 && node.Style.BorderStyle != RichDocument.BorderStyle.None)
     {
-      // TODO: we need a base measurement to use for relative calculations
-      region.Border =
-        new Size(GetPixels(gdi, node, measurement, available.Width,  Orientation.Horizontal),
-                 GetPixels(gdi, node, measurement, available.Height, Orientation.Vertical));
+      region.Border = new Size(GetPixels(gdi, node, measurement, available.Width,  Orientation.Horizontal),
+                               GetPixels(gdi, node, measurement, available.Height, Orientation.Vertical));
       shrinkage.Width  += region.Border.Width  * 2;
       shrinkage.Height += region.Border.Height * 2;
     }
+
+    return shrinkage;
   }
 
-  /// <summary>A helper for <see cref="LayoutLines"/> which ends the current line.</summary>
-  static void FinishLine(Graphics gdi, List<Line> lines, List<LayoutSpan> spans, List<LayoutSpan> nodeSpans,
-                         ref LayoutSpan span, ref Size lineSize, ref int docStartIndex, int nodeStartIndex)
+  /// <summary>Finishes a line by adding the final span, grouping spans into a tree, cloning the spans, 
+  /// calculating their span and content length, adding extra document indices where desired, adding all new spans to
+  /// the given node spans dictionary, and finally creating and adding a new <see cref="Line"/> to contain the new span
+  /// tree.
+  /// </summary>
+  static void FinishLine(Graphics gdi, List<Line> lines, List<LayoutSpan> spans, LayoutSpan finalSpan,
+                         Dictionary<DocumentNode,List<LayoutSpan>> nodeSpans, ref int startIndex, ref Size lineSize)
   {
-    if(span != null)
-    {
-      if(span.Length != 0) // if the current span contains something, add that to the line first
-      {
-        // the line is being wrapped, so add a virtual newline character to the end of the final span, and account for
-        // it in the document index
-        span.Length++;
-        docStartIndex++;
-        spans.Add(span);
-        nodeSpans.Add(span);
+    FinishSpan(spans, finalSpan); // add the final span if it's valid
 
-        LayoutSpan newSpan = span.CreateNew();
-        newSpan.BeginLayout(gdi);
-        newSpan.Border  = span.Border;
-        newSpan.Margin  = span.Margin;
-        newSpan.Padding = span.Padding;
-        span = newSpan;
+    if(spans.Count != 0) // if there are any spans in the tree...
+    {
+      // the list of spans is currently stored as a list of leaf spans, each having a list of ancestors in the chain of
+      // Parent members. the list needs to be reorganized into a list of trees, grouping spans together under common
+      // ancestors
+
+      // a list of spans in order from parent to child, containing the previous leaf span and its ancestors
+      List<LayoutSpan> prevAncestors = new List<LayoutSpan>();
+      // a list of spans in order from parent to child, containing the next leaf span and its ancestors
+      List<LayoutSpan> ancestors = new List<LayoutSpan>();
+      // a list of the children of each span in 'prevAncestors'
+      List<List<LayoutSpan>> children = new List<List<LayoutSpan>>();
+
+      // we'll loop through each leaf span, and compare the list of ancestors to the previous list of ancestors.
+      // the similarities and differences between the two lists will allow us to calculate the tree that needs to be
+      // created
+      foreach(LayoutSpan span in spans)
+      {
+        // get the ancestors of the current span
+        for(LayoutSpan region = span; region != null; region = (LayoutSpan)region.Parent) ancestors.Add(region);
+        ancestors.Add(null); // add a 'null' ancestor representing the virtual root of all ancestors
+        ancestors.Reverse(); // reverse it to put it in order from parent to child
+
+        // make sure the prevAncestors and children lists are big enough so we don't have to do bounds checks later
+        while(prevAncestors.Count < ancestors.Count) prevAncestors.Add(null);
+        while(children.Count < ancestors.Count) children.Add(null);
+
+        // scan from root to leaf and find the point where the lists diverge
+        int i;
+        for(i=0; i<ancestors.Count; i++)
+        {
+          if(prevAncestors[i] != ancestors[i]) break;
+        }
+
+        for(; i<ancestors.Count; i++) // for each span after the point of divergence...
+        {
+          // the span in prevAncestors was removed, so its children list is complete. save the list and reset it
+          if(children[i] != null && children[i].Count != 0)
+          {
+            prevAncestors[i].Children = children[i].ToArray();
+            children[i].Clear();
+          }
+
+          prevAncestors[i] = ancestors[i]; // put the new span in the list
+
+          // and add it as a child of its parent
+          if(children[i-1] == null) children[i-1] = new List<LayoutSpan>();
+          children[i-1].Add(ancestors[i]);
+        }
+
+        ancestors.Clear(); // reset the ancestors list so we can use it for the next span
       }
 
-      span.Start        = docStartIndex;
-      span.ContentStart = nodeStartIndex;
+      // finalize the child lists of the remaining spans. we start from 1 because the 'null' span is at index 0
+      for(int i=1; i<children.Count; i++)
+      {
+        if(children[i] != null && children[i].Count != 0) prevAncestors[i].Children = children[i].ToArray();
+      }
+
+      spans.Clear();       // clear the 'spans' parameter for reuse by the caller
+      spans = children[0]; // and replace it with a list of the roots of the span trees
+
+      // now finalize and clone each span tree, because the spans passed in will be reused by the caller
+      for(int i=0; i<spans.Count; i++) spans[i] = FinishSpanTree(gdi, nodeSpans, spans[i], ref startIndex, 0);
     }
 
+    // now add a new line using the list of spans
     Line line = new Line(spans.ToArray());
     line.BeginLayout(gdi);
     line.Height = lineSize.Height;
-    line.Start  = docStartIndex; // this span will be overwritten later if the line is not empty...
-    line.Length = 1;
+    line.Span   = new Span(startIndex, 1); // this span will be overwritten later if the line is not empty...
     lines.Add(line);
 
-    spans.Clear();
-    lineSize = new Size();
+    lineSize = new Size(); // and reset the lineSize in the caller, now that we've used it
   }
 
-  /// <summary>A helper for <see cref="LayoutLines"/> that updates the size of a span based on the given
-  /// <see cref="NodePart"/>, and returns the span's width increase.
-  /// </summary>
-  static int UpdateSpanPBM(LayoutSpan span, NodePart part)
+  /// <summary>Adds the given span to the given list if it's not null and not empty.</summary>
+  static void FinishSpan(List<LayoutSpan> spans, LayoutSpan span)
   {
-    // update the NodePart and size of the span
-    span.NodePart = part;
+    if(span != null && span.Length != 0) spans.Add(span);
+  }
 
-    int originalWidth = span.Width;
-    switch(part)
+  /// <summary>A helper for <see cref="FinishLine"/> that, given a span, recursively clones and updates the span
+  /// and content length of it and its descendants, and adds the new spans to the given node spans dictionary.
+  /// </summary>
+  static LayoutSpan FinishSpanTree(Graphics gdi, Dictionary<DocumentNode,List<LayoutSpan>> nodeSpans, LayoutSpan span,
+                                   ref int startIndex, int startOffset)
+  {
+    DocumentNode node = span.GetNode(); // get the span list for this span's node, but don't add it to the dictionary
+    List<LayoutSpan> spanList;          // yet, because we will clone the span later and the reference will change
+    if(!nodeSpans.TryGetValue(node, out spanList)) nodeSpans[node] = spanList = new List<LayoutSpan>();
+
+    span.Start += startOffset; // recursively shift all spans by 'startOffset'. this is used to insert indices
+
+    if(span.Children.Length != 0) // if the span represents an inline container node...
     {
-      case NodePart.Full:
+      span.Size = new Size(); // then reset its size. its height will be calculated here, and its width in StackSpans
+
+      bool addLeadingIndex = spanList.Count == 0; // if this is the first span for this container node, we'll add an
+      if(addLeadingIndex)                         // index to allow the cursor to be placed in front of it
+      {
+        startOffset++;
+        startIndex++;
+      }
+
+      // recursively finish the children, and calculate the span's height using the now-correct childrens' heights
+      for(int i=0; i<span.Children.Length; i++)
+      {
+        span.Children[i] = FinishSpanTree(gdi, nodeSpans, span.Children[i], ref startIndex, startOffset);
+        span.Height = Math.Max(span.Height, span.Children[i].Height);
+      }
+
+      // now that all children are finished, calculate the span and content length of the container
+      LayoutSpan lastChild = span.Children[span.Children.Length-1];
+      span.Start  = span.Children[0].Start - (addLeadingIndex ? 1 : 0);
+      span.Length = span.ContentLength = lastChild.End - span.Start;
+
+      // finally, add another index to allow the cursor to be placed at the end of the container
+      span.Length++;
+      lastChild.Length++;
+      startIndex++;
+    }
+
+    // clone the span so it can be used again on the next line if necessary
+    LayoutSpan newSpan = span.CreateNew();
+    newSpan.BeginLayout(gdi);
+    newSpan.Margin      = span.Margin;  // these are the properties deemed necessary for layout. other members that
+    newSpan.Padding     = span.Padding; // the span wants to preserve must be copied in CreateNew, currently.
+    newSpan.Border      = span.Border;
+    newSpan.Size        = span.Size;
+    newSpan.Span        = span.Span;
+    newSpan.ContentSpan = span.ContentSpan;
+    newSpan.Children    = span.Children;
+    spanList.Add(newSpan);
+    return newSpan; // return the cloned subtree
+  }
+
+  /// <summary>Given a start index and node index, resets the <see cref="LayoutRegion.Size"/>,
+  /// <see cref="LayoutRegion.Span"/>, and <see cref="LayoutRegion.ContentSpan"/> of the given span and returns it.
+  /// </summary>
+  static LayoutSpan ResetSpan(LayoutSpan newSpan, int startIndex, int nodeIndex)
+  {
+    newSpan.Size        = new Size();
+    newSpan.Span        = new Span(startIndex, 0);
+    newSpan.ContentSpan = new Span(nodeIndex, 0);
+    return newSpan;
+  }
+
+  /// <summary>A helper for <see cref="LayoutLines"/> that, given a span tree where the leaf spans have the correct
+  /// sizes (not counting PBM), updates sizes by adding PBM, recursively lays out the spans within their containers,
+  /// left justified and aligned on a common baseline, and sets the sizes of interior spans.
+  /// </summary>
+  static void StackSpans(LayoutRegion parent, LayoutSpan[] spans)
+  {
+    // stack the spans horizontally within the line and calculate the maximum descent
+    int maxDescent = 0;
+
+    foreach(LayoutSpan span in spans)
+    {
+      UpdateSpanPBM(span);
+      if(span.Children.Length != 0) StackSpans(span, span.Children);
+
+      span.Left     = parent.Width - parent.RightPBM;
+      parent.Width += span.Width;
+      parent.Height = Math.Max(parent.Height, span.Height + parent.TopPBM + parent.BottomPBM);
+      maxDescent    = Math.Max(maxDescent, span.Descent);
+    }
+
+    // now go back through and position the spans vertically
+    // TODO: implement vertical alignment
+    foreach(LayoutSpan s in spans)
+    {
+      s.Top = parent.Height - parent.BottomPBM - s.Height + s.Descent - maxDescent; // just do bottom alignment for now...
+    }
+  }
+
+  /// <summary>A helper for <see cref="LayoutLines"/> that updates the size and descent of a span by adding space
+  /// based on its <see cref="LayoutRegion.NodePart"/>.
+  /// </summary>
+  static void UpdateSpanPBM(LayoutSpan span)
+  {
+    switch(span.NodePart)
+    {
+      case NodePart.Full: // the node has PBM on all sides
         span.Width  += span.LeftPBM + span.RightPBM;
         span.Height += span.Margin.TotalVertical;
         break;
-      case NodePart.Start:
+      case NodePart.Start: // the node has top-left PBM
         span.Width  += span.LeftPBM;
         span.Height += span.Margin.Top;
         break;
-      case NodePart.End:
+      case NodePart.End: // the node has bottom-right PBM
         span.Width  += span.RightPBM;
         span.Height += span.Margin.Bottom;
         break;
     }
-    span.Height  += span.Padding.TotalVertical + span.Border.Height*2; // we always add the vertical borders and padding
-    span.Descent += span.BottomPBM;  // update the descent as well, shifting it upward by the bottom PBM
+    // all spans have vertical padding and border
+    span.Height  += span.Padding.TotalVertical + span.Border.Height*2;
+    span.Descent += span.BottomPBM; // update the descent as well, shifting it upward by the bottom PBM
+  }
 
-    return span.Width - originalWidth; // return the width increase
+  /// <summary>A helper for <see cref="LayoutLines"/> that sets the <see cref="LayoutRegion.NodePart"/> member of
+  /// the spans in the given dictionary, assuming that the dictionary is completely built.
+  /// </summary>
+  static void UpdateSpansWithPBM(Dictionary<DocumentNode,List<LayoutSpan>> nodeSpans)
+  {
+    foreach(List<LayoutSpan> spans in nodeSpans.Values)
+    {
+      if(spans.Count == 1) // if the node fit into a single span, the span is Full
+      {
+        spans[0].NodePart = NodePart.Full;
+      }
+      else if(spans.Count > 1) // otherwise, the node was split into several spans, so mark the Start, End, and Middles
+      {
+        spans[0].NodePart = NodePart.Start;
+        for(int i=1; i<spans.Count-1; i++) spans[i].NodePart = NodePart.Middle;
+        spans[spans.Count-1].NodePart = NodePart.End;
+      }
+    }
   }
   #endregion
 
@@ -2219,8 +2558,7 @@ public class DocumentEditor : Control
     int newIndex;
     using(Graphics gdi = Graphics.FromHwnd(Handle))
     {
-      newIndex = sibling.GetNearestIndex(gdi, new Point(idealCursorX - sibling.AbsoluteLeft,
-                                                        Math.Min(sibling.Height, sibling.TopPBM)));
+      newIndex = sibling.GetNearestIndex(gdi, new Point(idealCursorX - sibling.AbsoluteLeft, sibling.TopPBM));
     }
 
     UpdateSelection(newIndex, extendSelection);
