@@ -3215,6 +3215,10 @@ public class DocumentEditor : Control
           if(EnableCursor) MoveCursorTo(0, false);
           else ScrollToTop();
         }
+        else if(e.Modifiers == (Keys.Control | Keys.Shift) && EnableCursor) // shift-ctrl-home extends the selection to
+        {                                                                   // the top of the document
+          MoveCursorTo(0, true);
+        }
         else goto default;
         break;
 
@@ -3231,6 +3235,10 @@ public class DocumentEditor : Control
         {
           if(EnableCursor) MoveCursorTo(IndexLength, false);
           else ScrollToBottom();
+        }
+        else if(e.Modifiers == (Keys.Control | Keys.Shift) && EnableCursor) // shift-ctrl-end extends the selection to
+        {                                                                   // the bottom of the document
+          MoveCursorTo(IndexLength, true);
         }
         else goto default;
         break;
@@ -3620,24 +3628,36 @@ public class DocumentEditor : Control
       LayoutRegion region = GetRegion(span.Start);
       using(Graphics gdi = Graphics.FromHwnd(Handle))
       {
-        LayoutRegion[] children = region.Parent == null ? null : region.Parent.GetChildren();
         while(true)
         {
-          int endIndex = Math.Min(span.End, region.End);
+          // move up to find the largest region that is fully contained within the span, so that we can return fewer,
+          // larger rectangles
+          while(region.Parent != null && span.Contains(region.Parent.Span)) region = region.Parent;
+
+          LayoutRegion[] children = region.GetChildren();
+
+          // consider the situation of a block that contains several lines. imagine that the start index is at the
+          // beginning of the block end index is near the beginning of the second line. although the span extends the
+          // full width of the first line as it wraps, the approach of asking for the two horizontal offsets as is done
+          // below would return a rectangle much narrower than is correct. to prevent this, we'll delegate to the
+          // children of the region if the span doesn't contain the entire region
+          int limit = children.Length != 0 && children[0].Span.Start > span.Start && !span.Contains(region.Span)
+            ? children[0].Start : region.End;
+
+          int endIndex = Math.Min(span.End, limit);
           int start = region.GetPixelOffset(gdi, span.Start - region.Start).X;
           int end = region.GetPixelOffset(gdi, endIndex - region.Start).X;
 
           Rectangle area = new Rectangle(region.AbsoluteLeft + start, region.AbsoluteTop,
-                                            end - start, region.Height);
+                                         end - start, region.Height);
           if(area.Width != 0) yield return area;
 
-          // if this region contains the rest of the span, or there are no more regions to check, we're done
-          if(region.Span.End >= span.End || children == null) break;
+          if(endIndex == span.End) break; // if that was the end of the span, we're done
 
-          // this region doesn't contain the whole span, so try the next sibling
-          if(region.Index < children.Length-1 && children[region.Index+1].Span.Contains(endIndex))
+          // this region doesn't contain the whole span, so try to continue from its first child
+          if(children.Length != 0 && children[0].Span.Contains(endIndex))
           {
-            region = children[region.Index+1]; // the next sibling does contain it, so we'll search downward from there
+            region = children[0]; // the first child does contain it, so we'll search downward from there
           }
           else // there is no next sibling, or the sibling doesn't contain the next portion, so we'll move upwards until
           {    // we find the region containing the next portion, and then search downward again
@@ -3646,7 +3666,6 @@ public class DocumentEditor : Control
 
           // search downward from the region found above
           region = region.GetRegion(endIndex);
-          children = region.Parent == null ? null : region.Parent.GetChildren();
           span = new Span(endIndex, span.End-endIndex);
         }
       }
