@@ -71,6 +71,13 @@
         </summary>
       </BeginLayout>
 
+      <CalculateDistance>
+        <summary>
+          A helper for <see cref="LayoutRegion.GetNearestIndex"/> that calculates the distance between a point and a
+          child region's area, returning zero if the point is contained within the area.
+        </summary>
+      </CalculateDistance>
+
       <EndLayout>
         <summary>Called after the region is laid out.</summary>
       </EndLayout>

@@ -938,6 +938,25 @@ public class DocumentEditor : Control
     /// <summary>The portion of the <see cref="DocumentNode"/> represented by this region.</summary>
     public NodePart NodePart;
 
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/CalculateDistance/*"/>
+    /// <remarks>Distances are biased so that points contained vertically are always nearer than points not contained
+    /// vertically. The distances should not be taken as actual measurements of space, but only used for comparisons
+    /// of relative closeness.
+    /// </remarks>
+    protected virtual uint CalculateDistance(Point pt, Rectangle rect)
+    {
+      int xDistance = pt.X < rect.Left ? rect.Left-pt.X : pt.X >= rect.Right  ? pt.X-rect.Right+1  : 0;
+      int yDistance = pt.Y < rect.Top  ? rect.Top-pt.Y  : pt.Y >= rect.Bottom ? pt.Y-rect.Bottom+1 : 0;
+
+      if(xDistance == 0 && yDistance == 0) return 0;
+      else if(xDistance >= 32768 || yDistance >= 32768) return uint.MaxValue; // prevent overflow
+      else
+      {
+        uint distance = (uint)(xDistance*xDistance + yDistance*yDistance);
+        return yDistance == 0 ? distance : distance | 0x80000000;
+      }
+    }
+
     /// <summary>Renders the background of the region if it is associated with a <see cref="DocumentNode"/>.</summary>
     protected void RenderBackground(ref RenderData data, Point clientPoint)
     {
@@ -1051,27 +1070,6 @@ public class DocumentEditor : Control
         }
       }
     }
-
-    /// <summary>Calculates the distance between a point and a rectangle, returning zero if the point is contained
-    /// within the rectangle.
-    /// </summary>
-    /// <remarks>Distances are biased so that points contained vertically are always nearer than points not contained
-    /// vertically. The distances should not be taken as actual measurements of space, but only used for comparisons
-    /// of relative closeness.
-    /// </remarks>
-    static uint CalculateDistance(Point pt, Rectangle rect)
-    {
-      int xDistance = pt.X < rect.Left ? rect.Left-pt.X : pt.X >= rect.Right  ? pt.X-rect.Right+1  : 0;
-      int yDistance = pt.Y < rect.Top  ? rect.Top-pt.Y  : pt.Y >= rect.Bottom ? pt.Y-rect.Bottom+1 : 0;
-
-      if(xDistance == 0 && yDistance == 0) return 0;
-      else if(xDistance >= 32768 || yDistance >= 32768) return uint.MaxValue; // prevent overflow
-      else
-      {
-        uint distance = (uint)(xDistance*xDistance + yDistance*yDistance);
-        return yDistance == 0 ? distance : distance | 0x80000000;
-      }
-    }
   }
   #endregion
 
@@ -1137,6 +1135,13 @@ public class DocumentEditor : Control
     public Line() { }
     /// <summary>Initializes a new <see cref="Line"/> with the given child array.</summary>
     public Line(LayoutSpan[] children) : base(children) { }
+
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/CalculateDistance/*"/>
+    /// <remarks>Calculates the distance, considering horizontal positioning only.</remarks>
+    protected override uint CalculateDistance(Point pt, Rectangle rect)
+    {
+      return (uint)(pt.X < rect.Left ? rect.Left-pt.X : pt.X >= rect.Right ? pt.X-rect.Right+1 : 0);
+    }
   }
   #endregion
 
@@ -2976,13 +2981,13 @@ public class DocumentEditor : Control
     return new Point(clientPt.X - canvasStart.X + scrollPos.X, clientPt.Y - canvasStart.Y + scrollPos.Y);
   }
 
-  /// <summary>Given a point in client coordinates, returns the nearest document index.</summary>
-  protected int GetNearestIndex(Point clientPt)
+  /// <summary>Given a point in document coordinates, returns the nearest document index.</summary>
+  protected int GetNearestIndex(Point docPt)
   {
     using(Graphics gdi = Graphics.FromHwnd(Handle))
     {
       EnsureLayout(gdi);
-      return rootBlock.GetNearestIndex(gdi, GetDocumentPoint(clientPt));
+      return rootBlock.GetNearestIndex(gdi, docPt);
     }
   }
 
@@ -3280,14 +3285,17 @@ public class DocumentEditor : Control
     {
       Focus(); // on a mouse click, give our control the input focus
 
-      // TODO: depressing a button within the selection shouldn't move the cursor until a click has been confirmed,
-      // and only then if it was a left click
-      if(EnableCursor)
+      Point docPt = GetDocumentPoint(e.Location);
+
+      // move the cursor if selection is enabled and the mouse click was outside the selection
+      if(EnableCursor && !IsPointWithinSpan(docPt, Selection))
       {
-        int newIndex = GetNearestIndex(e.Location);
+        int newIndex = GetNearestIndex(docPt);
         UpdateSelection(newIndex, (Control.ModifierKeys & Keys.Shift) != 0);
         CursorIndex = newIndex;
       }
+
+      mouseDown[GetMouseIndex(e.Button)] = docPt;
     }
   }
 
@@ -3356,6 +3364,32 @@ public class DocumentEditor : Control
   protected override void OnMouseUp(MouseEventArgs e)
   {
     base.OnMouseUp(e);
+
+    if(e.Button == MouseButtons.Left || e.Button == MouseButtons.Right)
+    {
+      int btnIndex = GetMouseIndex(e.Button);
+      if(mouseDown[btnIndex].HasValue)
+      {
+        Point downPt = mouseDown[btnIndex].Value, upPt = GetDocumentPoint(e.Location);
+        int xd = upPt.X - downPt.X, yd = upPt.Y - downPt.Y;
+
+        if(xd*xd + yd*yd < 4) // if the mouse hasn't moved too far since the button was pressed, it's a click
+        {
+          // a left-click within the selection will alter it
+          if(e.Button == MouseButtons.Left && IsPointWithinSpan(downPt, Selection))
+          {
+            int newIndex = GetNearestIndex(downPt);
+            UpdateSelection(newIndex, (Control.ModifierKeys & Keys.Shift) != 0);
+            CursorIndex = newIndex;
+          }
+
+          LayoutRegion region = GetRegion(downPt);
+          if(region != null) region.OnClick(this, new MouseEventArgs(e.Button, e.Clicks, downPt.X, downPt.Y, e.Delta));
+        }
+
+        mouseDown[btnIndex] = null;
+      }
+    }
   }
 
   /// <summary>Called when the mouse wheel is moved.</summary>
@@ -3576,6 +3610,49 @@ public class DocumentEditor : Control
     return false;
   }
 
+  /// <summary>Given a span within the document, enumerates the rectangles of the document within the span.</summary>
+  IEnumerable<Rectangle> EnumerateRectangles(Span span)
+  {
+    // TODO: ensure that this returns the largest rectangles possible (eg, if a whole lineblock is selected, we don't
+    // need each individual span within it)
+    if(HasLayout && span.Length != 0)
+    {
+      LayoutRegion region = GetRegion(span.Start);
+      using(Graphics gdi = Graphics.FromHwnd(Handle))
+      {
+        LayoutRegion[] children = region.Parent == null ? null : region.Parent.GetChildren();
+        while(true)
+        {
+          int endIndex = Math.Min(span.End, region.End);
+          int start = region.GetPixelOffset(gdi, span.Start - region.Start).X;
+          int end = region.GetPixelOffset(gdi, endIndex - region.Start).X;
+
+          Rectangle area = new Rectangle(region.AbsoluteLeft + start, region.AbsoluteTop,
+                                            end - start, region.Height);
+          if(area.Width != 0) yield return area;
+
+          // if this region contains the rest of the span, or there are no more regions to check, we're done
+          if(region.Span.End >= span.End || children == null) break;
+
+          // this region doesn't contain the whole span, so try the next sibling
+          if(region.Index < children.Length-1 && children[region.Index+1].Span.Contains(endIndex))
+          {
+            region = children[region.Index+1]; // the next sibling does contain it, so we'll search downward from there
+          }
+          else // there is no next sibling, or the sibling doesn't contain the next portion, so we'll move upwards until
+          {    // we find the region containing the next portion, and then search downward again
+            do region = region.Parent; while(region != null && !region.Span.Contains(endIndex));
+          }
+
+          // search downward from the region found above
+          region = region.GetRegion(endIndex);
+          children = region.Parent == null ? null : region.Parent.GetChildren();
+          span = new Span(endIndex, span.End-endIndex);
+        }
+      }
+    }
+  }
+
   /// <summary>Returns the font to be used to render text in a document node.</summary>
   Font GetEffectiveFont(DocumentNode node)
   {
@@ -3679,45 +3756,24 @@ public class DocumentEditor : Control
   Rectangle GetVisibleArea(Span span)
   {
     Rectangle area = new Rectangle();
-    if(HasLayout && span.Length != 0)
+    foreach(Rectangle newArea in EnumerateRectangles(span))
     {
-      LayoutRegion region = GetRegion(span.Start);
-      using(Graphics gdi = Graphics.FromHwnd(Handle))
-      {
-        Point docOffset = GetClientPoint(new Point());
-        LayoutRegion[] children = region.Parent == null ? null : region.Parent.GetChildren();
-        while(true)
-        {
-          int endIndex = Math.Min(span.End, region.End);
-          int start = region.GetPixelOffset(gdi, span.Start - region.Start).X;
-          int   end = region.GetPixelOffset(gdi, endIndex - region.Start).X;
-          
-          Rectangle newArea = new Rectangle(region.AbsoluteLeft + docOffset.X + start,
-                                            region.AbsoluteTop + docOffset.Y, end - start, region.Height);
-          if(newArea.Width != 0) area = area.Width == 0 ? newArea : Rectangle.Union(area, newArea);
-
-          // if this region contains the rest of the span, or there are no more regions to check, we're done
-          if(region.Span.End >= span.End || children == null) break;
-
-          // this region doesn't contain the whole span, so try the next sibling
-          if(region.Index < children.Length-1 && children[region.Index+1].Span.Contains(endIndex))
-          {
-            region = children[region.Index+1]; // the next sibling does contain it, so we'll search downward from there
-          }
-          else // there is no next sibling, or the sibling doesn't contain the next portion, so we'll move upwards until
-          {    // we find the region containing the next portion, and then search downward again
-            do region = region.Parent; while(region != null && !region.Span.Contains(endIndex));
-          }
-
-          // search downward from the region found above
-          region = region.GetRegion(endIndex);
-          children = region.Parent == null ? null : region.Parent.GetChildren();
-          span = new Span(endIndex, span.End-endIndex);
-        }
-      }
+      area = area.Width == 0 ? newArea : Rectangle.Union(area, newArea);
     }
-
+    area.Offset(GetClientPoint(new Point()));
     return area;
+  }
+
+  /// <summary>Given a point and a span within the document, returns whether the point is within the region covered
+  /// by the span.
+  /// </summary>
+  bool IsPointWithinSpan(Point docPt, Span span)
+  {
+    foreach(Rectangle newArea in EnumerateRectangles(span))
+    {
+      if(newArea.Contains(docPt)) return true;
+    }
+    return false;
   }
 
   /// <summary>Places and sizes the scrollbars based on the size of the control and the size of the document.</summary>
@@ -3877,6 +3933,7 @@ public class DocumentEditor : Control
   readonly Document document;
   RootRegion rootBlock;
   List<LayoutRegion> mouseOver = new List<LayoutRegion>(), mouseOut = new List<LayoutRegion>();
+  Point?[] mouseDown = new Point?[3]; // where the left, middle, and right mouse buttons were pressed, in document pts
   HScrollBar hScrollBar;
   VScrollBar vScrollBar;
   /// <summary>The area of the text cursor within the control.</summary>
@@ -3892,6 +3949,17 @@ public class DocumentEditor : Control
   static void FillAncestorList(List<LayoutRegion> list, LayoutRegion region)
   {
     for(; region != null; region = region.Parent) list.Add(region);
+  }
+
+  /// <summary>Given a <see cref="MouseButtons"/> of Left, Right, or Middle, returns an integer from 0 to 2
+  /// representing the button.
+  /// </summary>
+  static int GetMouseIndex(MouseButtons button)
+  {
+    if(button == MouseButtons.Left) return 0;
+    else if(button == MouseButtons.Right) return 2;
+    else if(button == MouseButtons.Middle) return 1;
+    else throw new ArgumentOutOfRangeException();
   }
 
   /// <summary>Given a graphics context, a measurement, the measurement unit, and the measurement orientation, returns
