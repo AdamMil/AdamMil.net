@@ -36,9 +36,14 @@
   <ItemGroup>
     <Compile Include="IOH.cs" />
     <Compile Include="BinaryReaderWriter.cs" />
+    <Compile Include="Pipes.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\TestHelpers\AdamMil.TestHelpers.csproj">
+      <Project>{E755006A-EB9E-4A5A-9872-65A2C4737C20}</Project>
+      <Name>AdamMil.TestHelpers</Name>
+    </ProjectReference>
     <ProjectReference Include="..\AdamMil.IO.csproj">
       <Project>{CEB9BC77-B63F-40A1-BEDE-7C32E9B90D55}</Project>
       <Name>AdamMil.IO</Name>
