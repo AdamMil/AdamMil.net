@@ -1,0 +1,229 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Security>
+  <Common>
+    <Exception>
+      <Cons0>
+        <summary>Initializes a new exception.</summary>
+      </Cons0>
+
+      <Cons1>
+        <summary>Initializes a new exception.</summary>
+        <param name="message">A human-readable message that describes the error.</param>
+      </Cons1>
+
+      <Cons2>
+        <summary>Initializes a new exception.</summary>
+        <param name="message">A human-readable message that describes the error.</param>
+        <param name="innerException">The exception that is the cause of the current exception.</param>
+      </Cons2>
+    </Exception>
+
+    <ToString>Converts the object to a human-readable string.</ToString>
+  </Common>
+  
+  <ReadOnlyClass>
+    <Finish>
+      <summary>
+        Validates and locks the property values of the object so that they cannot be changed. This method is
+        intended to be called by the PGP interface before returning the object to the user.
+      </summary>
+    </Finish>
+  </ReadOnlyClass>
+
+  <Key>
+    <Keyring>
+      <summary>
+        Gets or sets the name of the keyring file that contains the key, or null if they key is from the default
+        keyring.
+      </summary>
+    </Keyring>
+  </Key>
+
+  <PGPSystem>
+    <Decrypt>
+      <summary>Decrypts the given ciphertext and writes the result to the given destination.</summary>
+    </Decrypt>
+    
+    <DeleteKey>
+      <summary>Deletes the given key, or a part of it, from its keyring.</summary>
+    </DeleteKey>
+
+    <Encrypt>
+      <summary>Encrypts the given source data, writing the result to the given destination.</summary>
+    </Encrypt>
+    
+    <ExportPublicKeys>
+      <summary>Exports the given public keys to the given destination.</summary>
+    </ExportPublicKeys>
+    
+    <ExportPublicKeys2>
+      <summary>Exports all public keys in the given keyring files and/or the default keyring to the given destination.</summary>
+      <param name="keyrings">
+        Specifies a list of additional keyrings. If null or empty, no additional keyrings will be used.
+      </param>
+      <param name="includeDefaultKeyring">
+        Specifies whether the default keyring will be implicitly included. If false,
+        only the keyrings listed in <paramref name="keyrings"/> will be used.
+      </param>
+      <param name="options">Options controlling how the keys should be exported.</param>
+      <param name="destination">The stream to which the key data will be written.</param>
+      <param name="format">The output format.</param>
+    </ExportPublicKeys2>
+    
+    <ExportSecretKeys>
+      <summary>Exports the given secret keys to the given destination.</summary>
+    </ExportSecretKeys>
+    
+    <ExportSecretKeys2>
+      <summary>Exports all secret keys in the given keyring files and/or the default keyring to the given destination.</summary>
+      <param name="keyrings">
+        Specifies a list of additional keyrings. If null or empty, no additional keyrings will be used.
+      </param>
+      <param name="includeDefaultKeyring">
+        Specifies whether the default keyring will be implicitly included. If false,
+        only the keyrings listed in <paramref name="keyrings"/> will be used.
+      </param>
+      <param name="options">Options controlling how the keys should be exported.</param>
+      <param name="destination">The stream to which the key data will be written.</param>
+      <param name="format">The output format.</param>
+    </ExportSecretKeys2>
+    
+    <GenerateRandomData>
+      <summary>Generates random data and writes it to the given buffer.</summary>
+      <param name="level">
+        The level of randomness of the data. For most operations, this should be
+        <see cref="Randomness.Strong"/>.
+      </param>
+      <param name="buffer">The array to which the random data will be written.</param>
+      <param name="index">
+        The index within <paramref name="buffer"/> where writing will begin.
+      </param>
+      <param name="count">The number of bytes to write.</param>
+    </GenerateRandomData>
+
+    <GetPassword>
+      <summary>Gets the password for the key named in the given password hint.</summary>
+      <param name="keyId">The ID of the key whose password is sought.</param>
+      <param name="passwordHint">A password hint to be displayed to the user.</param>
+      <returns>
+        Returns a <see cref="SecureString"/> containing the password.
+      </returns>
+    </GetPassword>
+
+    <GetPublicKeys>
+      <summary>Gets all public keys in the default keyring.</summary>
+    </GetPublicKeys>
+    
+    <GetPublicKeys2>
+      <summary>Gets all public keys in the default keyring and/or the list of keyring files.</summary>
+      <param name="signatures">Specifies whether key signatures should be returned and verified.</param>
+      <param name="keyrings">
+        Specifies a list of additional keyring. If null or empty, no additional keyrings will be used.
+      </param>
+      <param name="includeDefaultKeyring">
+        Specifies whether the default keyring will be implicitly included. If false,
+        only the keyrings listed in <paramref name="keyrings"/> will be used.
+      </param>
+    </GetPublicKeys2>
+    
+    <GetSecretKeys>
+      <summary>Gets all secret keys in the default keyring.</summary>
+    </GetSecretKeys>
+    
+    <GetSecretKeys2>
+      <summary>Gets all secret keys in the default keyring and/or the list of keyring files.</summary>
+      <param name="keyrings">
+        Specifies a list of additional keyring. If null or empty, no additional keyrings will be used.
+      </param>
+      <param name="includeDefaultKeyring">
+        Specifies whether the default keyring will be implicitly included. If false,
+        only the keyrings listed in <paramref name="keyrings"/> will be used.
+      </param>
+    </GetSecretKeys2>
+
+    <GetSupportedCiphers>
+      <summary>
+        Gets a list of the cipher algorithms supported by the PGP system. You can use them case-insensitively to
+        check whether a given algorithm is supported.
+      </summary>
+    </GetSupportedCiphers>
+
+    <GetSupportedCompressions>
+      <summary>
+        Gets a list of the compression algorithms supported by the PGP system. You can use them
+        case-insensitively to check whether a given algorithm is supported.
+      </summary>
+    </GetSupportedCompressions>
+
+    <GetSupportedHashes>
+      <summary>
+        Gets a list of the hash algorithms supported by the PGP system. You can use them case-insensitively to
+        check whether a given algorithm is supported.
+      </summary>
+    </GetSupportedHashes>
+
+    <GetSupportedKeyTypes>
+      <summary>
+        Gets a list of the key types supported by the PGP system. You can use them case-insensitively to check
+        whether a given key type is supported.
+      </summary>
+    </GetSupportedKeyTypes>
+    
+    <Hash>
+      <summary>Generates a hash of the given data, using the given hash algorithm.</summary>
+      <param name="hashAlgorithm">
+        The name of the algorithm used to hash the data. This can be one of the
+        <see cref="HashAlgorithm"/> values, or another algorithm name. If you don't particularly care which algorithm
+        will be used, then it's usually best to use <see cref="HashAlgorithm.Default"/>. If you do want to use a specific
+        algorithm, you should check that it is supported by checking <see cref="GetSupportedHashes"/>.
+      </param>
+      <param name="data">The stream from which the data to hash will be read.</param>
+    </Hash>
+
+    <ImportKeys2>
+      <summary>Imports keys from the given source into the default keyring.</summary>
+    </ImportKeys2>
+    
+    <ImportKeys3>
+      <summary>Imports keys from the given source into the given keyring.</summary>
+    </ImportKeys3>
+
+    <OnInvalidPassword>
+      <summary>
+        Called when the password for the given key is invalid, to allow client applications to flush their
+        password cache (if using one) and retry. Applications should not request a new password in response to this
+        event.
+      </summary>
+      <param name="keyId">The key ID whose password was invalid.</param>
+    </OnInvalidPassword>
+    
+    <Sign>
+      <summary>Signs the given source data and writes the result to the given destination.</summary>
+    </Sign>
+
+    <SignAndEncrypt>
+      <summary>Signs and/or encrypts the given source data and writes the result to the given destination.</summary>
+      <param name="sourceData">The stream from which the unencrypted source data will be read.</param>
+      <param name="destination">The stream to which the signed and/or encrypted data will be written.</param>
+      <param name="signingOptions">Options that control the signing of the data, or null to only encrypt the data.</param>
+      <param name="encryptionOptions">Options that control the encryption of the data, or null to only sign the data.</param>
+      <param name="outputOptions">Options that control the output format.</param>
+      <remarks>
+        Only one of <paramref name="signingOptions"/> and <paramref name="encryptionOptions"/> can be null.
+      </remarks>
+    </SignAndEncrypt>
+
+    <Verify2>
+      <summary>Verifies embedded signatures in the given signed data. The signed data should not be encrypted after it
+        was signed. To verify signatures in encrypted, signed data, call <see cref="Decrypt"/>.
+      </summary>
+    </Verify2>
+
+    <Verify3>
+      <summary>
+        Verifies detached signatures for the given signed data. The signed data should not be encrypted after it
+        was signed. To verify signatures in encrypted, signed data, call <see cref="Decrypt"/>.
+      </summary>
+    </Verify3>
+  </PGPSystem>
+</Security>

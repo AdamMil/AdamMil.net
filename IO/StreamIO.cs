@@ -30,30 +30,33 @@ namespace AdamMil.IO
 public unsafe static partial class IOH
 {
   #region CopyStream
-  /// <summary>Copies a source stream into a destination stream and returns the number of bytes copies.</summary>
-  /// <remarks>Data is copied from the source stream's current position until the end.</remarks>
+  /// <summary>Copies a source stream into a destination stream and returns the number of bytes copied. The streams
+  /// are not rewound or disposed.
+  /// </summary>
   public static int CopyStream(Stream source, Stream dest) { return CopyStream(source, dest, false, false, 0); }
 
-  /// <summary>Copies a source stream into a destination stream and returns the number of bytes copies.</summary>
-  /// <remarks>Data is copied from the source stream's current position until the end.</remarks>
+  /// <summary>Copies a source stream into a destination stream and returns the number of bytes copied. The streams
+  /// are not rewound.
+  /// </summary>
   public static int CopyStream(Stream source, Stream dest, bool disposeStreams)
   {
     return CopyStream(source, dest, disposeStreams, false, 0);
   }
 
-  /// <summary>Copies a source stream into a destination stream and returns the number of bytes copies.</summary>
-  /// <remarks>Data is copied from the source stream's current position until the end.</remarks>
+  /// <summary>Copies a source stream into a destination stream and returns the number of bytes copied.</summary>
   public static int CopyStream(Stream source, Stream dest, bool disposeStreams, bool rewindSource)
   {
     return CopyStream(source, dest, disposeStreams, rewindSource, 0);
   }
 
   /// <summary>Copies a source stream into a destination stream and returns the number of bytes copied.</summary>
+  /// <param name="source">The stream from which the source data will be copied.</param>
+  /// <param name="dest">The stream into which the source data will be written.</param>
+  /// <param name="disposeStreams">If true, the source and destination streams will be disposed after the copy is made.</param>
   /// <param name="rewindSource">If true, the source stream's <see cref="Stream.Position"/> property will be set
   /// to 0 first to ensure that the entire source stream is copied.
   /// </param>
-  /// <param name="disposeStreams">If true, the source and destination streams will be disposed.</param>
-  /// <param name="bufferSize">The size of the buffer to use. Passing zero will use the default value of 4096 bytes.</param>
+  /// <param name="bufferSize">The size of the buffer to use. Passing zero will use a default value.</param>
   public static int CopyStream(Stream source, Stream dest, bool disposeStreams, bool rewindSource, int bufferSize)
   {
     if(source == null || dest == null) throw new ArgumentNullException();
