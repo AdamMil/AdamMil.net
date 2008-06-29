@@ -175,12 +175,15 @@ public static class SubkeyType
 
 #region DecryptionOptions
 /// <summary>Specifies options that control the decryption of data.</summary>
-public class DecryptionOptions
+public class DecryptionOptions : VerificationOptions
 {
-  /// <summary>Gets a collection of additional keyrings that will be searched to find the appropriate secret key.</summary>
-  public List<Keyring> AdditionalKeyrings
+  /// <summary>Initializes a new <see cref="DecryptionOptions"/> object with the default options.</summary>
+  public DecryptionOptions() { }
+
+  /// <summary>Initializes a new <see cref="DecryptionOptions"/> object with the given cipher password.</summary>
+  public DecryptionOptions(SecureString password)
   {
-    get { return keyrings; }
+    Password = password;
   }
 
   /// <summary>Gets or sets a value that determines whether the input will be assumed to be binary. If true, the input
@@ -203,15 +206,6 @@ public class DecryptionOptions
     set { cipher = value; }
   }
 
-  /// <summary>Gets or sets a value that determines whether the default keyring should be ignored -- that is, not
-  /// searched to find the secret key.
-  /// </summary>
-  public bool IgnoreDefaultKeyring
-  {
-    get { return ignoreDefaultKeyring; }
-    set { ignoreDefaultKeyring = value; }
-  }
-
   /// <summary>Gets or sets the password used to decrypt the data. This is not related to the password used to access
   /// an encryption key on the keyring. The password used is decrypt ciphertext that was with a simple password (using
   /// <see cref="EncryptionOptions.Password"/>). The value null, which is the default, specifies that password-based
@@ -224,10 +218,9 @@ public class DecryptionOptions
     set { password = value; }
   }
 
-  readonly List<Keyring> keyrings = new List<Keyring>();
   SecureString password;
   string cipher = SymmetricCipher.Default;
-  bool binaryOnly, ignoreDefaultKeyring;
+  bool binaryOnly;
 }
 #endregion
 
@@ -242,6 +235,12 @@ public class EncryptionOptions
   public EncryptionOptions(params Key[] recipients)
   {
     foreach(Key recipient in recipients) Recipients.Add(recipient);
+  }
+
+  /// <summary>Initializes a new <see cref="EncryptionOptions"/> object with the given symmetric cipher password.</summary>
+  public EncryptionOptions(SecureString password)
+  {
+    Password = password;
   }
 
   /// <summary>Gets or sets the name of the cipher algorithm used to encrypt the data. This can be one of the

@@ -105,9 +105,8 @@
       <summary>Gets the password for the key named in the given password hint.</summary>
       <param name="keyId">The ID of the key whose password is sought.</param>
       <param name="passwordHint">A password hint to be displayed to the user.</param>
-      <returns>
-        Returns a <see cref="SecureString"/> containing the password.
-      </returns>
+      <returns>Returns a new <see cref="SecureString"/> containing the password.</returns>
+      <remarks>The password will be disposed after being used.</remarks>
     </GetPassword>
 
     <GetPublicKeys>
@@ -214,15 +213,15 @@
     </SignAndEncrypt>
 
     <Verify2>
-      <summary>Verifies embedded signatures in the given signed data. The signed data should not be encrypted after it
-        was signed. To verify signatures in encrypted, signed data, call <see cref="Decrypt"/>.
+      <summary>Verifies embedded signatures in the given signed data. The signed data should not have been
+        simultaneously encrypted. To verify signatures in encrypted, signed data, call <see cref="Decrypt"/>.
       </summary>
     </Verify2>
 
     <Verify3>
       <summary>
-        Verifies detached signatures for the given signed data. The signed data should not be encrypted after it
-        was signed. To verify signatures in encrypted, signed data, call <see cref="Decrypt"/>.
+        Verifies detached signatures for the given signed data. The signed data should not have been
+        simultaneously encrypted. To verify signatures in encrypted, signed data, call <see cref="Decrypt"/>.
       </summary>
     </Verify3>
   </PGPSystem>
