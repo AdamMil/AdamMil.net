@@ -155,18 +155,9 @@ public class ExeGPG : GPG
   public override void SignAndEncrypt(Stream sourceData, Stream destination, SigningOptions signingOptions,
                                       EncryptionOptions encryptionOptions, OutputOptions outputOptions)
   {
-    // TODO: implement symmetric encryption. it's gonna be a bitch combined with signing, because of the 1-password limit
-    if(encryptionOptions != null && encryptionOptions.Password != null) throw new NotImplementedException();
-
     if(sourceData == null || destination == null || encryptionOptions == null && signingOptions == null)
     {
       throw new ArgumentNullException();
-    }
-
-    if(encryptionOptions != null &&
-       encryptionOptions.Recipients.Count == 0 && encryptionOptions.HiddenRecipients.Count == 0)
-    {
-      throw new ArgumentException("No recipients were specified.");
     }
 
     if(signingOptions != null)
@@ -176,6 +167,32 @@ public class ExeGPG : GPG
       {
         throw new NotSupportedException("Unfortunately, GPG only supports sending a single password, so only a "+
           "single signing key can be supported.");
+      }
+    }
+
+    bool symmetric = false;
+    if(encryptionOptions != null)
+    {
+      symmetric = encryptionOptions.Password != null && encryptionOptions.Password.Length != 0;
+
+      if(signingOptions != null)
+      {
+        if(encryptionOptions.Password != null && encryptionOptions.Password.Length != 0)
+        {
+          throw new NotSupportedException("Unfortunately, GPG only supports sending a single password, so symmetric "+
+            "encryption cannot be combined with signing.");
+        }
+
+        if(signingOptions.Detached)
+        {
+          throw new NotSupportedException("Simultaneous encryption and detached signing is not supported. Perform "+
+                                          "the encryption and detached signing as two separate steps.");
+        }
+      }
+
+      if(!symmetric && encryptionOptions.Recipients.Count == 0 && encryptionOptions.HiddenRecipients.Count == 0)
+      {
+        throw new ArgumentException("No recipients were specified.");
       }
     }
 
@@ -193,10 +210,14 @@ public class ExeGPG : GPG
         args += "--cipher-algo " + EscapeArg(encryptionOptions.Cipher) + " ";
       }
 
-      foreach(Key key in encryptionOptions.Recipients) args += "-r " + key.Fingerprint + " ";
-      foreach(Key key in encryptionOptions.HiddenRecipients) args += "-R " + key.Fingerprint + " ";
+      if(totalRecipients.Count != 0)
+      {
+        foreach(Key key in encryptionOptions.Recipients) args += "-r " + key.Fingerprint + " ";
+        foreach(Key key in encryptionOptions.HiddenRecipients) args += "-R " + key.Fingerprint + " ";
+        args += "-e ";
+      }
 
-      args += "-e ";
+      if(symmetric) args += "-c ";
     }
 
     if(signingOptions != null)
@@ -204,11 +225,21 @@ public class ExeGPG : GPG
       args += GetKeyringArgs(signingOptions.Signers, true, true);
       if(!string.IsNullOrEmpty(signingOptions.Hash)) args += "--digest-algo "+EscapeArg(signingOptions.Hash)+" ";
       foreach(Key key in signingOptions.Signers) args += "-u " + key.Fingerprint + " ";
-      args += signingOptions != null && signingOptions.Detached ? "-b" : "-s";
+      args += signingOptions != null && signingOptions.Detached ? "-b " : "-s ";
     }
 
-    Command cmd = Execute(args, true, false, StreamHandling.Unprocessed, StreamHandling.ProcessText,
-                          signingOptions == null ? null : signingOptions.Signers[0]);
+    Command cmd;
+    if(symmetric)
+    {
+      cmd = Execute(args, true, false, StreamHandling.Unprocessed, StreamHandling.ProcessText,
+                    encryptionOptions.Password, false);
+    }
+    else
+    {
+      cmd = Execute(args, true, false, StreamHandling.Unprocessed, StreamHandling.ProcessText,
+                    signingOptions == null ? null : signingOptions.Signers[0]);
+    }
+
     using(ManualResetEvent ready = new ManualResetEvent(false))
     using(cmd)
     {
@@ -887,6 +918,7 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
         case "GOOD_PASSPHRASE": message = new GenericMessage(StatusMessageType.GoodPassphrase); break;
         case "MISSING_PASSPHRASE": message = new GenericMessage(StatusMessageType.MissingPassphrase); break;
         case "BAD_PASSPHRASE": message = new BadPassphraseMessage(arguments); break;
+        case "NEED_PASSPHRASE_SYM": message = new GenericMessage(StatusMessageType.NeedCipherPassphrase); break;
 
         case "BEGIN_SIGNING": message = new GenericMessage(StatusMessageType.BeginSigning); break;
         case "SIG_CREATED": message = new GenericMessage(StatusMessageType.SigCreated); break;
@@ -1007,18 +1039,12 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
   Command Execute(string args, bool getStatusStream, bool closeStdInput,
                   StreamHandling stdOutHandling, StreamHandling stdErrorHandling, Key passwordKey)
   {
-    InheritablePipe statusPipe = null, passwordPipe = null;
-    byte[] passwordBytes = null;
-
-    if(passwordKey == null)
-    {
-      args = "--batch --no-tty " + args;
-    }
-    else
+    SecureString password = null;
+    if(passwordKey != null)
     {
       PrimaryKey primaryKey = passwordKey.GetPrimaryKey();
+      
       string hint = null;
-
       if(primaryKey.PrimaryUserId != null) hint = primaryKey.PrimaryUserId.ToString();
       hint += (hint == null ? null : " ") + "[0x" + passwordKey.KeyId;
       if(!string.Equals(passwordKey.KeyId, primaryKey.KeyId, StringComparison.Ordinal))
@@ -1027,9 +1053,22 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
       }
       hint += "]";
 
-      SecureString password = GetPassword(passwordKey.KeyId, hint);
+      password = GetPassword(passwordKey.KeyId, hint);
       if(password == null) throw new OperationCanceledException();
+    }
 
+    return Execute(args, getStatusStream, closeStdInput, stdOutHandling, stdErrorHandling, password, true);
+  }
+
+  Command Execute(string args, bool getStatusStream, bool closeStdInput,
+                  StreamHandling stdOutHandling, StreamHandling stdErrorHandling,
+                  SecureString password, bool ownsPassword)
+  {
+    InheritablePipe statusPipe = null, passwordPipe = null;
+    byte[] passwordBytes = null;
+
+    if(password != null)
+    {
       IntPtr bstr  = IntPtr.Zero;
       char[] chars = new char[password.Length+1];
       try
@@ -1041,7 +1080,7 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
       }
       finally
       {
-        password.Dispose();
+        if(ownsPassword) password.Dispose();
         if(bstr != IntPtr.Zero) Marshal.ZeroFreeBSTR(bstr);
         Array.Clear(chars, 0, chars.Length);
       }
@@ -1511,7 +1550,7 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
 
   static ProcessStartInfo GetProcessStartInfo(string exePath, string args)
   {
-    string prefixArgs = "--no-options --display-charset utf-8 ";
+    string prefixArgs = "--batch --no-tty --no-options --display-charset utf-8 ";
 
     ProcessStartInfo psi = new ProcessStartInfo();
     psi.Arguments              = prefixArgs + args;
