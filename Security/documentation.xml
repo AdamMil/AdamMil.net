@@ -7,15 +7,26 @@
       </Cons0>
 
       <Cons1>
-        <summary>Initializes a new exception.</summary>
+        <summary>Initializes a new exception with the given message.</summary>
         <param name="message">A human-readable message that describes the error.</param>
       </Cons1>
 
       <Cons2>
-        <summary>Initializes a new exception.</summary>
+        <summary>Initializes a new exception with the given message and inner exception.</summary>
         <param name="message">A human-readable message that describes the error.</param>
         <param name="innerException">The exception that is the cause of the current exception.</param>
       </Cons2>
+
+      <ConsF>
+        <summary>Initializes a new exception with the given failure reasons.</summary>
+        <param name="reasons">A <see cref="FailureReasons"/> value that indicates potential causes for the failure.</param>
+      </ConsF>
+
+      <ConsF2>
+        <summary>Initializes a new exception with the given failure reasons, and some additional error text.</summary>
+        <param name="reasons">A <see cref="FailureReasons"/> value that indicates potential causes for the failure.</param>
+        <param name="extraText">Additional text to include in the error message.</param>
+      </ConsF2>
     </Exception>
 
     <ToString>Converts the object to a human-readable string.</ToString>
@@ -41,7 +52,10 @@
 
   <PGPSystem>
     <Decrypt>
-      <summary>Decrypts the given ciphertext and writes the result to the given destination.</summary>
+      <summary>
+        Decrypts the given ciphertext and writes the result to the given destination. Signatures embedded
+        in the ciphertext are also verified and returned.
+      </summary>
     </Decrypt>
     
     <DeleteKey>
@@ -88,9 +102,9 @@
       <param name="format">The output format.</param>
     </ExportSecretKeys2>
     
-    <GenerateRandomData>
+    <GetRandomData>
       <summary>Generates random data and writes it to the given buffer.</summary>
-      <param name="level">
+      <param name="quality">
         The level of randomness of the data. For most operations, this should be
         <see cref="Randomness.Strong"/>.
       </param>
@@ -99,20 +113,26 @@
         The index within <paramref name="buffer"/> where writing will begin.
       </param>
       <param name="count">The number of bytes to write.</param>
-    </GenerateRandomData>
+    </GetRandomData>
 
-    <GetPassword>
-      <summary>Gets the password for the key named in the given password hint.</summary>
+    <GetCardPin>
+      <summary>Gets the PIN or password for a smartcard.</summary>
+      <param name="cardType">A string containing the type of the card.</param>
+      <param name="serialNumber">A string containing the serial number of the card, if it's known.</param>
+    </GetCardPin>
+    
+    <GetCipherPassword>
+      <summary>Gets the password for a document encrypted with a password.</summary>
+    </GetCipherPassword>
+    
+    <GetKeyPassword>
+      <summary>Gets the password for the secret key named in the given password hint.</summary>
       <param name="keyId">The ID of the key whose password is sought.</param>
-      <param name="passwordHint">A password hint to be displayed to the user.</param>
+      <param name="userIdHint">A password hint to be displayed to the user, containing a user ID that owns the key.</param>
       <returns>Returns a new <see cref="SecureString"/> containing the password.</returns>
       <remarks>The password will be disposed after being used.</remarks>
-    </GetPassword>
+    </GetKeyPassword>
 
-    <GetPublicKeys>
-      <summary>Gets all public keys in the default keyring.</summary>
-    </GetPublicKeys>
-    
     <GetPublicKeys2>
       <summary>Gets all public keys in the default keyring and/or the list of keyring files.</summary>
       <param name="signatures">Specifies whether key signatures should be returned and verified.</param>
@@ -124,10 +144,6 @@
         only the keyrings listed in <paramref name="keyrings"/> will be used.
       </param>
     </GetPublicKeys2>
-    
-    <GetSecretKeys>
-      <summary>Gets all secret keys in the default keyring.</summary>
-    </GetSecretKeys>
     
     <GetSecretKeys2>
       <summary>Gets all secret keys in the default keyring and/or the list of keyring files.</summary>
@@ -214,15 +230,13 @@
 
     <Verify2>
       <summary>Verifies embedded signatures in the given signed data. The signed data should not have been
-        simultaneously encrypted. To verify signatures in encrypted, signed data, call <see cref="Decrypt"/>.
+        simultaneously encrypted. To verify signatures in encrypted, signed data, call
+        <see cref="Decrypt(Stream,Stream,DecryptionOptions)"/> with a destination stream of <see cref="Stream.Null"/>.
       </summary>
     </Verify2>
 
     <Verify3>
-      <summary>
-        Verifies detached signatures for the given signed data. The signed data should not have been
-        simultaneously encrypted. To verify signatures in encrypted, signed data, call <see cref="Decrypt"/>.
-      </summary>
+      <summary>Verifies detached signatures for the given signed data.</summary>
     </Verify3>
   </PGPSystem>
 </Security>

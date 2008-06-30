@@ -163,33 +163,18 @@ public class ExeGPG : GPG
     if(signingOptions != null)
     {
       if(signingOptions.Signers.Count == 0) throw new ArgumentException("No signers were specified.");
-      if(signingOptions.Signers.Count > 1)
-      {
-        throw new NotSupportedException("Unfortunately, GPG only supports sending a single password, so only a "+
-          "single signing key can be supported.");
-      }
     }
 
     bool symmetric = false;
     if(encryptionOptions != null)
     {
-      symmetric = encryptionOptions.Password != null && encryptionOptions.Password.Length != 0;
-
-      if(signingOptions != null)
+      if(signingOptions != null && signingOptions.Detached)
       {
-        if(encryptionOptions.Password != null && encryptionOptions.Password.Length != 0)
-        {
-          throw new NotSupportedException("Unfortunately, GPG only supports sending a single password, so symmetric "+
-            "encryption cannot be combined with signing.");
-        }
-
-        if(signingOptions.Detached)
-        {
-          throw new NotSupportedException("Simultaneous encryption and detached signing is not supported. Perform "+
-                                          "the encryption and detached signing as two separate steps.");
-        }
+        throw new NotSupportedException("Simultaneous encryption and detached signing is not supported. Perform "+
+                                        "the encryption and detached signing as two separate steps.");
       }
 
+      symmetric = encryptionOptions.Password != null && encryptionOptions.Password.Length != 0;
       if(!symmetric && encryptionOptions.Recipients.Count == 0 && encryptionOptions.HiddenRecipients.Count == 0)
       {
         throw new ArgumentException("No recipients were specified.");
@@ -197,6 +182,7 @@ public class ExeGPG : GPG
     }
 
     string args = GetOutputArgs(outputOptions);
+    FailureReasons failureReasons = FailureReasons.None;
 
     if(encryptionOptions != null)
     {
@@ -208,6 +194,7 @@ public class ExeGPG : GPG
       if(!string.IsNullOrEmpty(encryptionOptions.Cipher))
       {
         args += "--cipher-algo " + EscapeArg(encryptionOptions.Cipher) + " ";
+        failureReasons |= FailureReasons.UnsupportedAlgorithm;
       }
 
       if(totalRecipients.Count != 0)
@@ -223,22 +210,17 @@ public class ExeGPG : GPG
     if(signingOptions != null)
     {
       args += GetKeyringArgs(signingOptions.Signers, true, true);
-      if(!string.IsNullOrEmpty(signingOptions.Hash)) args += "--digest-algo "+EscapeArg(signingOptions.Hash)+" ";
+      if(!string.IsNullOrEmpty(signingOptions.Hash))
+      {
+        args += "--digest-algo "+EscapeArg(signingOptions.Hash)+" ";
+        failureReasons |= FailureReasons.UnsupportedAlgorithm;
+      }
       foreach(Key key in signingOptions.Signers) args += "-u " + key.Fingerprint + " ";
       args += signingOptions != null && signingOptions.Detached ? "-b " : "-s ";
     }
 
-    Command cmd;
-    if(symmetric)
-    {
-      cmd = Execute(args, true, false, StreamHandling.Unprocessed, StreamHandling.ProcessText,
-                    encryptionOptions.Password, false);
-    }
-    else
-    {
-      cmd = Execute(args, true, false, StreamHandling.Unprocessed, StreamHandling.ProcessText,
-                    signingOptions == null ? null : signingOptions.Signers[0]);
-    }
+    Command cmd = Execute(args, true, false, StreamHandling.Unprocessed, StreamHandling.ProcessText);
+    string passwordHint = null;
 
     using(ManualResetEvent ready = new ManualResetEvent(false))
     using(cmd)
@@ -247,18 +229,50 @@ public class ExeGPG : GPG
       {
         switch(msg.Type)
         {
+          case StatusMessageType.UserIdHint:
+            passwordHint = ((UserIdHintMessage)msg).Hint;
+            break;
+
           case StatusMessageType.BadPassphrase:
+            OnInvalidPassword(((BadPassphraseMessage)msg).KeyId);
+            failureReasons |= FailureReasons.BadPassword;
+            break;
+
+          case StatusMessageType.NoPublicKey:
+            failureReasons |= FailureReasons.MissingPublicKey;
+            break;
+
+          case StatusMessageType.NoSecretKey:
+            failureReasons |= FailureReasons.MissingSecretKey;
+            break;
+
+          case StatusMessageType.NeedKeyPassphrase:
+          {
+            NeedKeyPassphraseMessage m = (NeedKeyPassphraseMessage)msg;
+
+            string userIdHint = passwordHint + " [0x" + m.KeyId;
+            if(!string.Equals(m.KeyId, m.PrimaryKeyId, StringComparison.Ordinal))
             {
-              BadPassphraseMessage m = (BadPassphraseMessage)msg;
-              OnInvalidPassword(m.KeyId);
-              throw new WrongPassphraseException("Wrong password for key "+m.KeyId);
+              userIdHint += " on primary key 0x" + m.PrimaryKeyId;
             }
+            userIdHint += "]";
+
+            SecureString password = GetKeyPassword(m.KeyId, userIdHint);
+            if(password == null) throw new OperationCanceledException();
+            cmd.SendPassword(password, true);
+            break;
+          }
+
+          case StatusMessageType.NeedCipherPassphrase:
+            cmd.SendPassword(encryptionOptions.Password, false);
+            break;
 
           case StatusMessageType.InvalidRecipient:
-            {
-              InvalidRecipientMessage m = (InvalidRecipientMessage)msg;
-              throw new InvalidRecipientException("Invalid recipient "+m.Recipient+". "+m.ReasonText);
-            }
+          {
+            failureReasons |= FailureReasons.InvalidRecipients;
+            InvalidRecipientMessage m = (InvalidRecipientMessage)msg;
+            throw new EncryptionFailedException(failureReasons, "Invalid recipient "+m.Recipient+". "+m.ReasonText);
+          }
 
           case StatusMessageType.BeginEncryption:
           case StatusMessageType.BeginSigning:
@@ -269,24 +283,36 @@ public class ExeGPG : GPG
 
       cmd.Start();
 
-      // wait until the process has exited or it's time to write the data or the user aborted
+      // wait until the process has exited or it's time to write the data or the process failed
       while(!ready.WaitOne(1000, false) && !cmd.Process.HasExited) { }
 
       if(!cmd.Process.HasExited)
       {
-        if(!WriteStreamToProcess(sourceData, cmd.Process)) throw new Exception("GPG aborted early."); // TODO: exception class
-        IOH.CopyStream(cmd.Process.StandardOutput.BaseStream, destination);
-        cmd.WaitForExit();
+        if(WriteStreamToProcess(sourceData, cmd.Process))
+        {
+          IOH.CopyStream(cmd.Process.StandardOutput.BaseStream, destination);
+          cmd.WaitForExit();
+        }
       }
     }
 
-    cmd.CheckExitCode();
+    if(!cmd.SuccessfulExit)
+    {
+      if(encryptionOptions != null) throw new EncryptionFailedException(failureReasons);
+      else throw new SigningFailedException(failureReasons);
+    }
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/Decrypt/*"/>
-  public override Signature[] Decrypt(Stream ciphertext, Stream destination, DecryptionOptions decryptOptions)
+  public override Signature[] Decrypt(Stream ciphertext, Stream destination, DecryptionOptions options)
   {
-    throw new NotImplementedException();
+    if(ciphertext == null || destination == null) throw new ArgumentNullException();
+
+    string args = GetVerificationArgs(options);
+    if(options != null && options.AssumeBinaryInput) args += "--no-armor ";
+
+    Command cmd = Execute(args + "-d", true, false, StreamHandling.Unprocessed, StreamHandling.ProcessText);
+    return DecryptVerifyCore(cmd, ciphertext, destination, options);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/Verify2/*"/>
@@ -367,7 +393,7 @@ public class ExeGPG : GPG
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRandomData/*"/>
-  public override void GenerateRandomData(Randomness level, byte[] buffer, int index, int count)
+  public override void GetRandomData(Randomness level, byte[] buffer, int index, int count)
   {
     if(buffer == null) throw new ArgumentNullException();
     if(index < 0 || count < 0 || index+count > buffer.Length) throw new ArgumentOutOfRangeException();
@@ -381,7 +407,7 @@ public class ExeGPG : GPG
     // "gpg --gen-random QUALITY COUNT" writes random COUNT bytes to standard output. QUALITY is a value from 0 to 2
     // representing the quality of the random number generator to use.
     Command cmd = Execute("--gen-random "+levelArg+" "+count.ToString(CultureInfo.InvariantCulture),
-                          false, true, StreamHandling.Unprocessed, StreamHandling.ProcessText, null);
+                          false, true, StreamHandling.Unprocessed, StreamHandling.ProcessText);
     using(cmd)
     {
       cmd.Start();
@@ -398,7 +424,7 @@ public class ExeGPG : GPG
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/Hash/*"/>
-  public override byte[] Hash(string hashAlgorithm, Stream data)
+  public override byte[] Hash(Stream data, string hashAlgorithm)
   {
     if(data == null) throw new ArgumentNullException();
     
@@ -411,7 +437,7 @@ public class ExeGPG : GPG
     // then read the output.
     List<byte> hash = new List<byte>();
     Command cmd = Execute("--print-md "+EscapeArg(hashAlgorithm), false, false,
-                          StreamHandling.Unprocessed, StreamHandling.ProcessText, null);
+                          StreamHandling.Unprocessed, StreamHandling.ProcessText);
     using(cmd)
     {
       cmd.Start();
@@ -519,14 +545,12 @@ public class ExeGPG : GPG
   #region Command
   protected class Command : IDisposable
   {
-    public Command(ProcessStartInfo psi, InheritablePipe statusPipe, InheritablePipe passwordPipe, byte[] password,
+    public Command(ProcessStartInfo psi, InheritablePipe statusPipe,
                    bool closeStdInput, StreamHandling stdOut, StreamHandling stdError)
     {
       if(psi == null) throw new ArgumentNullException();
       this.psi           = psi;
       this.statusPipe    = statusPipe;
-      this.passwordPipe  = passwordPipe;
-      this.password      = password;
       this.closeStdInput = closeStdInput;
       this.outHandling   = stdOut;
       this.errorHandling = stdError;
@@ -561,15 +585,54 @@ public class ExeGPG : GPG
       get { return process; }
     }
 
+    public bool SuccessfulExit
+    {
+      get { return ExitCode == 0 || ExitCode == 1; }
+    }
+
     public void CheckExitCode()
     {
-      if(ExitCode != 0 && ExitCode != 1) throw new Exception("GPG returned failure code "+ExitCode.ToString()); // TODO: exception class
+      if(!SuccessfulExit) throw new Exception("GPG returned failure code "+ExitCode.ToString()); // TODO: exception class
     }
 
     public void Dispose()
     {
       GC.SuppressFinalize(this);
       Dispose(false);
+    }
+
+    public void SendLine()
+    {
+      SendLine(string.Empty);
+    }
+
+    public void SendLine(string line)
+    {
+      byte[] bytes = Encoding.UTF8.GetBytes(line);
+      statusStream.Write(bytes, 0, bytes.Length);
+      statusStream.WriteByte((byte)'\n');
+    }
+
+    public void SendPassword(SecureString password, bool ownsPassword)
+    {
+      IntPtr bstr  = IntPtr.Zero;
+      char[] chars = new char[password.Length+1];
+      byte[] bytes = null;
+      try
+      {
+        bstr = Marshal.SecureStringToBSTR(password);
+        Marshal.Copy(bstr, chars, 0, chars.Length);
+        chars[password.Length] = '\n'; // the password must be EOL-terminated for GPG to accept it
+        bytes = Encoding.UTF8.GetBytes(chars);
+        statusStream.Write(bytes, 0, bytes.Length);
+      }
+      finally
+      {
+        if(ownsPassword) password.Dispose();
+        if(bstr != IntPtr.Zero) Marshal.ZeroFreeBSTR(bstr);
+        Array.Clear(chars, 0, chars.Length);
+        if(bytes != null) Array.Clear(bytes, 0, bytes.Length);
+      }
     }
 
     public void Start()
@@ -583,30 +646,9 @@ public class ExeGPG : GPG
 
       if(closeStdInput) process.StandardInput.Close();
 
-      if(passwordPipe != null)
-      {
-        passwordStream = new FileStream(new SafeFileHandle(passwordPipe.ServerHandle, false), FileAccess.Write);
-        passwordStream.BeginWrite(password, 0, password.Length, delegate(IAsyncResult result)
-        {
-          Stream stream = passwordStream;
-          if(stream != null)
-          {
-            stream.EndWrite(result);
-            stream.Close();
-          }
-
-          byte[] array = password;
-          if(array != null)
-          {
-            Array.Clear(array, 0, array.Length);
-            password = null;
-          }
-        }, null);
-      }
-
       if(statusPipe != null)
       {
-        statusStream = new FileStream(new SafeFileHandle(statusPipe.ServerHandle, false), FileAccess.Read);
+        statusStream = new FileStream(new SafeFileHandle(statusPipe.ServerHandle, false), FileAccess.ReadWrite);
         statusBuffer = new byte[4096];
         OnStatusRead(null);
       }
@@ -673,25 +715,6 @@ Debugger.Log(0, "", "ERR: "+line+"\n");
     {
       if(!disposed)
       {
-        if(passwordStream != null)
-        {
-          passwordStream.Dispose();
-          passwordStream = null;
-        }
-
-        if(passwordPipe != null)
-        {
-          passwordPipe.Dispose();
-          passwordPipe = null;
-        }
-
-        byte[] password = this.password;
-        if(password != null)
-        {
-          Array.Clear(password, 0, password.Length);
-          this.password = null;
-        }
-
         if(statusPipe != null)
         {
           statusStream.Dispose();
@@ -788,9 +811,9 @@ Debugger.Log(0, "", "ERR: "+line+"\n");
     }
 
     Process process;
-    InheritablePipe statusPipe, passwordPipe;
-    FileStream statusStream, passwordStream;
-    byte[] statusBuffer, outBuffer, errorBuffer, password;
+    InheritablePipe statusPipe;
+    FileStream statusStream;
+    byte[] statusBuffer, outBuffer, errorBuffer;
     ProcessStartInfo psi;
     int statusBytes, outBytes, errorBytes;
     StreamHandling outHandling, errorHandling;
@@ -900,7 +923,7 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
       StatusMessage message;
       switch(keyword)
       {
-        case "NEWSIG": message = new NewSigMessage(arguments); break;
+        case "NEWSIG": message = new GenericMessage(StatusMessageType.NewSig); break;
         case "GOODSIG": message = new GoodSigMessage(arguments); break;
         case "EXPSIG": message = new ExpiredSigMessage(arguments); break;
         case "EXPKEYSIG": message = new ExpiredKeySigMessage(arguments); break;
@@ -922,14 +945,21 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
 
         case "BEGIN_SIGNING": message = new GenericMessage(StatusMessageType.BeginSigning); break;
         case "SIG_CREATED": message = new GenericMessage(StatusMessageType.SigCreated); break;
+
         case "BEGIN_DECRYPTION": message = new GenericMessage(StatusMessageType.BeginDecryption); break;
         case "END_DECRYPTION": message = new GenericMessage(StatusMessageType.EndDecryption); break;
+        case "ENC_TO": message = new GenericKeyIdMessage(StatusMessageType.EncTo, arguments); break;
+        case "DECRYPTION_OKAY": message = new GenericMessage(StatusMessageType.DecryptionOkay); break;
+        case "DECRYPTION_FAILED": message = new GenericMessage(StatusMessageType.DecryptionFailed); break;
+        case "GOODMDC": message = new GenericMessage(StatusMessageType.GoodMDC); break;
+
         case "BEGIN_ENCRYPTION": message = new GenericMessage(StatusMessageType.BeginEncryption); break;
         case "END_ENCRYPTION": message = new GenericMessage(StatusMessageType.EndEncryption); break;
 
         case "INV_RECP": message = new InvalidRecipientMessage(arguments); break;
-        case "NO_PUBKEY": message = new MissingPublicKeyMessage(arguments); break;
-        case "NO_SECKEY": message = new MissingSecretKeyMessage(arguments); break;
+        case "NODATA": message = new GenericMessage(StatusMessageType.NoData); break;
+        case "NO_PUBKEY": message = new GenericKeyIdMessage(StatusMessageType.NoPublicKey, arguments); break;
+        case "NO_SECKEY": message = new GenericKeyIdMessage(StatusMessageType.NoSecretKey, arguments); break;
         case "UNEXPECTED": message = new GenericMessage(StatusMessageType.UnexpectedData); break;
 
         case "TRUST_UNDEFINED": message = new TrustLevelMessage(StatusMessageType.TrustUndefined); break;
@@ -939,8 +969,12 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
         case "TRUST_ULTIMATE": message = new TrustLevelMessage(StatusMessageType.TrustUltimate); break;
 
         case "IMPORT_RES": case "PLAINTEXT": case "PLAINTEXT_LENGTH": case "SIG_ID": // ignore these messages
+        case "GET_HIDDEN": case "GOT_IT":
           message = null;
           break;
+
+        // these represent required input, but we don't have any handling for them
+        case "GET_BOOL": case "GET_LINE": throw new NotImplementedException(keyword);
         
         default: message = null; break; // TODO: remove later, or replace with logging?
       }
@@ -1036,68 +1070,183 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
     return allDataWritten;
   }
 
-  Command Execute(string args, bool getStatusStream, bool closeStdInput,
-                  StreamHandling stdOutHandling, StreamHandling stdErrorHandling, Key passwordKey)
+  Signature[] DecryptVerifyCore(Command cmd, Stream signedData, Stream destination, DecryptionOptions options)
   {
-    SecureString password = null;
-    if(passwordKey != null)
+    FailureReasons failureReasons = FailureReasons.None;
+    using(cmd)
     {
-      PrimaryKey primaryKey = passwordKey.GetPrimaryKey();
-      
-      string hint = null;
-      if(primaryKey.PrimaryUserId != null) hint = primaryKey.PrimaryUserId.ToString();
-      hint += (hint == null ? null : " ") + "[0x" + passwordKey.KeyId;
-      if(!string.Equals(passwordKey.KeyId, primaryKey.KeyId, StringComparison.Ordinal))
+      List<Signature> signatures = new List<Signature>();
+      Signature sig = new Signature();
+      string passwordHint = null;
+      bool sigFilled = false, triedPasswordInOptions = false;
+
+      cmd.StatusMessageReceived += delegate(StatusMessage msg)
       {
-        hint += " on primary key 0x" + primaryKey.KeyId;
+        if(msg is TrustLevelMessage)
+        {
+          sig.TrustLevel = ((TrustLevelMessage)msg).Level;
+        }
+        else
+        {
+          if(msg.Type == StatusMessageType.NewSig  || msg.Type == StatusMessageType.BadSig ||
+             msg.Type == StatusMessageType.GoodSig || msg.Type == StatusMessageType.ErrorSig)
+          {
+            if(sigFilled) signatures.Add(sig);
+            sig = new Signature();
+            sigFilled = false;
+          }
+
+          switch(msg.Type)
+          {
+            case StatusMessageType.BadSig:
+            {
+              BadSigMessage bad = (BadSigMessage)msg;
+              sig.KeyId    = bad.KeyId;
+              sig.UserName = bad.UserName;
+              sig.Status   = SignatureStatus.Invalid;
+              sigFilled    = true;
+              break;
+            }
+            
+            case StatusMessageType.ErrorSig:
+            {
+              ErrorSigMessage error = (ErrorSigMessage)msg;
+              sig.HashAlgorithm = error.HashAlgorithm;
+              sig.KeyId     = error.KeyId;
+              sig.KeyType   = error.KeyType;
+              sig.Timestamp = error.Timestamp;
+              sig.Status    = SignatureStatus.Error | (error.MissingKey ? SignatureStatus.MissingKey : 0) |
+                              (error.UnsupportedAlgorithm ? SignatureStatus.UnsupportedAlgorithm : 0);
+              sigFilled     = true;
+              break;
+            }
+            
+            case StatusMessageType.ExpiredKeySig:
+            {
+              ExpiredKeySigMessage em = (ExpiredKeySigMessage)msg;
+              sig.KeyId    = em.KeyId;
+              sig.UserName = em.UserName;
+              sig.Status  |= SignatureStatus.ExpiredKey;
+              break;
+            }
+            
+            case StatusMessageType.ExpiredSig:
+            {
+              ExpiredSigMessage em = (ExpiredSigMessage)msg;
+              sig.KeyId    = em.KeyId;
+              sig.UserName = em.UserName;
+              sig.Status  |= SignatureStatus.ExpiredSignature;
+              break;
+            }
+            
+            case StatusMessageType.GoodSig:
+            {
+              GoodSigMessage good = (GoodSigMessage)msg;
+              sig.KeyId    = good.KeyId;
+              sig.UserName = good.UserName;
+              sig.Status   = SignatureStatus.Valid | (sig.Status & SignatureStatus.ValidFlagMask);
+              sigFilled    = true;
+              break;
+            }
+            
+            case StatusMessageType.RevokedKeySig:
+            {
+              RevokedKeySigMessage em = (RevokedKeySigMessage)msg;
+              sig.KeyId    = em.KeyId;
+              sig.UserName = em.UserName;
+              sig.Status  |= SignatureStatus.RevokedKey;
+              break;
+            }
+            
+            case StatusMessageType.ValidSig:
+            {
+              ValidSigMessage valid = (ValidSigMessage)msg;
+              sig.HashAlgorithm         = valid.HashAlgorithm;
+              sig.KeyType               = valid.KeyType;
+              sig.PrimaryKeyFingerprint = valid.PrimaryKeyFingerprint;
+              sig.Expiration            = valid.SignatureExpiration;
+              sig.KeyFingerprint        = valid.SignatureKeyFingerprint;
+              sig.Timestamp             = valid.SignatureTime;
+              break;
+            }
+            
+            case StatusMessageType.UserIdHint:
+              passwordHint = ((UserIdHintMessage)msg).Hint;
+              break;
+
+            case StatusMessageType.BadPassphrase:
+              OnInvalidPassword(((BadPassphraseMessage)msg).KeyId);
+              failureReasons |= FailureReasons.BadPassword;
+              break;
+
+            case StatusMessageType.NeedKeyPassphrase:
+            {
+              NeedKeyPassphraseMessage m = (NeedKeyPassphraseMessage)msg;
+
+              string userIdHint = passwordHint + " [0x" + m.KeyId;
+              if(!string.Equals(m.KeyId, m.PrimaryKeyId, StringComparison.Ordinal))
+              {
+                userIdHint += " on primary key 0x" + m.PrimaryKeyId;
+              }
+              userIdHint += "]";
+
+              SecureString password = GetKeyPassword(m.KeyId, userIdHint);
+              if(password != null) cmd.SendPassword(password, true);
+              else cmd.SendLine();
+              break;
+            }
+
+            case StatusMessageType.NeedCipherPassphrase:
+            {
+              if(!triedPasswordInOptions &&
+                 options != null && options.Password != null && options.Password.Length != 0)
+              {
+                triedPasswordInOptions = true;
+                cmd.SendPassword(options.Password, false);
+              }
+              else
+              {
+                SecureString password = GetCipherPassword();
+                if(password != null) cmd.SendPassword(password, true);
+                else cmd.SendLine();
+              }
+              break;
+            }
+
+            case StatusMessageType.NoSecretKey: failureReasons |= FailureReasons.MissingSecretKey; break;
+            case StatusMessageType.NoData: failureReasons |= FailureReasons.BadData; break;
+          }
+        }
+      };
+
+      cmd.Start();
+
+      if(WriteStreamToProcess(signedData, cmd.Process))
+      {
+        if(destination != null) IOH.CopyStream(cmd.Process.StandardOutput.BaseStream, destination);
+        cmd.WaitForExit();
+        if(sigFilled) signatures.Add(sig);
       }
-      hint += "]";
 
-      password = GetPassword(passwordKey.KeyId, hint);
-      if(password == null) throw new OperationCanceledException();
+      if(!cmd.SuccessfulExit) throw new DecryptionFailedException(failureReasons);
+      
+      return signatures.ToArray();
     }
-
-    return Execute(args, getStatusStream, closeStdInput, stdOutHandling, stdErrorHandling, password, true);
   }
 
   Command Execute(string args, bool getStatusStream, bool closeStdInput,
-                  StreamHandling stdOutHandling, StreamHandling stdErrorHandling,
-                  SecureString password, bool ownsPassword)
+                  StreamHandling stdOutHandling, StreamHandling stdErrorHandling)
   {
-    InheritablePipe statusPipe = null, passwordPipe = null;
-    byte[] passwordBytes = null;
-
-    if(password != null)
-    {
-      IntPtr bstr  = IntPtr.Zero;
-      char[] chars = new char[password.Length+1];
-      try
-      {
-        bstr = Marshal.SecureStringToBSTR(password);
-        Marshal.Copy(bstr, chars, 0, chars.Length);
-        chars[password.Length] = '\n'; // the password must be EOL-terminated for GPG to accept it
-        passwordBytes = Encoding.UTF8.GetBytes(chars);
-      }
-      finally
-      {
-        if(ownsPassword) password.Dispose();
-        if(bstr != IntPtr.Zero) Marshal.ZeroFreeBSTR(bstr);
-        Array.Clear(chars, 0, chars.Length);
-      }
-
-      passwordPipe = new InheritablePipe();
-      args = "--passphrase-fd " + passwordPipe.ClientHandle.ToInt64().ToString(CultureInfo.InvariantCulture) + " " +
-             args;
-    }
+    InheritablePipe statusPipe = null;
 
     if(getStatusStream)
     {
       statusPipe = new InheritablePipe();
-      args = "--exit-on-status-write-error --status-fd " +
-             statusPipe.ClientHandle.ToInt64().ToString(CultureInfo.InvariantCulture) + " " + args;
+      string fd = statusPipe.ClientHandle.ToInt64().ToString(CultureInfo.InvariantCulture);
+      args = "--exit-on-status-write-error --status-fd " + fd + " --command-fd " + fd + " " + args;
     }
 
-    return new Command(GetProcessStartInfo(ExecutablePath, args), statusPipe, passwordPipe, passwordBytes,
+    return new Command(GetProcessStartInfo(ExecutablePath, args), statusPipe,
                        closeStdInput, stdOutHandling, stdErrorHandling);
   }
 
@@ -1136,7 +1285,7 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
       args += "--no-default-keyring --" + (secretKeys ? "secret-keyring " : "keyring ") + file;
     }
 
-    Command cmd = Execute(args, false, true, StreamHandling.Unprocessed, StreamHandling.ProcessText, null);
+    Command cmd = Execute(args, false, true, StreamHandling.Unprocessed, StreamHandling.ProcessText);
     using(cmd)
     {
       cmd.Start();
@@ -1229,128 +1378,10 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
 
   Signature[] VerifyCore(string signatureFile, Stream signedData, VerificationOptions options)
   {
-    string args = null;
-    if(options != null)
-    {
-      args += GetKeyringArgs(options.IgnoreDefaultKeyring, options.AdditionalKeyrings, false);
-
-      if(options.AutoFetchKeys)
-      {
-        args += "--auto-key-locate ";
-        if(options.KeyServer != null) args += "keyserver ";
-        args += "ldap pka cert ";
-      }
-
-      if(options.KeyServer != null)
-      {
-        args += "--keyserver "+EscapeArg(options.KeyServer.AbsoluteUri)+" --keyserver-options auto-key-retrieve ";
-        if(!options.AutoFetchKeys) args += "--auto-key-locate keyserver ";
-      }
-    }
-
+    string args = GetVerificationArgs(options);
     args += "--verify " + (signatureFile == null ? "-" : EscapeArg(signatureFile) + " -");
-    Command cmd = Execute(args, true, false, StreamHandling.DumpBinary, StreamHandling.ProcessText, null);
-    using(cmd)
-    {
-      List<Signature> signatures = new List<Signature>();
-      Signature sig = new Signature();
-      bool sigFilled = false;
-
-      cmd.StatusMessageReceived += delegate(StatusMessage msg)
-      {
-        if(msg is TrustLevelMessage)
-        {
-          sig.TrustLevel = ((TrustLevelMessage)msg).Level;
-        }
-        else
-        {
-          if(msg.Type == StatusMessageType.NewSig  || msg.Type == StatusMessageType.BadSig ||
-             msg.Type == StatusMessageType.GoodSig || msg.Type == StatusMessageType.ErrorSig)
-          {
-            if(sigFilled) signatures.Add(sig);
-            sig = new Signature();
-            sigFilled = false;
-          }
-
-          switch(msg.Type)
-          {
-            case StatusMessageType.BadSig:
-            {
-              BadSigMessage bad = (BadSigMessage)msg;
-              sig.KeyId    = bad.KeyId;
-              sig.UserName = bad.UserName;
-              sig.Status   = SignatureStatus.Invalid;
-              sigFilled    = true;
-              break;
-            }
-            case StatusMessageType.ErrorSig:
-            {
-              ErrorSigMessage error = (ErrorSigMessage)msg;
-              sig.HashAlgorithm = error.HashAlgorithm;
-              sig.KeyId     = error.KeyId;
-              sig.KeyType   = error.KeyType;
-              sig.Timestamp = error.Timestamp;
-              sig.Status    = SignatureStatus.Error | (error.MissingKey ? SignatureStatus.MissingKey : 0) |
-                              (error.UnsupportedAlgorithm ? SignatureStatus.UnsupportedAlgorithm : 0);
-              sigFilled     = true;
-              break;
-            }
-            case StatusMessageType.ExpiredKeySig:
-            {
-              ExpiredKeySigMessage em = (ExpiredKeySigMessage)msg;
-              sig.KeyId    = em.KeyId;
-              sig.UserName = em.UserName;
-              sig.Status  |= SignatureStatus.ExpiredKey;
-              break;
-            }
-            case StatusMessageType.ExpiredSig:
-            {
-              ExpiredSigMessage em = (ExpiredSigMessage)msg;
-              sig.KeyId    = em.KeyId;
-              sig.UserName = em.UserName;
-              sig.Status  |= SignatureStatus.ExpiredSignature;
-              break;
-            }
-            case StatusMessageType.GoodSig:
-            {
-              GoodSigMessage good = (GoodSigMessage)msg;
-              sig.KeyId    = good.KeyId;
-              sig.UserName = good.UserName;
-              sig.Status   = SignatureStatus.Valid | (sig.Status & SignatureStatus.ValidFlagMask);
-              sigFilled    = true;
-              break;
-            }
-            case StatusMessageType.RevokedKeySig:
-            {
-              RevokedKeySigMessage em = (RevokedKeySigMessage)msg;
-              sig.KeyId    = em.KeyId;
-              sig.UserName = em.UserName;
-              sig.Status  |= SignatureStatus.RevokedKey;
-              break;
-            }
-            case StatusMessageType.ValidSig:
-            {
-              ValidSigMessage valid = (ValidSigMessage)msg;
-              sig.HashAlgorithm         = valid.HashAlgorithm;
-              sig.KeyType               = valid.KeyType;
-              sig.PrimaryKeyFingerprint = valid.PrimaryKeyFingerprint;
-              sig.Expiration            = valid.SignatureExpiration;
-              sig.KeyFingerprint        = valid.SignatureKeyFingerprint;
-              sig.Timestamp             = valid.SignatureTime;
-              break;
-            }
-          }
-        }
-      };
-
-      cmd.Start();
-      if(!WriteStreamToProcess(signedData, cmd.Process)) throw new Exception("GPG aborted early."); // TODO: exception class
-      cmd.WaitForExit();
-      if(sigFilled) signatures.Add(sig);
-
-      cmd.CheckExitCode();
-      return signatures.ToArray();
-    }
+    Command cmd = Execute(args, true, false, StreamHandling.DumpBinary, StreamHandling.ProcessText);
+    return DecryptVerifyCore(cmd, signedData, null, null);
   }
 
   static string CUnescape(string str)
@@ -1548,9 +1579,32 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
     return args;
   }
 
+  static string GetVerificationArgs(VerificationOptions options)
+  {
+    string args = null;
+    if(options != null)
+    {
+      args += GetKeyringArgs(options.IgnoreDefaultKeyring, options.AdditionalKeyrings, false);
+
+      if(options.AutoFetchKeys)
+      {
+        args += "--auto-key-locate ";
+        if(options.KeyServer != null) args += "keyserver ";
+        args += "ldap pka cert ";
+      }
+
+      if(options.KeyServer != null)
+      {
+        args += "--keyserver "+EscapeArg(options.KeyServer.AbsoluteUri)+" --keyserver-options auto-key-retrieve ";
+        if(!options.AutoFetchKeys) args += "--auto-key-locate keyserver ";
+      }
+    }
+    return args;
+  }
+
   static ProcessStartInfo GetProcessStartInfo(string exePath, string args)
   {
-    string prefixArgs = "--batch --no-tty --no-options --display-charset utf-8 ";
+    string prefixArgs = "--no-tty --no-options --display-charset utf-8 ";
 
     ProcessStartInfo psi = new ProcessStartInfo();
     psi.Arguments              = prefixArgs + args;

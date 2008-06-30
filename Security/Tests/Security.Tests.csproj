@@ -38,6 +38,10 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\TestHelpers\AdamMil.TestHelpers.csproj">
+      <Project>{E755006A-EB9E-4A5A-9872-65A2C4737C20}</Project>
+      <Name>AdamMil.TestHelpers</Name>
+    </ProjectReference>
     <ProjectReference Include="..\AdamMil.Security.csproj">
       <Project>{79B1B71F-1D9D-426E-93D3-0C4C3381CDDA}</Project>
       <Name>AdamMil.Security</Name>
