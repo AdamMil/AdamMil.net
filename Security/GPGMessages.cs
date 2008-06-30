@@ -8,7 +8,7 @@ namespace AdamMil.Security.PGP.GPG.StatusMessages
 /// <summary>Indicates the type of GPG status message that was received.</summary>
 public enum StatusMessageType
 {
-  /// <summary>The <c>NEWSIG</c> message, implemented by the <see cref="StatusMessages.NewSigMessage"/> class.</summary>
+  /// <summary>The <c>NEWSIG</c> message, implemented by the <see cref="StatusMessages.GenericMessage"/> class.</summary>
   NewSig, 
   /// <summary>The <c>GOODSIG</c> message, implemented by the <see cref="StatusMessages.GoodSigMessage"/> class.</summary>
   GoodSig, 
@@ -24,14 +24,14 @@ public enum StatusMessageType
   ErrorSig, 
   /// <summary>The <c>VALIDSIG</c> message, implemented by the <see cref="StatusMessages.ValidSigMessage"/> class.</summary>
   ValidSig, 
+  /// <summary>The <c>ENC_TO</c> message, implemented by the <see cref="StatusMessages.GenericKeyIdMessage"/> class.</summary>
+  EncTo,
 #pragma warning disable 1574 // TODO: remove this!
-  /// <summary>The <c>ENC_TO</c> message, implemented by the <see cref="StatusMessages.EncToMessage"/> class.</summary>
-  EncTo, 
   /// <summary>The <c>NODATA</c> message, implemented by the <see cref="StatusMessages.NoDataMessage"/> class.</summary>
-  NoData, 
+  NoData,
+#pragma warning restore 1574 // TODO: remove this!
   /// <summary>The <c>UNEXPECTED</c> message, implemented by the <see cref="StatusMessages.GenericMessage"/> class.</summary>
   UnexpectedData,
-#pragma warning restore 1574 // TODO: remove this!
   /// <summary>The <c>TRUST_UNDEFINED</c> message, implemented by the <see cref="StatusMessages.TrustLevelMessage"/> class.</summary>
   TrustUndefined,
   /// <summary>The <c>TRUST_NEVER</c> message, implemented by the <see cref="StatusMessages.TrustLevelMessage"/> class.</summary>
@@ -120,6 +120,8 @@ public enum StatusMessageType
   /// <summary>The <c>BACKUP_KEY_CREATED</c> message, implemented by the <see cref="StatusMessages.BackupKeyCreatedMessage"/> class.</summary>
   BackupKeyCreated,
 #pragma warning restore 1574 // TODO: remove this!
+  /// <summary>The <c>GOODMDC</c> message, implemented by the <see cref="StatusMessages.GenericMessage"/> class.</summary>
+  GoodMDC,
 }
 #endregion
 
@@ -237,6 +239,7 @@ public sealed class KeyImportOkayMessage : StatusMessage
 #endregion
 
 #region KeyImportFailedMessage
+/// <summary>Issued when a key failed to import.</summary>
 public sealed class KeyImportFailedMessage : StatusMessage
 {
   /// <summary>Initializes a new <see cref="KeyImportFailedMessage"/> with the given arguments.</summary>
@@ -293,17 +296,6 @@ public abstract class KeyIdAndNameSigVerifyMessage : StatusMessage
   }
 
   string keyId, userName;
-}
-#endregion
-
-#region NewSigMessage
-/// <summary>This message may be issued before a new signature verification starts, and can be used to distinguish
-/// between different signatures and correctly associate error messages.
-/// </summary>
-public sealed class NewSigMessage : StatusMessage
-{
-  /// <summary>Initializes a new <see cref="NewSigMessage"/> with the given arguments.</summary>
-  public NewSigMessage(string[] arguments) : base(StatusMessageType.NewSig) { }
 }
 #endregion
 
@@ -503,6 +495,26 @@ public sealed class GenericMessage : StatusMessage
 }
 #endregion
 
+#region GenericKeyIdMessage
+/// <summary>A base class for messages that contain only a key ID parameter.</summary>
+public sealed class GenericKeyIdMessage : StatusMessage
+{
+  /// <summary>Initializes a new <see cref="GenericKeyIdMessage"/> with the given type and arguments.</summary>
+  public GenericKeyIdMessage(StatusMessageType type, string[] arguments) : base(type)
+  {
+    keyId = arguments[0].ToUpperInvariant();
+  }
+
+  /// <summary>Gets the related key ID.</summary>
+  public string KeyId
+  {
+    get { return keyId; }
+  }
+
+  readonly string keyId;
+}
+#endregion
+
 #region BadPassphraseMessage
 /// <summary>Indicates that the previously-requested password was wrong.</summary>
 public sealed class BadPassphraseMessage : StatusMessage
@@ -623,40 +635,8 @@ public sealed class InvalidRecipientMessage : StatusMessage
 }
 #endregion
 
-#region MissingKeyMessage
-/// <summary>A base class for messages that report missing keys.</summary>
-public abstract class MissingKeyMessage : StatusMessage
-{
-  public MissingKeyMessage(StatusMessageType type, string[] arguments) : base(type)
-  {
-    keyId = arguments[0];
-  }
-
-  /// <summary>Gets the ID of the missing public key.</summary>
-  public string KeyId
-  {
-    get { return keyId; }
-  }
-
-  readonly string keyId;
-}
-#endregion
-
-#region MissingPublicKeyMessage
-public sealed class MissingPublicKeyMessage : MissingKeyMessage
-{
-  public MissingPublicKeyMessage(string[] arguments) : base(StatusMessageType.NoPublicKey, arguments) { }
-}
-#endregion
-
-#region MissingSecretKeyMessage
-public sealed class MissingSecretKeyMessage : MissingKeyMessage
-{
-  public MissingSecretKeyMessage(string[] arguments) : base(StatusMessageType.NoSecretKey, arguments) { }
-}
-#endregion
-
 #region NeedPassphraseMessage
+/// <summary>Issued when a password is needed to unlock a secret key.</summary>
 public sealed class NeedKeyPassphraseMessage : StatusMessage
 {
   /// <summary>Initializes a new <see cref="NeedKeyPassphraseMessage"/> with the given arguments.</summary>
