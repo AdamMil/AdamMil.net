@@ -182,19 +182,19 @@ public class ExeGPG : GPG
     }
 
     string args = GetOutputArgs(outputOptions);
-    FailureReasons failureReasons = FailureReasons.None;
+    FailureReason failureReasons = FailureReason.None;
 
     if(encryptionOptions != null)
     {
       List<Key> totalRecipients = new List<Key>();
       totalRecipients.AddRange(encryptionOptions.Recipients);
       totalRecipients.AddRange(encryptionOptions.HiddenRecipients);
-      args += GetKeyringArgs(totalRecipients, true, false);
+      args += GetKeyringArgs(totalRecipients, true, false, false);
 
       if(!string.IsNullOrEmpty(encryptionOptions.Cipher))
       {
         args += "--cipher-algo " + EscapeArg(encryptionOptions.Cipher) + " ";
-        failureReasons |= FailureReasons.UnsupportedAlgorithm;
+        failureReasons |= FailureReason.UnsupportedAlgorithm;
       }
 
       if(totalRecipients.Count != 0)
@@ -205,15 +205,17 @@ public class ExeGPG : GPG
       }
 
       if(symmetric) args += "-c ";
+
+      if(encryptionOptions.AlwaysTrustRecipients) args += "--trust-model always ";
     }
 
     if(signingOptions != null)
     {
-      args += GetKeyringArgs(signingOptions.Signers, true, true);
+      args += GetKeyringArgs(signingOptions.Signers, true, true, false);
       if(!string.IsNullOrEmpty(signingOptions.Hash))
       {
         args += "--digest-algo "+EscapeArg(signingOptions.Hash)+" ";
-        failureReasons |= FailureReasons.UnsupportedAlgorithm;
+        failureReasons |= FailureReason.UnsupportedAlgorithm;
       }
       foreach(Key key in signingOptions.Signers) args += "-u " + key.Fingerprint + " ";
       args += signingOptions != null && signingOptions.Detached ? "-b " : "-s ";
@@ -229,21 +231,12 @@ public class ExeGPG : GPG
       {
         switch(msg.Type)
         {
+          case StatusMessageType.NeedCipherPassphrase:
+            cmd.SendPassword(encryptionOptions.Password, false);
+            break;
+
           case StatusMessageType.UserIdHint:
             passwordHint = ((UserIdHintMessage)msg).Hint;
-            break;
-
-          case StatusMessageType.BadPassphrase:
-            OnInvalidPassword(((BadPassphraseMessage)msg).KeyId);
-            failureReasons |= FailureReasons.BadPassword;
-            break;
-
-          case StatusMessageType.NoPublicKey:
-            failureReasons |= FailureReasons.MissingPublicKey;
-            break;
-
-          case StatusMessageType.NoSecretKey:
-            failureReasons |= FailureReasons.MissingSecretKey;
             break;
 
           case StatusMessageType.NeedKeyPassphrase:
@@ -263,21 +256,26 @@ public class ExeGPG : GPG
             break;
           }
 
-          case StatusMessageType.NeedCipherPassphrase:
-            cmd.SendPassword(encryptionOptions.Password, false);
-            break;
-
-          case StatusMessageType.InvalidRecipient:
-          {
-            failureReasons |= FailureReasons.InvalidRecipients;
-            InvalidRecipientMessage m = (InvalidRecipientMessage)msg;
-            throw new EncryptionFailedException(failureReasons, "Invalid recipient "+m.Recipient+". "+m.ReasonText);
-          }
-
-          case StatusMessageType.BeginEncryption:
-          case StatusMessageType.BeginSigning:
+          case StatusMessageType.BeginEncryption: case StatusMessageType.BeginSigning:
             ready.Set();
             break;
+
+          case StatusMessageType.GetHidden: case StatusMessageType.GetBool: case StatusMessageType.GetLine:
+          {
+            GetInputMessage m = (GetInputMessage)msg;
+
+            if(string.Equals(m.PromptId, "passphrase.enter", StringComparison.Ordinal)) { }
+            else if(string.Equals(m.PromptId, "untrusted_key.override", StringComparison.Ordinal))
+            {
+              bool alwaysTrust = encryptionOptions != null && encryptionOptions.AlwaysTrustRecipients;
+              if(!alwaysTrust) failureReasons |= FailureReason.UntrustedRecipient;
+              cmd.SendLine(alwaysTrust ? "Y" : "N");
+            }
+            else goto default;
+            break;
+          }
+
+          default: DefaultStatusMessageHandler(msg, ref failureReasons); break;
         }
       };
 
@@ -308,7 +306,7 @@ public class ExeGPG : GPG
   {
     if(ciphertext == null || destination == null) throw new ArgumentNullException();
 
-    string args = GetVerificationArgs(options);
+    string args = GetVerificationArgs(options, true);
     if(options != null && options.AssumeBinaryInput) args += "--no-armor ";
 
     Command cmd = Execute(args + "-d", true, false, StreamHandling.Unprocessed, StreamHandling.ProcessText);
@@ -356,40 +354,178 @@ public class ExeGPG : GPG
     return GetKeys(KeySignatures.Ignore, keyrings, includeDefaultKeyring, true);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteKey/*"/>
-  public override void DeleteKey(Key key, KeyDeletion deletion)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteKeys/*"/>
+  public override void DeleteKeys(Key[] keys, KeyDeletion deletion)
   {
-    throw new NotImplementedException();
+    if(keys == null) throw new ArgumentNullException();
+
+    foreach(Key key in keys)
+    {
+      if(!(key is PrimaryKey)) throw new NotImplementedException("Deleting subkeys is not yet supported.");
+    }
+
+    string args = GetKeyringArgs(keys, true, deletion == KeyDeletion.PublicAndSecret, true);
+    args += (deletion == KeyDeletion.Secret ? "--delete-secret-key " : "--delete-secret-and-public-key ");
+
+    foreach(Key key in keys)
+    {
+      if(key is PrimaryKey) args += key.Fingerprint + " ";
+    }
+
+    FailureReason failureReasons = FailureReason.None;
+    Command cmd = Execute(args, true, true, StreamHandling.ProcessText, StreamHandling.ProcessText);
+    using(cmd)
+    {
+      cmd.StandardErrorLine += delegate(string line)
+      {
+        DefaultStandardErrorHandler(line, ref failureReasons);
+      };
+
+      cmd.StatusMessageReceived += delegate(StatusMessage msg)
+      {
+        switch(msg.Type)
+        {
+          case StatusMessageType.GetBool: case StatusMessageType.GetHidden: case StatusMessageType.GetLine: 
+          {
+            GetInputMessage m = (GetInputMessage)msg;
+            if(string.Equals(m.PromptId, "delete_key.okay", StringComparison.Ordinal) ||
+               string.Equals(m.PromptId, "delete_key.secret.okay", StringComparison.Ordinal))
+            {
+              cmd.SendLine("Y");
+            }
+            else goto default;
+            break;
+          }
+
+          default: DefaultStatusMessageHandler(msg, ref failureReasons); break;
+        }
+      };
+
+      cmd.Start();
+      cmd.WaitForExit();
+    }
+
+    if(!cmd.SuccessfulExit) throw new KeyEditFailedException(failureReasons);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/ExportPublicKeys/*"/>
-  public override void ExportPublicKeys(Key[] key, ExportOptions options, Stream destination, OutputFormat format)
+  public override void ExportPublicKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions,
+                                        OutputOptions outputOptions)
   {
-    throw new NotImplementedException();
+    ExportKeys(keys, destination, exportOptions, outputOptions, false);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/ExportPublicKeys2/*"/>
-  public override void ExportPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, ExportOptions options, Stream destination, OutputFormat format)
+  public override void ExportPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
+                                        ExportOptions exportOptions, OutputOptions outputOptions)
   {
-    throw new NotImplementedException();
+    ExportKeyrings(keyrings, includeDefaultKeyring, destination, exportOptions, outputOptions, false);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/ExportSecretKeys/*"/>
-  public override void ExportSecretKeys(Key[] key, ExportOptions options, Stream destination, OutputFormat format)
+  public override void ExportSecretKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions, OutputOptions outputOptions)
   {
-    throw new NotImplementedException();
+    ExportKeys(keys, destination, exportOptions, outputOptions, true);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/ExportSecretKeys2/*"/>
-  public override void ExportSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring, ExportOptions options, Stream destination, OutputFormat format)
+  public override void ExportSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
+                                        ExportOptions exportOptions, OutputOptions outputOptions)
   {
-    throw new NotImplementedException();
+    ExportKeyrings(keyrings, includeDefaultKeyring, destination, exportOptions, outputOptions, true);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeys3/*"/>
-  public override void ImportKeys(Stream source, Keyring keyring, ImportOptions options)
+  public override ImportedKey[] ImportKeys(Stream source, Keyring keyring, ImportOptions options)
   {
-    throw new NotImplementedException();
+    if(source == null) throw new ArgumentNullException();
+
+    string args = GetKeyringArgs(keyring, true, true, true);
+
+    if(keyring != null)
+    {
+      // create the keyring files if they don't exist. GPG will refuse to use them otherwise.
+      if(!File.Exists(keyring.PublicFile)) File.Create(keyring.PublicFile).Dispose();
+
+      if(!string.IsNullOrEmpty(keyring.SecretFile) && !File.Exists(keyring.SecretFile))
+      {
+        File.Create(keyring.SecretFile).Dispose();
+      }
+
+      args += "--primary-keyring " + EscapeArg(NormalizeKeyringFile(keyring.PublicFile)) + " ";
+    }
+
+    if(options != ImportOptions.Default)
+    {
+      args += "--import-options ";
+      if((options & ImportOptions.CleanKeys) != 0) args += "import-clean ";
+      if((options & ImportOptions.ImportLocalSignatures) != 0) args += "import-local-sigs ";
+      if((options & ImportOptions.MergeOnly) != 0) args += "merge-only ";
+      if((options & ImportOptions.MinimizeKeys) != 0) args += "import-minimize ";
+    }
+
+    Dictionary<string, ImportedKey> keysByFingerprint = new Dictionary<string, ImportedKey>();
+    List<string> fingerprintsSeen = new List<string>();
+
+    FailureReason failureReasons = FailureReason.None;
+
+    Command cmd = Execute(args + "--import", true, false, StreamHandling.ProcessText, StreamHandling.ProcessText);
+    using(cmd)
+    {
+      cmd.StandardErrorLine += delegate(string line)
+      {
+        DefaultStandardErrorHandler(line, ref failureReasons);
+      };
+
+      cmd.StatusMessageReceived += delegate(StatusMessage msg)
+      {
+        if(msg.Type == StatusMessageType.ImportOkay)
+        {
+          KeyImportOkayMessage m = (KeyImportOkayMessage)msg;
+          
+          ImportedKey key;
+          if(!keysByFingerprint.TryGetValue(m.Fingerprint, out key))
+          {
+            key = new ImportedKey();
+            key.Fingerprint = m.Fingerprint;
+            key.Successful  = true;
+            keysByFingerprint[key.Fingerprint] = key;
+            fingerprintsSeen.Add(key.Fingerprint);
+          }
+          if((m.Reason & KeyImportReason.ContainsSecretKey) != 0) key.Secret = true;
+        }
+        else if(msg.Type == StatusMessageType.ImportProblem)
+        {
+          KeyImportFailedMessage m = (KeyImportFailedMessage)msg;
+
+          ImportedKey key;
+          if(!keysByFingerprint.TryGetValue(m.Fingerprint, out key))
+          {
+            key = new ImportedKey();
+            key.Fingerprint = m.Fingerprint;
+            keysByFingerprint[key.Fingerprint] = key;
+            fingerprintsSeen.Add(key.Fingerprint);
+          }
+          key.Successful = false;
+        }
+        else DefaultStatusMessageHandler(msg, ref failureReasons);
+      };
+
+      cmd.Start();
+      WriteStreamToProcess(source, cmd.Process);
+      cmd.WaitForExit();
+    }
+
+    if(!cmd.SuccessfulExit) throw new ImportFailedException(failureReasons);
+
+    // return the keys in the order that they were seen
+    ImportedKey[] keysProcessed = new ImportedKey[fingerprintsSeen.Count];
+    for(int i=0; i<keysProcessed.Length; i++)
+    {
+      keysProcessed[i] = keysByFingerprint[fingerprintsSeen[i]];
+      keysProcessed[i].MakeReadOnly();
+    }
+    return keysProcessed;
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRandomData/*"/>
@@ -519,7 +655,7 @@ public class ExeGPG : GPG
   }
 
   /// <summary>Determines how a process' stream will be handled.</summary>
-  protected enum StreamHandling
+  enum StreamHandling
   {
     /// <summary>The stream will not be processed by the <see cref="Command"/> object.</summary>
     Unprocessed,
@@ -540,10 +676,12 @@ public class ExeGPG : GPG
   }
 
   /// <summary>Processes status messages from GPG.</summary>
-  protected delegate void StatusMessageHandler(StatusMessage message);
+  delegate void StatusMessageHandler(StatusMessage message);
+  /// <summary>Processes text output from GPG.</summary>
+  delegate void TextLineHandler(string line);
 
   #region Command
-  protected class Command : IDisposable
+  class Command : IDisposable
   {
     public Command(ProcessStartInfo psi, InheritablePipe statusPipe,
                    bool closeStdInput, StreamHandling stdOut, StreamHandling stdError)
@@ -561,6 +699,8 @@ public class ExeGPG : GPG
       Dispose(true);
     }
 
+    public event TextLineHandler StandardErrorLine;
+    public event TextLineHandler StandardOutputLine;
     public event StatusMessageHandler StatusMessageReceived;
 
     public int ExitCode
@@ -697,11 +837,13 @@ public class ExeGPG : GPG
     protected virtual void OnStdOutLine(string line)
     {
 Debugger.Log(0, "", "OUT: "+line+"\n");
+      if(StandardOutputLine != null) StandardOutputLine(line);
     }
 
     protected virtual void OnStdErrorLine(string line)
     {
 Debugger.Log(0, "", "ERR: "+line+"\n");
+      if(StandardErrorLine != null) StandardErrorLine(line);
     }
 
     protected virtual void OnStatusMessage(StatusMessage message)
@@ -717,8 +859,11 @@ Debugger.Log(0, "", "ERR: "+line+"\n");
       {
         if(statusPipe != null)
         {
-          statusStream.Dispose();
-          statusStream = null;
+          if(statusStream != null)
+          {
+            statusStream.Dispose();
+            statusStream = null;
+          }
 
           statusPipe.CloseServer();
           if(process != null) Exit(process);
@@ -935,6 +1080,7 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
         case "IMPORTED": message = new KeySigImportedMessage(arguments); break;
         case "IMPORT_OK": message = new KeyImportOkayMessage(arguments); break;
         case "IMPORT_PROBLEM": message = new KeyImportFailedMessage(arguments); break;
+        case "IMPORT_RES": message = new KeyImportResultsMessage(arguments); break;
 
         case "USERID_HINT": message = new UserIdHintMessage(arguments); break;
         case "NEED_PASSPHRASE": message = new NeedKeyPassphraseMessage(arguments); break;
@@ -968,14 +1114,16 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
         case "TRUST_FULLY": message = new TrustLevelMessage(StatusMessageType.TrustFully); break;
         case "TRUST_ULTIMATE": message = new TrustLevelMessage(StatusMessageType.TrustUltimate); break;
 
-        case "IMPORT_RES": case "PLAINTEXT": case "PLAINTEXT_LENGTH": case "SIG_ID": // ignore these messages
-        case "GET_HIDDEN": case "GOT_IT":
+        case "GET_HIDDEN": message = new GetInputMessage(StatusMessageType.GetHidden, arguments); break;
+        case "GET_BOOL": message = new GetInputMessage(StatusMessageType.GetBool, arguments); break;
+        case "GET_LINE": message = new GetInputMessage(StatusMessageType.GetLine, arguments); break;
+
+        case "DELETE_PROBLEM": message = new DeleteFailedMessage(arguments); break;
+
+        case "PLAINTEXT": case "PLAINTEXT_LENGTH": case "SIG_ID": case "GOT_IT": // ignore these messages
           message = null;
           break;
 
-        // these represent required input, but we don't have any handling for them
-        case "GET_BOOL": case "GET_LINE": throw new NotImplementedException(keyword);
-        
         default: message = null; break; // TODO: remove later, or replace with logging?
       }
       return message;
@@ -1021,58 +1169,9 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
     if(ExecutablePath == null) throw new InvalidOperationException("ExecutablePath is not set.");
   }
 
-  /// <summary>Escapes a command-line argument.</summary>
-  protected static string EscapeArg(string arg)
-  {
-    if(arg.IndexOf(' ') != -1) // if the argument contains spaces, we need to quote it.
-    {
-      if(arg.IndexOf('"') == -1) return "\"" + arg + "\""; // if it doesn't contain a double-quote, use those
-      else if(arg.IndexOf('\'') == -1) return "'" + arg + "'"; // otherwise, try single quotes
-    }
-    else if(arg.IndexOf('"') != -1)
-    {
-      throw new NotImplementedException();
-    }
-    else return arg;
-
-    throw new ArgumentException("Argument could not be escaped: "+arg);
-  }
-
-  /// <summary>Normalizes a keyring filename to something that is acceptable to GPG.</summary>
-  protected static string NormalizeKeyringFile(string filename)
-  {
-    return Path.GetFullPath(filename).Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
-  }
-
-  /// <summary>Writes all data from the stream to the standard input of the process,
-  /// and then closes the standard input.
-  /// </summary>
-  /// <returns>Returns true if all data was written to the stream before the process terminated.</returns>
-  protected static bool WriteStreamToProcess(Stream data, Process process)
-  {
-    byte[] buffer = new byte[4096];
-    bool allDataWritten = false;
-
-    while(!process.HasExited)
-    {
-      int read = data.Read(buffer, 0, buffer.Length);
-      if(read == 0)
-      {
-        allDataWritten = true;
-        break;
-      }
-
-      try { process.StandardInput.BaseStream.Write(buffer, 0, read); }
-      catch(ObjectDisposedException) { break; }
-    }
-
-    process.StandardInput.Close();
-    return allDataWritten;
-  }
-
   Signature[] DecryptVerifyCore(Command cmd, Stream signedData, Stream destination, DecryptionOptions options)
   {
-    FailureReasons failureReasons = FailureReasons.None;
+    FailureReason failureReasons = FailureReason.None;
     using(cmd)
     {
       List<Signature> signatures = new List<Signature>();
@@ -1174,11 +1273,6 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
               passwordHint = ((UserIdHintMessage)msg).Hint;
               break;
 
-            case StatusMessageType.BadPassphrase:
-              OnInvalidPassword(((BadPassphraseMessage)msg).KeyId);
-              failureReasons |= FailureReasons.BadPassword;
-              break;
-
             case StatusMessageType.NeedKeyPassphrase:
             {
               NeedKeyPassphraseMessage m = (NeedKeyPassphraseMessage)msg;
@@ -1213,8 +1307,14 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
               break;
             }
 
-            case StatusMessageType.NoSecretKey: failureReasons |= FailureReasons.MissingSecretKey; break;
-            case StatusMessageType.NoData: failureReasons |= FailureReasons.BadData; break;
+            case StatusMessageType.GetHidden:
+            {
+              GetInputMessage m = (GetInputMessage)msg;
+              if(!string.Equals(m.PromptId, "passphrase.enter")) goto default;
+              break;
+            }
+
+            default: DefaultStatusMessageHandler(msg, ref failureReasons); break;
           }
         }
       };
@@ -1229,8 +1329,48 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
       }
 
       if(!cmd.SuccessfulExit) throw new DecryptionFailedException(failureReasons);
-      
+
+      foreach(Signature signature in signatures) signature.MakeReadOnly();
       return signatures.ToArray();
+    }
+  }
+
+  void DefaultStatusMessageHandler(StatusMessage msg, ref FailureReason failureReasons)
+  {
+    switch(msg.Type)
+    {
+      case StatusMessageType.InvalidRecipient:
+      {
+        failureReasons |= FailureReason.InvalidRecipients;
+        InvalidRecipientMessage m = (InvalidRecipientMessage)msg;
+        throw new EncryptionFailedException(failureReasons, "Invalid recipient "+m.Recipient+". "+m.ReasonText);
+      }
+
+      case StatusMessageType.BadPassphrase:
+        OnInvalidPassword(((BadPassphraseMessage)msg).KeyId);
+        failureReasons |= FailureReason.BadPassword;
+        break;
+
+      case StatusMessageType.NoPublicKey:
+        failureReasons |= FailureReason.MissingPublicKey;
+        break;
+
+      case StatusMessageType.NoSecretKey:
+        failureReasons |= FailureReason.MissingSecretKey; break;
+
+      case StatusMessageType.UnexpectedData: case StatusMessageType.NoData:
+        failureReasons |= FailureReason.BadData;
+        break;
+
+      case StatusMessageType.DeleteFailed:
+      {
+        DeleteFailedMessage m = (DeleteFailedMessage)msg;
+        if(m.Reason == DeleteFailureReason.NoSuchKey) failureReasons |= FailureReason.KeyNotFound;
+        break;
+      }
+
+      case StatusMessageType.GetBool: case StatusMessageType.GetHidden: case StatusMessageType.GetLine:
+        throw new NotImplementedException("GPG requested unknown user input.");
     }
   }
 
@@ -1248,6 +1388,55 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
 
     return new Command(GetProcessStartInfo(ExecutablePath, args), statusPipe,
                        closeStdInput, stdOutHandling, stdErrorHandling);
+  }
+
+  void ExportCore(string args, Stream destination)
+  {
+    FailureReason failureReasons = FailureReason.None;
+
+    Command cmd = Execute(args, true, true, StreamHandling.Unprocessed, StreamHandling.ProcessText);
+    using(cmd)
+    {
+      cmd.StatusMessageReceived += delegate(StatusMessage msg)
+      {
+        DefaultStatusMessageHandler(msg, ref failureReasons);
+      };
+
+      cmd.Start();
+      IOH.CopyStream(cmd.Process.StandardOutput.BaseStream, destination);
+      cmd.WaitForExit();
+    }
+
+    if(!cmd.SuccessfulExit) throw new ExportFailedException(failureReasons);
+  }
+
+  void ExportKeyrings(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
+                      ExportOptions exportOptions, OutputOptions outputOptions, bool exportSecretKeys)
+  {
+    if(destination == null) throw new ArgumentNullException();
+
+    string args = GetKeyringArgs(keyrings, !includeDefaultKeyring, exportSecretKeys) +
+                  GetExportArgs(exportOptions, exportSecretKeys) + GetOutputArgs(outputOptions);
+
+    ExportCore(args, destination);
+  }
+
+  void ExportKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions, OutputOptions outputOptions,
+                  bool exportSecretKeys)
+  {
+    if(keys == null || destination == null) throw new ArgumentNullException();
+    if(keys.Length == 0) return;
+
+    string args = GetKeyringArgs(keys, true, exportSecretKeys, true) + GetExportArgs(exportOptions, exportSecretKeys) +
+                  GetOutputArgs(outputOptions);
+
+    foreach(PrimaryKey key in keys)
+    {
+      if(key == null) throw new ArgumentException("A key was null.");
+      args += key.Fingerprint + " ";
+    }
+
+    ExportCore(args, destination);
   }
 
   PrimaryKey[] GetKeys(KeySignatures signatures, Keyring[] keyrings, bool includeDefaultKeyring, bool secretKeys)
@@ -1279,11 +1468,7 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
 
   void GetKeys(List<PrimaryKey> keys, string args, Keyring keyring, bool secretKeys)
   {
-    if(keyring != null)
-    {
-      string file = NormalizeKeyringFile(secretKeys ? keyring.SecretFile : keyring.PublicFile);
-      args += "--no-default-keyring --" + (secretKeys ? "secret-keyring " : "keyring ") + file;
-    }
+    args += GetKeyringArgs(keyring, true, true, true);
 
     Command cmd = Execute(args, false, true, StreamHandling.Unprocessed, StreamHandling.ProcessText);
     using(cmd)
@@ -1330,7 +1515,7 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
             {
               sig.Fingerprint = fields[12].ToUpperInvariant();
             }
-            sig.Finish();
+            sig.MakeReadOnly();
             sigs.Add(sig);
             break;
 
@@ -1378,7 +1563,7 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
 
   Signature[] VerifyCore(string signatureFile, Stream signedData, VerificationOptions options)
   {
-    string args = GetVerificationArgs(options);
+    string args = GetVerificationArgs(options, false);
     args += "--verify " + (signatureFile == null ? "-" : EscapeArg(signatureFile) + " -");
     Command cmd = Execute(args, true, false, StreamHandling.DumpBinary, StreamHandling.ProcessText);
     return DecryptVerifyCore(cmd, signedData, null, null);
@@ -1390,6 +1575,19 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
     {
       return new string((char)GetHexValue(m.Value[2], m.Value[3]), 1);
     });
+  }
+
+  static void DefaultStandardErrorHandler(string line, ref FailureReason failureReasons)
+  {
+    if(line.IndexOf(" file write error", StringComparison.Ordinal) != -1 ||
+       line.IndexOf(" file rename error", StringComparison.Ordinal) != -1)
+    {
+      failureReasons |= FailureReason.KeyringLocked;
+    }
+    else if(line.IndexOf(" already in secret keyring", StringComparison.Ordinal) != -1)
+    {
+      failureReasons |= FailureReason.SecretKeyAlreadyExists;
+    }
   }
 
   static Process Execute(string exePath, string args)
@@ -1404,6 +1602,23 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
     process.StandardError.Close();
     if(!process.WaitForExit(500)) process.Kill();
     return process.ExitCode;
+  }
+
+  /// <summary>Escapes a command-line argument.</summary>
+  static string EscapeArg(string arg)
+  {
+    if(arg.IndexOf(' ') != -1) // if the argument contains spaces, we need to quote it.
+    {
+      if(arg.IndexOf('"') == -1) return "\"" + arg + "\""; // if it doesn't contain a double-quote, use those
+      else if(arg.IndexOf('\'') == -1) return "'" + arg + "'"; // otherwise, try single quotes
+    }
+    else if(arg.IndexOf('"') != -1)
+    {
+      throw new NotImplementedException();
+    }
+    else return arg;
+
+    throw new ArgumentException("Argument could not be escaped: "+arg);
   }
 
   static void FinishPrimaryKey(List<PrimaryKey> keys, List<Subkey> subkeys, List<UserId> userIds,
@@ -1425,7 +1640,7 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
                                                     : new ReadOnlyListWrapper<KeySignature>(sigs.ToArray());
       }
 
-      currentPrimary.Finish();
+      currentPrimary.MakeReadOnly();
       keys.Add(currentPrimary);
       currentPrimary = null;
     }
@@ -1460,7 +1675,7 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
                                                    : new ReadOnlyListWrapper<KeySignature>(sigs.ToArray());
       }
 
-      currentSubkey.Finish();
+      currentSubkey.MakeReadOnly();
       subkeys.Add(currentSubkey);
       currentSubkey = null;
     }
@@ -1481,7 +1696,7 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
                                                    : new ReadOnlyListWrapper<KeySignature>(sigs.ToArray());
       }
 
-      currentUserId.Finish();
+      currentUserId.MakeReadOnly();
       userIds.Add(currentUserId);
       currentUserId = null;
     }
@@ -1504,7 +1719,71 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
     return (GetHexValue(high)<<4) + GetHexValue(low);
   }
 
-  static string GetKeyringArgs(IEnumerable<Key> keys, bool publicKeyrings, bool secretKeyrings)
+  static string GetExportArgs(ExportOptions options, bool exportSecretKeys)
+  {
+    string args = null;
+
+    if(options != ExportOptions.Default)
+    {
+      args += "--export-options ";
+      if((options & ExportOptions.CleanKeys) != 0) args += "export-clean ";
+      if((options & ExportOptions.ExcludeAttributes) != 0) args += "no-export-attributes ";
+      if((options & ExportOptions.ExportLocalSignatures) != 0) args += "export-local-sigs ";
+      if((options & ExportOptions.ExportSensitiveRevokerInfo) != 0) args += "export-sensitive-revkeys ";
+      if((options & ExportOptions.MinimizeKeys) != 0) args += "export-minimize ";
+      if((options & ExportOptions.ResetSubkeyPassword) != 0) args += "export-reset-subkey-passwd ";
+    }
+
+    if(exportSecretKeys)
+    {
+      args += (options & ExportOptions.ClobberMasterSecretKey) != 0 ?
+        "--export-secret-subkeys " : "--export-secret-keys ";
+    }
+    else args += "--export ";
+
+    return args;
+  }
+
+  static string GetKeyringArgs(Keyring keyring, bool publicKeyrings, bool secretKeyrings, bool overrideDefaultKeyring)
+  {
+    string args = null;
+    if(keyring != null)
+    {
+      if(overrideDefaultKeyring) args += "--no-default-keyring ";
+
+      if(publicKeyrings) args += "--keyring " + EscapeArg(NormalizeKeyringFile(keyring.PublicFile)) + " ";
+
+      if(secretKeyrings && !string.IsNullOrEmpty(keyring.SecretFile))
+      {
+        args += "--secret-keyring " + EscapeArg(NormalizeKeyringFile(keyring.SecretFile)) + " ";
+      }
+    }
+    return args;
+  }
+
+  static string GetKeyringArgs(IEnumerable<Keyring> keyrings, bool ignoreDefaultKeyring, bool wantSecretKeyrings)
+  {
+    string args = null;
+
+    if(ignoreDefaultKeyring) args += "--no-default-keyring ";
+
+    foreach(Keyring keyring in keyrings)
+    {
+      if(keyring != null)
+      {
+        args += "--keyring " + EscapeArg(NormalizeKeyringFile(keyring.PublicFile)) + " ";
+        if(wantSecretKeyrings && !string.IsNullOrEmpty(keyring.SecretFile))
+        {
+          args += "--secret-keyring " + EscapeArg(NormalizeKeyringFile(keyring.SecretFile)) + " ";
+        }
+      }
+    }
+
+    return args;
+  }
+
+  static string GetKeyringArgs(IEnumerable<Key> keys, bool publicKeyrings, bool secretKeyrings,
+                               bool overrideDefaultKeyring)
   {
     string args = null;
 
@@ -1513,18 +1792,20 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
       Dictionary<string, object> publicFiles = new Dictionary<string, object>(StringComparer.Ordinal);
       Dictionary<string, object> secretFiles = new Dictionary<string, object>(StringComparer.Ordinal);
 
-      string optionName = secretKeyrings ? "--secret-keyring " : "--keyring ";
       foreach(Key key in keys)
       {
-        if(key.Keyring != null)
+        if(key.Keyring == null)
+        {
+          overrideDefaultKeyring = false;
+        }
+        else
         {
           string publicFile = NormalizeKeyringFile(key.Keyring.PublicFile);
-          string secretFile = NormalizeKeyringFile(key.Keyring.SecretFile);
+          string secretFile = key.Keyring.SecretFile == null ? null : NormalizeKeyringFile(key.Keyring.SecretFile);
 
-          if(publicKeyrings && string.IsNullOrEmpty(publicFile) ||
-             secretKeyrings && string.IsNullOrEmpty(secretFile))
+          if(secretKeyrings && string.IsNullOrEmpty(secretFile))
           {
-            throw new ArgumentException("Empty keyring filename.");
+            throw new ArgumentException("Keyring is missing secret portion.");
           }
 
           if(publicKeyrings && !publicFiles.ContainsKey(publicFile))
@@ -1533,33 +1814,15 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
             args += "--keyring " + publicFile + " ";
           }
 
-          if(secretKeyrings && !secretFiles.ContainsKey(secretFile))
+          if(secretKeyrings && secretFile != null && !secretFiles.ContainsKey(secretFile))
           {
             secretFiles[secretFile] = null;
             args += "--secret-keyring " + secretFile + " ";
           }
         }
       }
-    }
 
-    return args;
-  }
-
-  static string GetKeyringArgs(bool ignoreDefaultKeyring, IEnumerable<Keyring> keyrings, bool secretKeyrings)
-  {
-    string args = null;
-
-    if(ignoreDefaultKeyring) args += "--no-default-keyring ";
-
-    if(keyrings != null)
-    {
-      string optionName = secretKeyrings ? "--secret-keyring " : "--keyring ";
-      foreach(Keyring keyring in keyrings)
-      {
-        string file = keyring == null ? null : secretKeyrings ? keyring.SecretFile : keyring.PublicFile;
-        if(string.IsNullOrEmpty(file)) throw new ArgumentException("Empty keyring filename.");
-        args += optionName + EscapeArg(NormalizeKeyringFile(file)) + " ";
-      }
+      if(overrideDefaultKeyring && args != null) args += "--no-default-keyring ";
     }
 
     return args;
@@ -1579,12 +1842,12 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
     return args;
   }
 
-  static string GetVerificationArgs(VerificationOptions options)
+  static string GetVerificationArgs(VerificationOptions options, bool wantSecretKeyrings)
   {
     string args = null;
     if(options != null)
     {
-      args += GetKeyringArgs(options.IgnoreDefaultKeyring, options.AdditionalKeyrings, false);
+      args += GetKeyringArgs(options.AdditionalKeyrings, options.IgnoreDefaultKeyring, wantSecretKeyrings);
 
       if(options.AutoFetchKeys)
       {
@@ -1598,16 +1861,16 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
         args += "--keyserver "+EscapeArg(options.KeyServer.AbsoluteUri)+" --keyserver-options auto-key-retrieve ";
         if(!options.AutoFetchKeys) args += "--auto-key-locate keyserver ";
       }
+
+      if(options.AssumeBinaryInput) args += "--no-armor ";
     }
     return args;
   }
 
   static ProcessStartInfo GetProcessStartInfo(string exePath, string args)
   {
-    string prefixArgs = "--no-tty --no-options --display-charset utf-8 ";
-
     ProcessStartInfo psi = new ProcessStartInfo();
-    psi.Arguments              = prefixArgs + args;
+    psi.Arguments              = "--no-tty --no-options --display-charset utf-8 " + args;
     psi.CreateNoWindow         = true;
     psi.ErrorDialog            = false;
     psi.FileName               = exePath;
@@ -1668,6 +1931,12 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
     }
   }
 
+  /// <summary>Normalizes a keyring filename to something that is acceptable to GPG.</summary>
+  static string NormalizeKeyringFile(string filename)
+  {
+    return Path.GetFullPath(filename).Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+  }
+
   static TrustLevel ParseTrustLevel(char c)
   {
     switch(c)
@@ -1678,6 +1947,32 @@ Debugger.Log(0, "GPG", keyword+" "+string.Join(" ", arguments)+"\n"); // TODO: r
       case 'u': return TrustLevel.Ultimate;
       default: return TrustLevel.Unknown;
     }
+  }
+
+  /// <summary>Writes all data from the stream to the standard input of the process,
+  /// and then closes the standard input.
+  /// </summary>
+  /// <returns>Returns true if all data was written to the stream before the process terminated.</returns>
+  static bool WriteStreamToProcess(Stream data, Process process)
+  {
+    byte[] buffer = new byte[4096];
+    bool allDataWritten = false;
+
+    while(!process.HasExited)
+    {
+      int read = data.Read(buffer, 0, buffer.Length);
+      if(read == 0)
+      {
+        allDataWritten = true;
+        break;
+      }
+
+      try { process.StandardInput.BaseStream.Write(buffer, 0, read); }
+      catch(ObjectDisposedException) { break; }
+    }
+
+    process.StandardInput.Close();
+    return allDataWritten;
   }
 
   string[] ciphers, hashes, keyTypes, compressions;

@@ -19,12 +19,12 @@
 
       <ConsF>
         <summary>Initializes a new exception with the given failure reasons.</summary>
-        <param name="reasons">A <see cref="FailureReasons"/> value that indicates potential causes for the failure.</param>
+        <param name="reasons">A <see cref="FailureReason"/> value that indicates potential causes for the failure.</param>
       </ConsF>
 
       <ConsF2>
         <summary>Initializes a new exception with the given failure reasons, and some additional error text.</summary>
-        <param name="reasons">A <see cref="FailureReasons"/> value that indicates potential causes for the failure.</param>
+        <param name="reasons">A <see cref="FailureReason"/> value that indicates potential causes for the failure.</param>
         <param name="extraText">Additional text to include in the error message.</param>
       </ConsF2>
     </Exception>
@@ -33,12 +33,12 @@
   </Common>
   
   <ReadOnlyClass>
-    <Finish>
+    <MakeReadOnly>
       <summary>
         Validates and locks the property values of the object so that they cannot be changed. This method is
         intended to be called by the PGP interface before returning the object to the user.
       </summary>
-    </Finish>
+    </MakeReadOnly>
   </ReadOnlyClass>
 
   <Key>
@@ -58,20 +58,26 @@
       </summary>
     </Decrypt>
     
-    <DeleteKey>
-      <summary>Deletes the given key, or a part of it, from its keyring.</summary>
-    </DeleteKey>
+    <DeleteKeys>
+      <summary>Deletes the given keys, or a part of them, from their keyrings.</summary>
+      <param name="keys">The keys to delete. For each key, if the key is a <cref see="PrimaryKey"/>
+        the entire key will be deleted. If the key is a <cref see="Subkey"/>, the subkey will be removed from its
+        primary key. If the subkey has distributed already, then deleting it is mostly useless. It is better to revoke
+        the subkey in that case.
+      </param>
+      <param name="deletion">The portion of the keys to delete.</param>
+    </DeleteKeys>
 
     <Encrypt>
       <summary>Encrypts the given source data, writing the result to the given destination.</summary>
     </Encrypt>
     
     <ExportPublicKeys>
-      <summary>Exports the given public keys to the given destination.</summary>
+      <summary>Exports the given public keys to the given stream.</summary>
     </ExportPublicKeys>
     
     <ExportPublicKeys2>
-      <summary>Exports all public keys in the given keyring files and/or the default keyring to the given destination.</summary>
+      <summary>Exports all public keys in the given keyring files and/or the default keyring to the given stream.</summary>
       <param name="keyrings">
         Specifies a list of additional keyrings. If null or empty, no additional keyrings will be used.
       </param>
@@ -79,17 +85,17 @@
         Specifies whether the default keyring will be implicitly included. If false,
         only the keyrings listed in <paramref name="keyrings"/> will be used.
       </param>
-      <param name="options">Options controlling how the keys should be exported.</param>
       <param name="destination">The stream to which the key data will be written.</param>
-      <param name="format">The output format.</param>
+      <param name="exportOptions">Options controlling how the keys should be exported.</param>
+      <param name="outputOptions">Options that control the output format.</param>
     </ExportPublicKeys2>
     
     <ExportSecretKeys>
-      <summary>Exports the given secret keys to the given destination.</summary>
+      <summary>Exports the given secret and public keys to the given destination.</summary>
     </ExportSecretKeys>
     
     <ExportSecretKeys2>
-      <summary>Exports all secret keys in the given keyring files and/or the default keyring to the given destination.</summary>
+      <summary>Exports all secret keys in the given keyring files and/or the default keyring to the given stream.</summary>
       <param name="keyrings">
         Specifies a list of additional keyrings. If null or empty, no additional keyrings will be used.
       </param>
@@ -97,9 +103,9 @@
         Specifies whether the default keyring will be implicitly included. If false,
         only the keyrings listed in <paramref name="keyrings"/> will be used.
       </param>
-      <param name="options">Options controlling how the keys should be exported.</param>
       <param name="destination">The stream to which the key data will be written.</param>
-      <param name="format">The output format.</param>
+      <param name="exportOptions">Options controlling how the keys should be exported.</param>
+      <param name="outputOptions">Options that control the output format.</param>
     </ExportSecretKeys2>
     
     <GetRandomData>
