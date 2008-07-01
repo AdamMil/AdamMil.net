@@ -766,6 +766,47 @@ sealed class InvalidRecipientMessage : StatusMessage
 }
 #endregion
 
+#region KeyCreatedMessage
+/// <summary>A message issued when a key was successfully created.</summary>
+sealed class KeyCreatedMessage : StatusMessage
+{
+  public KeyCreatedMessage(string[] arguments) : base(StatusMessageType.KeyCreated)
+  {
+    switch(arguments[0][0])
+    {
+      case 'B': primaryCreated = subkeyCreated = true; break;
+      case 'P': primaryCreated = true; break;
+      case 'S': subkeyCreated = true; break;
+    }
+
+    fingerprint = arguments[1].ToUpperInvariant();
+  }
+
+  /// <summary>Gets the fingerprint of the key created. If <see cref="PrimaryKeyCreated"/> is true, this is the
+  /// fingerprint of the primary key. If <see cref="SubkeyCreated"/> is true, this is the fingerprint of the subkey.
+  /// </summary>
+  public string Fingerprint
+  {
+    get { return fingerprint; }
+  }
+
+  /// <summary>Gets whether a primary key was created.</summary>
+  public bool PrimaryKeyCreated
+  {
+    get { return primaryCreated; }
+  }
+
+  /// <summary>Gets whether a subkey was created.</summary>
+  public bool SubkeyCreated
+  {
+    get { return subkeyCreated; }
+  }
+
+  readonly string fingerprint;
+  readonly bool primaryCreated, subkeyCreated;
+}
+#endregion
+
 #region NeedPassphraseMessage
 /// <summary>Issued when a password is needed to unlock a secret key.</summary>
 sealed class NeedKeyPassphraseMessage : StatusMessage

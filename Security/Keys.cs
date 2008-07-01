@@ -487,7 +487,7 @@ public abstract class Key : ReadOnlyClass
   /// <include file="documentation.xml" path="/Security/Common/ToString/*"/>
   public override string ToString()
   {
-    return string.IsNullOrEmpty(KeyId) ? Fingerprint : KeyId;
+    return "0x" + (string.IsNullOrEmpty(KeyId) ? Fingerprint : KeyId);
   }
 
   string keyId, keyType, fingerprint;

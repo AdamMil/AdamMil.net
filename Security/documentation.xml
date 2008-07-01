@@ -51,6 +51,10 @@
   </Key>
 
   <PGPSystem>
+    <CreateKey>
+      <summary>Creates a new key pair.</summary>
+    </CreateKey>
+    
     <Decrypt>
       <summary>
         Decrypts the given ciphertext and writes the result to the given destination. Signatures embedded
@@ -107,7 +111,33 @@
       <param name="exportOptions">Options controlling how the keys should be exported.</param>
       <param name="outputOptions">Options that control the output format.</param>
     </ExportSecretKeys2>
-    
+
+    <FindPublicKeys>
+      <summary>Searches for the public keys with the given fingerprints in the given keyrings.</summary>
+      <param name="fingerprints">An array containing the fingerprints of the keys to search for.</param>
+      <param name="signatures">Specifies whether key signatures should be returned and verified.</param>
+      <param name="keyrings">An array of additional keyrings to search, or null to use no additional keyrings.</param>
+      <param name="includeDefaultKeyring">If true, the default keyring will also be searched.</param>
+      <returns>
+        Returns an array of primary keys with the same length as the array of fingerprints. The key at index
+        <c>i</c> will have a fingerprint equal to <c>fingerprints[i]</c>, or will be null if no key with that fingerprint
+        could be found.
+      </returns>
+    </FindPublicKeys>
+
+    <FindSecretKeys>
+      <summary>Searches for the secret keys with the given fingerprints in the given keyrings.</summary>
+      <param name="fingerprints">An array containing the fingerprints of the keys to search for.</param>
+      <param name="signatures">Specifies whether key signatures should be returned and verified.</param>
+      <param name="keyrings">An array of additional keyrings to search, or null to use no additional keyrings.</param>
+      <param name="includeDefaultKeyring">If true, the default keyring will also be searched.</param>
+      <returns>
+        Returns an array of primary keys with the same length as the array of fingerprints. The key at index
+        <c>i</c> will have a fingerprint equal to <c>fingerprints[i]</c>, or will be null if no key with that fingerprint
+        could be found.
+      </returns>
+    </FindSecretKeys>
+
     <GetRandomData>
       <summary>Generates random data and writes it to the given buffer.</summary>
       <param name="quality">

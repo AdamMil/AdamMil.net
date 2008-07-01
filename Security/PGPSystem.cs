@@ -127,11 +127,11 @@ public static class SymmetricCipher
 #endregion
 
 #region MasterKeyTYpe
-/// <summary>A static class containing commonly-supported master key types. Note that not all of these types may be
+/// <summary>A static class containing commonly-supported primary key types. Note that not all of these types may be
 /// supported, so it's recommended that <see cref="Default"/> be used whenever possible. If a specific algorithm is
-/// desired, use <see cref="PGPSystem.GetSupportedMasterKeys"/> to verify that it is supported.
+/// desired, use <see cref="PGPSystem.GetSupportedPrimaryKeys"/> to verify that it is supported.
 /// </summary>
-public static class MasterKeyType
+public static class PrimaryKeyType
 {
   /// <summary>The default master key type will be used.</summary>
   public static readonly string Default = null;
@@ -140,7 +140,7 @@ public static class MasterKeyType
   /// </summary>
   public static readonly string DSA = "DSA";
   /// <summary>The RSA algorithm will be used, creating a key that can both sign and encrypt. (Although it's better to
-  /// use a signature-only master key and only use subkeys to encrypt.)
+  /// use a signature-only primary key and only use subkeys to encrypt.)
   /// </summary>
   public static readonly string RSA = "RSA";
 }
@@ -157,14 +157,18 @@ public static class SubkeyType
   public static readonly string Default = null;
   /// <summary>No subkey will be created.</summary>
   public static readonly string None = "None";
-  /// <summary>An Elgamal encryption-only key will be created.</summary>
-  public static readonly string ElgamalEncryptOnly = "ELG-E";
-  /// <summary>An Elgamal encryption key will be created. Despite the contrast with <see cref="ElgamalEncryptOnly"/>,
+  /// <summary>The FIPS-186 Digital Signature Algorithm will be used, which is for signing only. Standard DSA keys can
+  /// be up to 1024 bits in length. Larger keys are supported by only a few clients.
+  /// </summary>
+  public static readonly string DSA = "DSA";
+  /// <summary>An ElGamal encryption-only key will be created.</summary>
+  public static readonly string ElGamalEncryptOnly = "ELG-E";
+  /// <summary>An ElGamal encryption key will be created. Despite the contrast with <see cref="ElGamalEncryptOnly"/>,
   /// a subkey with this type can also be used only for encryption.
   /// </summary>
-  public static readonly string Elgamal = "ELG";
+  public static readonly string ElGamal = "ELG";
   /// <summary>The RSA algorithm will be used, creating a key that can both sign and encrypt. (Although it's better to
-  /// use a signature-only master key to sign and an encryption-only subkey to encrypt.)
+  /// use a signature-only primary key to sign and an encryption-only subkey to encrypt.)
   /// </summary>
   public static readonly string RSA = "RSA";
   /// <summary>The RSA algorithm will be used, creating a signing-only key.</summary>
@@ -233,8 +237,10 @@ public class EncryptionOptions
   }
 
   /// <summary>Gets or sets the name of the cipher algorithm used to encrypt the data. This can be one of the
-  /// <see cref="SymmetricCipher"/> values, or another cipher name, but it's usually best to leave it at the default
-  /// value of <see cref="SymmetricCipher.Default"/>, and allow the software to determine the algorithm used.
+  /// <see cref="SymmetricCipher"/> values, or another cipher name. However, specifying a cipher can cause the message
+  /// to not be decryptable by some of the recipients, if their PGP clients do not support that algorithm, so it's
+  /// usually best to leave it at the default value of <see cref="SymmetricCipher.Default"/>, and allow the software to
+  /// determine the algorithm used.
   /// </summary>
   public string Cipher
   {
@@ -409,8 +415,8 @@ public class VerificationOptions
 /// <summary>Options that control how keys are exported.</summary>
 public class NewKeyOptions
 {
-  /// <summary>Gets or sets the name of the master key type. This can be a member of <see cref="MasterKeyType"/>, or
-  /// another key type, but it's best to leave it at the default value of <see cref="MasterKeyType.Default"/>, which
+  /// <summary>Gets or sets the name of the master key type. This can be a member of <see cref="PrimaryKeyType"/>, or
+  /// another key type, but it's best to leave it at the default value of <see cref="PrimaryKeyType.Default"/>, which
   /// specifies that a default key type will be used.
   /// </summary>
   public string KeyType
@@ -468,13 +474,17 @@ public class NewKeyOptions
     set { password = value; }
   }
 
-  /// <summary>Gets or sets the the keyring in which the new key will be stored. If null, the default keyring will be
-  /// used.
+  /// <summary>Gets or sets the the keyring in which the new key will be stored. The keyring must have both public and
+  /// secret parts. If null, the default keyring will be used.
   /// </summary>
   public Keyring Keyring
   {
     get { return keyring; }
-    set { keyring = value; }
+    set
+    {
+      if(value.SecretFile == null) throw new ArgumentException("The keyring must both public and secret parts.");
+      keyring = value;
+    }
   }
 
   /// <summary>Gets or sets the name of the person who owns the key. This value must be set to a non-empty string.</summary>
@@ -506,7 +516,7 @@ public class NewKeyOptions
   Keyring keyring;
   int keyLength, subkeyLength;
   DateTime? expiration;
-  string keyType = MasterKeyType.Default, subkeyType = PGP.SubkeyType.Default;
+  string keyType = PrimaryKeyType.Default, subkeyType = PGP.SubkeyType.Default;
 }
 #endregion
 
@@ -706,18 +716,18 @@ public enum OpenPGPKeyType
   RSAEncryptOnly=2,
   /// <summary>An RSA signing-only key type, corresponding to <see cref="SubkeyType.RSASignOnly"/>.</summary>
   RSASignOnly=3,
-  /// <summary>An Elgamal encryption-only key type, corresponding to <see cref="SubkeyType.ElgamalEncryptOnly"/>.</summary>
-  ElgamalEncryptOnly=16,
-  /// <summary>A DSA signing key, corresponding to <see cref="MasterKeyType.DSA"/>.</summary>
+  /// <summary>An ElGamal encryption-only key type, corresponding to <see cref="SubkeyType.ElGamalEncryptOnly"/>.</summary>
+  ElGamalEncryptOnly=16,
+  /// <summary>A DSA signing key, corresponding to <see cref="SubkeyType.DSA"/>.</summary>
   DSA=17,
   /// <summary>An elliptic curve key.</summary>
   EllipticCurve=18,
   /// <summary>An elliptic curve DSA key.</summary>
   ECDSA=19,
-  /// <summary>An Elgamal key that can be used for both signing and encryption. Because of security weaknesses, this
+  /// <summary>An ElGamal key that can be used for both signing and encryption. Because of security weaknesses, this
   /// should not be used.
   /// </summary>
-  Elgamal=20,
+  ElGamal=20,
   /// <summary>The Diffie Hellmen X9.42 key type, as defined for IETF-S/MIME.</summary>
   DiffieHellman=21
 }
@@ -1312,6 +1322,56 @@ public abstract class PGPSystem
   #endregion
 
   #region Key management
+  /// <summary>Searches for the public keys with the given fingerprint in the given keyring.</summary>
+  /// <param name="fingerprint">The fingerprints of the key to search for.</param>
+  /// <param name="signatures">Specifies whether key signatures should be returned and verified.</param>
+  /// <param name="keyring">The keyring to search, or null to search the default keyring.</param>
+  /// <returns>Returns the key if it was found, or null if it was not.</returns>
+  public PrimaryKey FindPublicKey(string fingerprint, KeySignatures signatures, Keyring keyring)
+  {
+    string[] fingerprints = new string[] { fingerprint };
+    Keyring[] keyrings = keyring == null ? null : new Keyring[] { keyring };
+    PrimaryKey[] keys = FindPublicKeys(fingerprints, signatures, keyrings, keyring == null);
+    return keys[0];
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKeys/*[@name != 'keyrings' and @name != 'includeDefaultKeyring']"/>
+  /// <param name="keyring">The keyring to search, or null to search the default keyring.</param>
+  public PrimaryKey[] FindPublicKeys(string[] fingerprints, KeySignatures signatures, Keyring keyring)
+  {
+    Keyring[] keyrings = keyring == null ? null : new Keyring[] { keyring };
+    return FindPublicKeys(fingerprints, signatures, keyrings, keyring == null);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKeys/*"/>
+  public abstract PrimaryKey[] FindPublicKeys(string[] fingerprints, KeySignatures signatures,
+                                              Keyring[] keyrings, bool includeDefaultKeyring);
+
+  /// <summary>Searches for the secret keys with the given fingerprint in the given keyring.</summary>
+  /// <param name="fingerprint">The fingerprints of the key to search for.</param>
+  /// <param name="signatures">Specifies whether key signatures should be returned and verified.</param>
+  /// <param name="keyring">The keyring to search, or null to search the default keyring.</param>
+  /// <returns>Returns the key if it was found, or null if it was not.</returns>
+  public PrimaryKey FindSecretKey(string fingerprint, KeySignatures signatures, Keyring keyring)
+  {
+    string[] fingerprints = new string[] { fingerprint };
+    Keyring[] keyrings = keyring == null ? null : new Keyring[] { keyring };
+    PrimaryKey[] keys = FindSecretKeys(fingerprints, signatures, keyrings, keyring == null);
+    return keys[0];
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKeys/*[@name != 'keyrings' and @name != 'includeDefaultKeyring']"/>
+  /// <param name="keyring">The keyring to search, or null to search the default keyring.</param>
+  public PrimaryKey[] FindSecretKeys(string[] fingerprints, KeySignatures signatures, Keyring keyring)
+  {
+    Keyring[] keyrings = keyring == null ? null : new Keyring[] { keyring };
+    return FindSecretKeys(fingerprints, signatures, keyrings, keyring == null);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKeys/*"/>
+  public abstract PrimaryKey[] FindSecretKeys(string[] fingerprints, KeySignatures signatures,
+                                              Keyring[] keyrings, bool includeDefaultKeyring);
+
   /// <summary>Gets all public keys in the default keyring, without retrieving key signatures.</summary>
   public PrimaryKey[] GetPublicKeys()
   {
@@ -1333,7 +1393,8 @@ public abstract class PGPSystem
   /// <summary>Gets all public keys in the given keyring.</summary>
   public PrimaryKey[] GetPublicKeys(KeySignatures signatures, Keyring keyring)
   {
-    return GetPublicKeys(signatures, new Keyring[] { keyring }, false);
+    return keyring == null ?
+      GetPublicKeys(signatures, null, true) : GetPublicKeys(signatures, new Keyring[] { keyring }, false);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetPublicKeys2/*"/>
@@ -1348,11 +1409,14 @@ public abstract class PGPSystem
   /// <summary>Gets all secret keys in the given keyring.</summary>
   public PrimaryKey[] GetSecretKeys(Keyring keyring)
   {
-    return GetSecretKeys(new Keyring[] { keyring }, false);
+    return keyring == null ? GetSecretKeys(null, true) : GetSecretKeys(new Keyring[] { keyring }, false);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetSecretKeys2/*"/>
   public abstract PrimaryKey[] GetSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/CreateKey/*"/>
+  public abstract PrimaryKey CreateKey(NewKeyOptions options);
 
   /// <summary>Deletes the given keys, or a part of them, from their keyrings.</summary>
   /// <param name="key">The key to delete. If the key is a <cref see="PrimaryKey"/>, the entire key will be deleted.
@@ -1382,7 +1446,7 @@ public abstract class PGPSystem
 
   /// <summary>Exports the given public key to the given stream.</summary>
   public void ExportPublicKey(PrimaryKey key, Stream destination, ExportOptions exportOptions,
-                               OutputOptions outputOptions)
+                              OutputOptions outputOptions)
   {
     ExportPublicKeys(new PrimaryKey[] { key }, destination, exportOptions, outputOptions);
   }
@@ -1434,7 +1498,7 @@ public abstract class PGPSystem
 
   /// <summary>Exports the secret and public portion of the given key to the given stream.</summary>
   public void ExportSecretKey(PrimaryKey key, Stream destination, ExportOptions exportOptions,
-                               OutputOptions outputOptions)
+                              OutputOptions outputOptions)
   {
     ExportSecretKeys(new PrimaryKey[] { key }, destination, exportOptions, outputOptions);
   }
@@ -1453,7 +1517,7 @@ public abstract class PGPSystem
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/ExportSecretKeys/*"/>
   public abstract void ExportSecretKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions,
-                                          OutputOptions outputOptions);
+                                        OutputOptions outputOptions);
 
   /// <summary>Exports all secret keys in the given keyring files and/or the default keyring to the given stream.</summary>
   public void ExportSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination)
