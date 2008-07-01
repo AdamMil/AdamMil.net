@@ -20,6 +20,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Security;
+using AdamMil.Collections;
 
 namespace AdamMil.Security.PGP
 {
@@ -186,16 +187,6 @@ public class DecryptionOptions : VerificationOptions
     Password = password;
   }
 
-  /// <summary>Gets or sets a value that determines whether the input will be assumed to be binary. If true, the input
-  /// will be assumed to be binary. If false, the default, the input will be checked for ASCII armoring, allowing both
-  /// text and binary input to be decrypted. The default is false.
-  /// </summary>
-  public bool AssumeBinaryInput
-  {
-    get { return binaryOnly; }
-    set { binaryOnly = value; }
-  }
-
   /// <summary>Gets or sets the password used to decrypt the data. This is not related to the password used to access
   /// an encryption key on the keyring. The password used is decrypt ciphertext that was with a simple password (using
   /// <see cref="EncryptionOptions.Password"/>). The value null, which is the default, specifies that password-based
@@ -210,7 +201,6 @@ public class DecryptionOptions : VerificationOptions
 
   SecureString password;
   string cipher = SymmetricCipher.Default;
-  bool binaryOnly;
 }
 #endregion
 
@@ -231,6 +221,15 @@ public class EncryptionOptions
   public EncryptionOptions(SecureString password)
   {
     Password = password;
+  }
+
+  /// <summary>Gets or sets whether recipients are always trusted. If false, trust issues with recipients can cause
+  /// the encryption to fail. If true, trust issues with recipients will be ignored. The default is false.
+  /// </summary>
+  public bool AlwaysTrustRecipients
+  {
+    get { return alwaysTrust; }
+    set { alwaysTrust = value; }
   }
 
   /// <summary>Gets or sets the name of the cipher algorithm used to encrypt the data. This can be one of the
@@ -290,7 +289,7 @@ public class EncryptionOptions
   readonly KeyCollection hiddenRecipients = new KeyCollection(KeyCapability.Encrypt);
   SecureString password;
   string cipher = SymmetricCipher.Default;
-  bool eyesOnly;
+  bool alwaysTrust, eyesOnly;
 }
 #endregion
 
@@ -360,6 +359,16 @@ public class VerificationOptions
     get { return keyrings; }
   }
 
+  /// <summary>Gets or sets a value that determines whether the input will be assumed to be binary. If true, the input
+  /// will be assumed to be binary. If false, the default, the input will be checked for ASCII armoring, allowing both
+  /// text and binary input to be decrypted. The default is false.
+  /// </summary>
+  public bool AssumeBinaryInput
+  {
+    get { return binaryOnly; }
+    set { binaryOnly = value; }
+  }
+
   /// <summary>Gets or sets a value that determines whether the system should attempt to find keys not on the local
   /// keyrings by contacting public key servers, etc. If <see cref="KeyServer"/> is set, a limited form of key fetching
   /// will be enabled even if this is set to false. Note that downloaded keys may be added to a local keyring.
@@ -392,7 +401,7 @@ public class VerificationOptions
 
   List<Keyring> keyrings = new List<Keyring>();
   Uri keyServer;
-  bool autoFetch, ignoreDefaultKeyring;
+  bool autoFetch, ignoreDefaultKeyring, binaryOnly;
 }
 #endregion
 
@@ -560,8 +569,8 @@ public enum ImportOptions
 {
   /// <summary>The default import options will be used.</summary>
   Default=0,
-  /// <summary>Keys marked as "local only" will be imported. Normally, they are skipped.</summary>
-  ImportLocalKeys=1,
+  /// <summary>Key signatures marked as "local only" will be imported. Normally, they are skipped.</summary>
+  ImportLocalSignatures=1,
   /// <summary>Existing keys will be updated with the data from the import, but new keys will not be created.</summary>
   MergeOnly=2,
   /// <summary>Removes from imported keys all signatures that are unusable, and removes all signatures from user IDs
@@ -580,8 +589,8 @@ public enum ExportOptions
 {
   /// <summary>The default export options will be used. This will cause only public keys to be exported.</summary>
   Default=0,
-  /// <summary>Keys marked as "local only" will be exported. Normally, they are skipped.</summary>
-  ExportLocalKeys=1,
+  /// <summary>Key signatures marked as "local only" will be exported. Normally, they are skipped.</summary>
+  ExportLocalSignatures=1,
   /// <summary>Attribute user IDs (eg, photo IDs) will not be included in the output.</summary>
   ExcludeAttributes=2,
   /// <summary>Includes revoker information that was marked as sensitive.</summary>
@@ -674,12 +683,10 @@ public enum VerificationLevel
 /// <summary>Determines which parts of a key pair should be deleted.</summary>
 public enum KeyDeletion
 {
-  /// <summary>The public key should be deleted.</summary>
-  Public,
   /// <summary>The secret key should be deleted.</summary>
   Secret,
   /// <summary>The entire key pair should be deleted.</summary>
-  Both
+  PublicAndSecret
 }
 #endregion
 
@@ -863,6 +870,83 @@ public enum OpenPGPSignatureType
 }
 #endregion
 
+#region ImportedKey
+/// <summary>Represents a key that was processed during a key import. The key was not necessarily imported 
+/// successfully.
+/// </summary>
+public class ImportedKey : ReadOnlyClass
+{
+  /// <summary>Gets the fingerprint of the primary key, or null if the fingerprint is not known.</summary>
+  public string Fingerprint
+  {
+    get { return fingerprint; }
+    set 
+    {
+      AssertNotReadOnly();
+      fingerprint = value; 
+    }
+  }
+
+  /// <summary>Gets the ID of the primary key, or null if the ID is not known.</summary>
+  public string KeyId
+  {
+    get { return keyId; }
+    set 
+    {
+      AssertNotReadOnly();
+      keyId = value; 
+    }
+  }
+
+  /// <summary>Gets the type of the primary key, or null if the type is not known.</summary>
+  public string KeyType
+  {
+    get { return keyType; }
+    set 
+    {
+      AssertNotReadOnly();
+      keyType = value; 
+    }
+  }
+
+  /// <summary>Gets whether the key was or contained a secret key.</summary>
+  public bool Secret
+  {
+    get { return secret; }
+    set
+    {
+      AssertNotReadOnly();
+      secret = value;
+    }
+  }
+
+  /// <summary>Gets whether the import of this key was successful.</summary>
+  public bool Successful
+  {
+    get { return successful; }
+    set 
+    {
+      AssertNotReadOnly();
+      successful = value; 
+    }
+  }
+
+  /// <summary>Gets the primary user ID associated with this key, or null if the user ID is not known.</summary>
+  public string UserId
+  {
+    get { return userId; }
+    set 
+    {
+      AssertNotReadOnly();
+      userId = value; 
+    }
+  }
+
+  string keyId, fingerprint, userId, keyType;
+  bool secret, successful;
+}
+#endregion
+
 #region SignatureStatus
 /// <summary>Represents the status of a signature.</summary>
 [Flags]
@@ -903,13 +987,21 @@ public enum SignatureStatus
 
 #region Signature
 /// <summary>Contains information about a digital signature.</summary>
-public class Signature
+/// <remarks>This class derives from <see cref="ReadOnlyClass"/>, and it is expected that a <see cref="PGPSystem"/>
+/// implementation will call <see cref="ReadOnlyClass.MakeReadOnly"/> before returning a <see cref="Signature"/>
+/// object.
+/// </remarks>
+public class Signature : ReadOnlyClass
 {
   /// <summary>Gets the time the signature expires, or null if the signature does not expire.</summary>
   public DateTime? Expiration
   {
     get { return expiration; }
-    set { expiration = value; }
+    set 
+    {
+      AssertNotReadOnly();
+      expiration = value; 
+    }
   }
 
   /// <summary>Gets whether an error occurred during verification of this signature.</summary>
@@ -940,14 +1032,22 @@ public class Signature
   public string HashAlgorithm
   {
     get { return hashAlgorithm; }
-    set { hashAlgorithm = value; }
+    set 
+    {
+      AssertNotReadOnly();
+      hashAlgorithm = value; 
+    }
   }
 
   /// <summary>Gets or sets the fingerprint of the signing key.</summary>
   public string KeyFingerprint
   {
     get { return keyFingerprint; }
-    set { keyFingerprint = value; }
+    set 
+    {
+      AssertNotReadOnly();
+      keyFingerprint = value; 
+    }
   }
 
   /// <summary>Gets or sets the ID of the signing key. Note that key IDs are not unique. For a unique identifier, use
@@ -956,7 +1056,11 @@ public class Signature
   public string KeyId
   {
     get { return keyId; }
-    set { keyId = value; }
+    set 
+    {
+      AssertNotReadOnly();
+      keyId = value; 
+    }
   }
 
   /// <summary>Gets or sets the type of the signing key, or null if the type could not be determined. Note that the
@@ -965,28 +1069,44 @@ public class Signature
   public string KeyType
   {
     get { return keyType; }
-    set { keyType = value; }
+    set 
+    {
+      AssertNotReadOnly();
+      keyType = value; 
+    }
   }
 
   /// <summary>Gets or sets the fingerprint of the signing key's primary key.</summary>
   public string PrimaryKeyFingerprint
   {
     get { return primaryKeyFingerprint; }
-    set { primaryKeyFingerprint = value; }
+    set 
+    {
+      AssertNotReadOnly();
+      primaryKeyFingerprint = value; 
+    }
   }
 
   /// <summary>Gets or sets the status of the signature.</summary>
   public SignatureStatus Status
   {
     get { return status; }
-    set { status = value; }
+    set 
+    {
+      AssertNotReadOnly();
+      status = value; 
+    }
   }
 
   /// <summary>Gets or sets the time when the signature was made, or null if the time is not known.</summary>
   public DateTime? Timestamp
   {
     get { return timestamp; }
-    set { timestamp = value; }
+    set 
+    {
+      AssertNotReadOnly();
+      timestamp = value; 
+    }
   }
 
   /// <summary>Gets or sets the trust level of the signature, indicating how strongly the signature is believed to be
@@ -995,14 +1115,22 @@ public class Signature
   public TrustLevel TrustLevel
   {
     get { return trustLevel; }
-    set { trustLevel = value; }
+    set 
+    {
+      AssertNotReadOnly();
+      trustLevel = value; 
+    }
   }
 
   /// <summary>Gets a human-readable description of the identity of the signer.</summary>
   public string UserName
   {
     get { return userName; }
-    set { userName = value; }
+    set 
+    {
+      AssertNotReadOnly();
+      userName = value; 
+    }
   }
 
   /// <include file="documentation.xml" path="/Security/Common/ToString/*"/>
@@ -1115,6 +1243,12 @@ public abstract class PGPSystem
 
   #region Encryption and signing
   /// <include file="documentation.xml" path="/Security/PGPSystem/Encrypt/*"/>
+  public void Encrypt(Stream sourceData, Stream destination, EncryptionOptions encryptionOptions)
+  {
+    Encrypt(sourceData, destination, encryptionOptions, null);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/Encrypt/*"/>
   public void Encrypt(Stream sourceData, Stream destination, EncryptionOptions encryptionOptions,
                       OutputOptions outputOptions)
   {
@@ -1122,9 +1256,22 @@ public abstract class PGPSystem
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/Sign/*"/>
+  public void Sign(Stream sourceData, Stream destination, SigningOptions signingOptions)
+  {
+    Sign(sourceData, destination, signingOptions, null);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/Sign/*"/>
   public void Sign(Stream sourceData, Stream destination, SigningOptions signingOptions, OutputOptions outputOptions)
   {
     SignAndEncrypt(sourceData, destination, signingOptions, null, outputOptions);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignAndEncrypt/*[@name != 'outputOptions']"/>
+  public void SignAndEncrypt(Stream sourceData, Stream destination, SigningOptions signingOptions,
+                                      EncryptionOptions encryptionOptions)
+  {
+    SignAndEncrypt(sourceData, destination, signingOptions, encryptionOptions, null);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/SignAndEncrypt/*"/>
@@ -1176,7 +1323,19 @@ public abstract class PGPSystem
   {
     return GetPublicKeys(signatures, null, true);
   }
-  
+
+  /// <summary>Gets all public keys in the given keyring, without retrieving key signatures.</summary>
+  public PrimaryKey[] GetPublicKeys(Keyring keyring)
+  {
+    return GetPublicKeys(KeySignatures.Ignore, keyring);
+  }
+
+  /// <summary>Gets all public keys in the given keyring.</summary>
+  public PrimaryKey[] GetPublicKeys(KeySignatures signatures, Keyring keyring)
+  {
+    return GetPublicKeys(signatures, new Keyring[] { keyring }, false);
+  }
+
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetPublicKeys2/*"/>
   public abstract PrimaryKey[] GetPublicKeys(KeySignatures signatures, Keyring[] keyrings, bool includeDefaultKeyring);
 
@@ -1186,34 +1345,153 @@ public abstract class PGPSystem
     return GetSecretKeys(null, true);
   }
 
+  /// <summary>Gets all secret keys in the given keyring.</summary>
+  public PrimaryKey[] GetSecretKeys(Keyring keyring)
+  {
+    return GetSecretKeys(new Keyring[] { keyring }, false);
+  }
+
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetSecretKeys2/*"/>
   public abstract PrimaryKey[] GetSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteKey/*"/>
-  public abstract void DeleteKey(Key key, KeyDeletion deletion);
+  /// <summary>Deletes the given keys, or a part of them, from their keyrings.</summary>
+  /// <param name="key">The key to delete. If the key is a <cref see="PrimaryKey"/>, the entire key will be deleted.
+  /// If the key is a <cref see="Subkey"/>, the subkey will be removed from its primary key. If the subkey has
+  /// distributed already, then deleting it is mostly useless. It is better to revoke the subkey in that case.
+  /// </param>
+  /// <param name="deletion">The portion of the key to delete.</param>
+  public void DeleteKey(Key key, KeyDeletion deletion)
+  {
+    DeleteKeys(new Key[] { key }, deletion);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteKeys/*"/>
+  public abstract void DeleteKeys(Key[] keys, KeyDeletion deletion);
+
+  /// <summary>Exports the given public key to the given stream.</summary>
+  public void ExportPublicKey(PrimaryKey key, Stream destination)
+  {
+    ExportPublicKey(key, destination, ExportOptions.Default, null);
+  }
+
+  /// <summary>Exports the given public key to the given stream.</summary>
+  public void ExportPublicKey(PrimaryKey key, Stream destination, ExportOptions exportOptions)
+  {
+    ExportPublicKey(key, destination, exportOptions, null);
+  }
+
+  /// <summary>Exports the given public key to the given stream.</summary>
+  public void ExportPublicKey(PrimaryKey key, Stream destination, ExportOptions exportOptions,
+                               OutputOptions outputOptions)
+  {
+    ExportPublicKeys(new PrimaryKey[] { key }, destination, exportOptions, outputOptions);
+  }
+
+  /// <summary>Exports the given public keys to the given stream.</summary>
+  public void ExportPublicKeys(PrimaryKey[] keys, Stream destination)
+  {
+    ExportPublicKeys(keys, destination, ExportOptions.Default, null);
+  }
+
+  /// <summary>Exports the given public keys to the given stream.</summary>
+  public void ExportPublicKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions)
+  {
+    ExportPublicKeys(keys, destination, exportOptions, null);
+  }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/ExportPublicKeys/*"/>
-  public abstract void ExportPublicKeys(Key[] key, ExportOptions options, Stream destination, OutputFormat format);
-  
+  public abstract void ExportPublicKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions,
+                                        OutputOptions outputOptions);
+
+  /// <summary>Exports all public keys in the given keyring files and/or the default keyring to the given stream.</summary>
+  public void ExportPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination)
+  {
+    ExportPublicKeys(keyrings, includeDefaultKeyring, destination, ExportOptions.Default, null);
+  }
+
+  /// <summary>Exports all public keys in the given keyring files and/or the default keyring to the given stream.</summary>
+  public void ExportPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
+                               ExportOptions options)
+  {
+    ExportPublicKeys(keyrings, includeDefaultKeyring, destination, options, null);
+  }
+
   /// <include file="documentation.xml" path="/Security/PGPSystem/ExportPublicKeys/*"/>
-  public abstract void ExportPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, ExportOptions options,
-                                        Stream destination, OutputFormat format);
+  public abstract void ExportPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
+                                        ExportOptions exportOptions, OutputOptions outputOptions);
+
+  /// <summary>Exports the secret and public portion of the given key to the given stream.</summary>
+  public void ExportSecretKey(PrimaryKey key, Stream destination)
+  {
+    ExportSecretKey(key, destination, ExportOptions.Default, null);
+  }
+
+  /// <summary>Exports the secret and public portion of the given key to the given stream.</summary>
+  public void ExportSecretKey(PrimaryKey key, Stream destination, ExportOptions exportOptions)
+  {
+    ExportSecretKey(key, destination, exportOptions, null);
+  }
+
+  /// <summary>Exports the secret and public portion of the given key to the given stream.</summary>
+  public void ExportSecretKey(PrimaryKey key, Stream destination, ExportOptions exportOptions,
+                               OutputOptions outputOptions)
+  {
+    ExportSecretKeys(new PrimaryKey[] { key }, destination, exportOptions, outputOptions);
+  }
+
+  /// <summary>Exports the given secret and public keys to the given stream.</summary>
+  public void ExportSecretKeys(PrimaryKey[] keys, Stream destination)
+  {
+    ExportSecretKeys(keys, destination, ExportOptions.Default, null);
+  }
+
+  /// <summary>Exports the given secret and public keys to the given stream.</summary>
+  public void ExportSecretKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions)
+  {
+    ExportSecretKeys(keys, destination, exportOptions, null);
+  }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/ExportSecretKeys/*"/>
-  public abstract void ExportSecretKeys(Key[] key, ExportOptions options, Stream destination, OutputFormat format);
+  public abstract void ExportSecretKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions,
+                                          OutputOptions outputOptions);
+
+  /// <summary>Exports all secret keys in the given keyring files and/or the default keyring to the given stream.</summary>
+  public void ExportSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination)
+  {
+    ExportSecretKeys(keyrings, includeDefaultKeyring, destination, ExportOptions.Default, null);
+  }
+
+  /// <summary>Exports all secret keys in the given keyring files and/or the default keyring to the given stream.</summary>
+  public void ExportSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
+                               ExportOptions exportOptions)
+  {
+    ExportSecretKeys(keyrings, includeDefaultKeyring, destination, exportOptions, null);
+  }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/ExportSecretKeys/*"/>
-  public abstract void ExportSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring, ExportOptions options,
-                                        Stream destination, OutputFormat format);
+  public abstract void ExportSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
+                                        ExportOptions exportOptions, OutputOptions outputOptions);
+
+  /// <summary>Imports keys from the given source into the default keyring.</summary>
+  public ImportedKey[] ImportKeys(Stream source)
+  {
+    return ImportKeys(source, null, ImportOptions.Default);
+  }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeys2/*"/>
-  public void ImportKeys(Stream source, ImportOptions options)
+  public ImportedKey[] ImportKeys(Stream source, ImportOptions options)
   {
-    ImportKeys(source, null, options);
+    return ImportKeys(source, null, options);
+  }
+
+  /// <summary>Imports keys from the given source into the given keyring.</summary>
+  public ImportedKey[] ImportKeys(Stream source, Keyring keyring)
+  {
+    return ImportKeys(source, keyring, ImportOptions.Default);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeys3/*"/>
-  public abstract void ImportKeys(Stream source, Keyring keyring, ImportOptions options);
+  public abstract ImportedKey[] ImportKeys(Stream source, Keyring keyring, ImportOptions options);
   #endregion
 
   #region Miscellaneous

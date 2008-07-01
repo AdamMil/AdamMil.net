@@ -46,24 +46,24 @@ public enum KeyCapability
 #endregion
 
 #region ReadOnlyClass
-/// <summary>Represents a class that allows its properties to be set until <see cref="Finish"/> is called, at which
-/// point the object becomes read-only.
+/// <summary>Represents a class that allows its properties to be set until <see cref="MakeReadOnly"/> is called, at
+/// which point the object becomes read-only.
 /// </summary>
 public abstract class ReadOnlyClass
 {
-  /// <include file="documentation.xml" path="/Security/ReadOnlyClass/Finish/*"/>
-  public virtual void Finish()
+  /// <include file="documentation.xml" path="/Security/ReadOnlyClass/MakeReadOnly/*"/>
+  public virtual void MakeReadOnly()
   {
-    finished = true;
+    readOnly = true;
   }
 
-  /// <summary>Throws an exception if <see cref="Finish"/> has been called.</summary>
-  protected void AssertNotFinished()
+  /// <summary>Throws an exception if <see cref="MakeReadOnly"/> has been called.</summary>
+  protected void AssertNotReadOnly()
   {
-    if(finished) throw new InvalidOperationException("This object has been finished, and the property is read only.");
+    if(readOnly) throw new InvalidOperationException("This object has been finished, and the property is read only.");
   }
 
-  bool finished;
+  bool readOnly;
 }
 #endregion
 
@@ -77,7 +77,7 @@ public class KeySignature : ReadOnlyClass
     get { return creationTime; }
     set
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       creationTime = value;
     }
   }
@@ -88,7 +88,7 @@ public class KeySignature : ReadOnlyClass
     get { return exportable; }
     set
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       exportable = value;
     }
   }
@@ -99,7 +99,7 @@ public class KeySignature : ReadOnlyClass
     get { return fingerprint; }
     set
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       fingerprint = value;
     }
   }
@@ -110,7 +110,7 @@ public class KeySignature : ReadOnlyClass
     get { return keyId; }
     set
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       keyId = value;
     }
   }
@@ -123,7 +123,7 @@ public class KeySignature : ReadOnlyClass
     get { return status; }
     set
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       status = value;
     }
   }
@@ -134,7 +134,7 @@ public class KeySignature : ReadOnlyClass
     get { return signerName; }
     set
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       signerName = value;
     }
   }
@@ -151,13 +151,13 @@ public class KeySignature : ReadOnlyClass
     get { return type; }
     set
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       type = value;
     }
   }
 
   /// <include file="documentation.xml" path="/Security/ReadOnlyClass/Finish/*"/>
-  public override void Finish()
+  public override void MakeReadOnly()
   {
     switch(type)
     {
@@ -167,7 +167,7 @@ public class KeySignature : ReadOnlyClass
       default: trustLevel = TrustLevel.Unknown; break;
     }
 
-    base.Finish();
+    base.MakeReadOnly();
   }
 
   /// <include file="documentation.xml" path="/Security/Common/ToString/*"/>
@@ -205,7 +205,7 @@ public class KeySignature : ReadOnlyClass
 /// truthfulness and accuracy of the identity.
 /// </summary>
 /// <remarks>After the PGP system creates a <see cref="UserId"/> object and sets its properties, it should call
-/// <see cref="Finish"/> to lock the property values, creating a read-only object.
+/// <see cref="MakeReadOnly"/> to lock the property values, creating a read-only object.
 /// </remarks>
 public class UserId : ReadOnlyClass
 {
@@ -217,7 +217,7 @@ public class UserId : ReadOnlyClass
     get { return trustLevel; }
     set
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       trustLevel = value;
     }
   }
@@ -228,7 +228,7 @@ public class UserId : ReadOnlyClass
     get { return creationTime; }
     set
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       creationTime = value; 
     }
   }
@@ -239,7 +239,7 @@ public class UserId : ReadOnlyClass
     get { return key; }
     set
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       key = value;
     }
   }
@@ -252,7 +252,7 @@ public class UserId : ReadOnlyClass
     get { return name; }
     set 
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       name = value; 
     }
   }
@@ -263,7 +263,7 @@ public class UserId : ReadOnlyClass
     get { return primary; }
     set 
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       primary = value; 
     }
   }
@@ -274,7 +274,7 @@ public class UserId : ReadOnlyClass
     get { return revoked; }
     set 
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       revoked = value; 
     }
   }
@@ -285,17 +285,17 @@ public class UserId : ReadOnlyClass
     get { return sigs; }
     set
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       sigs = value;
     }
   }
 
   /// <include file="documentation.xml" path="/Security/ReadOnlyClass/Finish/*"/>
-  public override void Finish()
+  public override void MakeReadOnly()
   {
     if(key == null) throw new InvalidOperationException("The Key property is not set.");
     if(sigs == null) throw new InvalidOperationException("The Signatures property is not set.");
-    base.Finish();
+    base.MakeReadOnly();
   }
 
   /// <include file="documentation.xml" path="/Security/Common/ToString/*"/>
@@ -325,7 +325,7 @@ public abstract class Key : ReadOnlyClass
     get { return calculatedTrust; }
     set 
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       calculatedTrust = value; 
     }
   }
@@ -338,7 +338,7 @@ public abstract class Key : ReadOnlyClass
     get { return capabilities; }
     set 
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       capabilities = value; 
     }
   }
@@ -349,7 +349,7 @@ public abstract class Key : ReadOnlyClass
     get { return creationTime; }
     set 
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       creationTime = value; 
     }
   }
@@ -360,7 +360,7 @@ public abstract class Key : ReadOnlyClass
     get { return expirationTime; }
     set 
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       expirationTime = value; 
     }
   }
@@ -371,7 +371,7 @@ public abstract class Key : ReadOnlyClass
     get { return expired; }
     set 
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       expired = value; 
     }
   }
@@ -384,7 +384,7 @@ public abstract class Key : ReadOnlyClass
     get { return fingerprint; }
     set 
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       fingerprint = value; 
     }
   }
@@ -395,7 +395,7 @@ public abstract class Key : ReadOnlyClass
     get { return invalid; }
     set 
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       invalid = value; 
     }
   }
@@ -408,7 +408,7 @@ public abstract class Key : ReadOnlyClass
     get { return keyId; }
     set 
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       keyId = value; 
     }
   }
@@ -419,7 +419,7 @@ public abstract class Key : ReadOnlyClass
     get { return keyType; }
     set 
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       keyType = value; 
     }
   }
@@ -436,7 +436,7 @@ public abstract class Key : ReadOnlyClass
     get { return length; }
     set 
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       length = value; 
     }
   }
@@ -447,7 +447,7 @@ public abstract class Key : ReadOnlyClass
     get { return revoked; }
     set 
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       revoked = value; 
     }
   }
@@ -458,7 +458,7 @@ public abstract class Key : ReadOnlyClass
     get { return secret; }
     set
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       secret = value;
     }
   }
@@ -469,16 +469,16 @@ public abstract class Key : ReadOnlyClass
     get { return sigs; }
     set
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       sigs = value;
     }
   }
 
   /// <include file="documentation.xml" path="/Security/ReadOnlyClass/Finish/*"/>
-  public override void Finish()
+  public override void MakeReadOnly()
   {
     if(sigs == null) throw new InvalidOperationException("The Signatures property has not been set.");
-    base.Finish();
+    base.MakeReadOnly();
   }
 
   /// <summary>Gets or sets the primary key associated with this key, or the current key if it is a primary key.</summary>
@@ -519,7 +519,7 @@ public class PrimaryKey : Key
     get { return disabled; }
     set
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       disabled = value;
     }
   }
@@ -530,7 +530,7 @@ public class PrimaryKey : Key
     get { return keyring; }
     set
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       keyring = value;
     }
   }
@@ -543,7 +543,7 @@ public class PrimaryKey : Key
     get { return ownerTrust; }
     set
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       ownerTrust = value;
     }
   }
@@ -560,7 +560,7 @@ public class PrimaryKey : Key
     get { return subkeys; }
     set
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       subkeys = value;
     }
   }
@@ -571,7 +571,7 @@ public class PrimaryKey : Key
     get { return totalCapabilities; }
     set
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       totalCapabilities = value;
     }
   }
@@ -582,13 +582,13 @@ public class PrimaryKey : Key
     get { return userIds; }
     set
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       userIds = value;
     }
   }
 
   /// <include file="documentation.xml" path="/Security/Key/Finish/*"/>
-  public override void Finish()
+  public override void MakeReadOnly()
   {
     if(subkeys == null) throw new InvalidOperationException("The Subkeys property is not set.");
     if(userIds == null || userIds.Count == 0)
@@ -606,7 +606,7 @@ public class PrimaryKey : Key
       }
     }
 
-    base.Finish();
+    base.MakeReadOnly();
   }
 
   /// <summary>Returns this key.</summary>
@@ -650,16 +650,16 @@ public class Subkey : Key
     get { return primaryKey; }
     set 
     {
-      AssertNotFinished();
+      AssertNotReadOnly();
       primaryKey = value; 
     }
   }
 
   /// <include file="documentation.xml" path="/Security/Key/Finish/*"/>
-  public override void Finish()
+  public override void MakeReadOnly()
   {
     if(primaryKey == null) throw new InvalidOperationException("The PrimaryKey property has not been set.");
-    base.Finish();
+    base.MakeReadOnly();
   }
 
   /// <summary>Gets the primary key that owns this subkey.</summary>
@@ -754,6 +754,12 @@ public class Keyring
   public string SecretFile
   {
     get { return secretFile; }
+  }
+
+  /// <include file="documentation.xml" path="/Security/Common/ToString/*"/>
+  public override string ToString()
+  {
+    return "public:" + PublicFile + (SecretFile == null ? null : ", secret:" + SecretFile);
   }
 
   string publicFile, secretFile;

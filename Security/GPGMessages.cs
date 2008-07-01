@@ -6,7 +6,7 @@ namespace AdamMil.Security.PGP.GPG.StatusMessages
 
 #region StatusMessageType
 /// <summary>Indicates the type of GPG status message that was received.</summary>
-public enum StatusMessageType
+enum StatusMessageType
 {
   /// <summary>The <c>NEWSIG</c> message, implemented by the <see cref="StatusMessages.GenericMessage"/> class.</summary>
   NewSig, 
@@ -122,14 +122,19 @@ public enum StatusMessageType
 #pragma warning restore 1574 // TODO: remove this!
   /// <summary>The <c>GOODMDC</c> message, implemented by the <see cref="StatusMessages.GenericMessage"/> class.</summary>
   GoodMDC,
+  /// <summary>The <c>GET_BOOL</c> message, implemented by the <see cref="StatusMessages.GetInputMessage"/> class.</summary>
+  GetBool,
+  /// <summary>The <c>GET_LINE</c> message, implemented by the <see cref="StatusMessages.GetInputMessage"/> class.</summary>
+  GetLine,
+  /// <summary>The <c>GET_HIDDEN</c> message, implemented by the <see cref="StatusMessages.GetInputMessage"/> class.</summary>
+  GetHidden,
 }
 #endregion
 
 #region StatusMessage
 /// <summary>The base class for GPG status messages.</summary>
-public abstract class StatusMessage
+abstract class StatusMessage
 {
-  /// <summary>Initializes a new <see cref="StatusMessage"/> with the given <see cref="StatusMessageType"/>.</summary>
   protected StatusMessage(StatusMessageType type)
   {
     this.type = type;
@@ -149,7 +154,7 @@ public abstract class StatusMessage
 #region KeyImportReason
 /// <summary>Gives the reasons that a key was created or updated during an import.</summary>
 [Flags]
-public enum KeyImportReason
+enum KeyImportReason
 {
   /// <summary>This value means that the key was not actually changed (and there was no reason for the import).</summary>
   NotChanged=0,
@@ -168,7 +173,7 @@ public enum KeyImportReason
 
 #region ImportFailureReason
 /// <summary>Gives the reason that a key could not be imported.</summary>
-public enum ImportFailureReason
+enum ImportFailureReason
 {
   /// <summary>The import failed for an unspecified reason</summary>
   Unknown,
@@ -185,9 +190,8 @@ public enum ImportFailureReason
 
 #region KeySigImportedMessage
 /// <summary>A message that gives key ID and the signer name of the key signature just imported.</summary>
-public sealed class KeySigImportedMessage : StatusMessage
+sealed class KeySigImportedMessage : StatusMessage
 {
-  /// <summary>Initializes a new <see cref="KeySigImportedMessage"/> with the given arguments.</summary>
   public KeySigImportedMessage(string[] arguments) : base(StatusMessageType.Imported) 
   {
     keyId    = arguments[0].ToUpperInvariant();
@@ -212,9 +216,8 @@ public sealed class KeySigImportedMessage : StatusMessage
 
 #region KeyImportOkayMessage
 /// <summary>This message indicates that a key was successfully created or updated during a key import.</summary>
-public sealed class KeyImportOkayMessage : StatusMessage
+sealed class KeyImportOkayMessage : StatusMessage
 {
-  /// <summary>Initializes a new <see cref="KeyImportOkayMessage"/> with the given arguments.</summary>
   public KeyImportOkayMessage(string[] arguments) : base(StatusMessageType.ImportOkay)
   {
     reason      = (KeyImportReason)int.Parse(arguments[0], CultureInfo.InvariantCulture);
@@ -240,9 +243,8 @@ public sealed class KeyImportOkayMessage : StatusMessage
 
 #region KeyImportFailedMessage
 /// <summary>Issued when a key failed to import.</summary>
-public sealed class KeyImportFailedMessage : StatusMessage
+sealed class KeyImportFailedMessage : StatusMessage
 {
-  /// <summary>Initializes a new <see cref="KeyImportFailedMessage"/> with the given arguments.</summary>
   public KeyImportFailedMessage(string[] arguments) : base(StatusMessageType.ImportProblem)
   {
     reason      = (ImportFailureReason)int.Parse(arguments[0], CultureInfo.InvariantCulture);
@@ -265,6 +267,103 @@ public sealed class KeyImportFailedMessage : StatusMessage
   readonly ImportFailureReason reason;
 }
 #endregion
+
+#region KeyImportResultsMessage
+/// <summary>This message gives the end results of a key import process.</summary>
+sealed class KeyImportResultsMessage : StatusMessage
+{
+  public KeyImportResultsMessage(string[] arguments) : base(StatusMessageType.ImportResult)
+  {
+    totalKeys          = int.Parse(arguments[0]);
+    keysWithoutUserIds = int.Parse(arguments[1]);
+    keysImported       = int.Parse(arguments[2]);
+    keysUnchanged      = int.Parse(arguments[4]);
+    newUserIds         = int.Parse(arguments[5]);
+    newSubkeys         = int.Parse(arguments[6]);
+    newSigs            = int.Parse(arguments[7]);
+    newRevocations     = int.Parse(arguments[8]);
+    secretsRead        = int.Parse(arguments[9]);
+    secretsImported    = int.Parse(arguments[10]);
+    secretsUnchanged   = int.Parse(arguments[11]);
+    keysNotImported    = int.Parse(arguments[12]);
+  }
+
+  /// <summary>Gets the number of keys that were missing user IDs.</summary>
+  public int KeysWithoutUserIds
+  {
+    get { return keysWithoutUserIds; }
+  }
+
+  /// <summary>Gets the number of new revocation certificates imported.</summary>
+  public int NewRevocations
+  {
+    get { return newRevocations; }
+  }
+
+  /// <summary>Gets the number of new key signatures.</summary>
+  public int NewSignatures
+  {
+    get { return newSigs; }
+  }
+
+  /// <summary>Gets the number of new subkeys.</summary>
+  public int NewSubkeys
+  {
+    get { return newSubkeys; }
+  }
+
+  /// <summary>Gets the number of new user IDs.</summary>
+  public int NewUserIds
+  {
+    get { return newUserIds; }
+  }
+
+  /// <summary>Gets the number of public keys imported.</summary>
+  public int PublicKeysImported
+  {
+    get { return keysImported; }
+  }
+
+  /// <summary>Gets the number of secret keys imported.</summary>
+  public int SecretKeysImported
+  {
+    get { return secretsImported; }
+  }
+
+  /// <summary>Gets the number of secret keys read.</summary>
+  public int SecretKeysProcessed
+  {
+    get { return secretsRead; }
+  }
+
+  /// <summary>Gets the number of secret keys that were unchanged because they already existed in the keyring.</summary>
+  public int SecretKeysUnchanged
+  {
+    get { return secretsUnchanged; }
+  }
+
+  /// <summary>Gets the total number of keys that were processed.</summary>
+  public int TotalKeysProcessed
+  {
+    get { return totalKeys; }
+  }
+
+  /// <summary>Gets the number keys that were unchanged because they already existed in the keyring.</summary>
+  public int UnchangedKeys
+  {
+    get { return keysUnchanged; }
+  }
+
+  /// <summary>Gets the number of keys that were not imported.</summary>
+  public int UnimportedKeys
+  {
+    get { return keysNotImported; }
+  }
+
+  readonly int totalKeys, keysWithoutUserIds, keysImported, keysUnchanged, newUserIds, newSubkeys,
+               newSigs, newRevocations, secretsRead, secretsImported, secretsUnchanged, keysNotImported;
+}
+#endregion
 #endregion
 
 #region Signature verification messages
@@ -272,11 +371,8 @@ public sealed class KeyImportFailedMessage : StatusMessage
 /// <summary>A base class for signature verification messages with a key ID and user name as the only arguments. There
 /// are several such messages.
 /// </summary>
-public abstract class KeyIdAndNameSigVerifyMessage : StatusMessage
+abstract class KeyIdAndNameSigVerifyMessage : StatusMessage
 {
-  /// <summary>Initializes a new <see cref="KeyIdAndNameSigVerifyMessage"/> with the given
-  /// <see cref="StatusMessageType"/> and arguments.
-  /// </summary>
   protected KeyIdAndNameSigVerifyMessage(StatusMessageType type, string[] arguments) : base(type)
   {
     keyId    = arguments[0].ToUpperInvariant();
@@ -305,9 +401,8 @@ public abstract class KeyIdAndNameSigVerifyMessage : StatusMessage
 /// <see cref="ValidSigMessage"/> will also be emitted, and contains more useful information such as the fingerprints
 /// of the keys, the timestamp of the signature, etc.
 /// </summary>
-public sealed class GoodSigMessage : KeyIdAndNameSigVerifyMessage
+sealed class GoodSigMessage : KeyIdAndNameSigVerifyMessage
 {
-  /// <summary>Initializes a new <see cref="GoodSigMessage"/> with the given arguments.</summary>
   public GoodSigMessage(string[] arguments) : base(StatusMessageType.GoodSig, arguments) { }
 }
 #endregion
@@ -316,9 +411,8 @@ public sealed class GoodSigMessage : KeyIdAndNameSigVerifyMessage
 /// <summary>Issued along with <see cref="GoodSigMessage"/> to indicate that although the signature is good, it has
 /// expired.
 /// </summary>
-public sealed class ExpiredSigMessage : KeyIdAndNameSigVerifyMessage
+sealed class ExpiredSigMessage : KeyIdAndNameSigVerifyMessage
 {
-  /// <summary>Initializes a new <see cref="ExpiredSigMessage"/> with the given arguments.</summary>
   public ExpiredSigMessage(string[] arguments) : base(StatusMessageType.ExpiredSig, arguments) { }
 }
 #endregion
@@ -327,9 +421,8 @@ public sealed class ExpiredSigMessage : KeyIdAndNameSigVerifyMessage
 /// <summary>Issued along with <see cref="GoodSigMessage"/> to indicate that although the signature is good, it was
 /// made with a key that has expired.
 /// </summary>
-public sealed class ExpiredKeySigMessage : KeyIdAndNameSigVerifyMessage
+sealed class ExpiredKeySigMessage : KeyIdAndNameSigVerifyMessage
 {
-  /// <summary>Initializes a new <see cref="ExpiredKeySigMessage"/> with the given arguments.</summary>
   public ExpiredKeySigMessage(string[] arguments) : base(StatusMessageType.ExpiredKeySig, arguments) { }
 }
 #endregion
@@ -338,9 +431,8 @@ public sealed class ExpiredKeySigMessage : KeyIdAndNameSigVerifyMessage
 /// <summary>Issued along with <see cref="GoodSigMessage"/> to indicate that although the signature is good, it was
 /// made with a key that has been revoked.
 /// </summary>
-public sealed class RevokedKeySigMessage : KeyIdAndNameSigVerifyMessage
+sealed class RevokedKeySigMessage : KeyIdAndNameSigVerifyMessage
 {
-  /// <summary>Initializes a new <see cref="RevokedKeySigMessage"/> with the given arguments.</summary>
   public RevokedKeySigMessage(string[] arguments) : base(StatusMessageType.RevokedKeySig, arguments) { }
 }
 #endregion
@@ -349,9 +441,8 @@ public sealed class RevokedKeySigMessage : KeyIdAndNameSigVerifyMessage
 /// <summary>Issued when a bad signature is detected. For each signature, only one of <see cref="GoodSigMessage"/>,
 /// <see cref="BadSigMessage"/>, or <see cref="ErrorSigMessage"/> will be issued.
 /// </summary>
-public sealed class BadSigMessage : KeyIdAndNameSigVerifyMessage
+sealed class BadSigMessage : KeyIdAndNameSigVerifyMessage
 {
-  /// <summary>Initializes a new <see cref="BadSigMessage"/> with the given arguments.</summary>
   public BadSigMessage(string[] arguments) : base(StatusMessageType.BadSig, arguments) { }
 }
 #endregion
@@ -360,9 +451,8 @@ public sealed class BadSigMessage : KeyIdAndNameSigVerifyMessage
 /// <summary>Issued when an error prevented the signature from being verified. For each signature, only one of
 /// <see cref="GoodSigMessage"/>, <see cref="BadSigMessage"/>, or <see cref="ErrorSigMessage"/> will be issued.
 /// </summary>
-public sealed class ErrorSigMessage : StatusMessage
+sealed class ErrorSigMessage : StatusMessage
 {
-  /// <summary>Initializes a new <see cref="ErrorSigMessage"/> with the given arguments.</summary>
   public ErrorSigMessage(string[] arguments) : base(StatusMessageType.ErrorSig)
   {
     keyId     = arguments[0].ToUpperInvariant();
@@ -423,9 +513,8 @@ public sealed class ErrorSigMessage : StatusMessage
 
 #region ValidSigMessage
 /// <summary>Issued along with a <see cref="GoodSigMessage"/> to provide more information about the signature.</summary>
-public sealed class ValidSigMessage : StatusMessage
+sealed class ValidSigMessage : StatusMessage
 {
-  /// <summary>Initializes a new <see cref="ValidSigMessage"/> with the given arguments.</summary>
   public ValidSigMessage(string[] arguments) : base(StatusMessageType.ValidSig)
   {
     sigFingerprint     = arguments[0].ToUpperInvariant();
@@ -488,18 +577,16 @@ public sealed class ValidSigMessage : StatusMessage
 #region Other messages
 #region GenericMessage
 /// <summary>A generic message with no properties.</summary>
-public sealed class GenericMessage : StatusMessage
+sealed class GenericMessage : StatusMessage
 {
-  /// <summary>Initializes a new <see cref="GenericMessage"/> with the given message type.</summary>
   public GenericMessage(StatusMessageType type) : base(type) { }
 }
 #endregion
 
 #region GenericKeyIdMessage
-/// <summary>A base class for messages that contain only a key ID parameter.</summary>
-public sealed class GenericKeyIdMessage : StatusMessage
+/// <summary>A class for messages that contain only a key ID parameter.</summary>
+sealed class GenericKeyIdMessage : StatusMessage
 {
-  /// <summary>Initializes a new <see cref="GenericKeyIdMessage"/> with the given type and arguments.</summary>
   public GenericKeyIdMessage(StatusMessageType type, string[] arguments) : base(type)
   {
     keyId = arguments[0].ToUpperInvariant();
@@ -515,11 +602,29 @@ public sealed class GenericKeyIdMessage : StatusMessage
 }
 #endregion
 
+#region GetInputMessage
+/// <summary>A class for messages that request input from the user.</summary>
+sealed class GetInputMessage : StatusMessage
+{
+  public GetInputMessage(StatusMessageType type, string[] arguments) : base(type)
+  {
+    promptId = arguments[0];
+  }
+
+  /// <summary>Gets a string representing the type of information requested.</summary>
+  public string PromptId
+  {
+    get { return promptId; }
+  }
+
+  readonly string promptId;
+}
+#endregion
+
 #region BadPassphraseMessage
 /// <summary>Indicates that the previously-requested password was wrong.</summary>
-public sealed class BadPassphraseMessage : StatusMessage
+sealed class BadPassphraseMessage : StatusMessage
 {
-  /// <summary>Initializes a new <see cref="BadPassphraseMessage"/> object with the given arguments.</summary>
   public BadPassphraseMessage(string[] arguments) : base(StatusMessageType.BadPassphrase) 
   {
     keyId = arguments[0].ToUpperInvariant();
@@ -535,9 +640,36 @@ public sealed class BadPassphraseMessage : StatusMessage
 }
 #endregion
 
+#region DeleteFailureReason
+/// <summary>Describes the reason that a key deletion failed.</summary>
+enum DeleteFailureReason
+{
+  Unknown=0, NoSuchKey=1, MustDeleteSecretKeyFirst=2, AmbiguousKey=3
+}
+#endregion
+
+#region DeleteFailedMessage
+/// <summary>A message given when a key deletion fails.</summary>
+sealed class DeleteFailedMessage : StatusMessage
+{
+  public DeleteFailedMessage(string[] arguments) : base(StatusMessageType.DeleteFailed)
+  {
+    reason = (DeleteFailureReason)int.Parse(arguments[0]);
+  }
+
+  /// <summary>Gets the reason the key deletion failed.</summary>
+  public DeleteFailureReason Reason
+  {
+    get { return reason; }
+  }
+
+  readonly DeleteFailureReason reason;
+}
+#endregion
+
 #region InvalidRecipientReason
 /// <summary>Indicates the reason why an encryption recipient was rejected.</summary>
-public enum InvalidRecipientReason
+enum InvalidRecipientReason
 {
   /// <summary>No reason was given for the failure.</summary>
   None,
@@ -566,9 +698,8 @@ public enum InvalidRecipientReason
 
 #region InvalidRecipientMessage
 /// <summary>Indicates that a recipient was invalid.</summary>
-public sealed class InvalidRecipientMessage : StatusMessage
+sealed class InvalidRecipientMessage : StatusMessage
 {
-  /// <summary>Initializes a new <see cref="InvalidRecipientMessage"/> with the given arguments.</summary>
   public InvalidRecipientMessage(string[] arguments) : base(StatusMessageType.InvalidRecipient)
   {
     reason    = (InvalidRecipientReason)int.Parse(arguments[0], CultureInfo.InvariantCulture);
@@ -637,9 +768,8 @@ public sealed class InvalidRecipientMessage : StatusMessage
 
 #region NeedPassphraseMessage
 /// <summary>Issued when a password is needed to unlock a secret key.</summary>
-public sealed class NeedKeyPassphraseMessage : StatusMessage
+sealed class NeedKeyPassphraseMessage : StatusMessage
 {
-  /// <summary>Initializes a new <see cref="NeedKeyPassphraseMessage"/> with the given arguments.</summary>
   public NeedKeyPassphraseMessage(string[] arguments) : base(StatusMessageType.NeedKeyPassphrase)
   {
     primaryKeyId = arguments[0].ToUpperInvariant();
@@ -666,9 +796,9 @@ public sealed class NeedKeyPassphraseMessage : StatusMessage
 /// <summary>Indicates the trust level of something. For instance, as part of a signature verification, this represents
 /// how trustworthy the signature is.
 /// </summary>
-public sealed class TrustLevelMessage : StatusMessage
+sealed class TrustLevelMessage : StatusMessage
 {
-  /// <summary>Initializes a new <see cref="TrustLevelMessage"/> with the given <see cref="StatusMessageType"/>
+  /// <summary> a new <see cref="TrustLevelMessage"/> with the given <see cref="StatusMessageType"/>
   /// representing the trust level message to which it corresponds.
   /// </summary>
   public TrustLevelMessage(StatusMessageType type) : base(type)
@@ -697,9 +827,8 @@ public sealed class TrustLevelMessage : StatusMessage
 /// <summary>Gives a hint about the user ID for a given primary key ID. This usually precedes password requests; the
 /// hint can be displayed to help the users remember which password to enter.
 /// </summary>
-public sealed class UserIdHintMessage : StatusMessage
+sealed class UserIdHintMessage : StatusMessage
 {
-  /// <summary>Initializes a new <see cref="UserIdHintMessage"/> object with the given arguments.</summary>
   public UserIdHintMessage(string[] arguments) : base(StatusMessageType.UserIdHint)
   {
     keyId = arguments[0].ToUpperInvariant();
