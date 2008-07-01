@@ -123,7 +123,7 @@ H7EsOJ/JYySUpqz5AsaDd4LWqA==
   }
 
   [Test]
-  public void T02_TestHashing()
+  public void T02_Hashing()
   {
     byte[] hash = gpg.Hash(new MemoryStream(Encoding.ASCII.GetBytes("The quick brown fox jumps over the lazy dog")),
                            HashAlgorithm.SHA1);
@@ -133,14 +133,14 @@ H7EsOJ/JYySUpqz5AsaDd4LWqA==
   }
 
   [Test]
-  public void T03_TestRandomData()
+  public void T03_RandomData()
   {
     byte[] random = new byte[100];
     gpg.GetRandomData(Randomness.Strong, random, 0, random.Length);
   }
 
   [Test]
-  public void T04_TestSigning()
+  public void T04_Signing()
   {
     MemoryStream plaintext = new MemoryStream(Encoding.UTF8.GetBytes("Hello, world!")), signature = new MemoryStream();
     PrimaryKey[] keys = gpg.GetPublicKeys(keyring);
@@ -174,7 +174,7 @@ H7EsOJ/JYySUpqz5AsaDd4LWqA==
   }
 
   [Test]
-  public void T05_TestEncryption()
+  public void T05_Encryption()
   {
     PrimaryKey[] keys = gpg.GetPublicKeys(keyring);
 
@@ -233,7 +233,7 @@ H7EsOJ/JYySUpqz5AsaDd4LWqA==
   }
 
   [Test]
-  public void T06_TestExport()
+  public void T06_Export()
   {
     PrimaryKey[] keys = gpg.GetPublicKeys(keyring);
     
@@ -276,6 +276,34 @@ H7EsOJ/JYySUpqz5AsaDd4LWqA==
     gpg.DeleteKeys(keys, KeyDeletion.PublicAndSecret);
     Assert.AreEqual(0, gpg.GetPublicKeys(keyring).Length);
     T01_ImportTestKeys();
+    Assert.AreEqual(3, gpg.GetPublicKeys(keyring).Length);
+  }
+
+  [Test]
+  public void T07_KeyCreation()
+  {
+    NewKeyOptions options = new NewKeyOptions();
+    options.KeyType    = PrimaryKeyType.RSA;
+    options.RealName   = "New Guy";
+    options.Email      = "email@foo.com";
+    options.Comment    = "Weird";
+    options.Expiration = new DateTime(2090, 8, 1, 0, 0, 0, DateTimeKind.Utc);
+    options.Password   = password;
+    options.Keyring    = keyring;
+    options.SubkeyType = SubkeyType.None;
+
+    // create and delete the key
+    Assert.AreEqual(3, gpg.GetPublicKeys(keyring).Length);
+    PrimaryKey key = gpg.CreateKey(options);
+    Assert.IsNotNull(key);
+    Assert.AreEqual(PrimaryKeyType.RSA, key.KeyType);
+    Assert.AreEqual(1, key.UserIds.Count);
+    Assert.AreEqual(0, key.Subkeys.Count);
+    Assert.AreEqual("New Guy (Weird) <email@foo.com>", key.UserIds[0].Name);
+    Assert.IsTrue(key.ExpirationTime.HasValue);
+    Assert.AreEqual(options.Expiration, key.ExpirationTime.Value.Date);
+    Assert.AreEqual(4, gpg.GetPublicKeys(keyring).Length);
+    gpg.DeleteKey(key, KeyDeletion.PublicAndSecret);
   }
 
   void CheckSignatures(PrimaryKey[] keys, Signature[] sigs)

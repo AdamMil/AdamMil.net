@@ -65,8 +65,7 @@ public class PGPException : ApplicationException
   public PGPException(string message, Exception innerException) : base(message, innerException) { }
 
   /// <summary>Initializes a new operation failure exception with the given base message and failure reasons.</summary>
-  protected PGPException(string baseMessage, FailureReason reasons)
-    : base(baseMessage + GetFailureText(reasons))
+  public PGPException(string baseMessage, FailureReason reasons) : base(baseMessage + GetFailureText(reasons))
   {
     this.reasons = reasons;
   }
@@ -178,6 +177,24 @@ public class ImportFailedException : PGPException
   /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF2/*"/>
   public ImportFailedException(FailureReason reasons, string extraText)
     : base("Import failed.", reasons, extraText) { }
+}
+#endregion
+
+#region KeyCreationFailedException
+/// <summary>An exception thrown when a key creation operation has failed.</summary>
+public class KeyCreationFailedException : PGPException
+{
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/*"/>
+  public KeyCreationFailedException() : base("Key creation failed.") { }
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/*"/>
+  public KeyCreationFailedException(string message) : base(message) { }
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/*"/>
+  public KeyCreationFailedException(string message, Exception innerException) : base(message, innerException) { }
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF/*"/>
+  public KeyCreationFailedException(FailureReason reasons) : base("Key creation failed.", reasons) { }
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF2/*"/>
+  public KeyCreationFailedException(FailureReason reasons, string extraText)
+    : base("Key Creation failed.", reasons, extraText) { }
 }
 #endregion
 
