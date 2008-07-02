@@ -332,29 +332,29 @@ public class ExeGPG : GPG
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKeys/*"/>
-  public override PrimaryKey[] FindPublicKeys(string[] fingerprints, KeySignatures signatures,
-                                              Keyring[] keyrings, bool includeDefaultKeyring)
+  public override PrimaryKey[] FindPublicKeys(string[] fingerprints, Keyring[] keyrings, bool includeDefaultKeyring,
+                                              ListOptions options)
   {
-    return FindKeys(fingerprints, signatures, keyrings, includeDefaultKeyring, false);
+    return FindKeys(fingerprints, keyrings, includeDefaultKeyring, options, false);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKeys/*"/>
-  public override PrimaryKey[] FindSecretKeys(string[] fingerprints, KeySignatures signatures,
-                                              Keyring[] keyrings, bool includeDefaultKeyring)
+  public override PrimaryKey[] FindSecretKeys(string[] fingerprints, Keyring[] keyrings, bool includeDefaultKeyring,
+                                              ListOptions options)
   {
-    return FindKeys(fingerprints, signatures, keyrings, includeDefaultKeyring, true);
+    return FindKeys(fingerprints, keyrings, includeDefaultKeyring, options, true);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetPublicKeys2/*"/>
-  public override PrimaryKey[] GetPublicKeys(KeySignatures signatures, Keyring[] keyrings, bool includeDefaultKeyring)
+  public override PrimaryKey[] GetPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, ListOptions options)
   {
-    return GetKeys(signatures, keyrings, includeDefaultKeyring, false, null);
+    return GetKeys(keyrings, includeDefaultKeyring, options, false, null);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetSecretKeys2/*"/>
   public override PrimaryKey[] GetSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring)
   {
-    return GetKeys(KeySignatures.Ignore, keyrings, includeDefaultKeyring, true, null);
+    return GetKeys(keyrings, includeDefaultKeyring, ListOptions.Default, true, null);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/CreateKey/*"/>
@@ -553,28 +553,18 @@ public class ExeGPG : GPG
     if(!cmd.SuccessfulExit || keyFingerprint == null) throw new KeyCreationFailedException(state.FailureReasons);
 
     // return the new PrimaryKey
-    return FindPublicKey(keyFingerprint, KeySignatures.Ignore, options.Keyring);
+    return FindPublicKey(keyFingerprint, options.Keyring, ListOptions.Default);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteKeys/*"/>
-  public override void DeleteKeys(Key[] keys, KeyDeletion deletion)
+  public override void DeleteKeys(PrimaryKey[] keys, KeyDeletion deletion)
   {
     if(keys == null) throw new ArgumentNullException();
-
-    // deleting subkeys is done via --edit-key, which we don't support yet.
-    // TODO: implement subkey deletion
-    foreach(Key key in keys)
-    {
-      if(!(key is PrimaryKey)) throw new NotImplementedException("Deleting subkeys is not yet supported.");
-    }
 
     string args = GetKeyringArgs(keys, true, deletion == KeyDeletion.PublicAndSecret, true);
     args += (deletion == KeyDeletion.Secret ? "--delete-secret-key " : "--delete-secret-and-public-key ");
 
-    foreach(Key key in keys) // add the fingerprints of the keys to delete
-    {
-      if(key is PrimaryKey) args += key.Fingerprint + " ";
-    }
+    foreach(Key key in keys) args += key.Fingerprint + " "; // add the fingerprints of the keys to delete
 
     CommandState state = new CommandState();
     Command cmd = Execute(args, true, true, StreamHandling.ProcessText, StreamHandling.ProcessText);
@@ -1402,6 +1392,8 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
         case "TRUST_FULLY": message = new TrustLevelMessage(StatusMessageType.TrustFully); break;
         case "TRUST_ULTIMATE": message = new TrustLevelMessage(StatusMessageType.TrustUltimate); break;
 
+        case "ATTRIBUTE": message = new AttributeMessage(arguments); break;
+
         case "GET_HIDDEN": message = new GetInputMessage(StatusMessageType.GetHidden, arguments); break;
         case "GET_BOOL": message = new GetInputMessage(StatusMessageType.GetBool, arguments); break;
         case "GET_LINE": message = new GetInputMessage(StatusMessageType.GetLine, arguments); break;
@@ -1740,8 +1732,8 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
   }
 
   /// <summary>Finds the keys identified by the given fingerprints.</summary>
-  PrimaryKey[] FindKeys(string[] fingerprints, KeySignatures signatures, Keyring[] keyrings,
-                        bool includeDefaultKeyring, bool secretkeys)
+  PrimaryKey[] FindKeys(string[] fingerprints, Keyring[] keyrings, bool includeDefaultKeyring, ListOptions options,
+                        bool secretkeys)
   {
     if(fingerprints == null) throw new ArgumentNullException();
     if(fingerprints.Length == 0) return new PrimaryKey[0];
@@ -1756,7 +1748,7 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
 
     // add each key found to a dictionary
     Dictionary<string, PrimaryKey> keyDict = new Dictionary<string, PrimaryKey>();
-    foreach(PrimaryKey key in GetKeys(signatures, keyrings, includeDefaultKeyring, secretkeys, searchArgs))
+    foreach(PrimaryKey key in GetKeys(keyrings, includeDefaultKeyring, options, secretkeys, searchArgs))
     {
       keyDict[key.Fingerprint] = key;
     }
@@ -1768,15 +1760,16 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
   }
 
   /// <summary>Does the work of retrieving and searching for keys.</summary>
-  PrimaryKey[] GetKeys(KeySignatures signatures, Keyring[] keyrings, bool includeDefaultKeyring, bool secretKeys,
+  PrimaryKey[] GetKeys(Keyring[] keyrings, bool includeDefaultKeyring, ListOptions options, bool secretKeys,
                        string searchArgs)
   {
+    ListOptions signatures = options & ListOptions.SignatureMask;
     // gpg seems to require --no-sig-cache in order to return fingerprints for signatures. that's unfortunate because
     // --no-sig-cache slows things down a fair bit.
     string args;
     if(secretKeys) args = "--list-secret-keys ";
-    else if(signatures == KeySignatures.Retrieve) args = "--list-sigs --no-sig-cache ";
-    else if(signatures == KeySignatures.Verify) args = "--check-sigs --no-sig-cache ";
+    else if(signatures == ListOptions.RetrieveSignatures) args = "--list-sigs --no-sig-cache ";
+    else if(signatures == ListOptions.VerifySignatures) args = "--check-sigs --no-sig-cache ";
     else args = "--list-keys ";
 
     // produce machine-readable output
@@ -1786,7 +1779,7 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
     // individually, so we can tell which keyring a key came from. this may cause problems with signature verification
     // if a key on one ring signs a key on another ring...
     List<PrimaryKey> keys = new List<PrimaryKey>();
-    if(includeDefaultKeyring) GetKeys(keys, args, null, secretKeys, searchArgs);
+    if(includeDefaultKeyring) GetKeys(keys, options, args, null, secretKeys, searchArgs);
     if(keyrings != null)
     {
       foreach(Keyring keyring in keyrings)
@@ -1794,7 +1787,7 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
         if(keyring == null) throw new ArgumentException("A keyring was null.");
         string file = secretKeys ? keyring.SecretFile : keyring.PublicFile;
         if(file == null) throw new ArgumentException("Empty keyring secret filename."); // only secret files can be
-        GetKeys(keys, args, keyring, secretKeys, searchArgs);                           // null or empty
+        GetKeys(keys, options, args, keyring, secretKeys, searchArgs);                  // null or empty
       }
     }
 
@@ -1802,16 +1795,39 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
   }
 
   /// <summary>Does the work of retrieving and searching for keys on a single keyring.</summary>
-  void GetKeys(List<PrimaryKey> keys, string args, Keyring keyring, bool secretKeys, string searchArgs)
+  void GetKeys(List<PrimaryKey> keys, ListOptions options, string args, Keyring keyring,
+               bool secretKeys, string searchArgs)
   {
     args += GetKeyringArgs(keyring, true, secretKeys, true);
 
     // if we're searching, but GPG finds no keys, it will give an error. (it doesn't give an error if it found at least
     // one item searched for.) we'll keep track of this case and ignore the error if we happen to be searching.
-    bool searchFoundNothing = false;
+    bool searchFoundNothing = false, retrieveAttributes = (options & ListOptions.RetrieveAttributes) != 0;
 
-    Command cmd = Execute(args + searchArgs, false, true, StreamHandling.Unprocessed, StreamHandling.ProcessText);
-    using(cmd)
+    InheritablePipe attrPipe;
+    FileStream attrStream;
+    AutoResetEvent attrReadEvent, attrWriteEvent;
+    OpenPGPAttributeType attrType = OpenPGPAttributeType.Unknown;
+    int attrLength = 0;
+    bool attrPrimary = false;
+    if(retrieveAttributes)
+    {
+      attrPipe       = new InheritablePipe();
+      attrStream     = new FileStream(new SafeFileHandle(attrPipe.ServerHandle, false), FileAccess.Read);
+      attrReadEvent  = new AutoResetEvent(false);
+      attrWriteEvent = new AutoResetEvent(true);
+      args += "--attribute-fd " + attrPipe.ClientHandle.ToInt64().ToString(CultureInfo.InvariantCulture) + " ";
+    }
+    else
+    {
+      attrPipe      = null;
+      attrStream    = null;
+      attrReadEvent = attrWriteEvent = null;
+    }
+
+    Command cmd = Execute(args + searchArgs, retrieveAttributes,
+                          true, StreamHandling.Unprocessed, StreamHandling.ProcessText);
+    try
     {
       cmd.StandardErrorLine += delegate(string line)
       {
@@ -1821,15 +1837,31 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
         }
       };
 
+      if(retrieveAttributes)
+      {
+        cmd.StatusMessageReceived += delegate(StatusMessage msg)
+        {
+          if(msg.Type == StatusMessageType.Attribute)
+          {
+            attrWriteEvent.WaitOne(); // wait until the main thread is ready for more attribute data
+            AttributeMessage m = (AttributeMessage)msg;
+            attrType    = m.AttributeType;
+            attrLength  = m.Length;
+            attrPrimary = m.IsPrimary;
+            attrReadEvent.Set(); // let the mait thread know that the data is available to be read
+          }
+        };
+      }
+
       cmd.Start();
 
       List<Subkey> subkeys = new List<Subkey>(); // holds the subkeys in the current primary key
-      List<UserId> userIds = new List<UserId>(); // holds user ids in the current primary key
       List<KeySignature> sigs = new List<KeySignature>(); // holds the signatures on the last key or user id
+      List<UserAttribute> attributes = new List<UserAttribute>(); // holds user attributes on the key
 
       PrimaryKey currentPrimary = null;
       Subkey currentSubkey = null;
-      UserId currentUserId = null;
+      UserAttribute currentAttribute = null;
 
       while(true)
       {
@@ -1869,15 +1901,19 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
             break;
 
           case "uid": // user id
-            FinishUserId(userIds, sigs, currentPrimary, currentSubkey, ref currentUserId);
-            currentUserId = new UserId();
-            if(!string.IsNullOrEmpty(fields[1])) currentUserId.CalculatedTrust = ParseTrustLevel(fields[1][0]);
-            if(!string.IsNullOrEmpty(fields[5])) currentUserId.CreationTime    = ParseTimestamp(fields[5]);
-            if(!string.IsNullOrEmpty(fields[9])) currentUserId.Name            = CUnescape(fields[9]);
+          {
+            FinishAttribute(attributes, sigs, currentPrimary, currentSubkey, ref currentAttribute);
+            UserId userId = new UserId();
+            if(!string.IsNullOrEmpty(fields[1])) userId.CalculatedTrust = ParseTrustLevel(fields[1][0]);
+            if(!string.IsNullOrEmpty(fields[5])) userId.CreationTime    = ParseTimestamp(fields[5]);
+            if(!string.IsNullOrEmpty(fields[9])) userId.Name            = CUnescape(fields[9]);
+            currentAttribute = userId;
             break;
+          }
 
           case "pub": case "sec": // public and secret primary keys
-            FinishPrimaryKey(keys, subkeys, userIds, sigs, ref currentPrimary, ref currentSubkey, ref currentUserId);
+            FinishPrimaryKey(keys, subkeys, attributes, sigs,
+                             ref currentPrimary, ref currentSubkey, ref currentAttribute);
             currentPrimary = new PrimaryKey();
             currentPrimary.Keyring = keyring;
             currentPrimary.Secret  = secretKeys;
@@ -1886,7 +1922,7 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
             break;
 
           case "sub": case "ssb": // public and secret subkeys
-            FinishSubkey(subkeys, sigs, currentPrimary, ref currentSubkey, currentUserId);
+            FinishSubkey(subkeys, sigs, currentPrimary, ref currentSubkey, currentAttribute);
             currentSubkey = new Subkey();
             currentSubkey.Secret = secretKeys;
             ReadKeyData(currentSubkey, fields);
@@ -1898,14 +1934,57 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
             else if(currentPrimary != null) currentPrimary.Fingerprint = fields[9].ToUpperInvariant();
             break;
 
+          case "uat": // user attribute
+          {
+            FinishAttribute(attributes, sigs, currentPrimary, currentSubkey, ref currentAttribute);
+
+            if(retrieveAttributes)
+            {
+              attrReadEvent.WaitOne(); // wait until attribute data has been provided
+
+              // read the data
+              byte[] data = new byte[attrLength];
+              int index = 0;
+              while(index < data.Length)
+              {
+                int read = attrStream.Read(data, index, data.Length - index);
+                if(read == 0) break;
+                index += read;
+              }
+
+              if(index == data.Length)
+              {
+                currentAttribute = UserAttribute.Create(attrType, data);
+                currentAttribute.Primary = attrPrimary;
+                if(!string.IsNullOrEmpty(fields[1])) currentAttribute.CalculatedTrust = ParseTrustLevel(fields[1][0]);
+                if(!string.IsNullOrEmpty(fields[5])) currentAttribute.CreationTime    = ParseTimestamp(fields[5]);
+              }
+
+              attrWriteEvent.Set(); // we're done with this line and are ready to receive more attribute data
+            }
+            break;
+          }
+
           case "crt": case "crs": // X.509 certificates (we just treat them as an end to the current key)
-            FinishPrimaryKey(keys, subkeys, userIds, sigs, ref currentPrimary, ref currentSubkey, ref currentUserId);
+            FinishPrimaryKey(keys, subkeys, attributes, sigs,
+                             ref currentPrimary, ref currentSubkey, ref currentAttribute);
             break;
         }
       }
 
-      FinishPrimaryKey(keys, subkeys, userIds, sigs, ref currentPrimary, ref currentSubkey, ref currentUserId);
+      FinishPrimaryKey(keys, subkeys, attributes, sigs, ref currentPrimary, ref currentSubkey, ref currentAttribute);
       cmd.WaitForExit();
+    }
+    finally
+    {
+      cmd.Dispose();
+      if(retrieveAttributes)
+      {
+        attrStream.Dispose();
+        attrPipe.Dispose();
+        attrReadEvent.Close();
+        attrWriteEvent.Close();
+      }
     }
 
     // normally we'd call CheckExitCode to throw an exception if GPG failed, but if we were searching and the search
@@ -2022,19 +2101,33 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
   }
 
   /// <summary>A helper for reading key listings, that finishes the current primary key.</summary>
-  static void FinishPrimaryKey(List<PrimaryKey> keys, List<Subkey> subkeys, List<UserId> userIds,
+  static void FinishPrimaryKey(List<PrimaryKey> keys, List<Subkey> subkeys, List<UserAttribute> attributes,
                                List<KeySignature> sigs, ref PrimaryKey currentPrimary, ref Subkey currentSubkey,
-                               ref UserId currentUserId)
+                               ref UserAttribute currentAttribute)
   {
     // finishing a primary key finishes all signatures, subkeys, and user IDs on it
-    FinishSignatures(sigs, currentPrimary, currentSubkey, currentUserId);
-    FinishSubkey(subkeys, sigs, currentPrimary, ref currentSubkey, currentUserId);
-    FinishUserId(userIds, sigs, currentPrimary, currentSubkey, ref currentUserId);
+    FinishSignatures(sigs, currentPrimary, currentSubkey, currentAttribute);
+    FinishSubkey(subkeys, sigs, currentPrimary, ref currentSubkey, currentAttribute);
+    FinishAttribute(attributes, sigs, currentPrimary, currentSubkey, ref currentAttribute);
 
     if(currentPrimary != null)
     {
       currentPrimary.Subkeys = new ReadOnlyListWrapper<Subkey>(subkeys.ToArray());
-      currentPrimary.UserIds = new ReadOnlyListWrapper<UserId>(userIds.ToArray());
+      
+      // the attributes will be split into UserIds and other attributes
+      List<UserId> userIds = new List<UserId>(attributes.Count);
+      List<UserAttribute> userAttributes = new List<UserAttribute>();
+      foreach(UserAttribute attr in attributes)
+      {
+        UserId userId = attr as UserId;
+        if(userId != null) userIds.Add(userId);
+        else userAttributes.Add(attr);
+      }
+
+      currentPrimary.UserIds    = new ReadOnlyListWrapper<UserId>(userIds.ToArray());
+      currentPrimary.Attributes = userAttributes.Count == 0 ?
+        NoAttributes : new ReadOnlyListWrapper<UserAttribute>(userAttributes.ToArray());
+
       if(currentPrimary.Signatures == null) currentPrimary.Signatures = NoSignatures;
 
       currentPrimary.MakeReadOnly();
@@ -2043,17 +2136,17 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
     }
 
     subkeys.Clear();
-    userIds.Clear();
+    attributes.Clear();
   }
 
   /// <summary>A helper for reading key listings, that finishes the current key signatures.</summary>
   static void FinishSignatures(List<KeySignature> sigs, PrimaryKey currentPrimary, Subkey currentSubkey,
-                               UserId currentUserId)
+                               UserAttribute currentAttribute)
   {
     ReadOnlyListWrapper<KeySignature> list = new ReadOnlyListWrapper<KeySignature>(sigs.ToArray());
 
     // add the signatures to the most recent object in the key listing
-    if(currentUserId != null) currentUserId.Signatures = list;
+    if(currentAttribute != null) currentAttribute.Signatures = list;
     else if(currentSubkey != null) currentSubkey.Signatures = list;
     else if(currentPrimary != null) currentPrimary.Signatures = list;
 
@@ -2062,9 +2155,9 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
 
   /// <summary>A helper for reading key listings, that finishes the current subkey.</summary>
   static void FinishSubkey(List<Subkey> subkeys, List<KeySignature> sigs,
-                           PrimaryKey currentPrimary, ref Subkey currentSubkey, UserId currentUserId)
+                           PrimaryKey currentPrimary, ref Subkey currentSubkey, UserAttribute currentAttribute)
   {
-    FinishSignatures(sigs, currentPrimary, currentSubkey, currentUserId);
+    FinishSignatures(sigs, currentPrimary, currentSubkey, currentAttribute);
 
     if(currentSubkey != null && currentPrimary != null)
     {
@@ -2077,21 +2170,31 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
     }
   }
 
-  /// <summary>A helper for reading key listings, that finishes the current user ID.</summary>
-  static void FinishUserId(List<UserId> userIds, List<KeySignature> sigs,
-                           PrimaryKey currentPrimary, Subkey currentSubkey, ref UserId currentUserId)
+  /// <summary>A helper for reading key listings, that finishes the current user attribute.</summary>
+  static void FinishAttribute(List<UserAttribute> attributes, List<KeySignature> sigs,
+                              PrimaryKey currentPrimary, Subkey currentSubkey, ref UserAttribute currentAttribute)
   {
-    FinishSignatures(sigs, currentPrimary, currentSubkey, currentUserId);
+    FinishSignatures(sigs, currentPrimary, currentSubkey, currentAttribute);
 
-    if(currentUserId != null && currentPrimary != null)
+    if(currentAttribute != null && currentPrimary != null)
     {
-      currentUserId.Key     = currentPrimary;
-      currentUserId.Primary = userIds.Count == 0; // the primary user ID is the first one listed
-      if(currentUserId.Signatures == null) currentUserId.Signatures = NoSignatures;
+      currentAttribute.Key  = currentPrimary;
 
-      currentUserId.MakeReadOnly();
-      userIds.Add(currentUserId);
-      currentUserId = null;
+      if(currentAttribute is UserId) // the primary user ID is the first one listed
+      {
+        foreach(UserAttribute attr in attributes)
+        {
+          if(attr is UserId) goto notPrimary;
+        }
+        currentAttribute.Primary = true;
+        notPrimary:;
+      }
+
+      if(currentAttribute.Signatures == null) currentAttribute.Signatures = NoSignatures;
+
+      currentAttribute.MakeReadOnly();
+      attributes.Add(currentAttribute);
+      currentAttribute = null;
     }
   }
 
@@ -2400,6 +2503,8 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
   string[] ciphers, hashes, keyTypes, compressions;
   string exePath;
 
+  static readonly ReadOnlyListWrapper<UserAttribute> NoAttributes =
+    new ReadOnlyListWrapper<UserAttribute>(new UserAttribute[0]);
   static readonly ReadOnlyListWrapper<KeySignature> NoSignatures =
     new ReadOnlyListWrapper<KeySignature>(new KeySignature[0]);
   static readonly Regex versionLineRe = new Regex(@"^(\w+):\s*(.+)", RegexOptions.Singleline);

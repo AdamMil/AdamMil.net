@@ -32,6 +32,7 @@
   <ItemGroup>
     <Reference Include="nunit.framework" />
     <Reference Include="System" />
+    <Reference Include="System.Drawing" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="GPG.cs" />

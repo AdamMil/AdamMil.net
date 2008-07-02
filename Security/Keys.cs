@@ -19,53 +19,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 using System;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Drawing;
+using System.Globalization;
+using System.IO;
 using AdamMil.Collections;
+using AdamMil.IO;
 
 namespace AdamMil.Security.PGP
 {
-
-#region KeyCapability
-/// <summary>Describes the capabilities of a key, but not necessarily the capabilities to which it can currently be put
-/// to use by you. For instance, a key may be capable of encryption and signing, but if you don't have the private
-/// portion, you cannot utilize that capability. Or, the key may have been disabled.
-/// </summary>
-[Flags]
-public enum KeyCapability
-{
-  /// <summary>The key has no utility.</summary>
-  None=0,
-  /// <summary>The key can be used to encrypt data.</summary>
-  Encrypt=1,
-  /// <summary>The key can be used to sign data.</summary>
-  Sign=2,
-  /// <summary>The key can be used to certify other keys.</summary>
-  Certify=4,
-  /// <summary>The key can be used to authenticate its owners.</summary>
-  Authenticate=8
-}
-#endregion
-
-#region ReadOnlyClass
-/// <summary>Represents a class that allows its properties to be set until <see cref="MakeReadOnly"/> is called, at
-/// which point the object becomes read-only.
-/// </summary>
-public abstract class ReadOnlyClass
-{
-  /// <include file="documentation.xml" path="/Security/ReadOnlyClass/MakeReadOnly/*"/>
-  public virtual void MakeReadOnly()
-  {
-    readOnly = true;
-  }
-
-  /// <summary>Throws an exception if <see cref="MakeReadOnly"/> has been called.</summary>
-  protected void AssertNotReadOnly()
-  {
-    if(readOnly) throw new InvalidOperationException("This object has been finished, and the property is read only.");
-  }
-
-  bool readOnly;
-}
-#endregion
 
 #region KeySignature
 /// <summary>Represents a signature on a key.</summary>
@@ -116,7 +77,7 @@ public class KeySignature : ReadOnlyClass
   }
 
   /// <summary>Gets or sets the status of the signature. This is only guaranteed to be valid if
-  /// <see cref="KeySignatures.Verify"/> was used during the retrieval of the key signatures.
+  /// <see cref="ListOptions.VerifySignatures"/> was used during the retrieval of the key.
   /// </summary>
   public SignatureStatus Status
   {
@@ -198,19 +159,16 @@ public class KeySignature : ReadOnlyClass
 }
 #endregion
 
-#region UserId
-/// <summary>Represents a user ID for a key. Some keys may be used by multiple people, or one person filling multiple
-/// roles, or one person who changed his name or email address, and user IDs allow these multiple identity claims to be
-/// associated with a key and individually trusted, revoked, etc. User IDs can be signed by people who testify to the
-/// truthfulness and accuracy of the identity.
-/// </summary>
-/// <remarks>After the PGP system creates a <see cref="UserId"/> object and sets its properties, it should call
+#region User attributes
+#region UserAttribute
+/// <summary>Represents a user attribute, which associates data about a key owner with the key.</summary>
+/// <remarks>After the PGP system creates a <see cref="UserAttribute"/> object and sets its properties, it should call
 /// <see cref="MakeReadOnly"/> to lock the property values, creating a read-only object.
 /// </remarks>
-public class UserId : ReadOnlyClass
+public abstract class UserAttribute : ReadOnlyClass
 {
-  /// <summary>Gets or sets the calculated trust level of this user ID, which represents how much this user ID is
-  /// trusted to be owned by the person named on it.
+  /// <summary>Gets or sets the calculated trust level of this user attribute, which represents how much this user
+  /// attribute is trusted to be truly associated with the the person named on the key.
   /// </summary>
   public TrustLevel CalculatedTrust
   {
@@ -222,18 +180,18 @@ public class UserId : ReadOnlyClass
     }
   }
 
-  /// <summary>Gets or sets the date when this user ID was created.</summary>
+  /// <summary>Gets or sets the date when this attribute was created.</summary>
   public DateTime CreationTime
   {
     get { return creationTime; }
     set
     {
       AssertNotReadOnly();
-      creationTime = value; 
+      creationTime = value;
     }
   }
 
-  /// <summary>Gets or sets the <see cref="PrimaryKey"/> to which this <see cref="UserId"/> belongs.</summary>
+  /// <summary>Gets or sets the <see cref="PrimaryKey"/> to which this attribute belongs.</summary>
   public PrimaryKey Key
   {
     get { return key; }
@@ -244,27 +202,14 @@ public class UserId : ReadOnlyClass
     }
   }
 
-  /// <summary>Gets or sets the name of the user. The standard format is <c>NAME (COMMENT) &lt;EMAIL&gt;</c>, where
-  /// the comment is optional. This format should be used with unless you have a compelling reason to do otherwise.
-  /// </summary>
-  public string Name
-  {
-    get { return name; }
-    set 
-    {
-      AssertNotReadOnly();
-      name = value; 
-    }
-  }
-
   /// <summary>Gets or sets whether this is the primary user ID of the key.</summary>
   public bool Primary
   {
     get { return primary; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      primary = value; 
+      primary = value;
     }
   }
 
@@ -272,10 +217,10 @@ public class UserId : ReadOnlyClass
   public bool Revoked
   {
     get { return revoked; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      revoked = value; 
+      revoked = value;
     }
   }
 
@@ -298,18 +243,168 @@ public class UserId : ReadOnlyClass
     base.MakeReadOnly();
   }
 
+  /// <summary>Given an OpenPGP user attribute type, and its subpacket data, returns a <see cref="UserAttribute"/>
+  /// object representing it.
+  /// </summary>
+  public static UserAttribute Create(OpenPGPAttributeType type, byte[] subpacketData)
+  {
+    // currently, only Image attributes are supported
+    return type == OpenPGPAttributeType.Image ?
+      (UserAttribute)new UserImage(subpacketData) : new UnknownUserAttribute((int)type, subpacketData);
+  }
+
+  PrimaryKey key;
+  IReadOnlyList<KeySignature> sigs;
+  DateTime creationTime;
+  TrustLevel trustLevel;
+  bool primary, revoked;
+}
+#endregion
+
+#region UserAttributeWithData
+/// <summary>Represents a user attribute with the raw subpacket data available.</summary>
+public abstract class UserAttributeWithData : UserAttribute
+{
+  /// <summary>Initializes a new <see cref="UserAttributeWithData"/> object with the given attribute subpacket data.
+  /// The array will be owned by the attribute.
+  /// </summary>
+  protected UserAttributeWithData(byte[] subpacketData)
+  {
+    if(subpacketData == null) throw new ArgumentNullException();
+    this.subpacketData = subpacketData;
+  }
+
+  /// <summary>Returns an array containing the OpenPGP attribute subpacket data.</summary>
+  public byte[] GetSubpacketData()
+  {
+    return (byte[])subpacketData.Clone();
+  }
+
+  /// <summary>Returns a stream that reads the OpenPGP attribute subpacket data.</summary>
+  public Stream GetSubpacketStream()
+  {
+    return new MemoryStream(subpacketData, 0, subpacketData.Length, false, false);
+  }
+
+  /// <summary>Returns a reference to the internal subpacket data array.</summary>
+  protected byte[] Data
+  {
+    get { return subpacketData; }
+  }
+
+  readonly byte[] subpacketData;
+}
+#endregion
+
+#region UserId
+/// <summary>Represents a user ID for a key. Some keys may be used by multiple people, or one person filling multiple
+/// roles, or one person who changed his name or email address, and user IDs allow these multiple identity claims to be
+/// associated with a key and individually trusted, revoked, etc. User IDs can be signed by people who testify to the
+/// truthfulness and accuracy of the identity.
+/// </summary>
+public class UserId : UserAttribute
+{
+  /// <summary>Gets or sets the name of the user. The standard format is <c>NAME (COMMENT) &lt;EMAIL&gt;</c>, where
+  /// the comment is optional. This format should be used with unless you have a compelling reason to do otherwise.
+  /// </summary>
+  public string Name
+  {
+    get { return name; }
+    set 
+    {
+      AssertNotReadOnly();
+      name = value; 
+    }
+  }
+
   /// <include file="documentation.xml" path="/Security/Common/ToString/*"/>
   public override string ToString()
   {
     return string.IsNullOrEmpty(Name) ? "Unknown user" : Name;
   }
 
-  PrimaryKey key;
   string name;
-  IReadOnlyList<KeySignature> sigs;
-  DateTime creationTime;
-  TrustLevel trustLevel;
-  bool primary, revoked;
+}
+#endregion
+
+#region UserImage
+/// <summary>Represents a user attribute containing an image of the user.</summary>
+public class UserImage : UserAttributeWithData
+{
+  /// <summary>Initializes a new <see cref="UserImage"/> attribute with the given attribute subpacket data.</summary>
+  public UserImage(byte[] data) : base(data) { }
+
+  /// <summary>Returns a new <see cref="Bitmap"/> containing the image data.</summary>
+  public Bitmap GetBitmap()
+  {
+    if(Data.Length < 3) throw new PGPException("Invalid image header.");
+
+    try
+    {
+      int headerLength = IOH.ReadLE2(Data, 0), headerVersion = Data[2];
+      if(headerVersion != 1)
+      {
+        throw new PGPException("Unsupported image header version " +
+                               headerVersion.ToString(CultureInfo.InvariantCulture));
+      }
+
+      // the Bitmap(Stream) constructor wants to own the entire stream, so we can't pass it a stream that's seeked
+      // to the end of the header. instead, we'll construct a memory stream for just the portion after the header
+      return new Bitmap(new MemoryStream(Data, headerLength, Data.Length-headerLength, false, false));
+    }
+    catch(Exception ex)
+    {
+      if(ex is OutOfMemoryException || ex is PGPException) throw;
+      else throw new PGPException("Invalid or unsupported user image attribute.", ex);
+    }
+  }
+}
+#endregion
+
+#region UnknownUserAttribute
+/// <summary>Represents a user attribute that is not understood by this library. It may be a custom attribute, or this
+/// library may be out of date.
+/// </summary>
+public class UnknownUserAttribute : UserAttributeWithData
+{
+  /// <summary>Initializes a new <see cref="UnknownUserAttribute"/> with the given OpenPGP attribute type and an array
+  /// containing the attribute subpacket data. The attribute will own the array.
+  /// </summary>
+  public UnknownUserAttribute(int type, byte[] data) : base(data)
+  {
+    this.type = type;
+  }
+
+  /// <summary>Gets the OpenPGP attribute type.</summary>
+  public int Type
+  {
+    get { return type; }
+  }
+
+  readonly int type;
+}
+#endregion
+#endregion
+
+#region Key types
+#region KeyCapability
+/// <summary>Describes the capabilities of a key, but not necessarily the capabilities to which it can currently be put
+/// to use by you. For instance, a key may be capable of encryption and signing, but if you don't have the private
+/// portion, you cannot utilize that capability. Or, the key may have been disabled.
+/// </summary>
+[Flags]
+public enum KeyCapability
+{
+  /// <summary>The key has no utility.</summary>
+  None=0,
+  /// <summary>The key can be used to encrypt data.</summary>
+  Encrypt=1,
+  /// <summary>The key can be used to sign data.</summary>
+  Sign=2,
+  /// <summary>The key can be used to certify other keys.</summary>
+  Certify=4,
+  /// <summary>The key can be used to authenticate its owners.</summary>
+  Authenticate=8
 }
 #endregion
 
@@ -510,6 +605,19 @@ public abstract class Key : ReadOnlyClass
 /// </summary>
 public class PrimaryKey : Key
 {
+  /// <summary>Gets or sets a read-only list of user attributes (excluding <see cref="UserId"/> attributes) associated
+  /// with this primary key.
+  /// </summary>
+  public IReadOnlyList<UserAttribute> Attributes
+  {
+    get { return userAttributes; }
+    set
+    {
+      AssertNotReadOnly();
+      userAttributes = value;
+    }
+  }
+
   /// <summary>Gets or sets whether the key has been disabled, indicating that it should not be used. Because the
   /// enabled status is not stored within the key, a key can be disabled by anyone, but it will only be disabled for
   /// that person. It can be reenabled at any time.
@@ -625,6 +733,7 @@ public class PrimaryKey : Key
 
   IReadOnlyList<Subkey> subkeys;
   IReadOnlyList<UserId> userIds;
+  IReadOnlyList<UserAttribute> userAttributes;
   UserId primaryUserId;
   Keyring keyring;
   KeyCapability totalCapabilities;
@@ -678,6 +787,7 @@ public class Subkey : Key
 
   PrimaryKey primaryKey;
 }
+#endregion
 #endregion
 
 #region KeyCollection
