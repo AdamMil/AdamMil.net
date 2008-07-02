@@ -128,6 +128,8 @@ enum StatusMessageType
   GetLine,
   /// <summary>The <c>GET_HIDDEN</c> message, implemented by the <see cref="StatusMessages.GetInputMessage"/> class.</summary>
   GetHidden,
+  /// <summary>The <c>ATTRIBUTE</c> message, implemented by the <see cref="StatusMessages.AttributeMessage"/> class.</summary>
+  Attribute,
 }
 #endregion
 
@@ -618,6 +620,72 @@ sealed class GetInputMessage : StatusMessage
   }
 
   readonly string promptId;
+}
+#endregion
+
+#region AttributeMessage
+/// <summary>A message issued when an attribute is about to be written to the attribute file descriptor.</summary>
+sealed class AttributeMessage : StatusMessage
+{
+  public AttributeMessage(string[] arguments) : base(StatusMessageType.Attribute)
+  {
+    length = int.Parse(arguments[1]);
+    type   = (OpenPGPAttributeType)int.Parse(arguments[2]);
+    creation = GPG.ParseNullableTimestamp(arguments[5]);
+    expiration = GPG.ParseNullableTimestamp(arguments[6]);
+
+    int flags = int.Parse(arguments[7]);
+    primary = (flags & 1) != 0;
+    revoked = (flags & 2) != 0;
+    expired = (flags & 4) != 0;
+  }
+
+  public OpenPGPAttributeType AttributeType
+  {
+    get { return type; }
+  }
+
+  public DateTime? CreationTime
+  {
+    get { return creation; }
+  }
+
+  public DateTime? ExpirationTime
+  {
+    get { return expiration; }
+  }
+
+  public bool IsExpired
+  {
+    get { return expired; }
+  }
+
+  public bool IsPrimary
+  {
+    get { return primary; }
+  }
+
+  public bool IsRevoked
+  {
+    get { return revoked; }
+  }
+
+  /// <summary>Gets whether the attribute is valid (ie, has a valid self-signature).</summary>
+  public bool IsValid
+  {
+    get { return creation.HasValue; }
+  }
+
+  /// <summary>Gets the length of the attribute data, in bytes.</summary>
+  public int Length
+  {
+    get { return length; }
+  }
+
+  readonly DateTime? creation, expiration;
+  readonly int length;
+  readonly OpenPGPAttributeType type;
+  readonly bool primary, revoked, expired;
 }
 #endregion
 

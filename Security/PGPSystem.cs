@@ -25,6 +25,28 @@ using AdamMil.Collections;
 namespace AdamMil.Security.PGP
 {
 
+#region ReadOnlyClass
+/// <summary>Represents a class that allows its properties to be set until <see cref="MakeReadOnly"/> is called, at
+/// which point the object becomes read-only.
+/// </summary>
+public abstract class ReadOnlyClass
+{
+  /// <include file="documentation.xml" path="/Security/ReadOnlyClass/MakeReadOnly/*"/>
+  public virtual void MakeReadOnly()
+  {
+    readOnly = true;
+  }
+
+  /// <summary>Throws an exception if <see cref="MakeReadOnly"/> has been called.</summary>
+  protected void AssertNotReadOnly()
+  {
+    if(readOnly) throw new InvalidOperationException("This object has been finished, and the property is read only.");
+  }
+
+  bool readOnly;
+}
+#endregion
+
 #region Compression
 /// <summary>A static class containing commonly-supported compression types. Note that not all of these types may be
 /// supported, so it's recommended that <see cref="Default"/> be used whenever possible. If a specific algorithm is
@@ -619,18 +641,33 @@ public enum ExportOptions
 }
 #endregion
 
-#region KeySignatures
-/// <summary>Used to specify how signatures on keys should be treated. Verification can be a time-consuming operation
-/// if there are many keys involved.
-/// </summary>
-public enum KeySignatures
+#region ListOptions
+/// <summary>Options that control how keys will be retrieved.</summary>
+[Flags]
+public enum ListOptions
 {
-  /// <summary>Key signatures will not be retrieved.</summary>
-  Ignore,
-  /// <summary>Key signatures will be retrieved, but not verified.</summary>
-  Retrieve,
-  /// <summary>Key signatures will be retrieved and verified.</summary>
-  Verify
+  /// <summary>The default options will be used.</summary>
+  Default=0,
+
+  /// <summary>Signatures on keys will be ignored.</summary>
+  IgnoreSignatures=0,
+  /// <summary>Signatures on keys will be retrieved, but not verified.</summary>
+  RetrieveSignatures=1,
+  /// <summary>Signatures on keys will be retrieved and verified.</summary>
+  VerifySignatures=3,
+  /// <summary>A mask that can be ANDed with a <see cref="ListOptions"/> to get the signature handling value, which is
+  /// one of <see cref="IgnoreSignatures"/>, <see cref="RetrieveSignatures"/>, or <see cref="VerifySignatures"/>.
+  /// </summary>
+  SignatureMask=3,
+  
+  /// <summary>User attributes on keys will be ignored.</summary>
+  IgnoreAttributes=0,
+  /// <summary>User attributes will be retrieved, but unknown attributes will be ignored.</summary>
+  RetrieveAttributes=4,
+  /// <summary>A mask that can be ANDed with a <see cref="ListOptions"/> to get the attribute handling value, which is
+  /// one of <see cref="IgnoreAttributes"/> or <see cref="RetrieveAttributes"/>.
+  /// </summary>
+  AttributeMask=4
 }
 #endregion
 
@@ -697,6 +734,21 @@ public enum KeyDeletion
   Secret,
   /// <summary>The entire key pair should be deleted.</summary>
   PublicAndSecret
+}
+#endregion
+
+#region OpenPGPAttributeType
+/// <summary>Represents the user attribute types defined in the OpenPGP standard (RFC-4880). This is to help with
+/// parsing OpenPGP packets.
+/// </summary>
+public enum OpenPGPAttributeType
+{
+  /// <summary>An unknown attribute type. This value is not defined in OpenPGP, but is used to represent attribute
+  /// types unknown to this library.
+  /// </summary>
+  Unknown=-1,
+  /// <summary>An user ID containing an image of the user.</summary>
+  Image=1
 }
 #endregion
 
@@ -1324,81 +1376,76 @@ public abstract class PGPSystem
   #region Key management
   /// <summary>Searches for the public keys with the given fingerprint in the given keyring.</summary>
   /// <param name="fingerprint">The fingerprints of the key to search for.</param>
-  /// <param name="signatures">Specifies whether key signatures should be returned and verified.</param>
   /// <param name="keyring">The keyring to search, or null to search the default keyring.</param>
+  /// <param name="options">Options controlling how keys should be returned.</param>
   /// <returns>Returns the key if it was found, or null if it was not.</returns>
-  public PrimaryKey FindPublicKey(string fingerprint, KeySignatures signatures, Keyring keyring)
+  public PrimaryKey FindPublicKey(string fingerprint, Keyring keyring, ListOptions options)
   {
-    string[] fingerprints = new string[] { fingerprint };
-    Keyring[] keyrings = keyring == null ? null : new Keyring[] { keyring };
-    PrimaryKey[] keys = FindPublicKeys(fingerprints, signatures, keyrings, keyring == null);
+    PrimaryKey[] keys = FindPublicKeys(new string[] { fingerprint },
+                                       keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
     return keys[0];
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKeys/*[@name != 'keyrings' and @name != 'includeDefaultKeyring']"/>
   /// <param name="keyring">The keyring to search, or null to search the default keyring.</param>
-  public PrimaryKey[] FindPublicKeys(string[] fingerprints, KeySignatures signatures, Keyring keyring)
+  public PrimaryKey[] FindPublicKeys(string[] fingerprints, Keyring keyring, ListOptions options)
   {
-    Keyring[] keyrings = keyring == null ? null : new Keyring[] { keyring };
-    return FindPublicKeys(fingerprints, signatures, keyrings, keyring == null);
+    return FindPublicKeys(fingerprints, keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKeys/*"/>
-  public abstract PrimaryKey[] FindPublicKeys(string[] fingerprints, KeySignatures signatures,
-                                              Keyring[] keyrings, bool includeDefaultKeyring);
+  public abstract PrimaryKey[] FindPublicKeys(string[] fingerprints, Keyring[] keyrings, bool includeDefaultKeyring,
+                                              ListOptions options);
 
   /// <summary>Searches for the secret keys with the given fingerprint in the given keyring.</summary>
   /// <param name="fingerprint">The fingerprints of the key to search for.</param>
-  /// <param name="signatures">Specifies whether key signatures should be returned and verified.</param>
   /// <param name="keyring">The keyring to search, or null to search the default keyring.</param>
+  /// <param name="options">Options controlling how keys should be returned.</param>
   /// <returns>Returns the key if it was found, or null if it was not.</returns>
-  public PrimaryKey FindSecretKey(string fingerprint, KeySignatures signatures, Keyring keyring)
+  public PrimaryKey FindSecretKey(string fingerprint, Keyring keyring, ListOptions options)
   {
-    string[] fingerprints = new string[] { fingerprint };
-    Keyring[] keyrings = keyring == null ? null : new Keyring[] { keyring };
-    PrimaryKey[] keys = FindSecretKeys(fingerprints, signatures, keyrings, keyring == null);
+    PrimaryKey[] keys = FindSecretKeys(new string[] { fingerprint },
+                                       keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
     return keys[0];
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKeys/*[@name != 'keyrings' and @name != 'includeDefaultKeyring']"/>
   /// <param name="keyring">The keyring to search, or null to search the default keyring.</param>
-  public PrimaryKey[] FindSecretKeys(string[] fingerprints, KeySignatures signatures, Keyring keyring)
+  public PrimaryKey[] FindSecretKeys(string[] fingerprints, Keyring keyring, ListOptions options)
   {
-    Keyring[] keyrings = keyring == null ? null : new Keyring[] { keyring };
-    return FindSecretKeys(fingerprints, signatures, keyrings, keyring == null);
+    return FindSecretKeys(fingerprints, keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKeys/*"/>
-  public abstract PrimaryKey[] FindSecretKeys(string[] fingerprints, KeySignatures signatures,
-                                              Keyring[] keyrings, bool includeDefaultKeyring);
+  public abstract PrimaryKey[] FindSecretKeys(string[] fingerprints, Keyring[] keyrings, bool includeDefaultKeyring,
+                                              ListOptions options);
 
   /// <summary>Gets all public keys in the default keyring, without retrieving key signatures.</summary>
   public PrimaryKey[] GetPublicKeys()
   {
-    return GetPublicKeys(KeySignatures.Ignore);
+    return GetPublicKeys(ListOptions.Default);
   }
 
   /// <summary>Gets all public keys in the default keyring.</summary>
-  public PrimaryKey[] GetPublicKeys(KeySignatures signatures)
+  public PrimaryKey[] GetPublicKeys(ListOptions options)
   {
-    return GetPublicKeys(signatures, null, true);
+    return GetPublicKeys(null, true, options);
   }
 
   /// <summary>Gets all public keys in the given keyring, without retrieving key signatures.</summary>
   public PrimaryKey[] GetPublicKeys(Keyring keyring)
   {
-    return GetPublicKeys(KeySignatures.Ignore, keyring);
+    return GetPublicKeys(keyring, ListOptions.Default);
   }
 
   /// <summary>Gets all public keys in the given keyring.</summary>
-  public PrimaryKey[] GetPublicKeys(KeySignatures signatures, Keyring keyring)
+  public PrimaryKey[] GetPublicKeys(Keyring keyring, ListOptions options)
   {
-    return keyring == null ?
-      GetPublicKeys(signatures, null, true) : GetPublicKeys(signatures, new Keyring[] { keyring }, false);
+    return GetPublicKeys(keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetPublicKeys2/*"/>
-  public abstract PrimaryKey[] GetPublicKeys(KeySignatures signatures, Keyring[] keyrings, bool includeDefaultKeyring);
+  public abstract PrimaryKey[] GetPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, ListOptions options);
 
   /// <summary>Gets all secret keys in the default keyring.</summary>
   public PrimaryKey[] GetSecretKeys()
@@ -1418,19 +1465,16 @@ public abstract class PGPSystem
   /// <include file="documentation.xml" path="/Security/PGPSystem/CreateKey/*"/>
   public abstract PrimaryKey CreateKey(NewKeyOptions options);
 
-  /// <summary>Deletes the given keys, or a part of them, from their keyrings.</summary>
-  /// <param name="key">The key to delete. If the key is a <cref see="PrimaryKey"/>, the entire key will be deleted.
-  /// If the key is a <cref see="Subkey"/>, the subkey will be removed from its primary key. If the subkey has
-  /// distributed already, then deleting it is mostly useless. It is better to revoke the subkey in that case.
-  /// </param>
+  /// <summary>Deletes the given primary key, or a part of it, from its keyring.</summary>
+  /// <param name="key">The primary key to delete.</param>
   /// <param name="deletion">The portion of the key to delete.</param>
-  public void DeleteKey(Key key, KeyDeletion deletion)
+  public void DeleteKey(PrimaryKey key, KeyDeletion deletion)
   {
-    DeleteKeys(new Key[] { key }, deletion);
+    DeleteKeys(new PrimaryKey[] { key }, deletion);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteKeys/*"/>
-  public abstract void DeleteKeys(Key[] keys, KeyDeletion deletion);
+  public abstract void DeleteKeys(PrimaryKey[] keys, KeyDeletion deletion);
 
   /// <summary>Exports the given public key to the given stream.</summary>
   public void ExportPublicKey(PrimaryKey key, Stream destination)
