@@ -49,6 +49,10 @@
       <Project>{D9724C65-C54A-4671-BA0B-40B0B38464DD}</Project>
       <Name>AdamMil.Collections</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Mathematics\AdamMil.Mathematics.csproj">
+      <Project>{BC146E65-29FA-4D05-89E2-CF485EBC86B8}</Project>
+      <Name>AdamMil.Mathematics</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Content Include="documentation.xml" />

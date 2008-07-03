@@ -18,6 +18,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Security;
 using AdamMil.Collections;
@@ -25,28 +26,7 @@ using AdamMil.Collections;
 namespace AdamMil.Security.PGP
 {
 
-#region ReadOnlyClass
-/// <summary>Represents a class that allows its properties to be set until <see cref="MakeReadOnly"/> is called, at
-/// which point the object becomes read-only.
-/// </summary>
-public abstract class ReadOnlyClass
-{
-  /// <include file="documentation.xml" path="/Security/ReadOnlyClass/MakeReadOnly/*"/>
-  public virtual void MakeReadOnly()
-  {
-    readOnly = true;
-  }
-
-  /// <summary>Throws an exception if <see cref="MakeReadOnly"/> has been called.</summary>
-  protected void AssertNotReadOnly()
-  {
-    if(readOnly) throw new InvalidOperationException("This object has been finished, and the property is read only.");
-  }
-
-  bool readOnly;
-}
-#endregion
-
+#region Algorithms and key types
 #region Compression
 /// <summary>A static class containing commonly-supported compression types. Note that not all of these types may be
 /// supported, so it's recommended that <see cref="Default"/> be used whenever possible. If a specific algorithm is
@@ -148,7 +128,7 @@ public static class SymmetricCipher
 }
 #endregion
 
-#region MasterKeyTYpe
+#region PrimaryKeyType
 /// <summary>A static class containing commonly-supported primary key types. Note that not all of these types may be
 /// supported, so it's recommended that <see cref="Default"/> be used whenever possible. If a specific algorithm is
 /// desired, use <see cref="PGPSystem.GetSupportedPrimaryKeys"/> to verify that it is supported.
@@ -199,7 +179,9 @@ public static class SubkeyType
   public static readonly string RSAEncryptOnly = "RSA-E";
 }
 #endregion
+#endregion
 
+#region Command options
 #region DecryptionOptions
 /// <summary>Specifies options that control the decryption of data.</summary>
 public class DecryptionOptions : VerificationOptions
@@ -321,120 +303,142 @@ public class EncryptionOptions
 }
 #endregion
 
-#region SigningOptions
-/// <summary>Specifies options that control the signing of data.</summary>
-public class SigningOptions
+#region ExportOptions
+/// <summary>Options that control how keys are exported.</summary>
+[Flags]
+public enum ExportOptions
 {
-  /// <summary>Initializes a new <see cref="SigningOptions"/> object with the default options and no signing keys.</summary>
-  public SigningOptions() { }
-
-  /// <summary>Initializes a new <see cref="SigningOptions"/> object with the given list of signing keys.</summary>
-  public SigningOptions(params Key[] signers)
-  {
-    foreach(Key key in signers) Signers.Add(key);
-  }
-
-  /// <summary>Initializes a new <see cref="SigningOptions"/> object with the given detached flag and list of signing
-  /// keys.
+  /// <summary>The default export options will be used. This will cause only public keys to be exported.</summary>
+  Default=0,
+  /// <summary>Key signatures marked as "local only" will be exported. Normally, they are skipped.</summary>
+  ExportLocalSignatures=1,
+  /// <summary>Attribute user IDs (eg, photo IDs) will not be included in the output.</summary>
+  ExcludeAttributes=2,
+  /// <summary>Includes revoker information that was marked as sensitive.</summary>
+  ExportSensitiveRevokerInfo=4,
+  /// <summary>When exporting secret keys, this option causes the secret portion of the master key to not be exported.
+  /// Only the secret subkeys are exported. This is not OpenPGP compliant and currently only GPG is known to
+  /// implement this option or be capable of importing keys created by this option.
   /// </summary>
-  public SigningOptions(bool detached, params Key[] signers)
-  {
-    Detached = detached;
-    foreach(Key key in signers) Signers.Add(key);
-  }
-
-  /// <summary>Gets or sets a value that determines whether the signature will be embedded in or detached from the
-  /// data. If true, the output of the signature operation will be only the signature itself. If false, the output will
-  /// be a copy of the data with the signature embedded. The default is false.
-  /// </summary>
-  public bool Detached
-  {
-    get { return detached; }
-    set { detached = value; }
-  }
-
-  /// <summary>Gets or sets the name of the algorithm used to hash the data. This can be one of the
-  /// <see cref="HashAlgorithm"/> values, or another algorithm name, but it's usually best to leave it at the default
-  /// value of <see cref="HashAlgorithm.Default"/>, and allow the software to determine the algorithm used.
-  /// </summary>
-  public string Hash
-  {
-    get { return hash; }
-    set { hash = value; }
-  }
-
-  /// <summary>Gets a collection that should be filled with the keys used to sign the message. There must be at
-  /// least one key added to the collection. The keys must have both public and private portions.
-  /// </summary>
-  public KeyCollection Signers
-  {
-    get { return signers; }
-  }
-
-  readonly KeyCollection signers = new KeyCollection(KeyCapability.Sign);
-  string hash = HashAlgorithm.Default;
-  bool detached;
+  ClobberMasterSecretKey=8,
+  /// <summary>When exporting secret subkeys, resets their passwords to empty.</summary>
+  ResetSubkeyPassword=16,
+  /// <summary>Does not export unusable signatures, and does not export any signatures for unusable user IDs.</summary>
+  CleanKeys=32,
+  /// <summary>Exports only the most recent self-signature on each user ID.</summary>
+  MinimizeKeys=64
 }
 #endregion
 
-#region VerificationOptions
-/// <summary>Specifies options that control the verification of signatures.</summary>
-public class VerificationOptions
+#region ImportOptions
+/// <summary>Options that control how keys are imported.</summary>
+[Flags]
+public enum ImportOptions
 {
-  /// <summary>Gets a collection of additional keyrings that will be searched to find the appropriate public key.</summary>
-  public List<Keyring> AdditionalKeyrings
-  {
-    get { return keyrings; }
-  }
-
-  /// <summary>Gets or sets a value that determines whether the input will be assumed to be binary. If true, the input
-  /// will be assumed to be binary. If false, the default, the input will be checked for ASCII armoring, allowing both
-  /// text and binary input to be decrypted. The default is false.
+  /// <summary>The default import options will be used.</summary>
+  Default=0,
+  /// <summary>Key signatures marked as "local only" will be imported. Normally, they are skipped.</summary>
+  ImportLocalSignatures=1,
+  /// <summary>Existing keys will be updated with the data from the import, but new keys will not be created.</summary>
+  MergeOnly=2,
+  /// <summary>Removes from imported keys all signatures that are unusable, and removes all signatures from user IDs
+  /// that are unusable.
   /// </summary>
-  public bool AssumeBinaryInput
+  CleanKeys=4,
+  /// <summary>Removes from imported keys all signatures except the most recent self-signatures on each user ID.</summary>
+  MinimizeKeys=8
+}
+#endregion
+
+#region KeyDeletion
+/// <summary>Determines which parts of a primary should be deleted.</summary>
+public enum KeyDeletion
+{
+  /// <summary>The secret keys should be deleted.</summary>
+  Secret,
+  /// <summary>The entire primary key should be deleted.</summary>
+  PublicAndSecret
+}
+#endregion
+
+#region KeySigningOptions
+/// <summary>Options to control the signing of others' keys and attributes.</summary>
+public class KeySigningOptions
+{
+  /// <summary>Gets or sets whether the signature will be exportable. You create an exportable signature only if you've
+  /// done proper validation of the owner's identity. The default is false.
+  /// </summary>
+  public bool Exportable
   {
-    get { return binaryOnly; }
-    set { binaryOnly = value; }
+    get { return exportable; }
+    set { exportable = value; }
   }
 
-  /// <summary>Gets or sets a value that determines whether the system should attempt to find keys not on the local
-  /// keyrings by contacting public key servers, etc. If <see cref="KeyServer"/> is set, a limited form of key fetching
-  /// will be enabled even if this is set to false. Note that downloaded keys may be added to a local keyring.
+  /// <summary>Gets or sets whether this signature is irrevocable. An irrevocable signature can never be revoked.
   /// The default is false.
   /// </summary>
-  public bool AutoFetchKeys
+  public bool Irrevocable
   {
-    get { return autoFetch; }
-    set { autoFetch = value; }
+    get { return irrevocable; }
+    set { irrevocable = value; }
   }
 
-  /// <summary>Gets or sets a value that determines whether the default keyring should be ignored -- that is, not
-  /// searched to find the secret key.
+  /// <summary>Gets or sets whether a trust signature will be created, and the trust level of the signature. This
+  /// property is limited to three values: <see cref="TrustLevel.Unknown"/>, <see cref="TrustLevel.Marginal"/>, and
+  /// <see cref="TrustLevel.Full"/>. If set to <see cref="TrustLevel.Unknown"/> (the default), a standard signature
+  /// will be created. If set to <see cref="TrustLevel.Marginal"/> or <see cref="TrustLevel.Full"/>, a trust signature
+  /// will be created, which signifies that the user is trusted to issue signatures with any lower trust level.
   /// </summary>
-  public bool IgnoreDefaultKeyring
+  public TrustLevel TrustLevel
   {
-    get { return ignoreDefaultKeyring; }
-    set { ignoreDefaultKeyring = value; }
+    get { return trustLevel; }
+    set
+    {
+      if(trustLevel != TrustLevel.Unknown && trustLevel != TrustLevel.Marginal && trustLevel != TrustLevel.Full)
+      {
+        throw new ArgumentException("TrustLevel can only be Unknown, Marginal, or Full.");
+      }
+      trustLevel = value; 
+    }
   }
 
-  /// <summary>Gets or sets the URI of the public key to search for keys that are not found on the local keyrings. If
-  /// set, a limited form of auto fetching (sufficient to contact the public key server) will be enabled even if
-  /// <see cref="AutoFetchKeys"/> is false. Note that downloaded keys may be added to a local keyring.
+  TrustLevel trustLevel;
+  bool exportable, irrevocable;
+}
+#endregion
+
+#region ListOptions
+/// <summary>Options that control how keys will be retrieved.</summary>
+[Flags]
+public enum ListOptions
+{
+  /// <summary>The default options will be used.</summary>
+  Default=0,
+
+  /// <summary>Signatures on keys will be ignored.</summary>
+  IgnoreSignatures=0,
+  /// <summary>Signatures on keys will be retrieved, but not verified.</summary>
+  RetrieveSignatures=1,
+  /// <summary>Signatures on keys will be retrieved and verified.</summary>
+  VerifySignatures=3,
+  /// <summary>A mask that can be ANDed with a <see cref="ListOptions"/> to get the signature handling value, which is
+  /// one of <see cref="IgnoreSignatures"/>, <see cref="RetrieveSignatures"/>, or <see cref="VerifySignatures"/>.
   /// </summary>
-  public Uri KeyServer
-  {
-    get { return keyServer; }
-    set { keyServer = value; }
-  }
+  SignatureMask=3,
 
-  List<Keyring> keyrings = new List<Keyring>();
-  Uri keyServer;
-  bool autoFetch, ignoreDefaultKeyring, binaryOnly;
+  /// <summary>User attributes on keys will be ignored.</summary>
+  IgnoreAttributes=0,
+  /// <summary>User attributes will be retrieved, but unknown attributes will be ignored.</summary>
+  RetrieveAttributes=4,
+  /// <summary>A mask that can be ANDed with a <see cref="ListOptions"/> to get the attribute handling value, which is
+  /// one of <see cref="IgnoreAttributes"/> or <see cref="RetrieveAttributes"/>.
+  /// </summary>
+  AttributeMask=4
 }
 #endregion
 
 #region NewKeyOptions
-/// <summary>Options that control how keys are exported.</summary>
+/// <summary>Options that control how a new primary key should be created.</summary>
 public class NewKeyOptions
 {
   /// <summary>Gets or sets the name of the master key type. This can be a member of <see cref="PrimaryKeyType"/>, or
@@ -594,83 +598,6 @@ public class OutputOptions
 }
 #endregion
 
-#region ImportOptions
-/// <summary>Options that control how keys are imported.</summary>
-[Flags]
-public enum ImportOptions
-{
-  /// <summary>The default import options will be used.</summary>
-  Default=0,
-  /// <summary>Key signatures marked as "local only" will be imported. Normally, they are skipped.</summary>
-  ImportLocalSignatures=1,
-  /// <summary>Existing keys will be updated with the data from the import, but new keys will not be created.</summary>
-  MergeOnly=2,
-  /// <summary>Removes from imported keys all signatures that are unusable, and removes all signatures from user IDs
-  /// that are unusable.
-  /// </summary>
-  CleanKeys=4,
-  /// <summary>Removes from imported keys all signatures except the most recent self-signatures on each user ID.</summary>
-  MinimizeKeys=8
-}
-#endregion
-
-#region ExportOptions
-/// <summary>Options that control how keys are exported.</summary>
-[Flags]
-public enum ExportOptions
-{
-  /// <summary>The default export options will be used. This will cause only public keys to be exported.</summary>
-  Default=0,
-  /// <summary>Key signatures marked as "local only" will be exported. Normally, they are skipped.</summary>
-  ExportLocalSignatures=1,
-  /// <summary>Attribute user IDs (eg, photo IDs) will not be included in the output.</summary>
-  ExcludeAttributes=2,
-  /// <summary>Includes revoker information that was marked as sensitive.</summary>
-  ExportSensitiveRevokerInfo=4,
-  /// <summary>When exporting secret keys, this option causes the secret portion of the master key to not be exported.
-  /// Only the secret subkeys are exported. This is not OpenPGP compliant and currently only GPG is known to
-  /// implement this option or be capable of importing keys created by this option.
-  /// </summary>
-  ClobberMasterSecretKey=8,
-  /// <summary>When exporting secret subkeys, resets their passwords to empty.</summary>
-  ResetSubkeyPassword=16,
-  /// <summary>Does not export unusable signatures, and does not export any signatures for unusable user IDs.</summary>
-  CleanKeys=32,
-  /// <summary>Exports only the most recent self-signature on each user ID.</summary>
-  MinimizeKeys=64
-}
-#endregion
-
-#region ListOptions
-/// <summary>Options that control how keys will be retrieved.</summary>
-[Flags]
-public enum ListOptions
-{
-  /// <summary>The default options will be used.</summary>
-  Default=0,
-
-  /// <summary>Signatures on keys will be ignored.</summary>
-  IgnoreSignatures=0,
-  /// <summary>Signatures on keys will be retrieved, but not verified.</summary>
-  RetrieveSignatures=1,
-  /// <summary>Signatures on keys will be retrieved and verified.</summary>
-  VerifySignatures=3,
-  /// <summary>A mask that can be ANDed with a <see cref="ListOptions"/> to get the signature handling value, which is
-  /// one of <see cref="IgnoreSignatures"/>, <see cref="RetrieveSignatures"/>, or <see cref="VerifySignatures"/>.
-  /// </summary>
-  SignatureMask=3,
-  
-  /// <summary>User attributes on keys will be ignored.</summary>
-  IgnoreAttributes=0,
-  /// <summary>User attributes will be retrieved, but unknown attributes will be ignored.</summary>
-  RetrieveAttributes=4,
-  /// <summary>A mask that can be ANDed with a <see cref="ListOptions"/> to get the attribute handling value, which is
-  /// one of <see cref="IgnoreAttributes"/> or <see cref="RetrieveAttributes"/>.
-  /// </summary>
-  AttributeMask=4
-}
-#endregion
-
 #region Randomness
 /// <summary>Determines the security level of random data generated by a <see cref="PGPSystem">PGP system</see>.</summary>
 public enum Randomness
@@ -690,248 +617,170 @@ public enum Randomness
 }
 #endregion
 
-#region TrustLevel
-/// <summary>Key trust indicates the extent to which the owner(s) of a key are trusted to validate the ownership
-/// of other people's keys.
-/// </summary>
-public enum TrustLevel
+#region SigningOptions
+/// <summary>Specifies options that control the signing of data.</summary>
+public class SigningOptions
 {
-  /// <summary>You don't know how thoroughly the owner of this key validates others' keys.</summary>
-  Unknown,
-  /// <summary>You do not trust the owner of this key to do proper validation of others' keys.</summary>
-  Never,
-  /// <summary>You trust the owner of this key to do only marginal validation of others' keys.</summary>
-  Marginal,
-  /// <summary>You trust the owner of this key to do full validation of others' keys.</summary>
-  Full,
-  /// <summary>You are the owner of this key.</summary>
-  Ultimate
+  /// <summary>Initializes a new <see cref="SigningOptions"/> object with the default options and no signing keys.</summary>
+  public SigningOptions() { }
+
+  /// <summary>Initializes a new <see cref="SigningOptions"/> object with the given list of signing keys.</summary>
+  public SigningOptions(params Key[] signers)
+  {
+    foreach(Key key in signers) Signers.Add(key);
+  }
+
+  /// <summary>Initializes a new <see cref="SigningOptions"/> object with the given detached flag and list of signing
+  /// keys.
+  /// </summary>
+  public SigningOptions(bool detached, params Key[] signers)
+  {
+    Detached = detached;
+    foreach(Key key in signers) Signers.Add(key);
+  }
+
+  /// <summary>Gets or sets a value that determines whether the signature will be embedded in or detached from the
+  /// data. If true, the output of the signature operation will be only the signature itself. If false, the output will
+  /// be a copy of the data with the signature embedded. The default is false.
+  /// </summary>
+  public bool Detached
+  {
+    get { return detached; }
+    set { detached = value; }
+  }
+
+  /// <summary>Gets or sets the name of the algorithm used to hash the data. This can be one of the
+  /// <see cref="HashAlgorithm"/> values, or another algorithm name, but it's usually best to leave it at the default
+  /// value of <see cref="HashAlgorithm.Default"/>, and allow the software to determine the algorithm used.
+  /// </summary>
+  public string Hash
+  {
+    get { return hash; }
+    set { hash = value; }
+  }
+
+  /// <summary>Gets a collection that should be filled with the keys used to sign the message. There must be at
+  /// least one key added to the collection. The keys must have both public and private portions.
+  /// </summary>
+  public KeyCollection Signers
+  {
+    get { return signers; }
+  }
+
+  readonly KeyCollection signers = new KeyCollection(KeyCapability.Sign);
+  string hash = HashAlgorithm.Default;
+  bool detached;
 }
 #endregion
 
-#region VerificationLevel
-/// <summary>Indicates how thoroughly you have verified the ownership of a given key -- that is, what steps you have
-/// taken to prove that the key actually belongs to the person named on it.
-/// </summary>
-public enum VerificationLevel
+#region UserPreferences
+/// <summary>Stores the preferences of a user, as associated with a user ID or attribute.</summary>
+public class UserPreferences
 {
-  /// <summary>You do not wish to provide an answer as to how thoroughly you've verified the ownership of the key.</summary>
-  Nondisclosed,
-  /// <summary>You have not verified the ownership of the key.</summary>
-  None,
-  /// <summary>You have performed casual verification of the key ownership.</summary>
-  Casual,
-  /// <summary>You have performed rigorous verification of the key ownership.</summary>
-  Rigorous
+  /// <summary>Gets or sets the user's preferred keyserver, or null if no keyserver is preferred.</summary>
+  public Uri Keyserver
+  {
+    get { return keyServer; }
+    set { keyServer = value; }
+  }
+
+  /// <summary>Gets or sets a list containing the user's preferred ciphers, in order from most to least preferred.
+  /// Algorithms not listed are assumed to be unsupported by the user.
+  /// </summary>
+  public PreferenceList<OpenPGPCipher> PreferredCiphers
+  {
+    get { return preferredCiphers; }
+  }
+
+  /// <summary>Gets or sets a list containing the user's preferred compression algorithms, in order from most to least
+  /// preferred. Algorithms not listed are assumed to be unsupported by the user.
+  /// </summary>
+  public PreferenceList<OpenPGPCompression> PreferredCompressions
+  {
+    get { return preferredCompressions; }
+  }
+
+  /// <summary>Gets or sets a list containing the user's preferred hash algorithms, in order from most to least
+  /// preferred. Algorithms not listed are assumed to be unsupported by the user.
+  /// </summary>
+  public PreferenceList<OpenPGPHashAlgorithm> PreferredHashes
+  {
+    get { return preferredHashes; }
+  }
+
+  /// <summary>Gets or sets whether this user ID or attribute is the primary one.</summary>
+  public bool Primary
+  {
+    get { return primary; }
+    set { primary = value; }
+  }
+
+  readonly PreferenceList<OpenPGPCipher> preferredCiphers = new PreferenceList<OpenPGPCipher>();
+  readonly PreferenceList<OpenPGPCompression> preferredCompressions = new PreferenceList<OpenPGPCompression>();
+  readonly PreferenceList<OpenPGPHashAlgorithm> preferredHashes = new PreferenceList<OpenPGPHashAlgorithm>();
+  Uri keyServer;
+  bool primary;
 }
 #endregion
 
-#region KeyDeletion
-/// <summary>Determines which parts of a key pair should be deleted.</summary>
-public enum KeyDeletion
+#region VerificationOptions
+/// <summary>Specifies options that control the verification of signatures.</summary>
+public class VerificationOptions
 {
-  /// <summary>The secret key should be deleted.</summary>
-  Secret,
-  /// <summary>The entire key pair should be deleted.</summary>
-  PublicAndSecret
+  /// <summary>Gets a collection of additional keyrings that will be searched to find the appropriate public key.</summary>
+  public List<Keyring> AdditionalKeyrings
+  {
+    get { return keyrings; }
+  }
+
+  /// <summary>Gets or sets a value that determines whether the input will be assumed to be binary. If true, the input
+  /// will be assumed to be binary. If false, the default, the input will be checked for ASCII armoring, allowing both
+  /// text and binary input to be decrypted. The default is false.
+  /// </summary>
+  public bool AssumeBinaryInput
+  {
+    get { return binaryOnly; }
+    set { binaryOnly = value; }
+  }
+
+  /// <summary>Gets or sets a value that determines whether the system should attempt to find keys not on the local
+  /// keyrings by contacting public key servers, etc. If <see cref="KeyServer"/> is set, a limited form of key fetching
+  /// will be enabled even if this is set to false. Note that downloaded keys may be added to a local keyring.
+  /// The default is false.
+  /// </summary>
+  public bool AutoFetchKeys
+  {
+    get { return autoFetch; }
+    set { autoFetch = value; }
+  }
+
+  /// <summary>Gets or sets a value that determines whether the default keyring should be ignored -- that is, not
+  /// searched to find the secret key.
+  /// </summary>
+  public bool IgnoreDefaultKeyring
+  {
+    get { return ignoreDefaultKeyring; }
+    set { ignoreDefaultKeyring = value; }
+  }
+
+  /// <summary>Gets or sets the URI of the public key to search for keys that are not found on the local keyrings. If
+  /// set, a limited form of auto fetching (sufficient to contact the public key server) will be enabled even if
+  /// <see cref="AutoFetchKeys"/> is false. Note that downloaded keys may be added to a local keyring.
+  /// </summary>
+  public Uri KeyServer
+  {
+    get { return keyServer; }
+    set { keyServer = value; }
+  }
+
+  List<Keyring> keyrings = new List<Keyring>();
+  Uri keyServer;
+  bool autoFetch, ignoreDefaultKeyring, binaryOnly;
 }
 #endregion
-
-#region OpenPGPAttributeType
-/// <summary>Represents the user attribute types defined in the OpenPGP standard (RFC-4880). This is to help with
-/// parsing OpenPGP packets.
-/// </summary>
-public enum OpenPGPAttributeType
-{
-  /// <summary>An unknown attribute type. This value is not defined in OpenPGP, but is used to represent attribute
-  /// types unknown to this library.
-  /// </summary>
-  Unknown=-1,
-  /// <summary>An user ID containing an image of the user.</summary>
-  Image=1
-}
 #endregion
 
-#region OpenPGPKeyType
-/// <summary>Represents the key types defined in the OpenPGP standard (RFC-4880). This is to help with parsing OpenPGP
-/// packets.
-/// </summary>
-public enum OpenPGPKeyType
-{
-  /// <summary>An unknown key type. This value is not defined in OpenPGP, but is used to represent key types unknown to
-  /// this library.
-  /// </summary>
-  Unknown=-1,
-  /// <summary>An RSA key type, equivalent to <see cref="SubkeyType.RSA"/>.</summary>
-  RSA=1,
-  /// <summary>An RSA encryption-only key type, corresponding to <see cref="SubkeyType.RSAEncryptOnly"/>.</summary>
-  RSAEncryptOnly=2,
-  /// <summary>An RSA signing-only key type, corresponding to <see cref="SubkeyType.RSASignOnly"/>.</summary>
-  RSASignOnly=3,
-  /// <summary>An ElGamal encryption-only key type, corresponding to <see cref="SubkeyType.ElGamalEncryptOnly"/>.</summary>
-  ElGamalEncryptOnly=16,
-  /// <summary>A DSA signing key, corresponding to <see cref="SubkeyType.DSA"/>.</summary>
-  DSA=17,
-  /// <summary>An elliptic curve key.</summary>
-  EllipticCurve=18,
-  /// <summary>An elliptic curve DSA key.</summary>
-  ECDSA=19,
-  /// <summary>An ElGamal key that can be used for both signing and encryption. Because of security weaknesses, this
-  /// should not be used.
-  /// </summary>
-  ElGamal=20,
-  /// <summary>The Diffie Hellmen X9.42 key type, as defined for IETF-S/MIME.</summary>
-  DiffieHellman=21
-}
-#endregion
-
-#region OpenPGPCipher
-/// <summary>Represents the symmetric ciphers defined in the OpenPGP standard (RFC-4880). This is to help with parsing
-/// OpenPGP packets.
-/// </summary>
-public enum OpenPGPCipher
-{
-  /// <summary>An unknown cipher type. This value is not defined in OpenPGP, but is used to represent ciphers unknown
-  /// to this library.
-  /// </summary>
-  Unknown=-1,
-  /// <summary>This value indicates that the message is not encrypted.</summary>
-  Unencrypted=0,
-  /// <summary>The IDEA cipher, corresponding to <see cref="SymmetricCipher.IDEA"/>.</summary>
-  IDEA=1,
-  /// <summary>The 3DES cipher, corresponding to <see cref="SymmetricCipher.TripleDES"/>.</summary>
-  TripleDES=2,
-  /// <summary>The CAST5 cipher, corresponding to <see cref="SymmetricCipher.CAST5"/>.</summary>
-  CAST5=3,
-  /// <summary>The Blowfish cipher, corresponding to <see cref="SymmetricCipher.Blowfish"/>.</summary>
-  Blowfish=4,
-  /// <summary>The sAFER-SK128 cipher.</summary>
-  SAFER=5,
-  /// <summary>The DES/SK cipher.</summary>
-  DESSK=6,
-  /// <summary>The AES cipher with a 128-bit key, corresponding to <see cref="SymmetricCipher.AES"/>.</summary>
-  AES=7,
-  /// <summary>The AES cipher with a 192-bit key, corresponding to <see cref="SymmetricCipher.AES192"/>.</summary>
-  AES192=8,
-  /// <summary>The AES cipher with a 256-bit key, corresponding to <see cref="SymmetricCipher.AES256"/>.</summary>
-  AES256=9,
-  /// <summary>The Twofish cipher, corresponding to <see cref="SymmetricCipher.Twofish"/>.</summary>
-  Twofish=10,
-}
-#endregion
-
-#region OpenPGPCompression
-/// <summary>Represents the compression types defined in the OpenPGP standard (RFC-4880). This is to help with parsing
-/// OpenPGP packets.
-/// </summary>
-public enum OpenPGPCompression
-{
-  /// <summary>An unknown compression type. This value is not defined in OpenPGP, but is used to represent compression
-  /// algorithms unknown to this library.
-  /// </summary>
-  Unknown=-1,
-  /// <summary>A value indicating that the message is uncompressed.</summary>
-  Uncompressed=0,
-  /// <summary>The Zip algorith, corresponding to <see cref="Compression.Zip"/>.</summary>
-  Zip=1,
-  /// <summary>The Zlib algorith, corresponding to <see cref="Compression.Zlib"/>.</summary>
-  Zlib=2,
-  /// <summary>The Bzip2 algorith, corresponding to <see cref="Compression.Bzip2"/>.</summary>
-  Bzip2=3
-}
-#endregion
-
-#region OpenPGPHashAlgorithm
-/// <summary>Represents the hash algorithms defined in the OpenPGP standard (RFC-4880). This is to help with parsing
-/// OpenPGP packets.
-/// </summary>
-public enum OpenPGPHashAlgorithm
-{
-  /// <summary>An unknown hash algorithm. This value is not defined in OpenPGP, but is used to represent algorithms
-  /// unknown to this library.
-  /// </summary>
-  Unknown=-1,
-  /// <summary>The MD5 algorithm, corresponding to <see cref="HashAlgorithm.MD5"/>.</summary>
-  MD5=1,
-  /// <summary>The SHA1 algorithm, corresponding to <see cref="HashAlgorithm.SHA1"/>.</summary>
-  SHA1=2,
-  /// <summary>The RIPE-MD/160 algorithm, corresponding to <see cref="HashAlgorithm.RIPEMD160"/>.</summary>
-  RIPEMD160=3,
-  /// <summary>The MD2 algorithm.</summary>
-  MD2=5,
-  /// <summary>The TIGER/192 algorithm.</summary>
-  TIGER192=6,
-  /// <summary>The HAVAL algorithm.</summary>
-  HAVAL=7,
-  /// <summary>The SHA256 algorithm, corresponding to <see cref="HashAlgorithm.SHA256"/>.</summary>
-  SHA256=8,
-  /// <summary>The SHA384 algorithm, corresponding to <see cref="HashAlgorithm.SHA384"/>.</summary>
-  SHA384=9,
-  /// <summary>The SHA512 algorithm, corresponding to <see cref="HashAlgorithm.SHA512"/>.</summary>
-  SHA512=10,
-  /// <summary>The SHA224 algorithm, corresponding to <see cref="HashAlgorithm.SHA224"/>.</summary>
-  SHA224=11
-}
-#endregion
-
-#region OpenPGPSignatureType
-/// <summary>Represents the signature types defined in the OpenPGP standard (RFC-4880). This is to help with parsing
-/// OpenPGP packets.
-/// </summary>
-public enum OpenPGPSignatureType
-{
-  /// <summary>An unknown signature type. This value is not defined by the OpenPGP standard.</summary>
-  Unknown=-1,
-  /// <summary>A signature of a canonical binary document. The signer owns the document, created it, or certifies that
-  /// it has not been modified.
-  /// </summary>
-  CanonicalBinary=0,
-  /// <summary>A signature of a canonical text document. The signer owns the document, created it, or certifies that
-  /// it has not been modified. The signature is computed over the text document with line endings normalized to CRLF.
-  /// </summary>
-  CanonicalText=1,
-  /// <summary>A signature of its own subpacket contents.</summary>
-  Standalone=2,
-  /// <summary>A signature on a key's user ID that makes no statement about how well the key's ownership has been
-  /// verified.
-  /// </summary>
-  GenericCertification=0x10,
-  /// <summary>A signature on a key's user ID which states that no verification of the key's ownership has been
-  /// performed.
-  /// </summary>
-  PersonaCertification=0x11,
-  /// <summary>A signature on a key's user ID which states that casual verification of the key's ownership has been
-  /// performed.
-  /// </summary>
-  CasualCertification=0x12,
-  /// <summary>A signature on a key's user ID which states that rigorous verification of the key's ownership has been
-  /// performed.
-  /// </summary>
-  PositiveCertification=0x13,
-  /// <summary>A statement by a primary key that it owns a given subkey.</summary>
-  SubkeyBinding=0x18,
-  /// <summary>A statement by a subkey that it is owned by the primary key.</summary>
-  PrimaryKeyBinding=0x19,
-  /// <summary>A signature on a key, usually not made by the key itself, that binds additional information to the key.</summary>
-  DirectKeySignature=0x1f,
-  /// <summary>A signature on a key, usually made by the key itself, that indicates that the key has been revoked.</summary>
-  PrimaryKeyRevocation=0x20,
-  /// <summary>A signature on a subkey, usually made by the primary key, thath indicates that the subkey has been
-  /// revoked.
-  /// </summary>
-  SubkeyRevocation=0x28,
-  /// <summary>A signature that revokes a certification signature (<see cref="GenericCertification"/>,
-  /// <see cref="PersonaCertification"/>, <see cref="CasualCertification"/>, or <see cref="PositiveCertification"/>) or
-  /// a <see cref="DirectKeySignature"/>.
-  /// </summary>
-  CertificateRevocation=0x30,
-  /// <summary>A signature that is only useful for its embedded timestamp.</summary>
-  TimestampSignature=0x40,
-  /// <summary>A signature over some arbitrary OpenPGP packets, certifying that the packets have not been altered.</summary>
-  ConfirmationSignature=0x50
-}
-#endregion
-
+#region Command return types
 #region ImportedKey
 /// <summary>Represents a key that was processed during a key import. The key was not necessarily imported 
 /// successfully.
@@ -1250,14 +1099,16 @@ public class Signature : ReadOnlyClass
   TrustLevel trustLevel = TrustLevel.Unknown;
 }
 #endregion
+#endregion
 
+#region Delegates
 #region CardPinHandler
 /// <include file="documentation.xml" path="/Security/PGPSystem/GetCardPin/*"/>
 public delegate SecureString CardPinHandler(string cardType, string chvNumber, string serialNumber);
 #endregion
 
 #region CipherPasswordHandler
-/// <include file="documentation.xml" path="/Security/PGPSystem/GetCipherPassword/*"/>
+/// <include file="documentation.xml" path="/Security/PGPSystem/GetPlainPassword/*"/>
 public delegate SecureString CipherPasswordHandler();
 #endregion
 
@@ -1269,6 +1120,285 @@ public delegate SecureString KeyPasswordHandler(string keyId, string userIdHint)
 #region PasswordInvalidHandler
 /// <include file="documentation.xml" path="/Security/PGPSystem/OnPasswordInvalid/*"/>
 public delegate void PasswordInvalidHandler(string keyId);
+#endregion
+#endregion
+
+#region Miscellaneous types
+#region PreferenceList
+/// <summary>A collection for managing preference lists. It behaves like a normal list, except that it does not allow
+/// duplicate entries.
+/// </summary>
+public class PreferenceList<T> : System.Collections.ObjectModel.Collection<T> where T : struct
+{
+  /// <summary>Called when an item is about to be inserted into the collection.</summary>
+  protected override void InsertItem(int index, T item)
+  {
+    if(Contains(item)) throw new InvalidOperationException("The collection already contains " + item.ToString());
+
+    base.InsertItem(index, item);
+  }
+
+  /// <summary>Called when an item is about to be set in the collection.</summary>
+  protected override void SetItem(int index, T item)
+  {
+    for(int i=0; i<Count; i++)
+    {
+      if(i != index && item.Equals(this[i]))
+      {
+        throw new InvalidOperationException("The collection already contains " + item.ToString());
+      }
+    }
+
+    base.SetItem(index, item);
+  }
+}
+#endregion
+
+#region ReadOnlyClass
+/// <summary>Represents a class that allows its properties to be set until <see cref="MakeReadOnly"/> is called, at
+/// which point the object becomes read-only.
+/// </summary>
+public abstract class ReadOnlyClass
+{
+  /// <include file="documentation.xml" path="/Security/ReadOnlyClass/MakeReadOnly/*"/>
+  public virtual void MakeReadOnly()
+  {
+    readOnly = true;
+  }
+
+  /// <summary>Throws an exception if <see cref="MakeReadOnly"/> has been called.</summary>
+  protected void AssertNotReadOnly()
+  {
+    if(readOnly) throw new InvalidOperationException("This object has been finished, and the property is read only.");
+  }
+
+  bool readOnly;
+}
+#endregion
+
+#region TrustLevel
+/// <summary>Key trust indicates the extent to which the owner(s) of a key are trusted to validate the ownership
+/// of other people's keys.
+/// </summary>
+public enum TrustLevel
+{
+  /// <summary>You don't know how thoroughly the owner of this key validates others' keys.</summary>
+  Unknown,
+  /// <summary>You do not trust the owner of this key to do proper validation of others' keys.</summary>
+  Never,
+  /// <summary>You trust the owner of this key to do only marginal validation of others' keys.</summary>
+  Marginal,
+  /// <summary>You trust the owner of this key to do full validation of others' keys.</summary>
+  Full,
+  /// <summary>You ultimately trust the owner of this key, making them a new root in the web of trust. This should
+  /// normally be set only for keys you personally own.
+  /// </summary>
+  Ultimate
+}
+#endregion
+
+#region VerificationLevel
+/// <summary>Indicates how thoroughly you have verified the ownership of a given key -- that is, what steps you have
+/// taken to prove that the key actually belongs to the person named on it.
+/// </summary>
+public enum VerificationLevel
+{
+  /// <summary>You do not wish to provide an answer as to how thoroughly you've verified the ownership of the key.</summary>
+  Nondisclosed,
+  /// <summary>You have not verified the ownership of the key.</summary>
+  None,
+  /// <summary>You have performed casual verification of the key ownership.</summary>
+  Casual,
+  /// <summary>You have performed rigorous verification of the key ownership.</summary>
+  Rigorous
+}
+#endregion
+#endregion
+
+#region OpenPGP enumeration values
+#region OpenPGPAttributeType
+/// <summary>Represents the user attribute types defined in the OpenPGP standard (RFC-4880). This is to help with
+/// parsing OpenPGP packets.
+/// </summary>
+public enum OpenPGPAttributeType
+{
+  /// <summary>An user ID containing an image of the user.</summary>
+  Image=1
+}
+#endregion
+
+#region OpenPGPCipher
+/// <summary>Represents the symmetric ciphers defined in the OpenPGP standard (RFC-4880). This is to help with parsing
+/// OpenPGP packets.
+/// </summary>
+public enum OpenPGPCipher
+{
+  /// <summary>This value indicates that the message is not encrypted.</summary>
+  Unencrypted=0,
+  /// <summary>The IDEA cipher, corresponding to <see cref="SymmetricCipher.IDEA"/>.</summary>
+  IDEA=1,
+  /// <summary>The 3DES cipher, corresponding to <see cref="SymmetricCipher.TripleDES"/>.</summary>
+  TripleDES=2,
+  /// <summary>The CAST5 cipher, corresponding to <see cref="SymmetricCipher.CAST5"/>.</summary>
+  CAST5=3,
+  /// <summary>The Blowfish cipher, corresponding to <see cref="SymmetricCipher.Blowfish"/>.</summary>
+  Blowfish=4,
+  /// <summary>The sAFER-SK128 cipher.</summary>
+  SAFER=5,
+  /// <summary>The DES/SK cipher.</summary>
+  DESSK=6,
+  /// <summary>The AES cipher with a 128-bit key, corresponding to <see cref="SymmetricCipher.AES"/>.</summary>
+  AES=7,
+  /// <summary>The AES cipher with a 192-bit key, corresponding to <see cref="SymmetricCipher.AES192"/>.</summary>
+  AES192=8,
+  /// <summary>The AES cipher with a 256-bit key, corresponding to <see cref="SymmetricCipher.AES256"/>.</summary>
+  AES256=9,
+  /// <summary>The Twofish cipher, corresponding to <see cref="SymmetricCipher.Twofish"/>.</summary>
+  Twofish=10,
+}
+#endregion
+
+#region OpenPGPCompression
+/// <summary>Represents the compression types defined in the OpenPGP standard (RFC-4880). This is to help with parsing
+/// OpenPGP packets.
+/// </summary>
+public enum OpenPGPCompression
+{
+  /// <summary>A value indicating that the message is uncompressed.</summary>
+  Uncompressed=0,
+  /// <summary>The Zip algorith, corresponding to <see cref="Compression.Zip"/>.</summary>
+  Zip=1,
+  /// <summary>The Zlib algorith, corresponding to <see cref="Compression.Zlib"/>.</summary>
+  Zlib=2,
+  /// <summary>The Bzip2 algorith, corresponding to <see cref="Compression.Bzip2"/>.</summary>
+  Bzip2=3
+}
+#endregion
+
+#region OpenPGPHashAlgorithm
+/// <summary>Represents the hash algorithms defined in the OpenPGP standard (RFC-4880). This is to help with parsing
+/// OpenPGP packets.
+/// </summary>
+public enum OpenPGPHashAlgorithm
+{
+  /// <summary>The MD5 algorithm, corresponding to <see cref="HashAlgorithm.MD5"/>.</summary>
+  MD5=1,
+  /// <summary>The SHA1 algorithm, corresponding to <see cref="HashAlgorithm.SHA1"/>.</summary>
+  SHA1=2,
+  /// <summary>The RIPE-MD/160 algorithm, corresponding to <see cref="HashAlgorithm.RIPEMD160"/>.</summary>
+  RIPEMD160=3,
+  /// <summary>The MD2 algorithm.</summary>
+  MD2=5,
+  /// <summary>The TIGER/192 algorithm.</summary>
+  TIGER192=6,
+  /// <summary>The HAVAL algorithm.</summary>
+  HAVAL=7,
+  /// <summary>The SHA256 algorithm, corresponding to <see cref="HashAlgorithm.SHA256"/>.</summary>
+  SHA256=8,
+  /// <summary>The SHA384 algorithm, corresponding to <see cref="HashAlgorithm.SHA384"/>.</summary>
+  SHA384=9,
+  /// <summary>The SHA512 algorithm, corresponding to <see cref="HashAlgorithm.SHA512"/>.</summary>
+  SHA512=10,
+  /// <summary>The SHA224 algorithm, corresponding to <see cref="HashAlgorithm.SHA224"/>.</summary>
+  SHA224=11
+}
+#endregion
+
+#region OpenPGPImageType
+/// <summary>Represents the image types defined in the OpenPGP standard (RFC-4880). This is to help with parsing
+/// OpenPGP packets.
+/// </summary>
+public enum OpenPGPImageType
+{
+  /// <summary>The ISO 10918-1 JPEG format.</summary>
+  Jpeg=1,
+}
+#endregion
+
+#region OpenPGPKeyType
+/// <summary>Represents the key types defined in the OpenPGP standard (RFC-4880). This is to help with parsing OpenPGP
+/// packets.
+/// </summary>
+public enum OpenPGPKeyType
+{
+  /// <summary>An RSA key type, equivalent to <see cref="SubkeyType.RSA"/>.</summary>
+  RSA=1,
+  /// <summary>An RSA encryption-only key type, corresponding to <see cref="SubkeyType.RSAEncryptOnly"/>.</summary>
+  RSAEncryptOnly=2,
+  /// <summary>An RSA signing-only key type, corresponding to <see cref="SubkeyType.RSASignOnly"/>.</summary>
+  RSASignOnly=3,
+  /// <summary>An ElGamal encryption-only key type, corresponding to <see cref="SubkeyType.ElGamalEncryptOnly"/>.</summary>
+  ElGamalEncryptOnly=16,
+  /// <summary>A DSA signing key, corresponding to <see cref="SubkeyType.DSA"/>.</summary>
+  DSA=17,
+  /// <summary>An elliptic curve key.</summary>
+  EllipticCurve=18,
+  /// <summary>An elliptic curve DSA key.</summary>
+  ECDSA=19,
+  /// <summary>An ElGamal key that can be used for both signing and encryption. Because of security weaknesses, this
+  /// should not be used.
+  /// </summary>
+  ElGamal=20,
+  /// <summary>The Diffie Hellmen X9.42 key type, as defined for IETF-S/MIME.</summary>
+  DiffieHellman=21
+}
+#endregion
+
+#region OpenPGPSignatureType
+/// <summary>Represents the signature types defined in the OpenPGP standard (RFC-4880). This is to help with parsing
+/// OpenPGP packets.
+/// </summary>
+public enum OpenPGPSignatureType
+{
+  /// <summary>A signature of a canonical binary document. The signer owns the document, created it, or certifies that
+  /// it has not been modified.
+  /// </summary>
+  CanonicalBinary=0,
+  /// <summary>A signature of a canonical text document. The signer owns the document, created it, or certifies that
+  /// it has not been modified. The signature is computed over the text document with line endings normalized to CRLF.
+  /// </summary>
+  CanonicalText=1,
+  /// <summary>A signature of its own subpacket contents.</summary>
+  Standalone=2,
+  /// <summary>A signature on a key's user ID that makes no statement about how well the key's ownership has been
+  /// verified.
+  /// </summary>
+  GenericCertification=0x10,
+  /// <summary>A signature on a key's user ID which states that no verification of the key's ownership has been
+  /// performed.
+  /// </summary>
+  PersonaCertification=0x11,
+  /// <summary>A signature on a key's user ID which states that casual verification of the key's ownership has been
+  /// performed.
+  /// </summary>
+  CasualCertification=0x12,
+  /// <summary>A signature on a key's user ID which states that rigorous verification of the key's ownership has been
+  /// performed.
+  /// </summary>
+  PositiveCertification=0x13,
+  /// <summary>A statement by a primary key that it owns a given subkey.</summary>
+  SubkeyBinding=0x18,
+  /// <summary>A statement by a subkey that it is owned by the primary key.</summary>
+  PrimaryKeyBinding=0x19,
+  /// <summary>A signature on a key, usually not made by the key itself, that binds additional information to the key.</summary>
+  DirectKeySignature=0x1f,
+  /// <summary>A signature on a key, usually made by the key itself, that indicates that the key has been revoked.</summary>
+  PrimaryKeyRevocation=0x20,
+  /// <summary>A signature on a subkey, usually made by the primary key, thath indicates that the subkey has been
+  /// revoked.
+  /// </summary>
+  SubkeyRevocation=0x28,
+  /// <summary>A signature that revokes a certification signature (<see cref="GenericCertification"/>,
+  /// <see cref="PersonaCertification"/>, <see cref="CasualCertification"/>, or <see cref="PositiveCertification"/>) or
+  /// a <see cref="DirectKeySignature"/>.
+  /// </summary>
+  CertificateRevocation=0x30,
+  /// <summary>A signature that is only useful for its embedded timestamp.</summary>
+  TimestampSignature=0x40,
+  /// <summary>A signature over some arbitrary OpenPGP packets, certifying that the packets have not been altered.</summary>
+  ConfirmationSignature=0x50
+}
+#endregion
 #endregion
 
 #region PGPSystem
@@ -1283,8 +1413,8 @@ public abstract class PGPSystem
   /// <summary>An event that is raised when a secret key password needs to be obtained from the user.</summary>
   public event CardPinHandler CardPinNeeded;
 
-  /// <summary>An event that is raised when a cipher password needs to be obtained from the user.</summary>
-  public event CipherPasswordHandler CipherPasswordNeeded;
+  /// <summary>An event that is raised when a plain password needs to be obtained from the user.</summary>
+  public event CipherPasswordHandler PlainPasswordNeeded;
 
   /// <summary>An event that is raised when a secret key password needs to be obtained from the user.</summary>
   public event KeyPasswordHandler KeyPasswordNeeded;
@@ -1373,7 +1503,108 @@ public abstract class PGPSystem
   public abstract Signature[] Verify(Stream signature, Stream signedData, VerificationOptions options);
   #endregion
 
-  #region Key management
+  #region Primary key management
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddDesignatedRevoker/*" />
+  public abstract void AddDesignatedRevoker(PrimaryKey key, PrimaryKey revokerKey);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddPhoto2/*" />
+  public virtual void AddPhoto(PrimaryKey key, Image image, UserPreferences preferences)
+  {
+    if(key == null || image == null) throw new ArgumentNullException();
+
+    string jpegFilename = Path.GetTempFileName();
+    try
+    {
+      using(FileStream stream = new FileStream(jpegFilename, FileMode.Open, FileAccess.ReadWrite))
+      {
+        image.Save(stream, System.Drawing.Imaging.ImageFormat.Jpeg);
+        stream.Position = 0;
+        AddPhoto(key, stream, OpenPGPImageType.Jpeg, preferences);
+      }
+    }
+    finally { File.Delete(jpegFilename); }
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddPhoto4/*" />
+  public abstract void AddPhoto(PrimaryKey key, Stream image, OpenPGPImageType imageFormat,
+                                UserPreferences preferences);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddUserId/*" />
+  public abstract void AddUserId(PrimaryKey key, string realName, string email, string comment,
+                                 UserPreferences preferences);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddSubkey/*" />
+  public abstract void AddSubkey(PrimaryKey key, string keyType, int keyLength, DateTime? expiration);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ChangeExpiration/*" />
+  public abstract void ChangeExpiration(Key key, DateTime? expiration);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ChangePassword/*" />
+  public abstract void ChangePassword(PrimaryKey key, SecureString password);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/CleanKeys/*" />
+  public abstract void CleanKeys(PrimaryKey[] keys);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/MinimizeKeys/*" />
+  public abstract void MinimizeKeys(PrimaryKey[] keys);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/CreateKey/*"/>
+  public abstract PrimaryKey CreateKey(NewKeyOptions options);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DisableKeys/*" />
+  public abstract void DisableKeys(PrimaryKey[] key);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/EnableKeys/*" />
+  public abstract void EnableKeys(PrimaryKey[] key);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteAttributes/*" />
+  public abstract void DeleteAttributes(UserAttribute[] attributes);
+
+  /// <summary>Deletes the given primary key, or a part of it, from its keyring.</summary>
+  /// <param name="key">The primary key to delete.</param>
+  /// <param name="deletion">The portion of the key to delete.</param>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+  public void DeleteKey(PrimaryKey key, KeyDeletion deletion)
+  {
+    DeleteKeys(new PrimaryKey[] { key }, deletion);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteKeys/*"/>
+  public abstract void DeleteKeys(PrimaryKey[] keys, KeyDeletion deletion);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSignatures/*" />
+  public abstract void DeleteSignatures(KeySignature[] signatures);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSubkeys/*" />
+  public abstract void DeleteSubkeys(Subkey[] subkeys);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetPreferences/*" />
+  public abstract UserPreferences GetPreferences(UserAttribute user);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeAttributes/*" />
+  public abstract void RevokeAttributes(UserAttribute[] attributes);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeKeys/*" />
+  public abstract void RevokeKeys(PrimaryKey[] keys);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSignatures/*" />
+  public abstract void RevokeSignatures(KeySignature[] signatures);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSubkeys/*" />
+  public abstract void RevokeSubkeys(Subkey[] subkeys);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SetPreferences/*" />
+  public abstract void SetPreferences(UserAttribute user, UserPreferences preferences);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SetTrustLevel/*" />
+  public abstract void SetTrustLevel(PrimaryKey key, TrustLevel trust);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignKey/*" />
+  public abstract void SignKey(PrimaryKey keyToSign, PrimaryKey signingKey, KeySigningOptions options);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignUser/*"/>
+  public abstract void SignKey(UserId userId, PrimaryKey signingKey, KeySigningOptions options);
+
   /// <summary>Searches for the public keys with the given fingerprint in the given keyring.</summary>
   /// <param name="fingerprint">The fingerprints of the key to search for.</param>
   /// <param name="keyring">The keyring to search, or null to search the default keyring.</param>
@@ -1462,19 +1693,24 @@ public abstract class PGPSystem
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetSecretKeys2/*"/>
   public abstract PrimaryKey[] GetSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/CreateKey/*"/>
-  public abstract PrimaryKey CreateKey(NewKeyOptions options);
-
-  /// <summary>Deletes the given primary key, or a part of it, from its keyring.</summary>
-  /// <param name="key">The primary key to delete.</param>
-  /// <param name="deletion">The portion of the key to delete.</param>
-  public void DeleteKey(PrimaryKey key, KeyDeletion deletion)
+  /// <summary>Refreshes the given key by reloading it from its keyring database and returning the updated key, or
+  /// null if the key no longer exists on its keyring. The key will be retrieved with the default
+  /// <see cref="ListOptions"/>.
+  /// </summary>
+  public PrimaryKey RefreshKey(PrimaryKey key)
   {
-    DeleteKeys(new PrimaryKey[] { key }, deletion);
+    return RefreshKey(key, ListOptions.Default);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteKeys/*"/>
-  public abstract void DeleteKeys(PrimaryKey[] keys, KeyDeletion deletion);
+  /// <summary>Refreshes the given key by reloading it from its keyring database and returning the updated key, or
+  /// null if the key no longer exists on its keyring.
+  /// </summary>
+  public PrimaryKey RefreshKey(PrimaryKey key, ListOptions options)
+  {
+    if(key == null) throw new ArgumentNullException();
+    return key.Secret ?
+      FindSecretKey(key.Fingerprint, key.Keyring, options) : FindPublicKey(key.Fingerprint, key.Keyring, options);
+  }
 
   /// <summary>Exports the given public key to the given stream.</summary>
   public void ExportPublicKey(PrimaryKey key, Stream destination)
@@ -1640,10 +1876,10 @@ public abstract class PGPSystem
     return CardPinNeeded != null ? CardPinNeeded(cardType, chvNumber, serialNumber) : null;
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetCipherPassword/*"/>
-  protected virtual SecureString GetCipherPassword()
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetPlainPassword/*"/>
+  protected virtual SecureString GetPlainPassword()
   {
-    return CipherPasswordNeeded != null ? CipherPasswordNeeded() : null;
+    return PlainPasswordNeeded != null ? PlainPasswordNeeded() : null;
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetKeyPassword/*"/>
