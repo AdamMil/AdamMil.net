@@ -847,7 +847,7 @@ sealed class KeyCreatedMessage : StatusMessage
       case 'S': subkeyCreated = true; break;
     }
 
-    fingerprint = arguments[1].ToUpperInvariant();
+    fingerprint = arguments.Length > 1 ? arguments[1].ToUpperInvariant() : null;
   }
 
   /// <summary>Gets the fingerprint of the key created. If <see cref="PrimaryKeyCreated"/> is true, this is the

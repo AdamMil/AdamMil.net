@@ -654,6 +654,19 @@ public class PrimaryKey : Key, ISignableObject
     }
   }
 
+  /// <summary>Gets or sets a read-only list of fingerprints of keys that are allowed to revoke this primary key. In
+  /// addition, a key is always allowed to be used to revoke itself.
+  /// </summary>
+  public IReadOnlyList<string> DesignatedRevokers
+  {
+    get { return revokers; }
+    set
+    {
+      AssertNotReadOnly();
+      revokers = value;
+    }
+  }
+
   /// <summary>Gets or sets whether the key has been disabled, indicating that it should not be used. Because the
   /// enabled status is not stored within the key, a key can be disabled by anyone, but it will only be disabled for
   /// that person. It can be reenabled at any time.
@@ -734,7 +747,9 @@ public class PrimaryKey : Key, ISignableObject
   /// <include file="documentation.xml" path="/Security/Key/Finish/*"/>
   public override void MakeReadOnly()
   {
-    if(subkeys == null) throw new InvalidOperationException("The Subkeys property is not set.");
+    if(Attributes == null) throw new InvalidOperationException("The Attributes property is not set.");
+    if(DesignatedRevokers == null) throw new InvalidOperationException("The DesignatedRevokers property is not set.");
+    if(Subkeys == null) throw new InvalidOperationException("The Subkeys property is not set.");
     if(userIds == null || userIds.Count == 0)
     {
       throw new InvalidOperationException("The UserIds property is not set, or is empty.");
@@ -743,11 +758,27 @@ public class PrimaryKey : Key, ISignableObject
     primaryUserId = null;
     foreach(UserId user in UserIds)
     {
+      if(user == null) throw new InvalidOperationException("A user ID was null.");
       if(user.Primary)
       {
         if(primaryUserId != null) throw new InvalidOperationException("There are multiple primary user ids.");
         primaryUserId = user;
       }
+    }
+
+    foreach(UserAttribute attr in Attributes)
+    {
+      if(attr == null) throw new InvalidOperationException("A user attribute was null.");
+    }
+
+    foreach(string revoker in DesignatedRevokers)
+    {
+      if(string.IsNullOrEmpty(revoker)) throw new InvalidOperationException("A designated revoker was empty or null.");
+    }
+
+    foreach(Subkey subkey in Subkeys)
+    {
+      if(subkey == null) throw new InvalidOperationException("A subkey was null.");
     }
 
     base.MakeReadOnly();
@@ -770,6 +801,8 @@ public class PrimaryKey : Key, ISignableObject
   IReadOnlyList<Subkey> subkeys;
   IReadOnlyList<UserId> userIds;
   IReadOnlyList<UserAttribute> userAttributes;
+  IReadOnlyList<string> revokers;
+
   UserId primaryUserId;
   Keyring keyring;
   KeyCapability totalCapabilities;
@@ -876,18 +909,21 @@ public class KeyCollection : Collection<Key>
 /// <summary>Represents a keyring, which is composed of a public keyring file and a secret keyring file. The public
 /// file stores public keys and their signatures and attributes, while the secret keyring file stores secret keys.
 /// It is possible to have a keyring with only a public keyring file (indicating that the secret keys are missing), but
-/// not to have a secret file without a public file.
+/// not to have a secret file without a public file. Keyrings are specific to an individual <see cref="PGPSystem"/>,
+/// so it can't be expected that a keyring (or its keys) from one system can be manipulated by a different system.
 /// </summary>
 public class Keyring
 {
-  /// <summary>Initializes a new <see cref="Keyring"/> with the given public and secret filenames.</summary>
-  /// <param name="publicFile">The name of the public file, which is required.</param>
-  /// <param name="secretFile">The name of the secret file, which is optional.</param>
-  public Keyring(string publicFile, string secretFile)
+  /// <summary>Initializes a new <see cref="Keyring"/> with the given public and secret filenames, and trust database.</summary>
+  /// <param name="publicFile">The name of the public keyring file, which is required.</param>
+  /// <param name="secretFile">The name of the secret keyring file, which is optional.</param>
+  /// <param name="trustDbFile">The name of the trust database. If null, the default trust database will be used.</param>
+  public Keyring(string publicFile, string secretFile, string trustDbFile)
   {
     if(string.IsNullOrEmpty(publicFile)) throw new ArgumentException("The public portion of a keyring is required.");
-    this.publicFile = publicFile;
-    this.secretFile = string.IsNullOrEmpty(secretFile) ? null : secretFile;
+    this.publicFile  = publicFile;
+    this.secretFile  = string.IsNullOrEmpty(secretFile)  ? null : secretFile;
+    this.trustDbFile = string.IsNullOrEmpty(trustDbFile) ? null : trustDbFile;
   }
 
   /// <summary>Gets the name of the public keyring file.</summary>
@@ -902,13 +938,51 @@ public class Keyring
     get { return secretFile; }
   }
 
+  /// <summary>Gets the name of the trust database.</summary>
+  public string TrustDbFile
+  {
+    get { return trustDbFile; }
+  }
+
+  /// <summary>Creates the keyring files using the given <see cref="PGPSystem"/>, if they do not already exist or if
+  /// <paramref name="overwrite"/> is true.
+  /// </summary>
+  public void Create(PGPSystem system, bool overwrite)
+  {
+    if(system == null) throw new ArgumentNullException();
+    if(overwrite || !File.Exists(PublicFile)) system.CreatePublicKeyring(PublicFile);
+    if(SecretFile  != null && (overwrite || !File.Exists(SecretFile)))  system.CreateSecretKeyring(SecretFile);
+    if(TrustDbFile != null && (overwrite || !File.Exists(TrustDbFile))) system.CreateTrustDatabase(TrustDbFile);
+  }
+
+  /// <summary>Determines whether this keyring equals the given object.</summary>
+  public override bool Equals(object obj)
+  {
+    return Equals(obj as Keyring);
+  }
+
+  /// <summary>Determines whether this keyring equals the given keyring.</summary>
+  public bool Equals(Keyring other)
+  {
+    return other != null && string.Equals(PublicFile, other.PublicFile, StringComparison.Ordinal) &&
+           string.Equals(SecretFile, other.SecretFile, StringComparison.Ordinal) &&
+           string.Equals(TrustDbFile, other.TrustDbFile, StringComparison.Ordinal);
+  }
+
+  /// <summary>Returns a hash code for this keyring.</summary>
+  public override int GetHashCode()
+  {
+    return PublicFile.GetHashCode();
+  }
+
   /// <include file="documentation.xml" path="/Security/Common/ToString/*"/>
   public override string ToString()
   {
-    return "public:" + PublicFile + (SecretFile == null ? null : ", secret:" + SecretFile);
+    return "public:" + PublicFile + (SecretFile == null ? null : ", secret:" + SecretFile) +
+           (TrustDbFile == null ? null : ", trustdb:" + TrustDbFile);
   }
 
-  string publicFile, secretFile;
+  string publicFile, secretFile, trustDbFile;
 }
 #endregion
 

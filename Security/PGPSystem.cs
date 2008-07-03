@@ -1542,8 +1542,26 @@ public abstract class PGPSystem
   /// <include file="documentation.xml" path="/Security/PGPSystem/ChangePassword/*" />
   public abstract void ChangePassword(PrimaryKey key, SecureString password);
 
+  /// <summary>Cleans the given key by removing unusable signatures and user IDs from them.</summary>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+  public void CleanKey(PrimaryKey key)
+  {
+    if(key == null) throw new ArgumentNullException();
+    CleanKeys(new PrimaryKey[] { key });
+  }
+
   /// <include file="documentation.xml" path="/Security/PGPSystem/CleanKeys/*" />
   public abstract void CleanKeys(PrimaryKey[] keys);
+
+  /// <summary>Minimizes the given key by removing all signatures except the most recent self-signature, and removes
+  /// unusable user IDs.
+  /// </summary>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+  public void MinimizeKey(PrimaryKey key)
+  {
+    if(key == null) throw new ArgumentNullException();
+    MinimizeKeys(new PrimaryKey[] { key });
+  }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/MinimizeKeys/*" />
   public abstract void MinimizeKeys(PrimaryKey[] keys);
@@ -1552,10 +1570,10 @@ public abstract class PGPSystem
   public abstract PrimaryKey CreateKey(NewKeyOptions options);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/DisableKeys/*" />
-  public abstract void DisableKeys(PrimaryKey[] key);
+  public abstract void DisableKeys(PrimaryKey[] keys);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/EnableKeys/*" />
-  public abstract void EnableKeys(PrimaryKey[] key);
+  public abstract void EnableKeys(PrimaryKey[] keys);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteAttributes/*" />
   public abstract void DeleteAttributes(UserAttribute[] attributes);
@@ -1839,6 +1857,24 @@ public abstract class PGPSystem
   #endregion
 
   #region Miscellaneous
+  /// <include file="documentation.xml" path="/Security/PGPSystem/CreatePublicKeyring/*"/>
+  public virtual void CreatePublicKeyring(string path)
+  {
+    new FileStream(path, FileMode.Create, FileAccess.Write).Dispose();
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/CreateSecretKeyring/*"/>
+  public virtual void CreateSecretKeyring(string path)
+  {
+    new FileStream(path, FileMode.Create, FileAccess.Write).Dispose();
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/CreateTrustDatabase/*"/>
+  public virtual void CreateTrustDatabase(string path)
+  {
+    new FileStream(path, FileMode.Create, FileAccess.Write).Dispose();
+  }
+
   /// <summary>Returns the given number of random bytes, with a degree of randomness suitable for session key
   /// generation and other secure tasks, but not key pair generation.
   /// </summary>
