@@ -51,22 +51,116 @@
   </Key>
 
   <PGPSystem>
+    <KeyNotUpdatedImmediately>
+      <remarks>The changes to the key will not be be visible until the key is refreshed by retrieving it again from
+        the PGP system.
+      </remarks>
+    </KeyNotUpdatedImmediately>
+
+    <AddDesignatedRevoker>
+      <summary>
+        Adds a designated revoker to the given primary key. A designated revoker is a second key whose owner has
+        the power to revoke the first key. This action cannot be undone.
+      </summary>
+      <param name="key">
+        The key that can be revoked by the designated revoker. The secret portion of this key must be
+        available.
+      </param>
+      <param name="revokerKey">The public key of the designated revoker.</param>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </AddDesignatedRevoker>
+
+    <AddPhoto3>
+      <summary>Adds the given image to the given key as a photo user id.</summary>
+      <remarks>
+        The default implementation simply saves the image as a JPEG and passes it to
+        <see cref="AddPhoto(PrimaryKey,Stream,OpenPGPImageFormat,bool)"/>.
+      </remarks>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </AddPhoto3>
+
+    <AddPhoto4>
+      <summary>Adds a photo in the given format to the given key.</summary>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </AddPhoto4>
+
+    <AddUserId>
+      <summary>Adds a new user ID to the given primary key.</summary>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </AddUserId>
+
+    <AddSubkey>
+      <summary>Adds a new subkey to the given primary key.</summary>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </AddSubkey>
+
+    <ChangeExpiration>
+      <summary>Changes the expiration time on a primary key or subkey.</summary>
+      <param name="key">The key whose expiration time will be changed.</param>
+      <param name="expiration">
+        The new expiration time, or null if the key should not expire. The time must be in
+        the future.
+      </param>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </ChangeExpiration>
+
+    <ChangePassword>
+      <summary>Changes the password on a primary key.</summary>
+    </ChangePassword>
+
+    <CleanKeys>
+      <summary>Cleans the given keys by removing unusable signatures and user IDs from them.</summary>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </CleanKeys>
+
     <CreateKey>
       <summary>Creates a new key pair.</summary>
     </CreateKey>
-    
+
     <Decrypt>
       <summary>
         Decrypts the given ciphertext and writes the result to the given destination. Signatures embedded
         in the ciphertext are also verified and returned.
       </summary>
     </Decrypt>
+
+    <DeleteAttributes>
+      <summary>Deletes the given attributes from their owning keys.</summary>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </DeleteAttributes>
     
     <DeleteKeys>
       <summary>Deletes the given primary keys, or a part of them, from their keyrings.</summary>
       <param name="keys">The primary keys to delete.</param>
       <param name="deletion">The portion of the keys to delete.</param>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </DeleteKeys>
+
+    <DeleteSignatures>
+      <summary>Deletes the given signatures from their owning attributes.</summary>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </DeleteSignatures>
+
+    <DeleteSubkeys>
+      <summary>Deletes the given subkeys from their owning keys.</summary>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </DeleteSubkeys>
+    
+    <DisableKeys>
+      <summary>
+        Disables the given primary keys. Disabling a key is a local operation that does not change the key for
+        any other user.
+      </summary>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </DisableKeys>
+
+    <EnableKeys>
+      <summary>
+        Enables the given primary keys. Enabling a key is a local operation that does not change the key for
+        any other user.
+      </summary>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </EnableKeys>
 
     <Encrypt>
       <summary>Encrypts the given source data, writing the result to the given destination.</summary>
@@ -134,6 +228,10 @@
       </returns>
     </FindSecretKeys>
 
+    <GetPreferences>
+      <summary>Returns the preferences for the given user id or attribute.</summary>
+    </GetPreferences>
+    
     <GetRandomData>
       <summary>Generates random data and writes it to the given buffer.</summary>
       <param name="quality">
@@ -153,9 +251,11 @@
       <param name="serialNumber">A string containing the serial number of the card, if it's known.</param>
     </GetCardPin>
     
-    <GetCipherPassword>
-      <summary>Gets the password for a document encrypted with a password.</summary>
-    </GetCipherPassword>
+    <GetPlainPassword>
+      <summary>Gets the password for a document encrypted with a password, or when requesting a new password for a key
+        that doesn't have one yet.
+      </summary>
+    </GetPlainPassword>
     
     <GetKeyPassword>
       <summary>Gets the password for the secret key named in the given password hint.</summary>
@@ -235,6 +335,14 @@
       <summary>Imports keys from the given source into the given keyring.</summary>
     </ImportKeys3>
 
+    <MinimizeKeys>
+      <summary>
+        Minimizes the given keys by removing all signatures except the most recent self-signature, and removes
+        unusable user IDs.
+      </summary>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </MinimizeKeys>
+    
     <OnInvalidPassword>
       <summary>
         Called when the password for the given key is invalid, to allow client applications to flush their
@@ -243,6 +351,37 @@
       </summary>
       <param name="keyId">The key ID whose password was invalid.</param>
     </OnInvalidPassword>
+
+    <RevokeAttributes>
+      <summary>Revokes the given attributes from their owning keys.</summary>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </RevokeAttributes>
+
+    <RevokeKeys>
+      <summary>Revokes the given primary keys.</summary>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </RevokeKeys>
+
+    <RevokeSignatures>
+      <summary>Revokes the given signatures from their owning attributes.</summary>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </RevokeSignatures>
+
+    <RevokeSubkeys>
+      <summary>Revokes the given subkeys from their owning keys.</summary>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </RevokeSubkeys>
+
+    <SetPreferences>
+      <summary>Sets the preferences of the given user attribute.</summary>
+    </SetPreferences>
+
+    <SetTrustLevel>
+      <summary>
+        Sets the owner trust level of the given key, which indicates how much you trust the owner to rigorously
+        validate the identities of the keys they sign.
+      </summary>
+    </SetTrustLevel>
     
     <Sign>
       <summary>Signs the given source data and writes the result to the given destination.</summary>
@@ -260,6 +399,16 @@
       </remarks>
     </SignAndEncrypt>
 
+    <SignKey>
+      <summary>Signs the given key. This is equivalent to signing all user IDs on the key.</summary>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </SignKey>
+
+    <SignUser>
+      <summary>Signs the given user ID.</summary>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </SignUser>
+    
     <Verify2>
       <summary>Verifies embedded signatures in the given signed data. The signed data should not have been
         simultaneously encrypted. To verify signatures in encrypted, signed data, call

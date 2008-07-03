@@ -1,4 +1,5 @@
 using System;
+using System.Drawing;
 using System.IO;
 using System.Text;
 using NUnit.Framework;
@@ -49,7 +50,7 @@ public class GPGTest : IDisposable
 
     gpg = new ExeGPG("d:/adammil/programs/gnupg/gpg.exe");
     gpg.KeyPasswordNeeded += delegate(string keyId, string userIdHint) { return password.Copy(); };
-    gpg.CipherPasswordNeeded += delegate() { return password.Copy(); };
+    gpg.PlainPasswordNeeded += delegate() { return password.Copy(); };
 
     keyring = new Keyring(Path.GetTempFileName(), Path.GetTempFileName());
   }
@@ -277,6 +278,67 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
     results = gpg.ImportKeys(publicKeys, keyring, ImportOptions.ImportLocalSignatures);
     Assert.AreEqual(3, results.Length);
     foreach(ImportedKey key in results) Assert.IsTrue(key.Successful);
+
+    imported = true;
+  }
+
+  [Test]
+  public void T011_TestEditing()
+  {
+    EnsureImported();
+    PrimaryKey[] keys = gpg.GetPublicKeys(keyring);
+
+    UserPreferences preferences = new UserPreferences();
+    preferences.Keyserver = new Uri("hkp://keys.foo.com");
+    preferences.PreferredCiphers.Add(OpenPGPCipher.AES256);
+    preferences.PreferredCiphers.Add(OpenPGPCipher.AES);
+    preferences.PreferredCiphers.Add(OpenPGPCipher.Twofish);
+    preferences.PreferredCiphers.Add(OpenPGPCipher.CAST5);
+    preferences.PreferredCompressions.Add(OpenPGPCompression.Bzip2);
+    preferences.PreferredCompressions.Add(OpenPGPCompression.Zlib);
+    preferences.PreferredCompressions.Add(OpenPGPCompression.Zip);
+    preferences.PreferredHashes.Add(OpenPGPHashAlgorithm.SHA1);
+    preferences.PreferredHashes.Add(OpenPGPHashAlgorithm.MD5);
+
+    // test adding a user ID
+    gpg.AddUserId(keys[Encrypter], "John", "john@gmail.com", "big man", preferences);
+
+    keys[Encrypter] = gpg.RefreshKey(keys[Encrypter]);
+    Assert.AreEqual(2, keys[Encrypter].UserIds.Count);
+    UserId newId = keys[Encrypter].UserIds[1];
+    Assert.IsFalse(newId.Primary);
+    Assert.AreEqual("John (big man) <john@gmail.com>", newId.Name);
+    
+    // test GetPreferences(), and ensure that AddUserId() added the preferences properly
+    UserPreferences newPrefs = gpg.GetPreferences(newId);
+    // TODO: make the keyserver thing work
+    //Assert.AreEqual(preferences.Keyserver, newPrefs.Keyserver);
+    Assert.AreEqual(preferences.Primary, newPrefs.Primary);
+    CollectionAssert.AreEqual(preferences.PreferredCiphers, newPrefs.PreferredCiphers);
+    CollectionAssert.AreEqual(preferences.PreferredCompressions, newPrefs.PreferredCompressions);
+    CollectionAssert.AreEqual(preferences.PreferredHashes, newPrefs.PreferredHashes);
+
+    // test adding a photo ID
+    Random rnd = new Random();
+    using(Bitmap bmp = new Bitmap(20, 30))
+    {
+      for(int y=0; y<bmp.Height; y++)
+      {
+        for(int x=0; x<bmp.Width; x++) bmp.SetPixel(x, y, Color.FromArgb(rnd.Next(256), rnd.Next(256), rnd.Next(256)));
+      }
+      gpg.AddPhoto(keys[Encrypter], bmp, preferences);
+    }
+    
+    // verify that the photo was added correctly
+    keys[Encrypter] = gpg.RefreshKey(keys[Encrypter], ListOptions.RetrieveAttributes);
+    Assert.AreEqual(2, keys[Encrypter].Attributes.Count);
+    Assert.IsTrue(keys[Encrypter].Attributes[1] is UserImage);
+    UserImage userImage = (UserImage)keys[Encrypter].Attributes[1];
+    using(Bitmap bmp = userImage.GetBitmap())
+    {
+      Assert.AreEqual(bmp.Width, 20);
+      Assert.AreEqual(bmp.Height, 30);
+    }
   }
 
   [Test]
@@ -299,6 +361,7 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
   [Test]
   public void T04_Signing()
   {
+    EnsureImported();
     MemoryStream plaintext = new MemoryStream(Encoding.UTF8.GetBytes("Hello, world!")), signature = new MemoryStream();
     PrimaryKey[] keys = gpg.GetPublicKeys(keyring);
 
@@ -333,6 +396,7 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
   [Test]
   public void T05_Encryption()
   {
+    EnsureImported();
     PrimaryKey[] keys = gpg.GetPublicKeys(keyring);
 
     const string PlainTextString = "Hello, world!";
@@ -392,6 +456,7 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
   [Test]
   public void T06_Export()
   {
+    EnsureImported();
     PrimaryKey[] keys = gpg.GetPublicKeys(keyring);
     
     // test ascii armored public keys
@@ -439,6 +504,7 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
   [Test]
   public void T07_KeyCreation()
   {
+    EnsureImported();
     NewKeyOptions options = new NewKeyOptions();
     options.KeyType    = PrimaryKeyType.RSA;
     options.RealName   = "New Guy";
@@ -466,6 +532,8 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
   [Test]
   public void T08_Attributes()
   {
+    EnsureImported();
+
     PrimaryKey[] keys = gpg.GetPublicKeys(keyring, ListOptions.RetrieveAttributes);
     Assert.AreEqual(1, keys[Encrypter].Attributes.Count);
     Assert.IsTrue(keys[Encrypter].Attributes[0] is UserImage);
@@ -492,9 +560,15 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
     Assert.AreEqual(keys[Encrypter].Fingerprint, sigs[1].KeyFingerprint);
   }
 
+  void EnsureImported()
+  {
+    if(!imported) T01_ImportTestKeys();
+  }
+
   ExeGPG gpg;
   System.Security.SecureString password;
   Keyring keyring;
+  bool imported;
 }
 
 } // namespace AdamMil.Security.Tests

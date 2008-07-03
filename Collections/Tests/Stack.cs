@@ -22,7 +22,7 @@ public class StackTest
     queue = new Stack<int>(4); // use a small capacity to force a resize
     Assert.IsFalse(queue.IsReadOnly);
 
-    TestHelpers.TestException<InvalidOperationException>(delegate() { queue.Dequeue(); });
+    TestHelpers.TestException<InvalidOperationException>(delegate() { queue.Pop(); });
     TestHelpers.TestException<InvalidOperationException>(delegate() { queue.Peek(); });
     TestHelpers.TestEnumerator(queue);
 
@@ -83,7 +83,7 @@ public class StackTest
   static void AddItems(Stack<int> queue, IList<int> items)
   {
     int initialCount = queue.Count;
-    foreach(int i in items) queue.Enqueue(i);
+    foreach(int i in items) queue.Push(i);
     Assert.AreEqual(initialCount+items.Count, queue.Count);
   }
 
@@ -102,7 +102,7 @@ public class StackTest
     }
 
     // then actually dequeue the items
-    foreach(int i in items) Assert.AreEqual(i, queue.Dequeue());
+    foreach(int i in items) Assert.AreEqual(i, queue.Pop());
     Assert.AreEqual(queue.Count, 0);
   }
 

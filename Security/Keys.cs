@@ -28,6 +28,13 @@ using AdamMil.IO;
 namespace AdamMil.Security.PGP
 {
 
+#region ISignableObject
+/// <summary>Represents an object that can be signed with a <see cref="KeySignature"/>.</summary>
+public interface ISignableObject
+{
+}
+#endregion
+
 #region KeySignature
 /// <summary>Represents a signature on a key.</summary>
 public class KeySignature : ReadOnlyClass
@@ -76,6 +83,17 @@ public class KeySignature : ReadOnlyClass
     }
   }
 
+  /// <summary>Gets or sets the object that is signed by this signature.</summary>
+  public ISignableObject Object
+  {
+    get { return signedObject; }
+    set
+    {
+      AssertNotReadOnly();
+      signedObject = value;
+    }
+  }
+
   /// <summary>Gets or sets the status of the signature. This is only guaranteed to be valid if
   /// <see cref="ListOptions.VerifySignatures"/> was used during the retrieval of the key.
   /// </summary>
@@ -120,6 +138,8 @@ public class KeySignature : ReadOnlyClass
   /// <include file="documentation.xml" path="/Security/ReadOnlyClass/Finish/*"/>
   public override void MakeReadOnly()
   {
+    if(signedObject == null) throw new InvalidOperationException("The Object property is not set.");
+
     switch(type)
     {
       case OpenPGPSignatureType.PersonaCertification: trustLevel = TrustLevel.Never; break;
@@ -151,10 +171,11 @@ public class KeySignature : ReadOnlyClass
   }
 
   string fingerprint, keyId, signerName;
+  ISignableObject signedObject;
   DateTime creationTime;
   TrustLevel trustLevel;
   SignatureStatus status = SignatureStatus.Valid;
-  OpenPGPSignatureType type = OpenPGPSignatureType.Unknown;
+  OpenPGPSignatureType type;
   bool exportable;
 }
 #endregion
@@ -165,7 +186,7 @@ public class KeySignature : ReadOnlyClass
 /// <remarks>After the PGP system creates a <see cref="UserAttribute"/> object and sets its properties, it should call
 /// <see cref="MakeReadOnly"/> to lock the property values, creating a read-only object.
 /// </remarks>
-public abstract class UserAttribute : ReadOnlyClass
+public abstract class UserAttribute : ReadOnlyClass, ISignableObject
 {
   /// <summary>Gets or sets the calculated trust level of this user attribute, which represents how much this user
   /// attribute is trusted to be truly associated with the the person named on the key.
@@ -188,6 +209,20 @@ public abstract class UserAttribute : ReadOnlyClass
     {
       AssertNotReadOnly();
       creationTime = value;
+    }
+  }
+
+  /// <summary>Gets or sets an identifier for this attribute that identifies it within its key, or null if it
+  /// has no such identifier. Attribute IDs are almost certainly unique within a key, but identical attributes may have
+  /// identical IDs.
+  /// </summary>
+  public string Id
+  {
+    get { return id; }
+    set
+    {
+      AssertNotReadOnly();
+      id = value;
     }
   }
 
@@ -255,6 +290,7 @@ public abstract class UserAttribute : ReadOnlyClass
 
   PrimaryKey key;
   IReadOnlyList<KeySignature> sigs;
+  string id;
   DateTime creationTime;
   TrustLevel trustLevel;
   bool primary, revoked;
@@ -603,7 +639,7 @@ public abstract class Key : ReadOnlyClass
 /// the roles of the keys are divided so that the primary key is only used for signing while the subkeys are only used
 /// for encryption.
 /// </summary>
-public class PrimaryKey : Key
+public class PrimaryKey : Key, ISignableObject
 {
   /// <summary>Gets or sets a read-only list of user attributes (excluding <see cref="UserId"/> attributes) associated
   /// with this primary key.

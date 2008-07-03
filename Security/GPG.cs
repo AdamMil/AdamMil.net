@@ -444,36 +444,15 @@ public class ExeGPG : GPG
 
     // if we're using DSA keys greater than 1024 bits, we need to enable DSA2 support
     if(primaryIsDSA && options.KeyLength > 1024 || subIsDSA && options.SubkeyLength > 1024) args += "--enable-dsa2 ";
-    
+
+    string trustDbName = null;
     // if there's a keyring and we use --keyring and --secret-keyring, GPG will add the key to the trust database, but
     // during later commands that use the default keyring, it will bug out because it won't be able to find the new key
     // (which is referenced in the trust database), because it's not in the default keyring. using %pubring and
     // %secring in the batch gen-key commands causes it to add the key to the trust database, but those commands
     // clobber the keyring before the keys are created. so what we'll do is create a new trust database in a temp file
     // and then delete it later. this way, the default trust database and the existing keyring keys are not affected.
-    string trustDbName = null;
-    if(options.Keyring != null)
-    {
-      trustDbName = Path.GetTempFileName(); // create an empty file for the database
-
-      // unfortunately, GPG will barf if the trust database is an empty file, so we need to build a valid trust
-      // database. the following creates a valid, empty version 3 trust database. (see gpg-src\doc\DETAILS)
-      using(FileStream dbFile = File.Open(trustDbName, FileMode.Open, FileAccess.Write))
-      {
-        dbFile.SetLength(40); // the database is 40 bytes long, but only the first 16 bytes are non-zero
-
-        byte[] headerStart = new byte[] { 1, 0x67, 0x70, 0x67, 3, 3, 1, 5, 1, 0, 0, 0 };
-        dbFile.Write(headerStart, 0, headerStart.Length);
-
-        // the next four bytes are the big-endian creation timestamp in seconds since epoch. we'll pretend it was
-        // created 60 seconds ago
-        IOH.WriteBE4(dbFile,
-          (int)((DateTime.Now - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds - 60));
-      }
-
-      // we won't waste time checking the temporary trust database
-      args += "--no-auto-check-trustdb --trustdb-name " + EscapeArg(trustDbName) + " ";
-    }
+    if(options.Keyring != null) args += GetFakeTrustDBArgs(out trustDbName);
 
     Command cmd = Execute(args + "--batch --gen-key", true, false,
                           StreamHandling.ProcessText, StreamHandling.ProcessText);
@@ -879,7 +858,9 @@ public class ExeGPG : GPG
     /// <summary>The stream will be read as binary and the data will be thrown away. This simply prevents the client
     /// process from blocking due to a full buffer.
     /// </summary>
-    DumpBinary
+    DumpBinary,
+    /// <summary>The stream has both output and GPG status lines.</summary>
+    Mixed
   }
 
   /// <summary>Processes status messages from GPG.</summary>
@@ -898,14 +879,14 @@ public class ExeGPG : GPG
 
   #region Command
   /// <summary>Represents a GPG command.</summary>
-  sealed class Command : IDisposable
+  sealed class Command : System.Runtime.ConstrainedExecution.CriticalFinalizerObject, IDisposable
   {
-    public Command(ProcessStartInfo psi, InheritablePipe statusPipe,
+    public Command(ProcessStartInfo psi, InheritablePipe commandPipe,
                    bool closeStdInput, StreamHandling stdOut, StreamHandling stdError)
     {
       if(psi == null) throw new ArgumentNullException();
       this.psi           = psi;
-      this.statusPipe    = statusPipe;
+      this.commandPipe   = commandPipe;
       this.closeStdInput = closeStdInput;
       this.outHandling   = stdOut;
       this.errorHandling = stdError;
@@ -971,20 +952,37 @@ public class ExeGPG : GPG
       Dispose(false);
     }
 
+    /// <summary>Parses a string containing a status line into a status message.</summary>
+    public StatusMessage ParseStatusMessage(string line)
+    {
+      string[] chunks = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+      if(chunks.Length >= 2 && string.Equals(chunks[0], "[GNUPG:]", StringComparison.Ordinal))
+      {
+        string[] arguments = new string[chunks.Length-2];
+        Array.Copy(chunks, 2, arguments, 0, arguments.Length);
+        return ParseStatusMessage(chunks[1], arguments);
+      }
+      else return null;
+    }
+
     /// <summary>Sends a blank line on the command stream.</summary>
     public void SendLine()
     {
-      SendLine(string.Empty);
+      SendLine(null);
     }
 
     /// <summary>Sends the given line on the command stream. The line should not include any end-of-line characters.</summary>
     public void SendLine(string line)
     {
-      if(line == null) throw new ArgumentNullException();
-      if(statusStream == null) throw new InvalidOperationException("The command stream is not open.");
-      byte[] bytes = Encoding.UTF8.GetBytes(line);
-      statusStream.Write(bytes, 0, bytes.Length);
-      statusStream.WriteByte((byte)'\n');
+      if(commandStream == null) throw new InvalidOperationException("The command stream is not open.");
+Debugger.Log(0, "GPG", ">> "+line+"\n");
+      if(!string.IsNullOrEmpty(line))
+      {
+        byte[] bytes = Encoding.UTF8.GetBytes(line);
+        commandStream.Write(bytes, 0, bytes.Length);
+      }
+      commandStream.WriteByte((byte)'\n');
+      commandStream.Flush();
     }
 
     /// <summary>Sends the given password on the command stream. If <paramref name="ownsPassword"/> is true, the
@@ -997,12 +995,13 @@ public class ExeGPG : GPG
       byte[] bytes = null;
       try
       {
-        if(statusStream == null) throw new InvalidOperationException("The command stream is not open.");
+        if(commandStream == null) throw new InvalidOperationException("The command stream is not open.");
         bstr = Marshal.SecureStringToBSTR(password);
         Marshal.Copy(bstr, chars, 0, chars.Length);
         chars[password.Length] = '\n'; // the password must be EOL-terminated for GPG to accept it
         bytes = Encoding.UTF8.GetBytes(chars);
-        statusStream.Write(bytes, 0, bytes.Length);
+        commandStream.Write(bytes, 0, bytes.Length);
+        commandStream.Flush();
       }
       finally
       {
@@ -1022,16 +1021,21 @@ public class ExeGPG : GPG
 
       if(closeStdInput) process.StandardInput.Close();
 
-      // if we have a status pipe, set up a stream to read-write it
-      if(statusPipe != null)
+      // if we have a command pipe, set up a stream to read-write it
+      if(commandPipe != null)
       {
-        statusStream = new FileStream(new SafeFileHandle(statusPipe.ServerHandle, false), FileAccess.ReadWrite);
-        statusBuffer = new byte[4096];
-        OnStatusRead(null); // start reading on a background thread
+        commandStream = new FileStream(new SafeFileHandle(commandPipe.ServerHandle, false), FileAccess.ReadWrite);
+        if(outHandling != StreamHandling.Mixed) // if the status messages aren't mixed into the STDOUT, then they'll
+        {                                       // be available on the command pipe, so start reading them
+          statusBuffer = new byte[4096];
+          OnStatusRead(null); // start reading on a background thread
+        }
+        else statusDone = true;
       }
       else statusDone = true;
 
-      if(outHandling == StreamHandling.Close || outHandling == StreamHandling.Unprocessed)
+      if(outHandling == StreamHandling.Close || outHandling == StreamHandling.Unprocessed ||
+         outHandling == StreamHandling.Mixed)
       {
         if(outHandling == StreamHandling.Close) process.StandardOutput.Close();
         outDone = true;
@@ -1059,12 +1063,12 @@ public class ExeGPG : GPG
     {
       Process.WaitForExit(); // first wait for the process to finish
 
-      bool closedPipe = statusPipe == null;
+      bool closedPipe = commandPipe == null;
       while(!IsDone) // then wait for all of the streams to finish being read
       {
         if(!closedPipe) // if GPG didn't close its end of the pipe, we may have to do it
         {
-          statusPipe.CloseClient();
+          commandPipe.CloseClient();
           closedPipe = true; // but don't close it on every iteration
         }
 
@@ -1078,18 +1082,18 @@ public class ExeGPG : GPG
     {
       if(!disposed)
       {
-        if(statusPipe != null) // if we have a status pipe, we want to close our end of it to tell GPG to exit ASAP.
-        {                      // this gives GPG a chance to exit more gracefully than if we just terminated it.
-          if(statusStream != null)
+        if(commandPipe != null) // if we have a command pipe, we want to close our end of it to tell GPG to exit ASAP.
+        {                       // this gives GPG a chance to exit more gracefully than if we just terminated it.
+          if(commandStream != null)
           {
-            statusStream.Dispose();
-            statusStream = null;
+            commandStream.Dispose();
+            commandStream = null;
           }
 
-          statusPipe.CloseServer(); // close the server side of the pipe
+          commandPipe.CloseServer(); // close the server side of the pipe
           if(process != null) Exit(process); // then exit the process
-          statusPipe.Dispose(); // and destroy the pipe
-          statusPipe = null;
+          commandPipe.Dispose(); // and destroy the pipe
+          commandPipe = null;
         }
         else if(process != null) Exit(process); // we don't have a status pipe, so just exit the process
 
@@ -1123,7 +1127,7 @@ public class ExeGPG : GPG
           }
           else if(handling == StreamHandling.ProcessStatus)
           {
-            ProcessStatusStream(result, stream, ref buffer, ref bufferBytes, ref bufferDone);
+            ProcessStatusStream(result, stream, handling, ref buffer, ref bufferBytes, ref bufferDone);
           }
           else
           {
@@ -1182,13 +1186,13 @@ Debugger.Log(0, "", "ERR: "+line+"\n");
 
     void OnStatusRead(IAsyncResult result)
     {
-      HandleStream(StreamHandling.ProcessStatus, statusStream, result, ref statusBuffer, ref statusBytes,
+      HandleStream(StreamHandling.ProcessStatus, commandStream, result, ref statusBuffer, ref statusBytes,
                    ref statusDone, null, OnStatusRead);
     }
     #pragma warning restore 420
 
-    void ProcessStatusStream(IAsyncResult result, Stream stream, ref byte[] buffer, ref int bufferBytes,
-                             ref bool bufferDone)
+    void ProcessStatusStream(IAsyncResult result, Stream stream, StreamHandling handling,
+                             ref byte[] buffer, ref int bufferBytes, ref bool bufferDone)
     {
       foreach(byte[] binaryLine in ProcessAsciiStream(result, stream, ref buffer, ref bufferBytes, ref bufferDone))
       {
@@ -1207,8 +1211,8 @@ Debugger.Log(0, "", "ERR: "+line+"\n");
     }
 
     Process process;
-    InheritablePipe statusPipe;
-    FileStream statusStream;
+    InheritablePipe commandPipe;
+    FileStream commandStream;
     byte[] statusBuffer, outBuffer, errorBuffer;
     ProcessStartInfo psi;
     int statusBytes, outBytes, errorBytes;
@@ -1229,10 +1233,13 @@ Debugger.Log(0, "", "ERR: "+line+"\n");
 
         if(index < encoded.Length-2) // if there's enough space for two hex digits after the percent sign
         {
-          byte high = encoded[index+1], low = encoded[index+2];
-          encoded[index] = (byte)GetHexValue((char)high, (char)low); // convert the hex value to the new byte value
-          index     += 2; // skip over two of the three digits. the third will be skipped on the next iteration
-          newLength -= 2;
+          char high = (char)encoded[index+1], low = (char)encoded[index+2];
+          if(IsHexDigit(high) && IsHexDigit(low))
+          {
+            encoded[index] = (byte)GetHexValue(high, low); // convert the hex value to the new byte value
+            index     += 2; // skip over two of the three digits. the third will be skipped on the next iteration
+            newLength -= 2;
+          }
         }
       }
 
@@ -1341,8 +1348,6 @@ Debugger.Log(0, "", "ERR: "+line+"\n");
     /// </summary>
     static StatusMessage ParseStatusMessage(string type, string[] arguments)
     {
-Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remove this
-
       StatusMessage message;
       switch(type)
       {
@@ -1416,7 +1421,10 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
     /// <summary>Splits a decoded ASCII line representing a status message into a message type and message arguments.</summary>
     static void SplitDecodedLine(byte[] line, int length, out string type, out string[] arguments)
     {
+Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO: remove this
       List<string> chunks = new List<string>();
+      type      = null;
+      arguments = null;
 
       // the chunks are whitespace-separated
       for(int index=0; ; )
@@ -1428,14 +1436,12 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
         if(start == length) break; // if we're at the end of the line, we're done
 
         chunks.Add(Encoding.UTF8.GetString(line, start, index-start)); // grab the text between the two
+
+        // if this isn't a status line, don't waste time splitting the rest of it
+        if(chunks.Count == 1 && !string.Equals(chunks[0], "[GNUPG:]", StringComparison.Ordinal)) break;
       }
 
-      if(chunks.Count < 2) // if there are not enough chunks to parse a message out of it, return null
-      {
-        type      = null;
-        arguments = null;
-      }
-      else // otherwise, there are enough chunks
+      if(chunks.Count >= 2) // if there are enough chunks to make up a status line
       {
         type      = chunks[1]; // skip the first chunk, which is assumed to be "[GNUPG:]". the second becomes the type
         arguments = new string[chunks.Count-2]; // grab the rest as the arguments
@@ -1581,7 +1587,7 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
               }
               else // we either don't have a password in the options, or we already sent it (and it probably failed),
               {    // so ask the user
-                SecureString password = GetCipherPassword();
+                SecureString password = GetPlainPassword();
                 if(password != null) cmd.SendPassword(password, true);
                 else cmd.SendLine();
               }
@@ -1656,6 +1662,173 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
     }
   }
 
+  void DoEdit(PrimaryKey key, string extraArgs, params EditCommand[] initialCommands)
+  {
+    if(key == null) throw new ArgumentNullException();
+
+    EditKey originalKey = null, editKey = null;
+    Queue<EditCommand> commands = new Queue<EditCommand>(initialCommands);
+    CommandState state = new CommandState();
+
+    string trustDbFilename = null;
+    if(key.Keyring != null) extraArgs = GetFakeTrustDBArgs(out trustDbFilename) + extraArgs;
+
+    Command cmd = ExecuteForEdit(key, extraArgs);
+    try
+    {
+      cmd.StandardErrorLine += delegate(string line)
+      {
+        DefaultStandardErrorHandler(line, ref state);
+      };
+
+      cmd.Start();
+
+      while(true)
+      {
+        string line = cmd.Process.StandardOutput.ReadLine();
+        Debugger.Log(0, "GPG", line+"\n");
+        gotLine:
+        if(line == null) break;
+
+        if(line.Equals("[GNUPG:] GOT_IT", StringComparison.Ordinal)) continue; // skip acknowledgements of input
+        else if(line.StartsWith("pub:", StringComparison.Ordinal)) // a key listing is beginning
+        {
+          EditKey newKey = new EditKey();
+          EditSubkey currentSubkey = null;
+          int subkeyIndex = 1, uidIndex = 1;
+
+          do
+          {
+            string[] fields = line.Split(':');
+
+            switch(fields[0])
+            {
+              case "sub":
+                if(currentSubkey != null) newKey.Subkeys.Add(currentSubkey);
+                currentSubkey = new EditSubkey();
+                currentSubkey.Index = subkeyIndex++;
+                break;
+
+              case "fpr":
+                if(currentSubkey != null) currentSubkey.Fingerprint = fields[9].ToUpperInvariant();
+                break;
+
+              case "uid":
+              case "uat":
+                {
+                  EditUserId uid = new EditUserId();
+                  uid.Index       = uidIndex++;
+                  uid.IsAttribute = fields[0][1] == 'a'; // it's an attribute if fields[0] == "uat"
+                  uid.Name        = fields[9];
+                  uid.Prefs       = fields[12].Split(',')[0];
+
+                  string[] bits = fields[13].Split(',');
+                  if(bits.Length > 1)
+                  {
+                    foreach(char c in bits[1])
+                    {
+                      if(c == 'p') uid.Primary = true;
+                      else if(c == 's') uid.Selected = true;
+                    }
+                  }
+
+                  newKey.UserIds.Add(uid);
+                  break;
+                }
+            }
+
+            line = cmd.Process.StandardOutput.ReadLine();
+            Debugger.Log(0, "GPG", line+"\n");
+          } while(!string.IsNullOrEmpty(line) && line[0] != '['); // break out if the line is empty or a status line
+
+          if(currentSubkey != null) newKey.Subkeys.Add(currentSubkey);
+
+          editKey = newKey;
+
+          if(originalKey == null) originalKey = newKey;
+          goto gotLine;
+        }
+        else if(line.StartsWith("[GNUPG:] ", StringComparison.Ordinal)) // a status message was received
+        {
+          StatusMessage msg = cmd.ParseStatusMessage(line);
+          if(msg != null)
+          {
+            switch(msg.Type)
+            {
+              case StatusMessageType.GetLine:
+              case StatusMessageType.GetHidden:
+              case StatusMessageType.GetBool:
+                {
+                  string promptId = ((GetInputMessage)msg).PromptId;
+                  if(!string.Equals(promptId, "passphrase.enter", StringComparison.Ordinal))
+                  {
+                    while(true)
+                    {
+                      if(commands.Count == 0) commands.Enqueue(new QuitEditCommand(true));
+
+                      EditCommandResult result = commands.Peek().Process(commands, originalKey, editKey, cmd, promptId);
+                      if(result == EditCommandResult.Continue)
+                      {
+                        break;
+                      }
+                      else if(result == EditCommandResult.Done)
+                      {
+                        commands.Dequeue();
+                        break;
+                      }
+                      else if(result == EditCommandResult.Next)
+                      {
+                        commands.Dequeue();
+                      }
+                    }
+                  }
+                  break;
+                }
+
+              case StatusMessageType.NeedKeyPassphrase:
+                if(!SendKeyPassword(cmd, state.PasswordHint, (NeedKeyPassphraseMessage)msg, false))
+                {
+                  throw new OperationCanceledException();
+                }
+                break;
+
+              default: DefaultStatusMessageHandler(msg, ref state); break;
+            }
+          }
+        }
+        /*else
+        {
+          while(true)
+          {
+            EditCommandResult result = commands.Peek().Process(line);
+            if(result == EditCommandResult.Continue)
+            {
+              break;
+            }
+            else if(result == EditCommandResult.Done)
+            {
+              commands.Dequeue();
+              break;
+            }
+            else if(result == EditCommandResult.Next)
+            {
+              commands.Dequeue();
+            }
+          }
+        }*/
+      }
+
+      cmd.WaitForExit();
+    }
+    finally
+    {
+      cmd.Dispose();
+      if(trustDbFilename != null) File.Delete(trustDbFilename);
+    }
+
+    cmd.CheckExitCode();
+  }
+
   /// <summary>Creates a new <see cref="Command"/> object and returns it.</summary>
   /// <param name="args">Command-line arguments to pass to GPG.</param>
   /// <param name="getStatusStream">If true, the status and command streams will be created. If false, they will be
@@ -1670,18 +1843,28 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
   Command Execute(string args, bool getStatusStream, bool closeStdInput,
                   StreamHandling stdOutHandling, StreamHandling stdErrorHandling)
   {
-    InheritablePipe statusPipe = null;
-
+    InheritablePipe commandPipe = null;
     if(getStatusStream) // if the status stream is requested
     {
-      statusPipe = new InheritablePipe(); // create a two-way pipe
-      string fd = statusPipe.ClientHandle.ToInt64().ToString(CultureInfo.InvariantCulture);
+      commandPipe = new InheritablePipe(); // create a two-way pipe
+      string fd = commandPipe.ClientHandle.ToInt64().ToString(CultureInfo.InvariantCulture);
       // and use it for both the status-fd and the command-fd
       args = "--exit-on-status-write-error --status-fd " + fd + " --command-fd " + fd + " " + args;
     }
-
-    return new Command(GetProcessStartInfo(ExecutablePath, args), statusPipe,
+    return new Command(GetProcessStartInfo(ExecutablePath, args, false), commandPipe,
                        closeStdInput, stdOutHandling, stdErrorHandling);
+  }
+
+  Command ExecuteForEdit(PrimaryKey key, string extraArgs)
+  {
+    // we'll use the pipe for the command-fd, but we'll pipe the status messages to STDOUT
+    InheritablePipe commandPipe = new InheritablePipe(); // create a two-way pipe
+    string fd = commandPipe.ClientHandle.ToInt64().ToString(CultureInfo.InvariantCulture);
+    string args = GetKeyringArgs(key.Keyring, true, true, true) + "--with-colons --fixed-list-mode "+
+                  "--exit-on-status-write-error --status-fd 1 --command-fd " + fd + " " + extraArgs + " --edit-key " +
+                  key.Fingerprint;
+    return new Command(GetProcessStartInfo(ExecutablePath, args, true), commandPipe,
+                       true, StreamHandling.Mixed, StreamHandling.ProcessText);
   }
 
   /// <summary>Performs the main work of exporting keys.</summary>
@@ -1767,10 +1950,10 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
     // gpg seems to require --no-sig-cache in order to return fingerprints for signatures. that's unfortunate because
     // --no-sig-cache slows things down a fair bit.
     string args;
-    if(secretKeys) args = "--list-secret-keys ";
+    if(secretKeys) args = "--list-secret-keys "; // TODO: add --no-auto-check-trustdb to this
     else if(signatures == ListOptions.RetrieveSignatures) args = "--list-sigs --no-sig-cache ";
     else if(signatures == ListOptions.VerifySignatures) args = "--check-sigs --no-sig-cache ";
-    else args = "--list-keys ";
+    else args = "--list-keys "; // TODO: add --no-auto-check-trustdb to this
 
     // produce machine-readable output
     args += "--with-fingerprint --with-fingerprint --with-colons --fixed-list-mode ";
@@ -1807,7 +1990,7 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
     InheritablePipe attrPipe;
     FileStream attrStream;
     AutoResetEvent attrReadEvent, attrWriteEvent;
-    OpenPGPAttributeType attrType = OpenPGPAttributeType.Unknown;
+    OpenPGPAttributeType attrType = 0;
     int attrLength = 0;
     bool attrPrimary = false;
     if(retrieveAttributes)
@@ -1906,6 +2089,7 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
             UserId userId = new UserId();
             if(!string.IsNullOrEmpty(fields[1])) userId.CalculatedTrust = ParseTrustLevel(fields[1][0]);
             if(!string.IsNullOrEmpty(fields[5])) userId.CreationTime    = ParseTimestamp(fields[5]);
+            if(!string.IsNullOrEmpty(fields[7])) userId.Id              = fields[7].ToUpperInvariant();
             if(!string.IsNullOrEmpty(fields[9])) userId.Name            = CUnescape(fields[9]);
             currentAttribute = userId;
             break;
@@ -1958,6 +2142,7 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
                 currentAttribute.Primary = attrPrimary;
                 if(!string.IsNullOrEmpty(fields[1])) currentAttribute.CalculatedTrust = ParseTrustLevel(fields[1][0]);
                 if(!string.IsNullOrEmpty(fields[5])) currentAttribute.CreationTime    = ParseTimestamp(fields[5]);
+                if(!string.IsNullOrEmpty(fields[7])) currentAttribute.Id              = fields[7].ToUpperInvariant();
               }
 
               attrWriteEvent.Set(); // we're done with this line and are ready to receive more attribute data
@@ -1993,7 +2178,7 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
   }
 
   /// <summary>Gets a key password from the user and sends it to the command stream.</summary>
-  void SendKeyPassword(Command command, string passwordHint, NeedKeyPassphraseMessage msg, bool passwordRequired)
+  bool SendKeyPassword(Command command, string passwordHint, NeedKeyPassphraseMessage msg, bool passwordRequired)
   {
     string userIdHint = passwordHint + " [0x" + msg.KeyId;
     if(!string.Equals(msg.KeyId, msg.PrimaryKeyId, StringComparison.Ordinal))
@@ -2006,9 +2191,14 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
     if(password == null)
     {
       if(passwordRequired) throw new OperationCanceledException("No password was given.");
-      else command.SendLine();
+      command.SendLine();
+      return false;
     }
-    else command.SendPassword(password, true);
+    else
+    {
+      command.SendPassword(password, true);
+      return true;
+    }
   }
 
   /// <summary>Performs the work of verifying either a detached or embedded signature.</summary>
@@ -2058,12 +2248,16 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
     {
       state.FailureReasons |= FailureReason.SecretKeyAlreadyExists;
     }
+    else if(line.Equals("Need the secret key to do this.", StringComparison.Ordinal))
+    {
+      state.FailureReasons |= FailureReason.MissingSecretKey;
+    }
   }
 
   /// <summary>Executes the given GPG executable with the given arguments.</summary>
   static Process Execute(string exePath, string args)
   {
-    return Process.Start(GetProcessStartInfo(exePath, args));
+    return Process.Start(GetProcessStartInfo(exePath, args, true));
   }
 
   /// <summary>Exits a process by closing STDIN, STDOUT, and STDERR, and waiting for it to exit. If it doesn't exit
@@ -2074,7 +2268,11 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
     process.StandardInput.Close();
     process.StandardOutput.Close();
     process.StandardError.Close();
-    if(!process.WaitForExit(500)) process.Kill();
+    if(!process.WaitForExit(500))
+    {
+      process.Kill();
+      process.WaitForExit(100);
+    }
     return process.ExitCode;
   }
 
@@ -2283,6 +2481,29 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
     return args;
   }
 
+  static string GetFakeTrustDBArgs(out string trustDbFilename)
+  {
+    trustDbFilename = Path.GetTempFileName(); // create an empty file for the database
+
+    // unfortunately, GPG will barf if the trust database is an empty file, so we need to build a valid trust
+    // database. the following creates a valid, empty version 3 trust database. (see gpg-src\doc\DETAILS)
+    using(FileStream dbFile = File.Open(trustDbFilename, FileMode.Open, FileAccess.Write))
+    {
+      dbFile.SetLength(40); // the database is 40 bytes long, but only the first 16 bytes are non-zero
+
+      byte[] headerStart = new byte[] { 1, 0x67, 0x70, 0x67, 3, 3, 1, 5, 1, 0, 0, 0 };
+      dbFile.Write(headerStart, 0, headerStart.Length);
+
+      // the next four bytes are the big-endian creation timestamp in seconds since epoch. we'll pretend it was
+      // created 60 seconds ago
+      IOH.WriteBE4(dbFile,
+        (int)((DateTime.Now - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds - 60));
+    }
+
+    // we won't waste time checking the temporary trust database
+    return "--no-auto-check-trustdb --trustdb-name " + EscapeArg(trustDbFilename) + " ";
+  }
+
   /// <summary>Returns keyring arguments for all of the given keys.</summary>
   static string GetKeyringArgs(IEnumerable<Key> keys, bool publicKeyrings, bool secretKeyrings,
                                bool overrideDefaultKeyring)
@@ -2375,10 +2596,10 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
   }
 
   /// <summary>Creates and returns a new <see cref="ProcessStartInfo"/> for the given GPG executable and arguments.</summary>
-  static ProcessStartInfo GetProcessStartInfo(string exePath, string args)
+  static ProcessStartInfo GetProcessStartInfo(string exePath, string args, bool allowTTY)
   {
     ProcessStartInfo psi = new ProcessStartInfo();
-    psi.Arguments              = "--no-tty --no-options --display-charset utf-8 " + args;
+    psi.Arguments              = (allowTTY ? null : "--no-tty ") + "--no-options --display-charset utf-8 " + args;
     psi.CreateNoWindow         = true;
     psi.ErrorDialog            = false;
     psi.FileName               = exePath;
@@ -2390,6 +2611,16 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
     psi.UseShellExecute        = false;
 
     return psi;
+  }
+
+  static bool IsHexDigit(char c)
+  {
+    if(c >= '0' && c <= '9') return true;
+    else
+    {
+      c = char.ToLowerInvariant(c);
+      return c >= 'a' && c <= 'f';
+    }
   }
 
   /// <summary>A helper for reading key listings, that reads the data for a primary key or subkey.</summary>
@@ -2511,6 +2742,614 @@ Debugger.Log(0, "GPG", type+" "+string.Join(" ", arguments)+"\n"); // TODO: remo
   static readonly Regex commaSepRe = new Regex(@",\s*", RegexOptions.Singleline);
   static readonly Regex cEscapeRe = new Regex(@"\\x[0-9a-f]{2}",
     RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+  enum EditCommandResult
+  {
+    Done, Continue, Next
+  }
+
+  sealed class EditSubkey
+  {
+    public string SelectId
+    {
+      get { return Index.ToString(CultureInfo.InvariantCulture); }
+    }
+
+    public string Fingerprint;
+    public int Index;
+  }
+
+  sealed class EditUserId
+  {
+    public string SelectId
+    {
+      get { return Index.ToString(CultureInfo.InvariantCulture); }
+    }
+
+    public bool Matches(EditUserId id)
+    {
+      return IsAttribute == id.IsAttribute && string.Equals(Name, id.Name, StringComparison.Ordinal) &&
+             string.Equals(Prefs, id.Prefs, StringComparison.Ordinal);
+    }
+
+    public override string ToString()
+    {
+      return (IsAttribute ? "Attribute " : null) + Name + " - " + Prefs;
+    }
+
+    public string Name, Prefs;
+    public int Index;
+    public bool IsAttribute, Primary, Selected;
+  }
+
+  sealed class EditKey
+  {
+    public EditUserId PrimaryAttribute
+    {
+      get
+      {
+        foreach(EditUserId userId in UserIds)
+        {
+          if(userId.IsAttribute && userId.Primary) return userId;
+        }
+        return null;
+      }
+    }
+
+    public EditUserId PrimaryUserId
+    {
+      get
+      {
+        foreach(EditUserId userId in UserIds)
+        {
+          if(!userId.IsAttribute && userId.Primary) return userId;
+        }
+        return null;
+      }
+    }
+
+    public EditUserId SelectedUserId
+    {
+      get
+      {
+        foreach(EditUserId userId in UserIds)
+        {
+          if(userId.Selected) return userId;
+        }
+        return null;
+      }
+    }
+
+    public readonly List<EditUserId> UserIds = new List<EditUserId>();
+    public readonly List<EditSubkey> Subkeys = new List<EditSubkey>();
+  }
+
+  abstract class EditCommand
+  {
+    public abstract EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId);
+
+    public virtual EditCommandResult Process(string line)
+    {
+      return EditCommandResult.Continue;
+    }
+
+    protected static NotImplementedException UnhandledPromptError(string promptId)
+    {
+      return new NotImplementedException("Unhandled prompt: " + promptId);
+    }
+
+    protected static PGPException UnexpectedError(string problem)
+    {
+      return new PGPException("Key edit problem: "+problem);
+    }
+  }
+
+  abstract class AddUidBase : EditCommand
+  {
+    public AddUidBase(UserPreferences preferences, bool addAttribute)
+    {
+      this.preferences  = preferences;
+      this.addAttribute = addAttribute;
+    }
+
+    protected void AddPreferenceCommands(Queue<EditCommand> commands, EditKey originalKey)
+    {
+      if(preferences != null)
+      {
+        commands.Enqueue(new SelectLastUid());
+
+        if(preferences.Primary) commands.Enqueue(new SetPrimary());
+
+        if(preferences.Keyserver != null)
+        {
+          commands.Enqueue(new RawCommand("keyserver " + preferences.Keyserver.AbsoluteUri));
+        }
+
+        if(preferences.PreferredCiphers.Count != 0 || preferences.PreferredCompressions.Count != 0 ||
+             preferences.PreferredHashes.Count != 0)
+        {
+          commands.Enqueue(new SetAlgoPrefs(preferences));
+        }
+
+        if(!preferences.Primary)
+        {
+          EditUserId id = addAttribute ? originalKey.PrimaryAttribute : originalKey.PrimaryUserId;
+          if(id != null)
+          {
+            commands.Enqueue(new SelectUid(id));
+            commands.Enqueue(new SetPrimary());
+          }
+        }
+      }
+    }
+
+    readonly UserPreferences preferences;
+    readonly bool addAttribute;
+  }
+
+  sealed class AddPhotoCommand : AddUidBase
+  {
+    public AddPhotoCommand(string filename, UserPreferences preferences) : base(preferences, true)
+    {
+      if(string.IsNullOrEmpty(filename)) throw new ArgumentException();
+      this.filename = filename;
+    }
+
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+        if(!sentCommand)
+        {
+          cmd.SendLine("addphoto " + filename);
+          sentCommand = true;
+          return EditCommandResult.Continue;
+        }
+        else
+        {
+          AddPreferenceCommands(commands, originalKey);
+          return EditCommandResult.Next;
+        }
+      }
+      else if(string.Equals(promptId, "photoid.jpeg.size", StringComparison.Ordinal))
+      {
+        cmd.SendLine("Y");
+        return EditCommandResult.Continue;
+      }
+      else throw UnhandledPromptError(promptId);
+    }
+
+    readonly string filename;
+    bool sentCommand;
+  }
+
+  sealed class AddUid : AddUidBase
+  {
+    public AddUid(string realName, string email, string comment, UserPreferences preferences)
+      : base(preferences, false)
+    {
+      this.realName    = realName;
+      this.email       = email;
+      this.comment     = comment;
+    }
+
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+        if(!startedUid)
+        {
+          cmd.SendLine("adduid");
+          startedUid = true;
+        }
+        else throw UnexpectedError("Adding a new user ID seemed to fail.");
+      }
+      else if(string.Equals(promptId, "keygen.name", StringComparison.Ordinal)) cmd.SendLine(realName);
+      else if(string.Equals(promptId, "keygen.email", StringComparison.Ordinal)) cmd.SendLine(email);
+      else if(string.Equals(promptId, "keygen.comment", StringComparison.Ordinal))
+      {
+        cmd.SendLine(comment);
+        AddPreferenceCommands(commands, originalKey);
+        return EditCommandResult.Done;
+      }
+      else throw UnhandledPromptError(promptId);
+
+      return EditCommandResult.Continue;
+    }
+
+    readonly string realName, email, comment;
+    bool startedUid;
+  }
+
+  sealed class GetPrefs : EditCommand
+  {
+    public GetPrefs(UserPreferences preferences)
+    {
+      if(preferences == null) throw new ArgumentNullException();
+      preferences.PreferredCiphers.Clear();
+      preferences.PreferredCompressions.Clear();
+      preferences.PreferredHashes.Clear();
+      this.preferences = preferences;
+    }
+
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+        EditUserId selectedId = key.SelectedUserId;
+        if(selectedId == null) throw UnexpectedError("No user ID is selected.");
+
+        if(!sentCommand)
+        {
+          cmd.SendLine("showpref");
+
+          foreach(string pref in selectedId.Prefs.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
+          {
+            int id = int.Parse(pref.Substring(1));
+            if(pref[0] == 'S') preferences.PreferredCiphers.Add((OpenPGPCipher)id);
+            else if(pref[0] == 'H') preferences.PreferredHashes.Add((OpenPGPHashAlgorithm)id);
+            else if(pref[0] == 'Z') preferences.PreferredCompressions.Add((OpenPGPCompression)id);
+          }
+          preferences.Primary = selectedId.Primary;
+
+          sentCommand = true;
+          return EditCommandResult.Continue;
+        }
+        else return EditCommandResult.Next;
+      }
+      else throw UnhandledPromptError(promptId);
+    }
+
+    // TODO: GPG writes this on STDERR like a bastard, so we currently can't get at it...
+    public override EditCommandResult Process(string line)
+    {
+      line = line.Trim();
+      if(line.StartsWith("Preferred keyserver: ", StringComparison.Ordinal))
+      {
+        preferences.Keyserver = new Uri(line.Substring(21));
+        return EditCommandResult.Done;
+      }
+      else return EditCommandResult.Continue;
+    }
+
+    readonly UserPreferences preferences;
+    bool sentCommand;
+  }
+
+  sealed class QuitEditCommand : EditCommand
+  {
+    public QuitEditCommand(bool save)
+    {
+      this.save = save;
+    }
+
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+        cmd.SendLine(save ? "save" : "quit");
+      }
+      else if(string.Equals(promptId, "keyedit.save.okay", StringComparison.Ordinal))
+      {
+        cmd.SendLine(save ? "Y" : "N");
+      }
+      else throw UnhandledPromptError(promptId);
+
+      return EditCommandResult.Continue;
+    }
+
+    readonly bool save;
+  }
+
+  sealed class RawCommand : EditCommand
+  {
+    public RawCommand(string command)
+    {
+      this.command = command;
+    }
+
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId)
+    {
+ 	    cmd.SendLine(command);
+      return EditCommandResult.Done;
+    }
+
+    readonly string command;
+  }
+
+  sealed class SelectLastUid : EditCommand
+  {
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+ 	      for(int i=0; i<key.UserIds.Count-1; i++)
+        {
+          if(key.UserIds[i].Selected)
+          {
+            cmd.SendLine("uid -");
+            return EditCommandResult.Continue;
+          }
+        }
+
+        if(!key.UserIds[key.UserIds.Count-1].Selected)
+        {
+          cmd.SendLine("uid " + key.UserIds.Count.ToString(CultureInfo.InvariantCulture));
+          return EditCommandResult.Done;
+        }
+
+        return EditCommandResult.Next;
+      }
+      else throw UnhandledPromptError(promptId);
+    }
+  }
+
+  sealed class SelectUid : EditCommand
+  {
+    public SelectUid(EditUserId id)
+    {
+      if(id == null) throw new ArgumentNullException();
+      this.id = id;
+    }
+
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+        int index;
+        for(index=0; index < key.UserIds.Count; index++)
+        {
+          if(id.Matches(key.UserIds[index]))
+          {
+            for(int i=index+1; i < key.UserIds.Count; i++)
+            {
+              if(id.Matches(key.UserIds[i])) throw UnexpectedError("Multiple user IDs matched " + id.ToString());
+            }
+            break;
+          }
+        }
+
+        if(index == key.UserIds.Count) throw UnexpectedError("No user ID matched " + id.ToString());
+
+        for(int i=0; i < key.UserIds.Count; i++)
+        {
+          if(i != index && key.UserIds[i].Selected)
+          {
+            cmd.SendLine("uid -");
+            return EditCommandResult.Continue;
+          }
+        }
+
+        if(!key.UserIds[index].Selected)
+        {
+          cmd.SendLine("uid " + (index+1).ToString(CultureInfo.InvariantCulture));
+          return EditCommandResult.Done;
+        }
+
+        return EditCommandResult.Next;
+      }
+      else throw UnhandledPromptError(promptId);
+    }
+
+    readonly EditUserId id;
+  }
+
+  sealed class SetAlgoPrefs : EditCommand
+  {
+    public SetAlgoPrefs(UserPreferences preferences)
+    {
+      StringBuilder prefString = new StringBuilder();
+
+      foreach(OpenPGPCipher cipher in preferences.PreferredCiphers)
+      {
+        prefString.Append(" S").Append(((int)cipher).ToString(CultureInfo.InvariantCulture));
+      }
+      foreach(OpenPGPHashAlgorithm hash in preferences.PreferredHashes)
+      {
+        prefString.Append(" H").Append(((int)hash).ToString(CultureInfo.InvariantCulture));
+      }
+      foreach(OpenPGPCompression compression in preferences.PreferredCompressions)
+      {
+        prefString.Append(" Z").Append(((int)compression).ToString(CultureInfo.InvariantCulture));
+      }
+
+      this.prefString = prefString.ToString();
+    }
+
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+        if(!sentPrefs)
+        {
+          cmd.SendLine("setpref " + prefString);
+          sentPrefs = true;
+          return EditCommandResult.Continue;
+        }
+        else return EditCommandResult.Next;
+      }
+      else if(string.Equals(promptId, "keyedit.setpref.okay", StringComparison.Ordinal))
+      {
+        cmd.SendLine("Y");
+        return EditCommandResult.Done;
+      }
+      else throw UnhandledPromptError(promptId);
+    }
+
+    string prefString;
+    bool sentPrefs;
+  }
+
+  sealed class SetPrimary : EditCommand
+  {
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+        if(key.SelectedUserId == null) throw UnexpectedError("Can't set primary uid because no uid is selected.");
+        if(!key.SelectedUserId.Primary)
+        {
+          cmd.SendLine("primary");
+          return EditCommandResult.Done;
+        }
+        else return EditCommandResult.Next;
+      }
+      else throw UnhandledPromptError(promptId);
+    }
+  }
+
+  public override void AddDesignatedRevoker(PrimaryKey key, PrimaryKey revokerKey)
+  {
+    throw new NotImplementedException();
+  }
+
+  public override void AddPhoto(PrimaryKey key, Stream image, OpenPGPImageType imageFormat,
+                                UserPreferences preferences)
+  {
+    if(key == null || image == null) throw new ArgumentNullException();
+    if(imageFormat != OpenPGPImageType.Jpeg)
+    {
+      throw new NotImplementedException("Only JPEG photos are currently supported.");
+    }
+
+    string filename = Path.GetTempFileName();
+    try
+    {
+      using(FileStream file = new FileStream(filename, FileMode.Open, FileAccess.Write)) IOH.CopyStream(image, file);
+      DoEdit(key, null, new AddPhotoCommand(filename, preferences)); 
+    }
+    finally { File.Delete(filename); }
+  }
+
+  public override void AddUserId(PrimaryKey key, string realName, string email, string comment,
+                                 UserPreferences preferences)
+  {
+    realName = Trim(realName);
+    email    = Trim(email);
+    comment  = Trim(comment);
+
+    if(string.IsNullOrEmpty(realName) && string.IsNullOrEmpty(email))
+    {
+      throw new ArgumentException("At least one of the real name or email must be set.");
+    }
+
+    if(ContainsControlCharacters(realName + email + comment))
+    {
+      throw new ArgumentException("Name, email, or comment contains control characters. Remove them.");
+    }
+
+    DoEdit(key, "--allow-freeform-uid", new AddUid(realName, email, comment, preferences));
+  }
+
+  public override void AddSubkey(PrimaryKey key, string keyType, int keyLength, DateTime? expiration)
+  {
+    throw new NotImplementedException();
+  }
+
+  public override void ChangeExpiration(Key key, DateTime? expiration)
+  {
+    throw new NotImplementedException();
+  }
+
+  public override void ChangePassword(PrimaryKey key, SecureString password)
+  {
+    throw new NotImplementedException();
+  }
+
+  public override void CleanKeys(PrimaryKey[] keys)
+  {
+    throw new NotImplementedException();
+  }
+
+  public override void MinimizeKeys(PrimaryKey[] keys)
+  {
+    throw new NotImplementedException();
+  }
+
+  public override void DisableKeys(PrimaryKey[] key)
+  {
+    throw new NotImplementedException();
+  }
+
+  public override void EnableKeys(PrimaryKey[] key)
+  {
+    throw new NotImplementedException();
+  }
+
+  public override void DeleteAttributes(UserAttribute[] attributes)
+  {
+    throw new NotImplementedException();
+  }
+
+  public override void DeleteSignatures(KeySignature[] signatures)
+  {
+    throw new NotImplementedException();
+  }
+
+  public override void DeleteSubkeys(Subkey[] subkeys)
+  {
+    throw new NotImplementedException();
+  }
+
+  public override UserPreferences GetPreferences(UserAttribute user)
+  {
+    if(user == null) throw new ArgumentNullException();
+    if(user.Key == null) throw new ArgumentException("The user attribute must be associated with a key.");
+
+    UserPreferences preferences = new UserPreferences();
+    DoEdit(user.Key, null, new RawCommand("uid " + user.Id), new GetPrefs(preferences));
+    return preferences;
+  }
+
+  public override void RevokeAttributes(UserAttribute[] attributes)
+  {
+    throw new NotImplementedException();
+  }
+
+  public override void RevokeKeys(PrimaryKey[] keys)
+  {
+    throw new NotImplementedException();
+  }
+
+  public override void RevokeSignatures(KeySignature[] signatures)
+  {
+    throw new NotImplementedException();
+  }
+
+  public override void RevokeSubkeys(Subkey[] subkeys)
+  {
+    throw new NotImplementedException();
+  }
+
+  public override void SetPreferences(UserAttribute user, UserPreferences preferences)
+  {
+    throw new NotImplementedException();
+  }
+
+  public override void SetTrustLevel(PrimaryKey key, TrustLevel trust)
+  {
+    throw new NotImplementedException();
+  }
+
+  public override void SignKey(PrimaryKey keyToSign, PrimaryKey signingKey, KeySigningOptions options)
+  {
+    throw new NotImplementedException();
+  }
+
+  public override void SignKey(UserId userId, PrimaryKey signingKey, KeySigningOptions options)
+  {
+    throw new NotImplementedException();
+  }
 }
 #endregion
 
