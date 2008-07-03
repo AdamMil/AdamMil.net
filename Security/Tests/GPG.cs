@@ -28,6 +28,7 @@ public class GPGTest : IDisposable
     {
       File.Delete(keyring.PublicFile);
       File.Delete(keyring.SecretFile);
+      File.Delete(keyring.TrustDbFile);
     }
   }
 
@@ -52,7 +53,8 @@ public class GPGTest : IDisposable
     gpg.KeyPasswordNeeded += delegate(string keyId, string userIdHint) { return password.Copy(); };
     gpg.PlainPasswordNeeded += delegate() { return password.Copy(); };
 
-    keyring = new Keyring(Path.GetTempFileName(), Path.GetTempFileName());
+    keyring = new Keyring(Path.GetTempFileName(), Path.GetTempFileName(), Path.GetTempFileName());
+    keyring.Create(gpg, true);
   }
 
   [Test]
@@ -279,14 +281,17 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
     Assert.AreEqual(3, results.Length);
     foreach(ImportedKey key in results) Assert.IsTrue(key.Successful);
 
-    imported = true;
+    // read the keys (which also indicates that everything was imported)
+    keys = gpg.GetPublicKeys(keyring);
+
+    // set the trust level of the encryption key to Ultimate
+    gpg.SetTrustLevel(keys[Encrypter], TrustLevel.Ultimate);
   }
 
   [Test]
   public void T011_TestEditing()
   {
     EnsureImported();
-    PrimaryKey[] keys = gpg.GetPublicKeys(keyring);
 
     UserPreferences preferences = new UserPreferences();
     preferences.Keyserver = new Uri("hkp://keys.foo.com");
@@ -339,6 +344,54 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
       Assert.AreEqual(bmp.Width, 20);
       Assert.AreEqual(bmp.Height, 30);
     }
+
+    // set the trust level the reciever key to Marginal
+    Assert.AreNotEqual(TrustLevel.Marginal, keys[Receiver].OwnerTrust);
+    gpg.SetTrustLevel(keys[Receiver], TrustLevel.Marginal);
+    keys[Receiver] = gpg.RefreshKey(keys[Receiver]);
+    Assert.AreEqual(TrustLevel.Marginal, keys[Receiver].OwnerTrust);
+
+    // allow Signer to revoke Encrypter's key
+    gpg.AddDesignatedRevoker(keys[Encrypter], keys[Signer]);
+    keys[Encrypter] = gpg.RefreshKey(keys[Encrypter]);
+    Assert.AreEqual(1, keys[Encrypter].DesignatedRevokers.Count);
+    Assert.AreEqual(keys[Signer].Fingerprint, keys[Encrypter].DesignatedRevokers[0]);
+
+    // add a new subkey to Encrypter's key
+    DateTime expiration = new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    gpg.AddSubkey(keys[Encrypter], SubkeyType.RSAEncryptOnly, 1500, expiration);
+    keys[Encrypter] = gpg.RefreshKey(keys[Encrypter]);
+    Assert.AreEqual(2, keys[Encrypter].Subkeys.Count);
+    // GPG generates RSA rather than RSAEncryptOnly as per RFC-4880 section 13.5, and uses key capabilities instead
+    Assert.AreEqual(SubkeyType.RSA, keys[Encrypter].Subkeys[1].KeyType);
+    Assert.IsFalse((keys[Encrypter].Subkeys[1].Capabilities & KeyCapability.Sign) != 0);
+    Assert.IsTrue(keys[Encrypter].Subkeys[1].Length >= 1500); // GPG may round the key size up
+    Assert.IsTrue(keys[Encrypter].Subkeys[1].ExpirationTime.HasValue);
+    Assert.AreEqual(expiration.Date, keys[Encrypter].Subkeys[1].ExpirationTime.Value.Date);
+
+    // change the expiration of the primary key and first subkey
+    expiration = new DateTime(2101, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    gpg.ChangeExpiration(keys[Encrypter], expiration);
+    gpg.ChangeExpiration(keys[Encrypter].Subkeys[0], expiration);
+    keys[Encrypter] = gpg.RefreshKey(keys[Encrypter]);
+    Assert.IsTrue(keys[Encrypter].ExpirationTime.HasValue);
+    Assert.AreEqual(expiration.Date, keys[Encrypter].ExpirationTime.Value.Date);
+    Assert.IsTrue(keys[Encrypter].Subkeys[0].ExpirationTime.HasValue);
+    Assert.AreEqual(expiration.Date, keys[Encrypter].Subkeys[0].ExpirationTime.Value.Date);
+
+    // remove a password and put it back
+    gpg.ChangePassword(keys[Encrypter], null);
+    gpg.ChangePassword(keys[Encrypter], password);
+
+    // clean, minimize, disable, and reenable the keys
+    gpg.CleanKeys(keys);
+    gpg.MinimizeKeys(keys);
+    gpg.DisableKeys(keys);
+    gpg.EnableKeys(keys);
+
+    // delete the keys and reimport them to put everything back how it was
+    gpg.DeleteKeys(keys, KeyDeletion.PublicAndSecret);
+    T01_ImportTestKeys();
   }
 
   [Test]
@@ -363,7 +416,6 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
   {
     EnsureImported();
     MemoryStream plaintext = new MemoryStream(Encoding.UTF8.GetBytes("Hello, world!")), signature = new MemoryStream();
-    PrimaryKey[] keys = gpg.GetPublicKeys(keyring);
 
     // we'll use only the test keyring
     VerificationOptions options = new VerificationOptions();
@@ -397,7 +449,6 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
   public void T05_Encryption()
   {
     EnsureImported();
-    PrimaryKey[] keys = gpg.GetPublicKeys(keyring);
 
     const string PlainTextString = "Hello, world!";
     MemoryStream plaintext  = new MemoryStream(Encoding.UTF8.GetBytes(PlainTextString));
@@ -457,7 +508,6 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
   public void T06_Export()
   {
     EnsureImported();
-    PrimaryKey[] keys = gpg.GetPublicKeys(keyring);
     
     // test ascii armored public keys
     MemoryStream output = new MemoryStream();
@@ -535,6 +585,7 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
     EnsureImported();
 
     PrimaryKey[] keys = gpg.GetPublicKeys(keyring, ListOptions.RetrieveAttributes);
+
     Assert.AreEqual(1, keys[Encrypter].Attributes.Count);
     Assert.IsTrue(keys[Encrypter].Attributes[0] is UserImage);
 
@@ -562,13 +613,13 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
 
   void EnsureImported()
   {
-    if(!imported) T01_ImportTestKeys();
+    if(keys == null) T01_ImportTestKeys();
   }
 
   ExeGPG gpg;
   System.Security.SecureString password;
   Keyring keyring;
-  bool imported;
+  PrimaryKey[] keys;
 }
 
 } // namespace AdamMil.Security.Tests

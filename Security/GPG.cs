@@ -124,6 +124,21 @@ public class ExeGPG : GPG
     get { return exePath; }
   }
 
+  /// <include file="documentation.xml" path="/Security/PGPSystem/CreateTrustDatabase/*"/>
+  public override void CreateTrustDatabase(string path)
+  {
+    // the following creates a valid, empty version 3 trust database. (see gpg-src\doc\DETAILS)
+    using(FileStream dbFile = File.Open(path, FileMode.Create, FileAccess.Write))
+    {
+      dbFile.SetLength(40); // the database is 40 bytes long, but only the first 16 bytes are non-zero
+
+      byte[] headerStart = new byte[] { 1, 0x67, 0x70, 0x67, 3, 3, 1, 5, 1, 0, 0, 0 };
+      dbFile.Write(headerStart, 0, headerStart.Length);
+
+      // the next four bytes are the big-endian creation timestamp in seconds since epoch
+      IOH.WriteBE4(dbFile, (int)((DateTime.Now - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds));
+    }
+  }
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedCiphers/*"/>
   public override string[] GetSupportedCiphers()
   {
@@ -405,8 +420,16 @@ public class ExeGPG : GPG
 
     if(!subIsNone && !subIsDSA && !subIsELG && !subIsRSAS && !subIsRSAE)
     {
-      throw new KeyCreationFailedException(FailureReason.UnsupportedAlgorithm,
-                                           "Subkey type "+options.SubkeyType+" is not supported.");
+      if(string.Equals(options.SubkeyType, SubkeyType.RSA, StringComparison.OrdinalIgnoreCase))
+      {
+        throw new KeyCreationFailedException(FailureReason.UnsupportedAlgorithm, "Please specify an encryption-only "+
+                                             "or signing-only RSA key. Generic RSA subkeys are not allowed by GPG.");
+      }
+      else
+      {
+        throw new KeyCreationFailedException(FailureReason.UnsupportedAlgorithm,
+                                             "Subkey type "+options.SubkeyType+" is not supported.");
+      }
     }
 
     if(!subIsNone) // if a subkey will be created
@@ -420,21 +443,7 @@ public class ExeGPG : GPG
       }
     }
 
-    int expirationDays = 0;
-    if(options.Expiration.HasValue)
-    {
-      DateTime expiration = options.Expiration.Value.ToUniversalTime(); // the date should be in UTC
-      
-      // give us 30 seconds of fudge time so the key doesn't expire between now and when we run GPG
-      if(expiration <= DateTime.UtcNow.AddSeconds(30))
-      {
-        throw new ArgumentException("The key expiration date must be in the future.");
-      }
-
-      // GPG supports expiration dates in two formats: absolute dates and times relative to the current time.
-      // but it only supports absolute dates up to 2038, so we have to use a relative time format (days from now)
-      expirationDays = (int)Math.Ceiling((expiration - DateTime.UtcNow.Date).TotalDays);
-    }
+    int expirationDays = GetExpirationDays(options.Expiration);
 
     // the options look good, so lets make the key
     string keyFingerprint = null;
@@ -445,18 +454,9 @@ public class ExeGPG : GPG
     // if we're using DSA keys greater than 1024 bits, we need to enable DSA2 support
     if(primaryIsDSA && options.KeyLength > 1024 || subIsDSA && options.SubkeyLength > 1024) args += "--enable-dsa2 ";
 
-    string trustDbName = null;
-    // if there's a keyring and we use --keyring and --secret-keyring, GPG will add the key to the trust database, but
-    // during later commands that use the default keyring, it will bug out because it won't be able to find the new key
-    // (which is referenced in the trust database), because it's not in the default keyring. using %pubring and
-    // %secring in the batch gen-key commands causes it to add the key to the trust database, but those commands
-    // clobber the keyring before the keys are created. so what we'll do is create a new trust database in a temp file
-    // and then delete it later. this way, the default trust database and the existing keyring keys are not affected.
-    if(options.Keyring != null) args += GetFakeTrustDBArgs(out trustDbName);
-
     Command cmd = Execute(args + "--batch --gen-key", true, false,
                           StreamHandling.ProcessText, StreamHandling.ProcessText);
-    try
+    using(cmd)
     {
       cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, ref state); };
 
@@ -522,11 +522,6 @@ public class ExeGPG : GPG
 
       cmd.Process.StandardInput.Close(); // close STDIN so GPG can start generating the key
       cmd.WaitForExit(); // wait for it to finish
-    }
-    finally
-    {
-      cmd.Dispose();
-      if(trustDbName != null) File.Delete(trustDbName);
     }
 
     if(!cmd.SuccessfulExit || keyFingerprint == null) throw new KeyCreationFailedException(state.FailureReasons);
@@ -614,14 +609,6 @@ public class ExeGPG : GPG
 
     if(keyring != null)
     {
-      // create the keyring files if they don't exist. GPG will refuse to use them otherwise.
-      if(!File.Exists(keyring.PublicFile)) File.Create(keyring.PublicFile).Dispose();
-
-      if(!string.IsNullOrEmpty(keyring.SecretFile) && !File.Exists(keyring.SecretFile))
-      {
-        File.Create(keyring.SecretFile).Dispose();
-      }
-
       // add the --primary-keyring option so that GPG will import into the keyrings we've given it
       args += "--primary-keyring " + EscapeArg(NormalizeKeyringFile(keyring.PublicFile)) + " ";
     }
@@ -990,25 +977,32 @@ Debugger.Log(0, "GPG", ">> "+line+"\n");
     /// </summary>
     public void SendPassword(SecureString password, bool ownsPassword)
     {
-      IntPtr bstr  = IntPtr.Zero;
-      char[] chars = new char[password.Length+1];
-      byte[] bytes = null;
-      try
+      if(password == null)
       {
-        if(commandStream == null) throw new InvalidOperationException("The command stream is not open.");
-        bstr = Marshal.SecureStringToBSTR(password);
-        Marshal.Copy(bstr, chars, 0, chars.Length);
-        chars[password.Length] = '\n'; // the password must be EOL-terminated for GPG to accept it
-        bytes = Encoding.UTF8.GetBytes(chars);
-        commandStream.Write(bytes, 0, bytes.Length);
-        commandStream.Flush();
+        SendLine();
       }
-      finally
+      else
       {
-        if(ownsPassword) password.Dispose();
-        if(bstr != IntPtr.Zero) Marshal.ZeroFreeBSTR(bstr);
-        ZeroBuffer(chars);
-        ZeroBuffer(bytes);
+        IntPtr bstr  = IntPtr.Zero;
+        char[] chars = new char[password.Length+1];
+        byte[] bytes = null;
+        try
+        {
+          if(commandStream == null) throw new InvalidOperationException("The command stream is not open.");
+          bstr = Marshal.SecureStringToBSTR(password);
+          Marshal.Copy(bstr, chars, 0, chars.Length);
+          chars[password.Length] = '\n'; // the password must be EOL-terminated for GPG to accept it
+          bytes = Encoding.UTF8.GetBytes(chars);
+          commandStream.Write(bytes, 0, bytes.Length);
+          commandStream.Flush();
+        }
+        finally
+        {
+          if(ownsPassword) password.Dispose();
+          if(bstr != IntPtr.Zero) Marshal.ZeroFreeBSTR(bstr);
+          ZeroBuffer(chars);
+          ZeroBuffer(bytes);
+        }
       }
     }
 
@@ -1665,16 +1659,14 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
   void DoEdit(PrimaryKey key, string extraArgs, params EditCommand[] initialCommands)
   {
     if(key == null) throw new ArgumentNullException();
+    if(string.IsNullOrEmpty(key.Fingerprint)) throw new ArgumentException("The key to edit has no fingerprint.");
 
     EditKey originalKey = null, editKey = null;
     Queue<EditCommand> commands = new Queue<EditCommand>(initialCommands);
     CommandState state = new CommandState();
 
-    string trustDbFilename = null;
-    if(key.Keyring != null) extraArgs = GetFakeTrustDBArgs(out trustDbFilename) + extraArgs;
-
     Command cmd = ExecuteForEdit(key, extraArgs);
-    try
+    using(cmd)
     {
       cmd.StandardErrorLine += delegate(string line)
       {
@@ -1758,32 +1750,51 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
               case StatusMessageType.GetLine:
               case StatusMessageType.GetHidden:
               case StatusMessageType.GetBool:
+              {
+                string promptId = ((GetInputMessage)msg).PromptId;
+                while(true)
                 {
-                  string promptId = ((GetInputMessage)msg).PromptId;
-                  if(!string.Equals(promptId, "passphrase.enter", StringComparison.Ordinal))
-                  {
-                    while(true)
-                    {
-                      if(commands.Count == 0) commands.Enqueue(new QuitEditCommand(true));
+                  if(commands.Count == 0) commands.Enqueue(new QuitEditCommand(true));
 
-                      EditCommandResult result = commands.Peek().Process(commands, originalKey, editKey, cmd, promptId);
-                      if(result == EditCommandResult.Continue)
-                      {
-                        break;
-                      }
-                      else if(result == EditCommandResult.Done)
-                      {
-                        commands.Dequeue();
-                        break;
-                      }
-                      else if(result == EditCommandResult.Next)
-                      {
-                        commands.Dequeue();
-                      }
-                    }
+                  EditCommandResult result = commands.Peek().Process(commands, originalKey, editKey, cmd, promptId);
+                  if(result == EditCommandResult.Continue)
+                  {
+                    break;
                   }
-                  break;
+                  else if(result == EditCommandResult.Done)
+                  {
+                    commands.Dequeue();
+                    break;
+                  }
+                  else if(result == EditCommandResult.Next)
+                  {
+                    commands.Dequeue();
+                  }
                 }
+                break;
+              }
+
+              case StatusMessageType.NeedCipherPassphrase:
+                while(true)
+                {
+                  if(commands.Count == 0) goto default;
+
+                  EditCommandResult result = commands.Peek().SendCipherPassword(originalKey, editKey, cmd);
+                  if(result == EditCommandResult.Continue)
+                  {
+                    break;
+                  }
+                  else if(result == EditCommandResult.Done)
+                  {
+                    commands.Dequeue();
+                    break;
+                  }
+                  else if(result == EditCommandResult.Next)
+                  {
+                    commands.Dequeue();
+                  }
+                }
+                break;
 
               case StatusMessageType.NeedKeyPassphrase:
                 if(!SendKeyPassword(cmd, state.PasswordHint, (NeedKeyPassphraseMessage)msg, false))
@@ -1796,34 +1807,9 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
             }
           }
         }
-        /*else
-        {
-          while(true)
-          {
-            EditCommandResult result = commands.Peek().Process(line);
-            if(result == EditCommandResult.Continue)
-            {
-              break;
-            }
-            else if(result == EditCommandResult.Done)
-            {
-              commands.Dequeue();
-              break;
-            }
-            else if(result == EditCommandResult.Next)
-            {
-              commands.Dequeue();
-            }
-          }
-        }*/
       }
 
       cmd.WaitForExit();
-    }
-    finally
-    {
-      cmd.Dispose();
-      if(trustDbFilename != null) File.Delete(trustDbFilename);
     }
 
     cmd.CheckExitCode();
@@ -2041,6 +2027,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
       List<Subkey> subkeys = new List<Subkey>(); // holds the subkeys in the current primary key
       List<KeySignature> sigs = new List<KeySignature>(); // holds the signatures on the last key or user id
       List<UserAttribute> attributes = new List<UserAttribute>(); // holds user attributes on the key
+      List<string> revokers = new List<string>(); // holds designated revokers on the key
 
       PrimaryKey currentPrimary = null;
       Subkey currentSubkey = null;
@@ -2096,7 +2083,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
           }
 
           case "pub": case "sec": // public and secret primary keys
-            FinishPrimaryKey(keys, subkeys, attributes, sigs,
+            FinishPrimaryKey(keys, subkeys, attributes, sigs, revokers,
                              ref currentPrimary, ref currentSubkey, ref currentAttribute);
             currentPrimary = new PrimaryKey();
             currentPrimary.Keyring = keyring;
@@ -2150,14 +2137,19 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
             break;
           }
 
+          case "rvk": // a designated revoker
+            revokers.Add(fields[9].ToUpperInvariant());
+            break;
+
           case "crt": case "crs": // X.509 certificates (we just treat them as an end to the current key)
-            FinishPrimaryKey(keys, subkeys, attributes, sigs,
+            FinishPrimaryKey(keys, subkeys, attributes, sigs, revokers,
                              ref currentPrimary, ref currentSubkey, ref currentAttribute);
             break;
         }
       }
 
-      FinishPrimaryKey(keys, subkeys, attributes, sigs, ref currentPrimary, ref currentSubkey, ref currentAttribute);
+      FinishPrimaryKey(keys, subkeys, attributes, sigs, revokers,
+                       ref currentPrimary, ref currentSubkey, ref currentAttribute);
       cmd.WaitForExit();
     }
     finally
@@ -2300,8 +2292,8 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
 
   /// <summary>A helper for reading key listings, that finishes the current primary key.</summary>
   static void FinishPrimaryKey(List<PrimaryKey> keys, List<Subkey> subkeys, List<UserAttribute> attributes,
-                               List<KeySignature> sigs, ref PrimaryKey currentPrimary, ref Subkey currentSubkey,
-                               ref UserAttribute currentAttribute)
+                               List<KeySignature> sigs, List<string> revokers,ref PrimaryKey currentPrimary,
+                               ref Subkey currentSubkey, ref UserAttribute currentAttribute)
   {
     // finishing a primary key finishes all signatures, subkeys, and user IDs on it
     FinishSignatures(sigs, currentPrimary, currentSubkey, currentAttribute);
@@ -2323,8 +2315,12 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
       }
 
       currentPrimary.UserIds    = new ReadOnlyListWrapper<UserId>(userIds.ToArray());
+
       currentPrimary.Attributes = userAttributes.Count == 0 ?
         NoAttributes : new ReadOnlyListWrapper<UserAttribute>(userAttributes.ToArray());
+
+      currentPrimary.DesignatedRevokers = revokers.Count == 0 ? 
+        NoRevokers : new ReadOnlyListWrapper<string>(revokers.ToArray());
 
       if(currentPrimary.Signatures == null) currentPrimary.Signatures = NoSignatures;
 
@@ -2335,6 +2331,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
 
     subkeys.Clear();
     attributes.Clear();
+    revokers.Clear();
   }
 
   /// <summary>A helper for reading key listings, that finishes the current key signatures.</summary>
@@ -2415,6 +2412,29 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     return (GetHexValue(high)<<4) + GetHexValue(low);
   }
 
+  /// <summary>Gets an expiration date in days from now, or zero if the key should not expire.</summary>
+  static int GetExpirationDays(DateTime? expiration)
+  {
+    int expirationDays = 0;
+
+    if(expiration.HasValue)
+    {
+      DateTime utcExpiration = expiration.Value.ToUniversalTime(); // the date should be in UTC
+
+      // give us 30 seconds of fudge time so the key doesn't expire between now and when we run GPG
+      if(utcExpiration <= DateTime.UtcNow.AddSeconds(30))
+      {
+        throw new ArgumentException("The key expiration date must be in the future.");
+      }
+
+      // GPG supports expiration dates in two formats: absolute dates and times relative to the current time.
+      // but it only supports absolute dates up to 2038, so we have to use a relative time format (days from now)
+      expirationDays = (int)Math.Ceiling((utcExpiration - DateTime.UtcNow.Date).TotalDays);
+    }
+
+    return expirationDays;
+  }
+
   /// <summary>Creates GPG arguments to represent the given <see cref="ExportOptions"/>.</summary>
   static string GetExportArgs(ExportOptions options, bool exportSecretKeys)
   {
@@ -2445,6 +2465,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
   static string GetKeyringArgs(Keyring keyring, bool publicKeyrings, bool secretKeyrings, bool overrideDefaultKeyring)
   {
     string args = null;
+
     if(keyring != null)
     {
       if(overrideDefaultKeyring) args += "--no-default-keyring ";
@@ -2455,19 +2476,38 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
       {
         args += "--secret-keyring " + EscapeArg(NormalizeKeyringFile(keyring.SecretFile)) + " ";
       }
+
+      if(keyring.TrustDbFile != null)
+      {
+        args += "--trustdb-name " + EscapeArg(NormalizeKeyringFile(keyring.TrustDbFile)) + " ";
+      }
     }
+    
     return args;
   }
 
   /// <summary>Creates GPG arguments to represent the given keyrings.</summary>
   static string GetKeyringArgs(IEnumerable<Keyring> keyrings, bool ignoreDefaultKeyring, bool wantSecretKeyrings)
   {
-    string args = null;
+    string args = null, trustDb = null;
+    bool trustDbSet = false;
 
     if(ignoreDefaultKeyring) args += "--no-default-keyring ";
 
     foreach(Keyring keyring in keyrings)
     {
+      string thisTrustDb = keyring == null ? null : NormalizeKeyringFile(keyring.TrustDbFile);
+      if(!trustDbSet)
+      {
+        trustDb    = thisTrustDb;
+        trustDbSet = true;
+      }
+      else if(!string.Equals(trustDb, thisTrustDb, StringComparison.Ordinal))
+      {
+        throw new ArgumentException("Trust databases cannot be mixed in the same command. The two databases were "+
+                                    trustDb + " and " + thisTrustDb);
+      }
+
       if(keyring != null)
       {
         args += "--keyring " + EscapeArg(NormalizeKeyringFile(keyring.PublicFile)) + " ";
@@ -2478,37 +2518,17 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
       }
     }
 
+    if(trustDb != null) args += "--trustdb-name " + EscapeArg(trustDb) + " ";
+
     return args;
-  }
-
-  static string GetFakeTrustDBArgs(out string trustDbFilename)
-  {
-    trustDbFilename = Path.GetTempFileName(); // create an empty file for the database
-
-    // unfortunately, GPG will barf if the trust database is an empty file, so we need to build a valid trust
-    // database. the following creates a valid, empty version 3 trust database. (see gpg-src\doc\DETAILS)
-    using(FileStream dbFile = File.Open(trustDbFilename, FileMode.Open, FileAccess.Write))
-    {
-      dbFile.SetLength(40); // the database is 40 bytes long, but only the first 16 bytes are non-zero
-
-      byte[] headerStart = new byte[] { 1, 0x67, 0x70, 0x67, 3, 3, 1, 5, 1, 0, 0, 0 };
-      dbFile.Write(headerStart, 0, headerStart.Length);
-
-      // the next four bytes are the big-endian creation timestamp in seconds since epoch. we'll pretend it was
-      // created 60 seconds ago
-      IOH.WriteBE4(dbFile,
-        (int)((DateTime.Now - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds - 60));
-    }
-
-    // we won't waste time checking the temporary trust database
-    return "--no-auto-check-trustdb --trustdb-name " + EscapeArg(trustDbFilename) + " ";
   }
 
   /// <summary>Returns keyring arguments for all of the given keys.</summary>
   static string GetKeyringArgs(IEnumerable<Key> keys, bool publicKeyrings, bool secretKeyrings,
                                bool overrideDefaultKeyring)
   {
-    string args = null;
+    string args = null, trustDb = null;
+    bool trustDbSet = false;
 
     if(keys != null)
     {
@@ -2518,6 +2538,19 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
 
       foreach(Key key in keys)
       {
+        string thisTrustDb = key.Keyring == null ? null : NormalizeKeyringFile(key.Keyring.TrustDbFile);
+
+        if(!trustDbSet)
+        {
+          trustDb    = thisTrustDb;
+          trustDbSet = true;
+        }
+        else if(!string.Equals(trustDb, thisTrustDb, StringComparison.Ordinal))
+        {
+          throw new ArgumentException("Trust databases cannot be mixed in the same command. The two databases were "+
+                                      trustDb + " and " + thisTrustDb);
+        }
+
         if(key.Keyring == null)
         {
           overrideDefaultKeyring = false;
@@ -2548,6 +2581,8 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
 
       // if we added any keys, args will be non-null
       if(overrideDefaultKeyring && args != null) args += "--no-default-keyring ";
+      // if we're using a non-default trust database, reference it
+      if(trustDb != null) args += "--trustdb-name " + EscapeArg(trustDb) + " ";
     }
 
     return args;
@@ -2674,10 +2709,16 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
   /// <summary>Normalizes a keyring filename to something that is acceptable to GPG.</summary>
   static string NormalizeKeyringFile(string filename)
   {
-    // GPG treats relative keyring and trustdb paths as being relative to the user's home directory, so we'll get the
-    // full path. and it detects relative paths by searching for only one directory separator char (backslash on
-    // windows), so we'll normalize those as well
-    return Path.GetFullPath(filename).Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+    if(filename != null)
+    {
+      // GPG treats relative keyring and trustdb paths as being relative to the user's home directory, so we'll get the
+      // full path. and it detects relative paths by searching for only one directory separator char (backslash on
+      // windows), so we'll normalize those as well
+      filename = Path.GetFullPath(filename).Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+      // use case insensitive filenames on operating systems besides *nix
+      if(Environment.OSVersion.Platform != PlatformID.Unix) filename = filename.ToLowerInvariant();
+    }
+    return filename;
   }
 
   /// <summary>Converts a character representing a trust level into the corresponding <see cref="TrustLevel"/> value.</summary>
@@ -2736,6 +2777,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
 
   static readonly ReadOnlyListWrapper<UserAttribute> NoAttributes =
     new ReadOnlyListWrapper<UserAttribute>(new UserAttribute[0]);
+  static readonly ReadOnlyListWrapper<string> NoRevokers = new ReadOnlyListWrapper<string>(new string[0]);
   static readonly ReadOnlyListWrapper<KeySignature> NoSignatures =
     new ReadOnlyListWrapper<KeySignature>(new KeySignature[0]);
   static readonly Regex versionLineRe = new Regex(@"^(\w+):\s*(.+)", RegexOptions.Singleline);
@@ -2826,17 +2868,19 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
 
   abstract class EditCommand
   {
-    public abstract EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
-                                              Command cmd, string promptId);
-
-    public virtual EditCommandResult Process(string line)
+    public virtual EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                             Command cmd, string promptId)
     {
-      return EditCommandResult.Continue;
+      if(string.Equals(promptId, "passphrase.enter", StringComparison.Ordinal))
+      {
+        return EditCommandResult.Continue;
+      }
+      else throw new NotImplementedException("Unhandled prompt: " + promptId);
     }
 
-    protected static NotImplementedException UnhandledPromptError(string promptId)
+    public virtual EditCommandResult SendCipherPassword(EditKey originalKey, EditKey key, Command cmd)
     {
-      return new NotImplementedException("Unhandled prompt: " + promptId);
+      throw new NotImplementedException("Unhandled cipher passphrase.");
     }
 
     protected static PGPException UnexpectedError(string problem)
@@ -2896,7 +2940,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
       this.filename = filename;
     }
 
-    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
                                               Command cmd, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
@@ -2918,11 +2962,151 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
         cmd.SendLine("Y");
         return EditCommandResult.Continue;
       }
-      else throw UnhandledPromptError(promptId);
+      else return base.Process(commands, originalKey, key, cmd, promptId);
     }
 
     readonly string filename;
     bool sentCommand;
+  }
+
+  sealed class AddRevoker : EditCommand
+  {
+    public AddRevoker(string fingerprint)
+    {
+      this.fingerprint = fingerprint;
+    }
+
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+        if(!sentCommand)
+        {
+          cmd.SendLine("addrevoker");
+          sentCommand = true;
+        }
+        else return EditCommandResult.Next;
+      }
+      else if(string.Equals(promptId, "keyedit.add_revoker", StringComparison.Ordinal))
+      {
+        if(!sentFingerprint)
+        {
+          cmd.SendLine(fingerprint);
+          sentFingerprint = true;
+        }
+        else throw UnexpectedError("Adding the designated revoker failed.");
+      }
+      else if(string.Equals(promptId, "keyedit.add_revoker.okay", StringComparison.Ordinal))
+      {
+        cmd.SendLine("Y");
+      }
+      else return base.Process(commands, originalKey, key, cmd, promptId);
+
+      return EditCommandResult.Continue;
+    }
+
+    readonly string fingerprint;
+    bool sentCommand, sentFingerprint;
+  }
+
+  sealed class AddSubkeyCommand : EditCommand
+  {
+    public AddSubkeyCommand(string type, int length, DateTime? expiration)
+    {
+      // GPG only supports specific RSA subkey types, like RSA-E and RSA-S
+      if(string.Equals(type, SubkeyType.RSA, StringComparison.OrdinalIgnoreCase))
+      {
+        throw new KeyCreationFailedException(FailureReason.UnsupportedAlgorithm, "Please specify an encryption-only "+
+                                             "or signing-only RSA key. Generic RSA keys not allowed here.");
+      }
+
+      this.type           = type;
+      this.length         = length;
+      this.expiration     = expiration;
+      this.expirationDays = GetExpirationDays(expiration);
+
+      this.isDSA  = string.Equals(type, SubkeyType.DSA, StringComparison.OrdinalIgnoreCase);
+      this.isELG  = type == null || string.Equals(type, SubkeyType.ElGamal, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(type, SubkeyType.ElGamalEncryptOnly, StringComparison.OrdinalIgnoreCase);
+      this.isRSAE = string.Equals(type, SubkeyType.RSAEncryptOnly, StringComparison.OrdinalIgnoreCase);
+      this.isRSAS = string.Equals(type, SubkeyType.RSASignOnly, StringComparison.OrdinalIgnoreCase);
+
+      if(!isDSA && !isELG && !isRSAE && !isRSAS)
+      {
+        throw new KeyCreationFailedException(FailureReason.UnsupportedAlgorithm, "Unsupported subkey type: " + type);
+      }
+
+      int maxLength = isDSA ? 3072 : 4096;
+      if(length < 0 || length > maxLength)
+      {
+        throw new KeyCreationFailedException(FailureReason.None, "Key length " +
+                                             length.ToString(CultureInfo.InvariantCulture) + " is not supported.");
+      }
+    }
+
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+        if(!sentCommand)
+        {
+          cmd.SendLine("addkey");
+          sentCommand = true;
+        }
+        else return EditCommandResult.Next;
+      }
+      else if(string.Equals(promptId, "keygen.algo", StringComparison.Ordinal))
+      {
+        if(!sentAlgo)
+        {
+          if(isDSA) cmd.SendLine("2");
+          else if(isELG) cmd.SendLine("4");
+          else if(isRSAS) cmd.SendLine("5");
+          else cmd.SendLine("6");
+          sentAlgo = true;
+        }
+        else
+        {
+          throw new KeyCreationFailedException(FailureReason.UnsupportedAlgorithm, "Unsupported subkey type: " + type);
+        }
+      }
+      else if(string.Equals(promptId, "keygen.size", StringComparison.Ordinal))
+      {
+        if(!sentLength)
+        {
+          cmd.SendLine(length.ToString(CultureInfo.InvariantCulture));
+          sentLength = true;
+        }
+        else
+        {
+          throw new KeyCreationFailedException(FailureReason.None, "Key length " +
+                                               length.ToString(CultureInfo.InvariantCulture) + " is not supported.");
+        }
+      }
+      else if(string.Equals(promptId, "keygen.valid", StringComparison.Ordinal))
+      {
+        if(!sentExpiration)
+        {
+          cmd.SendLine(expirationDays.ToString(CultureInfo.InvariantCulture));
+          sentExpiration = true;
+        }
+        else
+        {
+          throw new KeyCreationFailedException(FailureReason.None, "Expiration date " + Convert.ToString(expiration) +
+                                               " is not supported.");
+        }
+      }
+      else return base.Process(commands, originalKey, key, cmd, promptId);
+
+      return EditCommandResult.Continue;
+    }
+
+    readonly string type;
+    readonly DateTime? expiration;
+    readonly int length, expirationDays;
+    readonly bool isDSA, isELG, isRSAE, isRSAS;
+    bool sentCommand, sentAlgo, sentLength, sentExpiration;
   }
 
   sealed class AddUid : AddUidBase
@@ -2935,7 +3119,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
       this.comment     = comment;
     }
 
-    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
                                               Command cmd, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
@@ -2955,13 +3139,90 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
         AddPreferenceCommands(commands, originalKey);
         return EditCommandResult.Done;
       }
-      else throw UnhandledPromptError(promptId);
+      else return base.Process(commands, originalKey, key, cmd, promptId);
 
       return EditCommandResult.Continue;
     }
 
     readonly string realName, email, comment;
     bool startedUid;
+  }
+
+  sealed class ChangeExpirationCommand : EditCommand
+  {
+    public ChangeExpirationCommand(DateTime? expiration)
+    {
+      this.expiration     = expiration;
+      this.expirationDays = GetExpirationDays(expiration);
+    }
+
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+        if(!sentCommand)
+        {
+          cmd.SendLine("expire");
+          sentCommand = true;
+        }
+        else return EditCommandResult.Next;
+      }
+      else if(string.Equals(promptId, "keygen.valid", StringComparison.Ordinal))
+      {
+        if(!sentExpiration)
+        {
+          cmd.SendLine(expirationDays.ToString(CultureInfo.InvariantCulture));
+          sentExpiration = true;
+        }
+        else throw UnexpectedError("Changing expiration date to " + Convert.ToString(expiration) + " failed.");
+      }
+      else return base.Process(commands, originalKey, key, cmd, promptId);
+
+      return EditCommandResult.Continue;
+    }
+
+    readonly DateTime? expiration;
+    readonly int expirationDays;
+    bool sentCommand, sentExpiration;
+  }
+
+  sealed class ChangePasswordCommand : EditCommand
+  {
+    public ChangePasswordCommand(SecureString password)
+    {
+      this.password = password;
+    }
+
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+        if(!sentCommand)
+        {
+          cmd.SendLine("passwd");
+          sentCommand = true;
+        }
+        else return EditCommandResult.Next;
+      }
+      else if(string.Equals(promptId, "change_passwd.empty.okay", StringComparison.Ordinal))
+      {
+        cmd.SendLine("Y");
+      }
+      else return base.Process(commands, originalKey, key, cmd, promptId);
+
+      return EditCommandResult.Continue;
+    }
+
+    public override EditCommandResult SendCipherPassword(EditKey originalKey, EditKey key, Command cmd)
+    {
+      cmd.SendPassword(password, false);
+      return EditCommandResult.Continue;
+    }
+
+    readonly SecureString password;
+    bool sentCommand;
   }
 
   sealed class GetPrefs : EditCommand
@@ -2975,7 +3236,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
       this.preferences = preferences;
     }
 
-    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
                                               Command cmd, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
@@ -3001,11 +3262,11 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
         }
         else return EditCommandResult.Next;
       }
-      else throw UnhandledPromptError(promptId);
+      else return base.Process(commands, originalKey, key, cmd, promptId);
     }
 
     // TODO: GPG writes this on STDERR like a bastard, so we currently can't get at it...
-    public override EditCommandResult Process(string line)
+    /*public override EditCommandResult Process(string line)
     {
       line = line.Trim();
       if(line.StartsWith("Preferred keyserver: ", StringComparison.Ordinal))
@@ -3014,7 +3275,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
         return EditCommandResult.Done;
       }
       else return EditCommandResult.Continue;
-    }
+    }*/
 
     readonly UserPreferences preferences;
     bool sentCommand;
@@ -3027,7 +3288,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
       this.save = save;
     }
 
-    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
                                               Command cmd, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
@@ -3038,7 +3299,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
       {
         cmd.SendLine(save ? "Y" : "N");
       }
-      else throw UnhandledPromptError(promptId);
+      else return base.Process(commands, originalKey, key, cmd, promptId);
 
       return EditCommandResult.Continue;
     }
@@ -3053,7 +3314,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
       this.command = command;
     }
 
-    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
                                               Command cmd, string promptId)
     {
  	    cmd.SendLine(command);
@@ -3065,7 +3326,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
 
   sealed class SelectLastUid : EditCommand
   {
-    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
                                               Command cmd, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
@@ -3087,8 +3348,48 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
 
         return EditCommandResult.Next;
       }
-      else throw UnhandledPromptError(promptId);
+      else return base.Process(commands, originalKey, key, cmd, promptId);
     }
+  }
+
+  sealed class SelectSubkey : EditCommand
+  {
+    public SelectSubkey(string fingerprint)
+    {
+      if(string.IsNullOrEmpty(fingerprint)) throw new ArgumentException("Fingprint was null or empty.");
+      this.fingerprint = fingerprint;
+    }
+
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+        if(!clearedSelection)
+        {
+          cmd.SendLine("key -");
+          clearedSelection = true;
+          return EditCommandResult.Continue;
+        }
+        else
+        {
+          int index;
+          for(index=0; index < key.Subkeys.Count; index++)
+          {
+            if(string.Equals(fingerprint, key.Subkeys[index].Fingerprint, StringComparison.Ordinal)) break;
+          }
+
+          if(index == key.Subkeys.Count) throw UnexpectedError("No subkey found with fingerprint " + fingerprint);
+
+          cmd.SendLine("key " + (index+1).ToString(CultureInfo.InvariantCulture));
+          return EditCommandResult.Done;
+        }
+      }
+      else return base.Process(commands, originalKey, key, cmd, promptId);
+    }
+
+    readonly string fingerprint;
+    bool clearedSelection;
   }
 
   sealed class SelectUid : EditCommand
@@ -3099,7 +3400,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
       this.id = id;
     }
 
-    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
                                               Command cmd, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
@@ -3136,7 +3437,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
 
         return EditCommandResult.Next;
       }
-      else throw UnhandledPromptError(promptId);
+      else return base.Process(commands, originalKey, key, cmd, promptId);
     }
 
     readonly EditUserId id;
@@ -3164,7 +3465,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
       this.prefString = prefString.ToString();
     }
 
-    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
                                               Command cmd, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
@@ -3182,7 +3483,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
         cmd.SendLine("Y");
         return EditCommandResult.Done;
       }
-      else throw UnhandledPromptError(promptId);
+      else return base.Process(commands, originalKey, key, cmd, promptId);
     }
 
     string prefString;
@@ -3191,7 +3492,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
 
   sealed class SetPrimary : EditCommand
   {
-    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
                                               Command cmd, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
@@ -3204,15 +3505,73 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
         }
         else return EditCommandResult.Next;
       }
-      else throw UnhandledPromptError(promptId);
+      else return base.Process(commands, originalKey, key, cmd, promptId);
     }
   }
 
-  public override void AddDesignatedRevoker(PrimaryKey key, PrimaryKey revokerKey)
+  sealed class SetTrust : EditCommand
   {
-    throw new NotImplementedException();
+    public SetTrust(TrustLevel level)
+    {
+      this.level = level;
+    }
+
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
+                                              Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+        if(!sentCommand)
+        {
+          cmd.SendLine("trust");
+          sentCommand = true;
+        }
+        else return EditCommandResult.Next;
+      }
+      else if(string.Equals(promptId, "edit_ownertrust.value", StringComparison.Ordinal))
+      {
+        switch(level)
+        {
+          case TrustLevel.Never: cmd.SendLine("2"); break;
+          case TrustLevel.Marginal: cmd.SendLine("3"); break;
+          case TrustLevel.Full: cmd.SendLine("4"); break;
+          case TrustLevel.Ultimate: cmd.SendLine("5"); break;
+          default: cmd.SendLine("1"); break;
+        }
+      }
+      else if(string.Equals(promptId, "edit_ownertrust.set_ultimate.okay", StringComparison.Ordinal))
+      {
+        cmd.SendLine("Y");
+      }
+      else return base.Process(commands, originalKey, key, cmd, promptId);
+
+      return EditCommandResult.Continue;
+    }
+
+    readonly TrustLevel level;
+    bool sentCommand;
   }
 
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddDesignatedRevoker/*" />
+  public override void AddDesignatedRevoker(PrimaryKey key, PrimaryKey revokerKey)
+  {
+    if(revokerKey == null) throw new ArgumentNullException();
+
+    if(key.Keyring == null && revokerKey.Keyring != null ||
+       key.Keyring != null && !key.Keyring.Equals(revokerKey.Keyring))
+    {
+      throw new NotSupportedException("Adding a revoker from a different keyring is not supported.");
+    }
+
+    if(string.IsNullOrEmpty(revokerKey.Fingerprint))
+    {
+      throw new ArgumentException("The revoker key has no fingerprint.");
+    }
+
+    DoEdit(key, null, new AddRevoker(revokerKey.Fingerprint));
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddPhoto4/*" />
   public override void AddPhoto(PrimaryKey key, Stream image, OpenPGPImageType imageFormat,
                                 UserPreferences preferences)
   {
@@ -3231,6 +3590,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     finally { File.Delete(filename); }
   }
 
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddUserId/*" />
   public override void AddUserId(PrimaryKey key, string realName, string email, string comment,
                                  UserPreferences preferences)
   {
@@ -3251,39 +3611,72 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     DoEdit(key, "--allow-freeform-uid", new AddUid(realName, email, comment, preferences));
   }
 
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddSubkey/*" />
   public override void AddSubkey(PrimaryKey key, string keyType, int keyLength, DateTime? expiration)
   {
-    throw new NotImplementedException();
+    DoEdit(key, keyLength == 0 ? null : "--enable-dsa2", new AddSubkeyCommand(keyType, keyLength, expiration));
   }
 
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ChangeExpiration/*" />
   public override void ChangeExpiration(Key key, DateTime? expiration)
   {
-    throw new NotImplementedException();
+    if(key == null) throw new ArgumentNullException();
+
+    Subkey subkey = key as Subkey;
+    if(subkey == null)
+    {
+      DoEdit(key.GetPrimaryKey(), null, new ChangeExpirationCommand(expiration));
+    }
+    else
+    {
+      DoEdit(key.GetPrimaryKey(), null, new SelectSubkey(subkey.Fingerprint), new ChangeExpirationCommand(expiration));
+    }
   }
 
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ChangePassword/*" />
   public override void ChangePassword(PrimaryKey key, SecureString password)
   {
-    throw new NotImplementedException();
+    DoEdit(key, null, new ChangePasswordCommand(password));
   }
 
+  /// <include file="documentation.xml" path="/Security/PGPSystem/CleanKeys/*" />
   public override void CleanKeys(PrimaryKey[] keys)
   {
-    throw new NotImplementedException();
+    foreach(PrimaryKey key in keys)
+    {
+      if(key == null) throw new ArgumentNullException("A key was null.");
+      DoEdit(key, null, new RawCommand("clean"));
+    }
   }
 
+  /// <include file="documentation.xml" path="/Security/PGPSystem/MinimizeKeys/*" />
   public override void MinimizeKeys(PrimaryKey[] keys)
   {
-    throw new NotImplementedException();
+    foreach(PrimaryKey key in keys)
+    {
+      if(key == null) throw new ArgumentNullException("A key was null.");
+      DoEdit(key, null, new RawCommand("minimize"));
+    }
   }
 
-  public override void DisableKeys(PrimaryKey[] key)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DisableKeys/*" />
+  public override void DisableKeys(PrimaryKey[] keys)
   {
-    throw new NotImplementedException();
+    foreach(PrimaryKey key in keys)
+    {
+      if(key == null) throw new ArgumentNullException("A key was null.");
+      DoEdit(key, null, new RawCommand("disable"));
+    }
   }
 
-  public override void EnableKeys(PrimaryKey[] key)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/EnableKeys/*" />
+  public override void EnableKeys(PrimaryKey[] keys)
   {
-    throw new NotImplementedException();
+    foreach(PrimaryKey key in keys)
+    {
+      if(key == null) throw new ArgumentNullException("A key was null.");
+      DoEdit(key, null, new RawCommand("enable"));
+    }
   }
 
   public override void DeleteAttributes(UserAttribute[] attributes)
@@ -3301,10 +3694,14 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     throw new NotImplementedException();
   }
 
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetPreferences/*" />
   public override UserPreferences GetPreferences(UserAttribute user)
   {
     if(user == null) throw new ArgumentNullException();
     if(user.Key == null) throw new ArgumentException("The user attribute must be associated with a key.");
+
+    // TODO: FIXME: currently, this cannot retrieve the user's preferred keyring (because GPG writes it to STDERR
+    // rather than STDOUT...)
 
     UserPreferences preferences = new UserPreferences();
     DoEdit(user.Key, null, new RawCommand("uid " + user.Id), new GetPrefs(preferences));
@@ -3338,7 +3735,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
 
   public override void SetTrustLevel(PrimaryKey key, TrustLevel trust)
   {
-    throw new NotImplementedException();
+    DoEdit(key, null, new SetTrust(trust));
   }
 
   public override void SignKey(PrimaryKey keyToSign, PrimaryKey signingKey, KeySigningOptions options)

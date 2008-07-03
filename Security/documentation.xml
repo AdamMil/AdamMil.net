@@ -60,7 +60,7 @@
     <AddDesignatedRevoker>
       <summary>
         Adds a designated revoker to the given primary key. A designated revoker is a second key whose owner has
-        the power to revoke the first key. This action cannot be undone.
+        the power to revoke the first key. A designated revoker cannot be removed once it has been added.
       </summary>
       <param name="key">
         The key that can be revoked by the designated revoker. The secret portion of this key must be
@@ -117,6 +117,21 @@
       <summary>Creates a new key pair.</summary>
     </CreateKey>
 
+    <CreatePublicKeyring>
+      <summary>Creates a new, empty public keyring in the given file.</summary>
+      <remarks>The default implementation simply creates a zero-length file.</remarks>
+    </CreatePublicKeyring>
+
+    <CreateSecretKeyring>
+      <summary>Creates a new, empty secret keyring in the given file.</summary>
+      <remarks>The default implementation simply creates a zero-length file.</remarks>
+    </CreateSecretKeyring>
+
+    <CreateTrustDatabase>
+      <summary>Creates a new, empty trust database in the given file.</summary>
+      <remarks>The default implementation simply creates a zero-length file.</remarks>
+    </CreateTrustDatabase>
+    
     <Decrypt>
       <summary>
         Decrypts the given ciphertext and writes the result to the given destination. Signatures embedded
