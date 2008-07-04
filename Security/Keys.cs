@@ -32,6 +32,8 @@ namespace AdamMil.Security.PGP
 /// <summary>Represents an object that can be signed with a <see cref="KeySignature"/>.</summary>
 public interface ISignableObject
 {
+  /// <summary>Gets the <see cref="PrimaryKey"/> that owns the signed object.</summary>
+  PrimaryKey PrimaryKey { get; }
 }
 #endregion
 
@@ -62,7 +64,7 @@ public class KeySignature : ReadOnlyClass
   }
 
   /// <summary>Gets or sets the fingerprint of the signing key.</summary>
-  public string Fingerprint
+  public string KeyFingerprint
   {
     get { return fingerprint; }
     set
@@ -94,16 +96,25 @@ public class KeySignature : ReadOnlyClass
     }
   }
 
-  /// <summary>Gets or sets the status of the signature. This is only guaranteed to be valid if
-  /// <see cref="ListOptions.VerifySignatures"/> was used during the retrieval of the key.
-  /// </summary>
-  public SignatureStatus Status
+  /// <summary>Gets whether this is a revocation signature.</summary>
+  public bool Revocation
   {
-    get { return status; }
-    set
+    get
     {
-      AssertNotReadOnly();
-      status = value;
+      return Type == OpenPGPSignatureType.PrimaryKeyRevocation || Type == OpenPGPSignatureType.SubkeyRevocation ||
+             Type == OpenPGPSignatureType.CertificateRevocation;
+    }
+  }
+
+  /// <summary>Gets whether this is a self-signature, which is a signature by the object's own primary key.</summary>
+  public bool SelfSignature
+  {
+    get
+    {
+      PrimaryKey key = Object != null ? Object.PrimaryKey : null;
+      return key != null &&
+             (string.Equals(KeyFingerprint, key.Fingerprint, StringComparison.Ordinal) ||
+              string.Equals(KeyId, key.KeyId, StringComparison.Ordinal));
     }
   }
 
@@ -115,6 +126,19 @@ public class KeySignature : ReadOnlyClass
     {
       AssertNotReadOnly();
       signerName = value;
+    }
+  }
+
+  /// <summary>Gets or sets the status of the signature. This is only guaranteed to be valid if
+  /// <see cref="ListOptions.VerifySignatures"/> was used during the retrieval of the key.
+  /// </summary>
+  public SignatureStatus Status
+  {
+    get { return status; }
+    set
+    {
+      AssertNotReadOnly();
+      status = value;
     }
   }
 
@@ -275,6 +299,12 @@ public abstract class UserAttribute : ReadOnlyClass, ISignableObject
   {
     if(key == null) throw new InvalidOperationException("The Key property is not set.");
     if(sigs == null) throw new InvalidOperationException("The Signatures property is not set.");
+
+    foreach(KeySignature sig in sigs)
+    {
+      if(sig == null) throw new InvalidOperationException("A key signature was null.");
+    }
+
     base.MakeReadOnly();
   }
 
@@ -286,6 +316,11 @@ public abstract class UserAttribute : ReadOnlyClass, ISignableObject
     // currently, only Image attributes are supported
     return type == OpenPGPAttributeType.Image ?
       (UserAttribute)new UserImage(subpacketData) : new UnknownUserAttribute((int)type, subpacketData);
+  }
+
+  PrimaryKey ISignableObject.PrimaryKey
+  {
+    get { return key; }
   }
 
   PrimaryKey key;
@@ -485,6 +520,12 @@ public abstract class Key : ReadOnlyClass
     }
   }
 
+  /// <summary>Gets the <see cref="Fingerprint"/> if it is valid, and the <see cref="KeyId"/> otherwise.</summary>
+  public string EffectiveId
+  {
+    get { return !string.IsNullOrEmpty(Fingerprint) ? Fingerprint : KeyId; }
+  }
+
   /// <summary>Gets or sets the time when the key will expire, or null if it has no expiration.</summary>
   public DateTime? ExpirationTime
   {
@@ -609,6 +650,12 @@ public abstract class Key : ReadOnlyClass
   public override void MakeReadOnly()
   {
     if(sigs == null) throw new InvalidOperationException("The Signatures property has not been set.");
+    
+    foreach(KeySignature sig in sigs)
+    {
+      if(sig == null) throw new InvalidOperationException("A key signature was null.");
+    }
+
     base.MakeReadOnly();
   }
 
@@ -798,6 +845,11 @@ public class PrimaryKey : Key, ISignableObject
     return str;
   }
 
+  PrimaryKey ISignableObject.PrimaryKey
+  {
+    get { return this; }
+  }
+
   IReadOnlyList<Subkey> subkeys;
   IReadOnlyList<UserId> userIds;
   IReadOnlyList<UserAttribute> userAttributes;
@@ -813,7 +865,7 @@ public class PrimaryKey : Key, ISignableObject
 
 #region Subkey
 /// <summary>Represents a subkey of a primary key. See <see cref="PrimaryKey"/> for a more thorough description.</summary>
-public class Subkey : Key
+public class Subkey : Key, ISignableObject
 {
   /// <include file="documentation.xml" path="/Security/Key/Keyring/*"/>
   public override Keyring Keyring
@@ -964,7 +1016,8 @@ public class Keyring
   /// <summary>Determines whether this keyring equals the given keyring.</summary>
   public bool Equals(Keyring other)
   {
-    return other != null && string.Equals(PublicFile, other.PublicFile, StringComparison.Ordinal) &&
+    return this == other ||
+           other != null && string.Equals(PublicFile, other.PublicFile, StringComparison.Ordinal) &&
            string.Equals(SecretFile, other.SecretFile, StringComparison.Ordinal) &&
            string.Equals(TrustDbFile, other.TrustDbFile, StringComparison.Ordinal);
   }
@@ -980,6 +1033,12 @@ public class Keyring
   {
     return "public:" + PublicFile + (SecretFile == null ? null : ", secret:" + SecretFile) +
            (TrustDbFile == null ? null : ", trustdb:" + TrustDbFile);
+  }
+
+  /// <summary>Determines whether the two keyrings given are equal.</summary>
+  public static bool Equals(Keyring a, Keyring b)
+  {
+    return a == null ? b == null : a.Equals(b);
   }
 
   string publicFile, secretFile, trustDbFile;

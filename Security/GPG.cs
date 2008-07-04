@@ -124,6 +124,20 @@ public class ExeGPG : GPG
     get { return exePath; }
   }
 
+  /// <summary>Gets or sets whether the <see cref="KeySignature.KeyFingerprint"/> field will be retrieved. According to
+  /// the GPG documentation, GPG won't return fingerprints on key signatures unless signature verification is enabled
+  /// and signature caching is disabled, due to "various technical reasons". Checking the signatures and disabling the
+  /// cache causes a significant performance hit, however, so by default it is not done. If this property is set to
+  /// true, the cache will be disabled and signature verification will be enabled on all key retrievals, allowing GPG
+  /// to return the key signature fingerprint. Note that even with this property set to true, the fingerprint still
+  /// won't be set if the key signature failed verification.
+  /// </summary>
+  public bool RetrieveKeySignatureFingerprints
+  {
+    get { return retrieveKeySignatureFingerprints; }
+    set { retrieveKeySignatureFingerprints = value; }
+  }
+
   /// <include file="documentation.xml" path="/Security/PGPSystem/CreateTrustDatabase/*"/>
   public override void CreateTrustDatabase(string path)
   {
@@ -939,6 +953,12 @@ public class ExeGPG : GPG
       Dispose(false);
     }
 
+    /// <summary>Kills the process if it's running.</summary>
+    public void Kill()
+    {
+      if(process != null) process.Kill();
+    }
+
     /// <summary>Parses a string containing a status line into a status message.</summary>
     public StatusMessage ParseStatusMessage(string line)
     {
@@ -1666,7 +1686,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     CommandState state = new CommandState();
 
     Command cmd = ExecuteForEdit(key, extraArgs);
-    using(cmd)
+    try
     {
       cmd.StandardErrorLine += delegate(string line)
       {
@@ -1707,26 +1727,26 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
 
               case "uid":
               case "uat":
+              {
+                EditUserId uid = new EditUserId();
+                uid.Index       = uidIndex++;
+                uid.IsAttribute = fields[0][1] == 'a'; // it's an attribute if fields[0] == "uat"
+                uid.Name        = fields[9];
+                uid.Prefs       = fields[12].Split(',')[0];
+
+                string[] bits = fields[13].Split(',');
+                if(bits.Length > 1)
                 {
-                  EditUserId uid = new EditUserId();
-                  uid.Index       = uidIndex++;
-                  uid.IsAttribute = fields[0][1] == 'a'; // it's an attribute if fields[0] == "uat"
-                  uid.Name        = fields[9];
-                  uid.Prefs       = fields[12].Split(',')[0];
-
-                  string[] bits = fields[13].Split(',');
-                  if(bits.Length > 1)
+                  foreach(char c in bits[1])
                   {
-                    foreach(char c in bits[1])
-                    {
-                      if(c == 'p') uid.Primary = true;
-                      else if(c == 's') uid.Selected = true;
-                    }
+                    if(c == 'p') uid.Primary = true;
+                    else if(c == 's') uid.Selected = true;
                   }
-
-                  newKey.UserIds.Add(uid);
-                  break;
                 }
+
+                newKey.UserIds.Add(uid);
+                break;
+              }
             }
 
             line = cmd.Process.StandardOutput.ReadLine();
@@ -1750,29 +1770,29 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
               case StatusMessageType.GetLine:
               case StatusMessageType.GetHidden:
               case StatusMessageType.GetBool:
-              {
-                string promptId = ((GetInputMessage)msg).PromptId;
-                while(true)
                 {
-                  if(commands.Count == 0) commands.Enqueue(new QuitEditCommand(true));
+                  string promptId = ((GetInputMessage)msg).PromptId;
+                  while(true)
+                  {
+                    if(commands.Count == 0) commands.Enqueue(new QuitEditCommand(true));
 
-                  EditCommandResult result = commands.Peek().Process(commands, originalKey, editKey, cmd, promptId);
-                  if(result == EditCommandResult.Continue)
-                  {
-                    break;
+                    EditCommandResult result = commands.Peek().Process(commands, originalKey, editKey, cmd, promptId);
+                    if(result == EditCommandResult.Continue)
+                    {
+                      break;
+                    }
+                    else if(result == EditCommandResult.Done)
+                    {
+                      commands.Dequeue();
+                      break;
+                    }
+                    else if(result == EditCommandResult.Next)
+                    {
+                      commands.Dequeue();
+                    }
                   }
-                  else if(result == EditCommandResult.Done)
-                  {
-                    commands.Dequeue();
-                    break;
-                  }
-                  else if(result == EditCommandResult.Next)
-                  {
-                    commands.Dequeue();
-                  }
+                  break;
                 }
-                break;
-              }
 
               case StatusMessageType.NeedCipherPassphrase:
                 while(true)
@@ -1807,10 +1827,38 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
             }
           }
         }
+        else
+        {
+          while(true)
+          {
+            if(commands.Count == 0) break;
+
+            EditCommandResult result = commands.Peek().Process(line);
+            if(result == EditCommandResult.Continue)
+            {
+              break;
+            }
+            else if(result == EditCommandResult.Done)
+            {
+              commands.Dequeue();
+              break;
+            }
+            else if(result == EditCommandResult.Next)
+            {
+              commands.Dequeue();
+            }
+          }
+        }
       }
 
       cmd.WaitForExit();
     }
+    catch // if an exception is thrown, the process will probably be stuck at the menu waiting for input,
+    {     // so we'll just kill it to prevent it from taking a long time to Dispose
+      cmd.Kill();
+      throw;
+    }
+    finally { cmd.Dispose(); }
 
     cmd.CheckExitCode();
   }
@@ -1933,13 +1981,13 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
                        string searchArgs)
   {
     ListOptions signatures = options & ListOptions.SignatureMask;
-    // gpg seems to require --no-sig-cache in order to return fingerprints for signatures. that's unfortunate because
-    // --no-sig-cache slows things down a fair bit.
+
     string args;
-    if(secretKeys) args = "--list-secret-keys "; // TODO: add --no-auto-check-trustdb to this
-    else if(signatures == ListOptions.RetrieveSignatures) args = "--list-sigs --no-sig-cache ";
-    else if(signatures == ListOptions.VerifySignatures) args = "--check-sigs --no-sig-cache ";
-    else args = "--list-keys "; // TODO: add --no-auto-check-trustdb to this
+    if(secretKeys) args = "--list-secret-keys "; // TODO: add --no-auto-check-trustdb to this?
+    else if(signatures == 0) args = "--list-keys "; // TODO: add --no-auto-check-trustdb to this?
+    else if(RetrieveKeySignatureFingerprints) args = "--check-sigs --no-sig-cache ";
+    else if(signatures == ListOptions.RetrieveSignatures) args = "--list-sigs ";
+    else if(signatures == ListOptions.VerifySignatures) args = "--check-sigs ";
 
     // produce machine-readable output
     args += "--with-fingerprint --with-fingerprint --with-colons --fixed-list-mode ";
@@ -2064,9 +2112,8 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
             }
             if(fields.Length > 12 && !string.IsNullOrEmpty(fields[12]))
             {
-              sig.Fingerprint = fields[12].ToUpperInvariant();
+              sig.KeyFingerprint = fields[12].ToUpperInvariant();
             }
-            sig.MakeReadOnly();
             sigs.Add(sig);
             break;
 
@@ -2074,7 +2121,12 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
           {
             FinishAttribute(attributes, sigs, currentPrimary, currentSubkey, ref currentAttribute);
             UserId userId = new UserId();
-            if(!string.IsNullOrEmpty(fields[1])) userId.CalculatedTrust = ParseTrustLevel(fields[1][0]);
+            if(!string.IsNullOrEmpty(fields[1]))
+            {
+              char c = fields[1][0];
+              userId.CalculatedTrust = ParseTrustLevel(c);
+              userId.Revoked         = c == 'r';
+            }
             if(!string.IsNullOrEmpty(fields[5])) userId.CreationTime    = ParseTimestamp(fields[5]);
             if(!string.IsNullOrEmpty(fields[7])) userId.Id              = fields[7].ToUpperInvariant();
             if(!string.IsNullOrEmpty(fields[9])) userId.Name            = CUnescape(fields[9]);
@@ -2244,6 +2296,11 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     {
       state.FailureReasons |= FailureReason.MissingSecretKey;
     }
+    else // handle: secret key "Foo" not found
+    {
+      int index = line.IndexOf("secret key \"", StringComparison.Ordinal);
+      if(index != -1 && index < line.IndexOf("\" not found")) state.FailureReasons |= FailureReason.MissingSecretKey;
+    }
   }
 
   /// <summary>Executes the given GPG executable with the given arguments.</summary>
@@ -2341,9 +2398,41 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     ReadOnlyListWrapper<KeySignature> list = new ReadOnlyListWrapper<KeySignature>(sigs.ToArray());
 
     // add the signatures to the most recent object in the key listing
-    if(currentAttribute != null) currentAttribute.Signatures = list;
-    else if(currentSubkey != null) currentSubkey.Signatures = list;
-    else if(currentPrimary != null) currentPrimary.Signatures = list;
+    ISignableObject signedObject = null;
+
+    if(currentAttribute != null)
+    {
+      if(currentAttribute.Signatures == null)
+      {
+        currentAttribute.Signatures = list;
+        signedObject = currentAttribute;
+      }
+    }
+    else if(currentSubkey != null)
+    {
+      if(currentSubkey.Signatures == null)
+      {
+        currentSubkey.Signatures = list;
+        signedObject = currentSubkey;
+      }
+    }
+    else if(currentPrimary != null)
+    {
+      if(currentPrimary.Signatures == null)
+      {
+        currentPrimary.Signatures = list;
+        signedObject = currentPrimary;
+      }
+    }
+
+    if(signedObject != null)
+    {
+      foreach(KeySignature sig in list)
+      {
+        sig.Object = signedObject;
+        sig.MakeReadOnly();
+      }
+    }
 
     sigs.Clear();
   }
@@ -2373,7 +2462,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
 
     if(currentAttribute != null && currentPrimary != null)
     {
-      currentAttribute.Key  = currentPrimary;
+      currentAttribute.Key = currentPrimary;
 
       if(currentAttribute is UserId) // the primary user ID is the first one listed
       {
@@ -2492,8 +2581,6 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     string args = null, trustDb = null;
     bool trustDbSet = false;
 
-    if(ignoreDefaultKeyring) args += "--no-default-keyring ";
-
     foreach(Keyring keyring in keyrings)
     {
       string thisTrustDb = keyring == null ? null : NormalizeKeyringFile(keyring.TrustDbFile);
@@ -2516,6 +2603,15 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
           args += "--secret-keyring " + EscapeArg(NormalizeKeyringFile(keyring.SecretFile)) + " ";
         }
       }
+    }
+
+    if(ignoreDefaultKeyring)
+    {
+      if(args == null)
+      {
+        throw new ArgumentException("The default keyring is being ignored, but no valid keyrings were given.");
+      }
+      args += "--no-default-keyring ";
     }
 
     if(trustDb != null) args += "--trustdb-name " + EscapeArg(trustDb) + " ";
@@ -2648,6 +2744,158 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     return psi;
   }
 
+  /// <summary>Given an array of user attributes, returns a collection of user attribute lists, where the attributes in
+  /// each list are grouped by key.
+  /// </summary>
+  static IEnumerable<List<UserAttribute>> GroupAttributesByKey(UserAttribute[] attributes)
+  {
+    if(attributes == null) throw new ArgumentNullException();
+
+    Dictionary<string, List<UserAttribute>> keyMap = new Dictionary<string, List<UserAttribute>>();
+    foreach(UserAttribute attribute in attributes)
+    {
+      if(attribute == null) throw new ArgumentException("An attribute was null.");
+
+      if(attribute.Key == null || string.IsNullOrEmpty(attribute.Key.Fingerprint))
+      {
+        throw new ArgumentException("An attribute did not have a key with a fingerprint.");
+      }
+
+      List<UserAttribute> list;
+      if(!keyMap.TryGetValue(attribute.Key.Fingerprint, out list))
+      {
+        keyMap[attribute.Key.Fingerprint] = list = new List<UserAttribute>();
+      }
+
+      int i;
+      for(i=0; i<list.Count; i++)
+      {
+        if(string.Equals(list[i].Id, attribute.Id, StringComparison.Ordinal)) break;
+      }
+      if(i == list.Count) list.Add(attribute);
+    }
+    return keyMap.Values;
+  }
+
+  static void GroupSignaturesByKeyAndObject(KeySignature[] signatures,
+                                            out Dictionary<string, List<UserAttribute>> uidMap,
+                                            out Dictionary<string, List<KeySignature>> sigMap)
+  {
+    if(signatures == null) throw new ArgumentNullException();
+
+    // we need to group the signed objects by their owning key and the signatures by the signed object
+    uidMap = new Dictionary<string, List<UserAttribute>>();
+    sigMap = new Dictionary<string, List<KeySignature>>();
+
+    foreach(KeySignature sig in signatures)
+    {
+      if(sig == null) throw new ArgumentException("A signature was null.");
+
+      UserAttribute signedObject = sig.Object as UserAttribute;
+      if(signedObject == null) throw new NotSupportedException("Only deleting signatures on attributes is supported.");
+
+      if(signedObject.Key == null || string.IsNullOrEmpty(signedObject.Key.Fingerprint))
+      {
+        throw new ArgumentException("A signed object did not have a key with a fingerprint.");
+      }
+
+      List<UserAttribute> uidList;
+      if(!uidMap.TryGetValue(signedObject.Key.Fingerprint, out uidList))
+      {
+        uidMap[signedObject.Key.Fingerprint] = uidList = new List<UserAttribute>();
+      }
+
+      int i;
+      for(i=0; i<uidList.Count; i++)
+      {
+        if(string.Equals(signedObject.Id, uidList[i].Id, StringComparison.Ordinal)) break;
+      }
+      if(i == uidList.Count) uidList.Add(signedObject);
+
+      List<KeySignature> sigList;
+      if(!sigMap.TryGetValue(signedObject.Id, out sigList))
+      {
+        sigMap[signedObject.Id] = sigList = new List<KeySignature>();
+      }
+      sigList.Add(sig);
+    }
+  }
+
+  /// <summary>Given an array of subkeys, returns a collection of subkey lists, where the subkeys in each list are
+  /// grouped by key.
+  /// </summary>
+  static IEnumerable<List<Subkey>> GroupSubkeysByKey(Subkey[] subkeys)
+  {
+    if(subkeys == null) throw new ArgumentNullException();
+
+    // the subkeys need to be grouped by primary key
+    Dictionary<string, List<Subkey>> keyMap = new Dictionary<string, List<Subkey>>();
+    foreach(Subkey subkey in subkeys)
+    {
+      if(subkey == null) throw new ArgumentException("A subkey was null.");
+      if(subkey.PrimaryKey == null || string.IsNullOrEmpty(subkey.PrimaryKey.Fingerprint))
+      {
+        throw new ArgumentException("A subkey did not have a primary key with a fingerprint.");
+      }
+
+      List<Subkey> keyList;
+      if(!keyMap.TryGetValue(subkey.PrimaryKey.Fingerprint, out keyList))
+      {
+        keyMap[subkey.PrimaryKey.Fingerprint] = keyList = new List<Subkey>();
+      }
+      keyList.Add(subkey);
+    }
+
+    return keyMap.Values;
+  }
+
+  static bool HandleRevokePrompt(Command cmd, string promptId, KeyRevocationReason keyReason,
+                                 UserRevocationReason userReason, ref string[] lines, ref int lineIndex)
+  {
+    if(string.Equals(promptId, "ask_revocation_reason.text", StringComparison.Ordinal))
+    {
+      if(lines == null)
+      {
+        string text = userReason != null ? userReason.Explanation :
+                        keyReason  != null ? keyReason.Explanation  : null;
+        lines = text == null ? // remove empty lines of text
+            new string[0] : text.Replace("\r", "").Split(new char[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+      }
+
+      if(lineIndex < lines.Length)
+      {
+        cmd.SendLine(lines[lineIndex++]);
+      }
+      else
+      {
+        cmd.SendLine();
+        lineIndex = 0;
+      }
+    }
+    else if(string.Equals(promptId, "ask_revocation_reason.code", StringComparison.Ordinal))
+    {
+      if(userReason != null && userReason.Reason == UserRevocationCode.IdNoLongerValid)
+      {
+        cmd.SendLine("4");
+      }
+      else if(keyReason != null)
+      {
+        if(keyReason.Reason == KeyRevocationCode.KeyCompromised) cmd.SendLine("1");
+        else if(keyReason.Reason == KeyRevocationCode.KeyRetired) cmd.SendLine("3");
+        else if(keyReason.Reason == KeyRevocationCode.KeySuperceded) cmd.SendLine("2");
+        else cmd.SendLine("0");
+      }
+      else cmd.SendLine("0");
+    }
+    else if(string.Equals(promptId, "ask_revocation_reason.okay", StringComparison.Ordinal))
+    {
+      cmd.SendLine("Y");
+    }
+    else return false;
+
+    return true;
+  }
+
   static bool IsHexDigit(char c)
   {
     if(c >= '0' && c <= '9') return true;
@@ -2774,6 +3022,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
 
   string[] ciphers, hashes, keyTypes, compressions;
   string exePath;
+  bool retrieveKeySignatureFingerprints;
 
   static readonly ReadOnlyListWrapper<UserAttribute> NoAttributes =
     new ReadOnlyListWrapper<UserAttribute>(new UserAttribute[0]);
@@ -2878,6 +3127,11 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
       else throw new NotImplementedException("Unhandled prompt: " + promptId);
     }
 
+    public virtual EditCommandResult Process(string line)
+    {
+      return EditCommandResult.Continue;
+    }
+
     public virtual EditCommandResult SendCipherPassword(EditKey originalKey, EditKey key, Command cmd)
     {
       throw new NotImplementedException("Unhandled cipher passphrase.");
@@ -2901,21 +3155,6 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     {
       if(preferences != null)
       {
-        commands.Enqueue(new SelectLastUid());
-
-        if(preferences.Primary) commands.Enqueue(new SetPrimary());
-
-        if(preferences.Keyserver != null)
-        {
-          commands.Enqueue(new RawCommand("keyserver " + preferences.Keyserver.AbsoluteUri));
-        }
-
-        if(preferences.PreferredCiphers.Count != 0 || preferences.PreferredCompressions.Count != 0 ||
-             preferences.PreferredHashes.Count != 0)
-        {
-          commands.Enqueue(new SetAlgoPrefs(preferences));
-        }
-
         if(!preferences.Primary)
         {
           EditUserId id = addAttribute ? originalKey.PrimaryAttribute : originalKey.PrimaryUserId;
@@ -2925,6 +3164,9 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
             commands.Enqueue(new SetPrimary());
           }
         }
+
+        commands.Enqueue(new SelectLastUid());
+        commands.Enqueue(new SetPrefs(preferences));
       }
     }
 
@@ -3225,6 +3467,153 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     bool sentCommand;
   }
 
+  sealed class DeleteSigs : EditSigsBase
+  {
+    public DeleteSigs(KeySignature[] sigs) : base(sigs) { }
+
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+        if(!sentCommand)
+        {
+          if(key.SelectedUserId == null) throw UnexpectedError("Can't delete signatures because no uid is selected.");
+          cmd.SendLine("delsig");
+          sentCommand = true;
+        }
+        else return EditCommandResult.Next;
+      }
+      else if(string.Equals(promptId, "keyedit.delsig.valid", StringComparison.Ordinal))
+      {
+        // the previous line should have contained a sig: line that was parsed into the various sig* member variables.
+        // we'll answer yes if the parsed signature appears to match any of the KeySignature objects we have
+        cmd.SendLine(CurrentSigMatches ? "Y" : "N");
+      }
+      else if(string.Equals(promptId, "keyedit.delsig.selfsig", StringComparison.Ordinal))
+      {
+        cmd.SendLine("Y");
+      }
+      else return base.Process(commands, originalKey, key, cmd, promptId);
+
+      return EditCommandResult.Continue;
+    }
+
+    bool sentCommand;
+  }
+
+  sealed class DeleteSubkeysCommand : EditCommand
+  {
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+        if(!sentCommand)
+        {
+          cmd.SendLine("delkey");
+          sentCommand = true;
+        }
+        else return EditCommandResult.Next;
+      }
+      else if(string.Equals(promptId, "keyedit.remove.subkey.okay", StringComparison.Ordinal))
+      {
+        cmd.SendLine("Y");
+      }
+      else return base.Process(commands, originalKey, key, cmd, promptId);
+
+      return EditCommandResult.Continue;
+    }
+
+    bool sentCommand;
+  }
+
+  sealed class DeleteUids : EditCommand
+  {
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+        if(!sentCommand)
+        {
+          int i;
+          for(i=0; i<key.UserIds.Count; i++)
+          {
+            if(!key.UserIds[i].IsAttribute && !key.UserIds[i].Selected) break;
+          }
+
+          if(i == key.UserIds.Count) throw new PGPException("Can't delete the last user ID!");
+
+          cmd.SendLine("deluid");
+          sentCommand = true;
+        }
+        else return EditCommandResult.Next;
+      }
+      else if(string.Equals(promptId, "keyedit.remove.uid.okay", StringComparison.Ordinal))
+      {
+        cmd.SendLine("Y");
+      }
+      else return base.Process(commands, originalKey, key, cmd, promptId);
+
+      return EditCommandResult.Continue;
+    }
+
+    bool sentCommand;
+  }
+
+  abstract class EditSigsBase : RevokeBase
+  {
+    protected EditSigsBase(KeySignature[] sigs) : this(null, sigs) { }
+
+    protected EditSigsBase(UserRevocationReason reason, KeySignature[] sigs) : base(reason)
+    {
+      if(sigs == null || sigs.Length == 0) throw new ArgumentException();
+      this.sigs = sigs;
+    }
+
+    protected bool CurrentSigMatches
+    {
+      get
+      {
+        bool matches = false;
+        if(sigs != null)
+        {
+          foreach(KeySignature sig in sigs)
+          {
+            if(sig.Exportable == sigExportable && sig.Type == sigType &&
+               string.Equals(sig.KeyId, sigKeyId, StringComparison.Ordinal) && sig.CreationTime == sigCreation)
+            {
+              matches = true;
+              break;
+            }
+          }
+        }
+        return matches;
+      }
+    }
+
+    public override EditCommandResult Process(string line)
+    {
+      if(line.StartsWith("sig:", StringComparison.OrdinalIgnoreCase))
+      {
+        string[] fields = line.Split(':');
+        sigKeyId = fields[4].ToUpperInvariant();
+        sigCreation = GPG.ParseTimestamp(fields[5]);
+        string sigTypeStr = fields[10];
+        sigType = (OpenPGPSignatureType)GetHexValue(sigTypeStr[0], sigTypeStr[1]);
+        sigExportable = sigTypeStr[2] == 'x';
+        return EditCommandResult.Continue;
+      }
+      else return base.Process(line);
+    }
+
+    readonly KeySignature[] sigs;
+    string sigKeyId;
+    DateTime sigCreation;
+    OpenPGPSignatureType sigType;
+    bool sigExportable;
+  }
+
   sealed class GetPrefs : EditCommand
   {
     public GetPrefs(UserPreferences preferences)
@@ -3293,7 +3682,13 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
-        cmd.SendLine(save ? "save" : "quit");
+        if(!sentCommand)
+        {
+          cmd.SendLine(save ? "save" : "quit");
+          sentCommand = true;
+        }
+        else throw new PGPException("An error occurred while " + (save ? "saving" : "quitting") +
+                                    ". Changes may not have been applied.");
       }
       else if(string.Equals(promptId, "keyedit.save.okay", StringComparison.Ordinal))
       {
@@ -3305,6 +3700,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     }
 
     readonly bool save;
+    bool sentCommand;
   }
 
   sealed class RawCommand : EditCommand
@@ -3322,6 +3718,128 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     }
 
     readonly string command;
+  }
+
+  abstract class RevokeBase : EditCommand
+  {
+    public RevokeBase(UserRevocationReason reason)
+    {
+      userReason = reason;
+    }
+
+    public RevokeBase(KeyRevocationReason reason)
+    {
+      keyReason = reason;
+    }
+
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId)
+    {
+      if(HandleRevokePrompt(cmd, promptId, keyReason, userReason, ref lines, ref lineIndex))
+      {
+        return EditCommandResult.Continue;
+      }
+      else return base.Process(commands, originalKey, key, cmd, promptId);
+    }
+
+    readonly UserRevocationReason userReason;
+    readonly KeyRevocationReason keyReason;
+    string[] lines;
+    int lineIndex;
+  }
+
+  sealed class RevokeSigs : EditSigsBase
+  {
+    public RevokeSigs(UserRevocationReason reason, KeySignature[] sigs) : base(reason, sigs) { }
+
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+        if(!sentCommand)
+        {
+          if(key.SelectedUserId == null) throw UnexpectedError("Can't revoke signatures because no uid is selected.");
+          cmd.SendLine("revsig");
+          sentCommand = true;
+        }
+        else return EditCommandResult.Next;
+      }
+      else if(string.Equals(promptId, "ask_revoke_sig.one", StringComparison.Ordinal))
+      {
+        // the previous line should have contained a sig: line that was parsed into the various sig* member variables.
+        // we'll answer yes if the parsed signature appears to match any of the KeySignature objects we have
+        cmd.SendLine(CurrentSigMatches ? "Y" : "N");
+      }
+      else if(string.Equals(promptId, "ask_revoke_sig.okay", StringComparison.Ordinal))
+      {
+        cmd.SendLine("Y");
+      }
+      else return base.Process(commands, originalKey, key, cmd, promptId);
+
+      return EditCommandResult.Continue;
+    }
+
+    bool sentCommand;
+  }
+
+  sealed class RevokeSubkeysCommand : RevokeBase
+  {
+    public RevokeSubkeysCommand(KeyRevocationReason reason) : base(reason) { }
+
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+        if(!sentCommand)
+        {
+          cmd.SendLine("revkey");
+          sentCommand = true;
+        }
+        else if(!gotConfirmation) throw UnexpectedError("Unable to delete subkeys. Perhaps no subkey was selected?");
+        else return EditCommandResult.Next;
+      }
+      else if(string.Equals(promptId, "keyedit.revoke.subkey.okay", StringComparison.Ordinal))
+      {
+        gotConfirmation = true;
+        cmd.SendLine("Y");
+      }
+      else return base.Process(commands, originalKey, key, cmd, promptId);
+
+      return EditCommandResult.Continue;
+    }
+
+    bool sentCommand, gotConfirmation;
+  }
+
+  sealed class RevokeUids : RevokeBase
+  {
+    public RevokeUids(UserRevocationReason reason) : base(reason) { }
+
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+        if(!sentCommand)
+        {
+          if(key.SelectedUserId == null) throw UnexpectedError("Can't revoke user IDs because none are selected.");
+          cmd.SendLine("revuid");
+          sentCommand = true;
+        }
+        else return EditCommandResult.Next;
+      }
+      else if(string.Equals(promptId, "keyedit.revoke.uid.okay", StringComparison.Ordinal))
+      {
+        cmd.SendLine("Y");
+      }
+      else return base.Process(commands, originalKey, key, cmd, promptId);
+
+      return EditCommandResult.Continue;
+    }
+
+    bool sentCommand;
   }
 
   sealed class SelectLastUid : EditCommand
@@ -3354,10 +3872,11 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
 
   sealed class SelectSubkey : EditCommand
   {
-    public SelectSubkey(string fingerprint)
+    public SelectSubkey(string fingerprint, bool deselectFirst)
     {
-      if(string.IsNullOrEmpty(fingerprint)) throw new ArgumentException("Fingprint was null or empty.");
-      this.fingerprint = fingerprint;
+      if(string.IsNullOrEmpty(fingerprint)) throw new ArgumentException("Fingerprint was null or empty.");
+      this.fingerprint   = fingerprint;
+      this.deselectFirst = deselectFirst;
     }
 
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
@@ -3365,7 +3884,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
-        if(!clearedSelection)
+        if(deselectFirst && !clearedSelection)
         {
           cmd.SendLine("key -");
           clearedSelection = true;
@@ -3389,6 +3908,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     }
 
     readonly string fingerprint;
+    readonly bool deselectFirst;
     bool clearedSelection;
   }
 
@@ -3490,6 +4010,39 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     bool sentPrefs;
   }
 
+  sealed class SetPrefs : EditCommand
+  {
+    public SetPrefs(UserPreferences preferences)
+    {
+      this.preferences = preferences;
+    }
+
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+        if(preferences.Primary) commands.Enqueue(new SetPrimary());
+
+        if(preferences.Keyserver != null)
+        {
+          commands.Enqueue(new RawCommand("keyserver " + preferences.Keyserver.AbsoluteUri));
+        }
+
+        if(preferences.PreferredCiphers.Count != 0 || preferences.PreferredCompressions.Count != 0 ||
+               preferences.PreferredHashes.Count != 0)
+        {
+          commands.Enqueue(new SetAlgoPrefs(preferences));
+        }
+
+        return EditCommandResult.Next;
+      }
+      else return base.Process(commands, originalKey, key, cmd, promptId);
+    }
+
+    readonly UserPreferences preferences;
+  }
+
   sealed class SetPrimary : EditCommand
   {
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
@@ -3549,6 +4102,74 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     }
 
     readonly TrustLevel level;
+    bool sentCommand;
+  }
+
+  sealed class SignKeyCommand : EditCommand
+  {
+    public SignKeyCommand(KeySigningOptions options, bool allowImplicitUidSignature)
+    {
+      this.options = options;
+      this.allowImplicitUidSignature = allowImplicitUidSignature;
+    }
+
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              Command cmd, string promptId)
+    {
+      if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
+      {
+        if(!sentCommand)
+        {
+          string prefix = null;
+          if(options == null || !options.Exportable) prefix += "l";
+          if(options != null)
+          {
+            if(options.TrustLevel != TrustLevel.Unknown) prefix += "t";
+            if(options.Irrevocable) prefix += "nr";
+          }
+          cmd.SendLine(prefix + "sign");
+          sentCommand = true;
+        }
+        else return EditCommandResult.Next;
+      }
+      else if(string.Equals(promptId, "sign_uid.okay", StringComparison.Ordinal))
+      {
+        cmd.SendLine("Y");
+      }
+      else if(string.Equals(promptId, "keyedit.sign_all.okay", StringComparison.Ordinal))
+      {
+        if(allowImplicitUidSignature) cmd.SendLine("Y");
+        else
+        {
+          throw UnexpectedError("No user ID was selected, and you didn't request to sign the entire key. "+
+                                "Perhaps the user ID to sign no longer exists?");
+        }
+      }
+      else if(string.Equals(promptId, "trustsig_prompt.trust_value", StringComparison.Ordinal))
+      {
+        if(options == null || options.TrustLevel == TrustLevel.Unknown)
+        {
+          throw UnexpectedError("GPG asked about trust levels for a non-trust signature.");
+        }
+        else if(options.TrustLevel == TrustLevel.Marginal) cmd.SendLine("1");
+        else if(options.TrustLevel == TrustLevel.Full) cmd.SendLine("2");
+        else throw new NotSupportedException("Trust level " + options.TrustLevel.ToString() + " is not supported.");
+      }
+      else if(string.Equals(promptId, "trustsig_prompt.trust_depth", StringComparison.Ordinal))
+      {
+        cmd.SendLine(options.TrustDepth.ToString(CultureInfo.InvariantCulture));
+      }
+      else if(string.Equals(promptId, "trustsig_prompt.trust_regexp", StringComparison.Ordinal))
+      {
+        cmd.SendLine(options.TrustDomain);
+      }
+      else return base.Process(commands, originalKey, key, cmd, promptId);
+
+      return EditCommandResult.Continue;
+    }
+
+    readonly KeySigningOptions options;
+    readonly bool allowImplicitUidSignature;
     bool sentCommand;
   }
 
@@ -3629,7 +4250,8 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     }
     else
     {
-      DoEdit(key.GetPrimaryKey(), null, new SelectSubkey(subkey.Fingerprint), new ChangeExpirationCommand(expiration));
+      DoEdit(key.GetPrimaryKey(), null, new SelectSubkey(subkey.Fingerprint, true),
+             new ChangeExpirationCommand(expiration));
     }
   }
 
@@ -3640,7 +4262,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/CleanKeys/*" />
-  public override void CleanKeys(PrimaryKey[] keys)
+  public override void CleanKeys(params PrimaryKey[] keys)
   {
     foreach(PrimaryKey key in keys)
     {
@@ -3650,7 +4272,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/MinimizeKeys/*" />
-  public override void MinimizeKeys(PrimaryKey[] keys)
+  public override void MinimizeKeys(params PrimaryKey[] keys)
   {
     foreach(PrimaryKey key in keys)
     {
@@ -3660,7 +4282,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/DisableKeys/*" />
-  public override void DisableKeys(PrimaryKey[] keys)
+  public override void DisableKeys(params PrimaryKey[] keys)
   {
     foreach(PrimaryKey key in keys)
     {
@@ -3670,7 +4292,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/EnableKeys/*" />
-  public override void EnableKeys(PrimaryKey[] keys)
+  public override void EnableKeys(params PrimaryKey[] keys)
   {
     foreach(PrimaryKey key in keys)
     {
@@ -3679,19 +4301,108 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     }
   }
 
-  public override void DeleteAttributes(UserAttribute[] attributes)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteAttributes/*" />
+  public override void DeleteAttributes(params UserAttribute[] attributes)
   {
-    throw new NotImplementedException();
+    foreach(List<UserAttribute> list in GroupAttributesByKey(attributes))
+    {
+      EditCommand[] commands = new EditCommand[list.Count+1];
+      for(int i=0; i<list.Count; i++) commands[i] = new RawCommand("uid " + list[i].Id);
+      commands[commands.Length-1] = new DeleteUids();
+      DoEdit(list[0].Key, null, commands);
+    }
   }
 
-  public override void DeleteSignatures(KeySignature[] signatures)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSignatures/*" />
+  public override void DeleteSignatures(params KeySignature[] signatures)
   {
-    throw new NotImplementedException();
+    Dictionary<string, List<UserAttribute>> uidMap;
+    Dictionary<string, List<KeySignature>> sigMap;
+    GroupSignaturesByKeyAndObject(signatures, out uidMap, out sigMap);
+
+    List<EditCommand> commands = new List<EditCommand>();
+    foreach(KeyValuePair<string,List<UserAttribute>> pair in uidMap) // for each key to be edited...
+    {
+      bool firstUid = true;
+      foreach(UserAttribute uid in pair.Value) // for each affected UID in the key
+      {
+        if(!firstUid) commands.Add(new RawCommand("uid -")); // select the UID
+        commands.Add(new RawCommand("uid " + uid.Id));
+        commands.Add(new DeleteSigs(sigMap[uid.Id].ToArray())); // then delete its corresponding signatures
+        firstUid = false;
+      }
+
+      DoEdit(pair.Value[0].Key, null, commands.ToArray());
+      commands.Clear();
+    }
   }
 
-  public override void DeleteSubkeys(Subkey[] subkeys)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSubkeys/*" />
+  public override void DeleteSubkeys(params Subkey[] subkeys)
   {
-    throw new NotImplementedException();
+    foreach(List<Subkey> keyList in GroupSubkeysByKey(subkeys))
+    {
+      EditCommand[] commands = new EditCommand[keyList.Count+1];
+      for(int i=0; i<keyList.Count; i++) commands[i] = new SelectSubkey(keyList[i].Fingerprint, false);
+      commands[keyList.Count] = new DeleteSubkeysCommand();
+      DoEdit(keyList[0].PrimaryKey, null, commands);
+    }
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRevocationCertificate/*" />
+  public override void GenerateRevocationCertificate(PrimaryKey key, Stream destination, KeyRevocationReason reason,
+                                                     OutputOptions outputOptions)
+  {
+    if(key == null || destination == null) throw new ArgumentNullException();
+
+    string args = GetKeyringArgs(key.Keyring, true, true, true) + GetOutputArgs(outputOptions) +
+                  "--gen-revoke " + key.Fingerprint;
+    CommandState state = new CommandState(); 
+    Command cmd = Execute(args, true, true, StreamHandling.Unprocessed, StreamHandling.ProcessText);
+    using(cmd)
+    {
+      string[] lines = null;
+      int lineIndex  = 0;
+
+      cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, ref state); };
+
+      cmd.StatusMessageReceived += delegate(StatusMessage msg)
+      {
+        switch(msg.Type)
+        {
+          case StatusMessageType.GetLine: case StatusMessageType.GetBool: case StatusMessageType.GetHidden:
+          { 
+            GetInputMessage m = (GetInputMessage)msg;
+            if(string.Equals(m.PromptId, "gen_revoke.okay", StringComparison.Ordinal))
+            {
+              cmd.SendLine("Y");
+            }
+            else if(string.Equals(m.PromptId, "passphrase.enter", StringComparison.Ordinal))
+            {
+              // handled by NeedKeyPassphrase handler, below
+            }
+            else if(!HandleRevokePrompt(cmd, m.PromptId, reason, null, ref lines, ref lineIndex)) goto default;
+            break;
+          }
+
+          case StatusMessageType.NeedKeyPassphrase:
+            SendKeyPassword(cmd, state.PasswordHint, (NeedKeyPassphraseMessage)msg, true);
+            break;
+
+          default: DefaultStatusMessageHandler(msg, ref state); break;
+        }
+      };
+
+      cmd.Start();
+      IOH.CopyStream(cmd.Process.StandardOutput.BaseStream, destination);
+      cmd.WaitForExit();
+    }
+
+    if(!cmd.SuccessfulExit)
+    {
+      throw new PGPException("Unable to generate revocation certificate for key " + key.ToString(),
+                             state.FailureReasons);
+    }
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetPreferences/*" />
@@ -3708,44 +4419,122 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     return preferences;
   }
 
-  public override void RevokeAttributes(UserAttribute[] attributes)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeAttributes/*" />
+  public override void RevokeAttributes(UserRevocationReason reason, params UserAttribute[] attributes)
   {
-    throw new NotImplementedException();
+    foreach(List<UserAttribute> list in GroupAttributesByKey(attributes))
+    {
+      EditCommand[] commands = new EditCommand[list.Count+1];
+      for(int i=0; i<list.Count; i++) commands[i] = new RawCommand("uid " + list[i].Id);
+      commands[commands.Length-1] = new RevokeUids(reason);
+      DoEdit(list[0].Key, null, commands);
+    }
   }
 
-  public override void RevokeKeys(PrimaryKey[] keys)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeKeys/*" />
+  public override void RevokeKeys(KeyRevocationReason reason, params PrimaryKey[] keys)
   {
-    throw new NotImplementedException();
+    if(keys == null) throw new ArgumentNullException();
+    
+    foreach(PrimaryKey key in keys)
+    {
+      if(key == null || string.IsNullOrEmpty(key.Fingerprint))
+      {
+        throw new ArgumentException("A key was null or had no fingerprint.");
+      }
+    }
+
+    MemoryStream ms = new MemoryStream();
+    foreach(PrimaryKey key in keys)
+    {
+      if(!key.Revoked)
+      {
+        GenerateRevocationCertificate(key, ms, reason, null);
+        ms.Position = 0;
+        ImportKeys(ms, key.Keyring);
+
+        ms.Position = 0;
+        ms.SetLength(0);
+      }
+    }
   }
 
-  public override void RevokeSignatures(KeySignature[] signatures)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSignatures/*" />
+  public override void RevokeSignatures(UserRevocationReason reason, params KeySignature[] signatures)
   {
-    throw new NotImplementedException();
+    Dictionary<string, List<UserAttribute>> uidMap;
+    Dictionary<string, List<KeySignature>> sigMap;
+    GroupSignaturesByKeyAndObject(signatures, out uidMap, out sigMap);
+
+    List<EditCommand> commands = new List<EditCommand>();
+    foreach(KeyValuePair<string, List<UserAttribute>> pair in uidMap) // for each key to be edited...
+    {
+      bool firstUid = true;
+      foreach(UserAttribute uid in pair.Value) // for each affected UID in the key
+      {
+        if(!firstUid) commands.Add(new RawCommand("uid -")); // select the UID
+        commands.Add(new RawCommand("uid " + uid.Id));
+        commands.Add(new RevokeSigs(reason, sigMap[uid.Id].ToArray())); // then delete its corresponding signatures
+        firstUid = false;
+      }
+
+      DoEdit(pair.Value[0].Key, null, commands.ToArray());
+      commands.Clear();
+    }
   }
 
-  public override void RevokeSubkeys(Subkey[] subkeys)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSubkeys/*" />
+  public override void RevokeSubkeys(KeyRevocationReason reason, params Subkey[] subkeys)
   {
-    throw new NotImplementedException();
+    foreach(List<Subkey> keyList in GroupSubkeysByKey(subkeys))
+    {
+      EditCommand[] commands = new EditCommand[keyList.Count+1];
+      for(int i=0; i<keyList.Count; i++) commands[i] = new SelectSubkey(keyList[i].Fingerprint, false);
+      commands[keyList.Count] = new RevokeSubkeysCommand(reason);
+      DoEdit(keyList[0].PrimaryKey, null, commands);
+    }
   }
 
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SetPreferences/*" />
   public override void SetPreferences(UserAttribute user, UserPreferences preferences)
   {
-    throw new NotImplementedException();
+    if(user == null || preferences == null) throw new ArgumentNullException();
+    if(user.Key == null) throw new ArgumentException("The user attribute must be associated with a key.");
+    DoEdit(user.Key, null, new RawCommand("uid " + user.Id), new SetPrefs(preferences));
   }
 
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SetTrustLevel/*" />
   public override void SetTrustLevel(PrimaryKey key, TrustLevel trust)
   {
     DoEdit(key, null, new SetTrust(trust));
   }
 
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignKey/*" />
   public override void SignKey(PrimaryKey keyToSign, PrimaryKey signingKey, KeySigningOptions options)
   {
-    throw new NotImplementedException();
+    if(keyToSign == null || signingKey == null) throw new ArgumentNullException();
+
+    if(!Keyring.Equals(keyToSign.Keyring, signingKey.Keyring)) // TODO: maybe this can be relaxed
+    {
+      throw new ArgumentException("The keys must be on the same keyring.");
+    }
+
+    DoEdit(keyToSign, "-u " + signingKey.Fingerprint, new SignKeyCommand(options, true));
   }
 
-  public override void SignKey(UserId userId, PrimaryKey signingKey, KeySigningOptions options)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignUser/*"/>
+  public override void SignKey(UserAttribute userId, PrimaryKey signingKey, KeySigningOptions options)
   {
-    throw new NotImplementedException();
+    if(userId == null || signingKey == null) throw new ArgumentNullException();
+    if(userId.Key == null) throw new ArgumentException("The user attribute must be associated with a key.");
+
+    if(!Keyring.Equals(userId.Key.Keyring, signingKey.Keyring)) // TODO: maybe this can be relaxed
+    {
+      throw new ArgumentException("The keys must be on the same keyring.");
+    }
+
+    DoEdit(userId.Key, "-u " + signingKey.Fingerprint,
+           new RawCommand("uid " + userId.Id), new SignKeyCommand(options, false));
   }
 }
 #endregion

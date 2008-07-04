@@ -52,6 +52,7 @@ public class GPGTest : IDisposable
     gpg = new ExeGPG("d:/adammil/programs/gnupg/gpg.exe");
     gpg.KeyPasswordNeeded += delegate(string keyId, string userIdHint) { return password.Copy(); };
     gpg.PlainPasswordNeeded += delegate() { return password.Copy(); };
+    gpg.RetrieveKeySignatureFingerprints = true;
 
     keyring = new Keyring(Path.GetTempFileName(), Path.GetTempFileName(), Path.GetTempFileName());
     keyring.Create(gpg, true);
@@ -289,112 +290,6 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
   }
 
   [Test]
-  public void T011_TestEditing()
-  {
-    EnsureImported();
-
-    UserPreferences preferences = new UserPreferences();
-    preferences.Keyserver = new Uri("hkp://keys.foo.com");
-    preferences.PreferredCiphers.Add(OpenPGPCipher.AES256);
-    preferences.PreferredCiphers.Add(OpenPGPCipher.AES);
-    preferences.PreferredCiphers.Add(OpenPGPCipher.Twofish);
-    preferences.PreferredCiphers.Add(OpenPGPCipher.CAST5);
-    preferences.PreferredCompressions.Add(OpenPGPCompression.Bzip2);
-    preferences.PreferredCompressions.Add(OpenPGPCompression.Zlib);
-    preferences.PreferredCompressions.Add(OpenPGPCompression.Zip);
-    preferences.PreferredHashes.Add(OpenPGPHashAlgorithm.SHA1);
-    preferences.PreferredHashes.Add(OpenPGPHashAlgorithm.MD5);
-
-    // test adding a user ID
-    gpg.AddUserId(keys[Encrypter], "John", "john@gmail.com", "big man", preferences);
-
-    keys[Encrypter] = gpg.RefreshKey(keys[Encrypter]);
-    Assert.AreEqual(2, keys[Encrypter].UserIds.Count);
-    UserId newId = keys[Encrypter].UserIds[1];
-    Assert.IsFalse(newId.Primary);
-    Assert.AreEqual("John (big man) <john@gmail.com>", newId.Name);
-    
-    // test GetPreferences(), and ensure that AddUserId() added the preferences properly
-    UserPreferences newPrefs = gpg.GetPreferences(newId);
-    // TODO: make the keyserver thing work
-    //Assert.AreEqual(preferences.Keyserver, newPrefs.Keyserver);
-    Assert.AreEqual(preferences.Primary, newPrefs.Primary);
-    CollectionAssert.AreEqual(preferences.PreferredCiphers, newPrefs.PreferredCiphers);
-    CollectionAssert.AreEqual(preferences.PreferredCompressions, newPrefs.PreferredCompressions);
-    CollectionAssert.AreEqual(preferences.PreferredHashes, newPrefs.PreferredHashes);
-
-    // test adding a photo ID
-    Random rnd = new Random();
-    using(Bitmap bmp = new Bitmap(20, 30))
-    {
-      for(int y=0; y<bmp.Height; y++)
-      {
-        for(int x=0; x<bmp.Width; x++) bmp.SetPixel(x, y, Color.FromArgb(rnd.Next(256), rnd.Next(256), rnd.Next(256)));
-      }
-      gpg.AddPhoto(keys[Encrypter], bmp, preferences);
-    }
-    
-    // verify that the photo was added correctly
-    keys[Encrypter] = gpg.RefreshKey(keys[Encrypter], ListOptions.RetrieveAttributes);
-    Assert.AreEqual(2, keys[Encrypter].Attributes.Count);
-    Assert.IsTrue(keys[Encrypter].Attributes[1] is UserImage);
-    UserImage userImage = (UserImage)keys[Encrypter].Attributes[1];
-    using(Bitmap bmp = userImage.GetBitmap())
-    {
-      Assert.AreEqual(bmp.Width, 20);
-      Assert.AreEqual(bmp.Height, 30);
-    }
-
-    // set the trust level the reciever key to Marginal
-    Assert.AreNotEqual(TrustLevel.Marginal, keys[Receiver].OwnerTrust);
-    gpg.SetTrustLevel(keys[Receiver], TrustLevel.Marginal);
-    keys[Receiver] = gpg.RefreshKey(keys[Receiver]);
-    Assert.AreEqual(TrustLevel.Marginal, keys[Receiver].OwnerTrust);
-
-    // allow Signer to revoke Encrypter's key
-    gpg.AddDesignatedRevoker(keys[Encrypter], keys[Signer]);
-    keys[Encrypter] = gpg.RefreshKey(keys[Encrypter]);
-    Assert.AreEqual(1, keys[Encrypter].DesignatedRevokers.Count);
-    Assert.AreEqual(keys[Signer].Fingerprint, keys[Encrypter].DesignatedRevokers[0]);
-
-    // add a new subkey to Encrypter's key
-    DateTime expiration = new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-    gpg.AddSubkey(keys[Encrypter], SubkeyType.RSAEncryptOnly, 1500, expiration);
-    keys[Encrypter] = gpg.RefreshKey(keys[Encrypter]);
-    Assert.AreEqual(2, keys[Encrypter].Subkeys.Count);
-    // GPG generates RSA rather than RSAEncryptOnly as per RFC-4880 section 13.5, and uses key capabilities instead
-    Assert.AreEqual(SubkeyType.RSA, keys[Encrypter].Subkeys[1].KeyType);
-    Assert.IsFalse((keys[Encrypter].Subkeys[1].Capabilities & KeyCapability.Sign) != 0);
-    Assert.IsTrue(keys[Encrypter].Subkeys[1].Length >= 1500); // GPG may round the key size up
-    Assert.IsTrue(keys[Encrypter].Subkeys[1].ExpirationTime.HasValue);
-    Assert.AreEqual(expiration.Date, keys[Encrypter].Subkeys[1].ExpirationTime.Value.Date);
-
-    // change the expiration of the primary key and first subkey
-    expiration = new DateTime(2101, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-    gpg.ChangeExpiration(keys[Encrypter], expiration);
-    gpg.ChangeExpiration(keys[Encrypter].Subkeys[0], expiration);
-    keys[Encrypter] = gpg.RefreshKey(keys[Encrypter]);
-    Assert.IsTrue(keys[Encrypter].ExpirationTime.HasValue);
-    Assert.AreEqual(expiration.Date, keys[Encrypter].ExpirationTime.Value.Date);
-    Assert.IsTrue(keys[Encrypter].Subkeys[0].ExpirationTime.HasValue);
-    Assert.AreEqual(expiration.Date, keys[Encrypter].Subkeys[0].ExpirationTime.Value.Date);
-
-    // remove a password and put it back
-    gpg.ChangePassword(keys[Encrypter], null);
-    gpg.ChangePassword(keys[Encrypter], password);
-
-    // clean, minimize, disable, and reenable the keys
-    gpg.CleanKeys(keys);
-    gpg.MinimizeKeys(keys);
-    gpg.DisableKeys(keys);
-    gpg.EnableKeys(keys);
-
-    // delete the keys and reimport them to put everything back how it was
-    gpg.DeleteKeys(keys, KeyDeletion.PublicAndSecret);
-    T01_ImportTestKeys();
-  }
-
-  [Test]
   public void T02_Hashing()
   {
     byte[] hash = gpg.Hash(new MemoryStream(Encoding.ASCII.GetBytes("The quick brown fox jumps over the lazy dog")),
@@ -600,6 +495,201 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
       Assert.AreEqual(150, bitmap.Width);
       Assert.AreEqual(180, bitmap.Height);
     }
+  }
+
+  [Test]
+  public void T09_TestEditing()
+  {
+    EnsureImported();
+
+    UserPreferences preferences = new UserPreferences();
+    preferences.Keyserver = new Uri("hkp://keys.foo.com");
+    preferences.PreferredCiphers.Add(OpenPGPCipher.AES256);
+    preferences.PreferredCiphers.Add(OpenPGPCipher.AES);
+    preferences.PreferredCiphers.Add(OpenPGPCipher.Twofish);
+    preferences.PreferredCiphers.Add(OpenPGPCipher.CAST5);
+    preferences.PreferredCompressions.Add(OpenPGPCompression.Bzip2);
+    preferences.PreferredCompressions.Add(OpenPGPCompression.Zlib);
+    preferences.PreferredCompressions.Add(OpenPGPCompression.Zip);
+    preferences.PreferredHashes.Add(OpenPGPHashAlgorithm.SHA1);
+    preferences.PreferredHashes.Add(OpenPGPHashAlgorithm.MD5);
+
+    // test adding a user ID
+    gpg.AddUserId(keys[Encrypter], "John", "john@gmail.com", "big man", preferences);
+
+    keys[Encrypter] = gpg.RefreshKey(keys[Encrypter]);
+    Assert.AreEqual(2, keys[Encrypter].UserIds.Count);
+    UserId newId = keys[Encrypter].UserIds[1];
+    Assert.IsFalse(newId.Primary);
+    Assert.AreEqual("John (big man) <john@gmail.com>", newId.Name);
+    
+    // test GetPreferences(), and ensure that AddUserId() added the preferences properly
+    UserPreferences newPrefs = gpg.GetPreferences(newId);
+    // TODO: make the keyserver thing work
+    //Assert.AreEqual(preferences.Keyserver, newPrefs.Keyserver);
+    Assert.AreEqual(preferences.Primary, newPrefs.Primary);
+    CollectionAssert.AreEqual(preferences.PreferredCiphers, newPrefs.PreferredCiphers);
+    CollectionAssert.AreEqual(preferences.PreferredCompressions, newPrefs.PreferredCompressions);
+    CollectionAssert.AreEqual(preferences.PreferredHashes, newPrefs.PreferredHashes);
+
+    // test SetPreferences()
+    preferences.PreferredCiphers.Remove(OpenPGPCipher.Twofish);
+    preferences.PreferredCompressions.Remove(OpenPGPCompression.Bzip2);
+    gpg.SetPreferences(newId, preferences);
+    newPrefs = gpg.GetPreferences(newId);
+    Assert.AreEqual(preferences.Primary, newPrefs.Primary);
+    CollectionAssert.AreEqual(preferences.PreferredCiphers, newPrefs.PreferredCiphers);
+    CollectionAssert.AreEqual(preferences.PreferredCompressions, newPrefs.PreferredCompressions);
+    CollectionAssert.AreEqual(preferences.PreferredHashes, newPrefs.PreferredHashes);
+
+    // test key signing (sign Receiver's key with Encrypter's key)
+    keys = gpg.GetPublicKeys(keyring, ListOptions.RetrieveSignatures);
+    Assert.AreEqual(keys[Receiver].UserIds[0].Signatures.Count, 1);
+    gpg.SignKey(keys[Receiver], keys[Encrypter], null);
+    keys[Receiver] = gpg.RefreshKey(keys[Receiver], ListOptions.RetrieveSignatures);
+    Assert.AreEqual(2, keys[Receiver].UserIds[0].Signatures.Count);
+    KeySignature keySig = keys[Receiver].UserIds[0].Signatures[1];
+    Assert.IsFalse(keySig.Exportable);
+    Assert.AreEqual(keys[Encrypter].KeyId, keySig.KeyId);
+    Assert.AreEqual(keys[Encrypter].Fingerprint, keySig.KeyFingerprint);
+    Assert.AreEqual(OpenPGPSignatureType.GenericCertification, keySig.Type);
+    Assert.AreEqual(keys[Encrypter].PrimaryUserId.Name, keySig.SignerName);
+
+    // test UID signing (sign Encrypter's new UID with Signer's key)
+    KeySigningOptions ksOptions = new KeySigningOptions(true, true);
+    ksOptions.TrustDepth  = 2;
+    ksOptions.TrustDomain = "Mu.*";
+    ksOptions.TrustLevel  = TrustLevel.Marginal;
+    gpg.SignKey(keys[Encrypter].UserIds[1], keys[Signer], ksOptions);
+    keys[Encrypter] = gpg.RefreshKey(keys[Encrypter], ListOptions.RetrieveSignatures);
+    Assert.AreEqual(1, keys[Encrypter].UserIds[0].Signatures.Count);
+    Assert.AreEqual(2, keys[Encrypter].UserIds[1].Signatures.Count);
+    keySig = keys[Encrypter].UserIds[1].Signatures[1];
+    Assert.IsTrue(keySig.Exportable);
+    Assert.AreEqual(keys[Signer].KeyId, keySig.KeyId);
+    Assert.AreEqual(keys[Signer].Fingerprint, keySig.KeyFingerprint);
+    Assert.AreEqual(OpenPGPSignatureType.GenericCertification, keySig.Type);
+    Assert.AreEqual(keys[Signer].PrimaryUserId.Name, keySig.SignerName);
+
+    // test signature revocation
+    gpg.RevokeSignatures(new UserRevocationReason(UserRevocationCode.Unspecified,
+                                                   "i thought he was a nice guy...\n\nbut he's not\n"),
+                         keys[Receiver].UserIds[0].Signatures[1]);
+    keys[Receiver] = gpg.RefreshKey(keys[Receiver], ListOptions.RetrieveSignatures);
+    Assert.AreEqual(3, keys[Receiver].UserIds[0].Signatures.Count);
+
+    bool revoked = false;
+    foreach(KeySignature sig in keys[Receiver].UserIds[0].Signatures)
+    {
+      if(sig.Revocation) revoked = true;
+    }
+    Assert.IsTrue(revoked);
+
+    // test signature deletion
+    gpg.DeleteSignatures(keys[Receiver].UserIds[0].Signatures[0], keys[Encrypter].UserIds[1].Signatures[1],
+                         keys[Receiver].UserIds[0].Signatures[1]);
+    keys = gpg.RefreshKeys(keys, ListOptions.RetrieveSignatures);
+    Assert.AreEqual(1, keys[Receiver].UserIds[0].Signatures.Count);
+    Assert.AreEqual(1, keys[Encrypter].UserIds[1].Signatures.Count);
+
+    // test UID revocation
+    gpg.RevokeAttributes(null, keys[Encrypter].UserIds[1]);
+    keys[Encrypter] = gpg.RefreshKey(keys[Encrypter]);
+    Assert.IsTrue(keys[Encrypter].UserIds[1].Revoked);
+
+    // test adding a photo ID
+    Random rnd = new Random();
+    using(Bitmap bmp = new Bitmap(20, 30))
+    {
+      for(int y=0; y<bmp.Height; y++)
+      {
+        for(int x=0; x<bmp.Width; x++) bmp.SetPixel(x, y, Color.FromArgb(rnd.Next(256), rnd.Next(256), rnd.Next(256)));
+      }
+      gpg.AddPhoto(keys[Encrypter], bmp, preferences);
+    }
+    
+    // verify that the photo was added correctly
+    keys[Encrypter] = gpg.RefreshKey(keys[Encrypter], ListOptions.RetrieveAttributes);
+    Assert.AreEqual(2, keys[Encrypter].Attributes.Count);
+    Assert.IsTrue(keys[Encrypter].Attributes[1] is UserImage);
+    UserImage userImage = (UserImage)keys[Encrypter].Attributes[1];
+    using(Bitmap bmp = userImage.GetBitmap())
+    {
+      Assert.AreEqual(bmp.Width, 20);
+      Assert.AreEqual(bmp.Height, 30);
+    }
+
+    // test attribute deletion. ensure that you can't delete all the user IDs
+    TestHelpers.TestException<PGPException>(delegate { gpg.DeleteAttributes(keys[Encrypter].UserIds.ToArray()); });
+    // delete the new UID and photo
+    gpg.DeleteAttributes(keys[Encrypter].UserIds[1], keys[Encrypter].Attributes[1]);
+    keys[Encrypter] = gpg.RefreshKey(keys[Encrypter], ListOptions.RetrieveAttributes);
+    Assert.AreEqual(1, keys[Encrypter].UserIds.Count);
+    Assert.AreEqual(1, keys[Encrypter].Attributes.Count);
+    Assert.AreNotEqual("John (big man) <john@gmail.com>", keys[Encrypter].UserIds[0].Name);
+    using(Bitmap bmp = ((UserImage)keys[Encrypter].Attributes[0]).GetBitmap()) Assert.AreNotEqual(bmp.Width, 20);
+
+    // set the trust level the reciever key to Marginal
+    Assert.AreNotEqual(TrustLevel.Marginal, keys[Receiver].OwnerTrust);
+    gpg.SetTrustLevel(keys[Receiver], TrustLevel.Marginal);
+    keys[Receiver] = gpg.RefreshKey(keys[Receiver]);
+    Assert.AreEqual(TrustLevel.Marginal, keys[Receiver].OwnerTrust);
+
+    // allow Signer to revoke Encrypter's key
+    gpg.AddDesignatedRevoker(keys[Encrypter], keys[Signer]);
+    keys[Encrypter] = gpg.RefreshKey(keys[Encrypter]);
+    Assert.AreEqual(1, keys[Encrypter].DesignatedRevokers.Count);
+    Assert.AreEqual(keys[Signer].Fingerprint, keys[Encrypter].DesignatedRevokers[0]);
+
+    // add a new subkey to Encrypter's key
+    DateTime expiration = new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    gpg.AddSubkey(keys[Encrypter], SubkeyType.RSAEncryptOnly, 1500, expiration);
+    keys[Encrypter] = gpg.RefreshKey(keys[Encrypter]);
+    Assert.AreEqual(2, keys[Encrypter].Subkeys.Count);
+    // GPG generates RSA rather than RSAEncryptOnly as per RFC-4880 section 13.5, and uses key capabilities instead
+    Assert.AreEqual(SubkeyType.RSA, keys[Encrypter].Subkeys[1].KeyType);
+    Assert.IsFalse((keys[Encrypter].Subkeys[1].Capabilities & KeyCapability.Sign) != 0);
+    Assert.IsTrue(keys[Encrypter].Subkeys[1].Length >= 1500); // GPG may round the key size up
+    Assert.IsTrue(keys[Encrypter].Subkeys[1].ExpirationTime.HasValue);
+    Assert.AreEqual(expiration.Date, keys[Encrypter].Subkeys[1].ExpirationTime.Value.Date);
+
+    // change the expiration of the primary key and first subkey
+    expiration = new DateTime(2101, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    gpg.ChangeExpiration(keys[Encrypter], expiration);
+    gpg.ChangeExpiration(keys[Encrypter].Subkeys[0], expiration);
+    keys[Encrypter] = gpg.RefreshKey(keys[Encrypter]);
+    Assert.IsTrue(keys[Encrypter].ExpirationTime.HasValue);
+    Assert.AreEqual(expiration.Date, keys[Encrypter].ExpirationTime.Value.Date);
+    Assert.IsTrue(keys[Encrypter].Subkeys[0].ExpirationTime.HasValue);
+    Assert.AreEqual(expiration.Date, keys[Encrypter].Subkeys[0].ExpirationTime.Value.Date);
+
+    // test subkey revocation
+    gpg.RevokeSubkeys(new KeyRevocationReason(KeyRevocationCode.KeyRetired, "byebye"), keys[Encrypter].Subkeys[1]);
+    keys[Encrypter] = gpg.RefreshKey(keys[Encrypter]);
+    Assert.IsTrue(keys[Encrypter].Subkeys[1].Revoked);
+
+    // remove a password and put it back
+    gpg.ChangePassword(keys[Encrypter], null);
+    gpg.ChangePassword(keys[Encrypter], password);
+
+    // clean, minimize, disable, and reenable the keys
+    gpg.CleanKeys(keys);
+    gpg.MinimizeKeys(keys);
+    gpg.DisableKeys(keys);
+    gpg.EnableKeys(keys);
+
+    // delete all subkeys from Encrypter
+    gpg.DeleteSubkeys(keys[Encrypter].Subkeys.ToArray());
+
+    // revoke the keys
+    gpg.RevokeKeys(null, keys[Encrypter], keys[Signer]);
+    keys = gpg.RefreshKeys(keys);
+    Assert.IsTrue(keys[Encrypter].Revoked);
+    Assert.IsTrue(keys[Signer].Revoked);
+
+    // delete the keys and reimport them to put everything back how it was
+    gpg.DeleteKeys(keys, KeyDeletion.PublicAndSecret);
+    T01_ImportTestKeys();
   }
 
   void CheckSignatures(PrimaryKey[] keys, Signature[] sigs)

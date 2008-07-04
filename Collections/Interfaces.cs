@@ -26,6 +26,8 @@ public interface IReadOnlyCollection<T> : IEnumerable<T>, System.Collections.IEn
   bool Contains(T item);
   /// <summary>Copies all of the items from the collection to the given array, starting from the given location.</summary>
   void CopyTo(T[] array, int arrayIndex);
+  /// <summary>Copies all of the items from the collection to a new array and returns it.</summary>
+  T[] ToArray();
 }
 
 /// <summary>An interface representing a collection that does not support being changed, but has a particular ordering
