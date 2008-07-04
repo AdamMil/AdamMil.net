@@ -40,6 +40,14 @@ public sealed class ReadOnlyCollectionWrapper<T> : IReadOnlyCollection<T>, IColl
     return collection.GetEnumerator();
   }
 
+  /// <summary>Copies all of the items from the collection to a new array and returns it.</summary>
+  public T[] ToArray()
+  {
+    T[] array = new T[collection.Count];
+    collection.CopyTo(array, 0);
+    return array;
+  }
+
   System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
   {
     return ((System.Collections.IEnumerable)collection).GetEnumerator();
@@ -139,6 +147,14 @@ public sealed class ReadOnlyListWrapper<T> : IReadOnlyList<T>, IList<T>
   public int IndexOf(T item)
   {
     return list.IndexOf(item);
+  }
+
+  /// <summary>Copies all of the items from the collection to a new array and returns it.</summary>
+  public T[] ToArray()
+  {
+    T[] array = new T[list.Count];
+    list.CopyTo(array, 0);
+    return array;
   }
 
   System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()

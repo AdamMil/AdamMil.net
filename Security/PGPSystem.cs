@@ -361,10 +361,74 @@ public enum KeyDeletion
 }
 #endregion
 
+#region KeyRevocationCode
+/// <summary>Gives the reason for the revocation of a key.</summary>
+public enum KeyRevocationCode
+{
+  /// <summary>No reason was given for the revocation, although there might be a textual explanation.</summary>
+  Unspecified=0,
+  /// <summary>The key is being replaced by a new key.</summary>
+  KeySuperceded=1,
+  /// <summary>The key may have been compromised.</summary>
+  KeyCompromised=2,
+  /// <summary>The key is no longer used.</summary>
+  KeyRetired=3,
+}
+#endregion
+
+#region KeyRevocationReason
+/// <summary>Options that control how keys are revoked.</summary>
+public class KeyRevocationReason
+{
+  /// <summary>Initializes a new <see cref="KeyRevocationReason"/> object with the default options.</summary>
+  public KeyRevocationReason() { }
+
+  /// <summary>Initializes a new <see cref="KeyRevocationReason"/> object with the given reason and explanation.</summary>
+  public KeyRevocationReason(KeyRevocationCode reason, string explanation)
+  {
+    this.reason      = reason;
+    this.explanation = explanation;
+  }
+
+  /// <summary>Gets or sets a human-readable string explaining the reason for the revocation.</summary>
+  public string Explanation
+  {
+    get { return explanation; }
+    set { explanation = value; }
+  }
+
+  /// <summary>Gets or sets the machine-readable reason for the revocation.</summary>
+  public KeyRevocationCode Reason
+  {
+    get { return reason; }
+    set { reason = value; }
+  }
+
+  string explanation;
+  KeyRevocationCode reason;
+}
+#endregion
+
 #region KeySigningOptions
 /// <summary>Options to control the signing of others' keys and attributes.</summary>
 public class KeySigningOptions
 {
+  /// <summary>Initializes a new <see cref="KeySigningOptions"/> with the default values.</summary>
+  public KeySigningOptions() { }
+
+  /// <summary>Initializes a new <see cref="KeySigningOptions"/> with the given values.</summary>
+  public KeySigningOptions(bool exportable)
+  {
+    Exportable  = exportable;
+  }
+
+  /// <summary>Initializes a new <see cref="KeySigningOptions"/> with the given values.</summary>
+  public KeySigningOptions(bool exportable, bool irrevocable)
+  {
+    Exportable  = exportable;
+    Irrevocable = irrevocable;
+  }
+
   /// <summary>Gets or sets whether the signature will be exportable. You create an exportable signature only if you've
   /// done proper validation of the owner's identity. The default is false.
   /// </summary>
@@ -384,10 +448,11 @@ public class KeySigningOptions
   }
 
   /// <summary>Gets or sets whether a trust signature will be created, and the trust level of the signature. This
-  /// property is limited to three values: <see cref="TrustLevel.Unknown"/>, <see cref="TrustLevel.Marginal"/>, and
-  /// <see cref="TrustLevel.Full"/>. If set to <see cref="TrustLevel.Unknown"/> (the default), a standard signature
-  /// will be created. If set to <see cref="TrustLevel.Marginal"/> or <see cref="TrustLevel.Full"/>, a trust signature
-  /// will be created, which signifies that the user is trusted to issue signatures with any lower trust level.
+  /// property is limited to three values: <see cref="PGP.TrustLevel.Unknown"/>, <see cref="PGP.TrustLevel.Marginal"/>,
+  /// and <see cref="PGP.TrustLevel.Full"/>. If set to <see cref="PGP.TrustLevel.Unknown"/> (the default), a standard
+  /// signature will be created. If set to <see cref="PGP.TrustLevel.Marginal"/> or <see cref="PGP.TrustLevel.Full"/>,
+  /// a trust signature will be created, which signifies that the user is trusted to issue signatures with any lower
+  /// trust level.
   /// </summary>
   public TrustLevel TrustLevel
   {
@@ -402,7 +467,35 @@ public class KeySigningOptions
     }
   }
 
+  /// <summary>Gets or sets the depth of the trust, as a positive integer. This property only takes effect if
+  /// <see cref="TrustLevel"/> is not <see cref="PGP.TrustLevel.Unknown"/>. A value greater than one allows the signed
+  /// key to make trust signatures on your behalf. In general, a key signed with a depth of trust D can make trust
+  /// signatures with a trust depth of at most D-1.
+  /// </summary>
+  public int TrustDepth
+  {
+    get { return trustDepth; }
+    set
+    {
+      if(value < 1) throw new ArgumentOutOfRangeException();
+      trustDepth = value;
+    }
+  }
+
+  /// <summary>Gets or sets the trust domain, as a regular expression in the same format as Henry Spencer's "almost
+  /// public domain" regular expression package (see RFC-4880 section 5.2.3.14). Only signatures by the signed key on
+  /// user IDs that match the regular expression have trust extended to them. If empty or null, there will be no
+  /// restriction on trusted user IDs.
+  /// </summary>
+  public string TrustDomain
+  {
+    get { return trustDomain; }
+    set { trustDomain = value; }
+  }
+
+  string trustDomain;
   TrustLevel trustLevel;
+  int trustDepth = 1;
   bool exportable, irrevocable;
 }
 #endregion
@@ -720,6 +813,50 @@ public class UserPreferences
   readonly PreferenceList<OpenPGPHashAlgorithm> preferredHashes = new PreferenceList<OpenPGPHashAlgorithm>();
   Uri keyServer;
   bool primary;
+}
+#endregion
+
+#region UserRevocationCode
+/// <summary>Gives the reason for the revocation of a user ID.</summary>
+public enum UserRevocationCode
+{
+  /// <summary>No reason was given for the revocation, although there might be a textual explanation.</summary>
+  Unspecified=0,
+  /// <summary>The user ID is no longer valid (eg, email address, job, or name changed, etc).</summary>
+  IdNoLongerValid=32
+}
+#endregion
+
+#region UserRevocationReason
+/// <summary>Options that control how user IDs are revoked.</summary>
+public class UserRevocationReason
+{
+  /// <summary>Initializes a new <see cref="UserRevocationReason"/> object with the default options.</summary>
+  public UserRevocationReason() { }
+
+  /// <summary>Initializes a new <see cref="UserRevocationReason"/> object with the given reason and explanation.</summary>
+  public UserRevocationReason(UserRevocationCode reason, string explanation)
+  {
+    this.reason      = reason;
+    this.explanation = explanation;
+  }
+
+  /// <summary>Gets or sets a human-readable string explaining the reason for the revocation.</summary>
+  public string Explanation
+  {
+    get { return explanation; }
+    set { explanation = value; }
+  }
+
+  /// <summary>Gets or sets the machine-readable reason for the revocation.</summary>
+  public UserRevocationCode Reason
+  {
+    get { return reason; }
+    set { reason = value; }
+  }
+
+  string explanation;
+  UserRevocationCode reason;
 }
 #endregion
 
@@ -1542,41 +1679,23 @@ public abstract class PGPSystem
   /// <include file="documentation.xml" path="/Security/PGPSystem/ChangePassword/*" />
   public abstract void ChangePassword(PrimaryKey key, SecureString password);
 
-  /// <summary>Cleans the given key by removing unusable signatures and user IDs from them.</summary>
-  /// <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
-  public void CleanKey(PrimaryKey key)
-  {
-    if(key == null) throw new ArgumentNullException();
-    CleanKeys(new PrimaryKey[] { key });
-  }
-
   /// <include file="documentation.xml" path="/Security/PGPSystem/CleanKeys/*" />
-  public abstract void CleanKeys(PrimaryKey[] keys);
-
-  /// <summary>Minimizes the given key by removing all signatures except the most recent self-signature, and removes
-  /// unusable user IDs.
-  /// </summary>
-  /// <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
-  public void MinimizeKey(PrimaryKey key)
-  {
-    if(key == null) throw new ArgumentNullException();
-    MinimizeKeys(new PrimaryKey[] { key });
-  }
+  public abstract void CleanKeys(params PrimaryKey[] keys);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/MinimizeKeys/*" />
-  public abstract void MinimizeKeys(PrimaryKey[] keys);
+  public abstract void MinimizeKeys(params PrimaryKey[] keys);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/CreateKey/*"/>
   public abstract PrimaryKey CreateKey(NewKeyOptions options);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/DisableKeys/*" />
-  public abstract void DisableKeys(PrimaryKey[] keys);
+  public abstract void DisableKeys(params PrimaryKey[] keys);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/EnableKeys/*" />
-  public abstract void EnableKeys(PrimaryKey[] keys);
+  public abstract void EnableKeys(params PrimaryKey[] keys);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteAttributes/*" />
-  public abstract void DeleteAttributes(UserAttribute[] attributes);
+  public abstract void DeleteAttributes(params UserAttribute[] attributes);
 
   /// <summary>Deletes the given primary key, or a part of it, from its keyring.</summary>
   /// <param name="key">The primary key to delete.</param>
@@ -1591,25 +1710,29 @@ public abstract class PGPSystem
   public abstract void DeleteKeys(PrimaryKey[] keys, KeyDeletion deletion);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSignatures/*" />
-  public abstract void DeleteSignatures(KeySignature[] signatures);
+  public abstract void DeleteSignatures(params KeySignature[] signatures);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSubkeys/*" />
-  public abstract void DeleteSubkeys(Subkey[] subkeys);
+  public abstract void DeleteSubkeys(params Subkey[] subkeys);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRevocationCertificate/*" />
+  public abstract void GenerateRevocationCertificate(PrimaryKey key, Stream destination, KeyRevocationReason reason,
+                                                     OutputOptions outputOptions);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetPreferences/*" />
   public abstract UserPreferences GetPreferences(UserAttribute user);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeAttributes/*" />
-  public abstract void RevokeAttributes(UserAttribute[] attributes);
+  public abstract void RevokeAttributes(UserRevocationReason reason, params UserAttribute[] attributes);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeKeys/*" />
-  public abstract void RevokeKeys(PrimaryKey[] keys);
+  public abstract void RevokeKeys(KeyRevocationReason reason, params PrimaryKey[] keys);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSignatures/*" />
-  public abstract void RevokeSignatures(KeySignature[] signatures);
+  public abstract void RevokeSignatures(UserRevocationReason reason, params KeySignature[] signatures);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSubkeys/*" />
-  public abstract void RevokeSubkeys(Subkey[] subkeys);
+  public abstract void RevokeSubkeys(KeyRevocationReason reason, params Subkey[] subkeys);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/SetPreferences/*" />
   public abstract void SetPreferences(UserAttribute user, UserPreferences preferences);
@@ -1621,7 +1744,7 @@ public abstract class PGPSystem
   public abstract void SignKey(PrimaryKey keyToSign, PrimaryKey signingKey, KeySigningOptions options);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/SignUser/*"/>
-  public abstract void SignKey(UserId userId, PrimaryKey signingKey, KeySigningOptions options);
+  public abstract void SignKey(UserAttribute userId, PrimaryKey signingKey, KeySigningOptions options);
 
   /// <summary>Searches for the public keys with the given fingerprint in the given keyring.</summary>
   /// <param name="fingerprint">The fingerprints of the key to search for.</param>
@@ -1728,6 +1851,88 @@ public abstract class PGPSystem
     if(key == null) throw new ArgumentNullException();
     return key.Secret ?
       FindSecretKey(key.Fingerprint, key.Keyring, options) : FindPublicKey(key.Fingerprint, key.Keyring, options);
+  }
+
+  /// <summary>Refreshes the given keys by reloading them from its keyring database. An array is returned containing
+  /// the updated keys, with null values for keys that no longer exist on their keyrings. The keys will be retrieved
+  /// with the default <see cref="ListOptions"/>.
+  /// </summary>
+  public PrimaryKey[] RefreshKeys(PrimaryKey[] keys)
+  {
+    return RefreshKeys(keys, ListOptions.Default);
+  }
+
+  /// <summary>Refreshes the given keys by reloading them from its keyring database. An array is returned containing
+  /// the updated keys, with null values for keys that no longer exist on their keyrings.
+  /// </summary>
+  public PrimaryKey[] RefreshKeys(PrimaryKey[] keys, ListOptions options)
+  {
+    if(keys == null) throw new ArgumentNullException();
+
+    foreach(PrimaryKey key in keys)
+    {
+      if(key == null) throw new ArgumentException("A key was null.");
+      if(string.IsNullOrEmpty(key.Fingerprint)) throw new ArgumentException("A key had no fingerprint.");
+    }
+
+    PrimaryKey[] refreshedKeys = new PrimaryKey[keys.Length];
+    List<string> fingerprints = new List<string>(keys.Length); // holds the fingerprints of the keys to find
+    List<int> groupIndices = new List<int>(keys.Length); // holds the indices of the keys in the original array
+
+    // first we need to group the keys by keyring
+    keys = (PrimaryKey[])keys.Clone(); // don't modify the parameter passed to us
+    int[] indices = new int[keys.Length]; // we'll keep a map of indices that allows us to reverse the sorting
+    for(int i=0; i<indices.Length; i++) indices[i] = i;
+    Array.Sort<Key,int>(keys, indices, new CompareKeysByKeyring());
+
+    // now we'll find the start and end of each group of keys with the same keyring
+    int start=0;
+    while(start < keys.Length)
+    {
+      Keyring keyring = keys[start].Keyring;
+      int end;
+      for(end=start+1; end<keys.Length && Keyring.Equals(keyring, keys[end].Keyring); end++) { }
+      if(start == end) break;
+
+      // now we have a group of keys from 'start' to 'end'. for each group, we may have to issue up to two calls:
+      // one for public keys and one for secret keys. first we'll do the public keys
+      for(int i=start; i<end; i++)
+      {
+        if(!keys[i].Secret)
+        {
+          fingerprints.Add(keys[i].Fingerprint);
+          groupIndices.Add(indices[i]);
+        }
+      }
+
+      if(fingerprints.Count != 0)
+      {
+        PrimaryKey[] foundKeys = FindPublicKeys(fingerprints.ToArray(), keyring, options);
+        for(int i=0; i<foundKeys.Length; i++) refreshedKeys[groupIndices[i]] = foundKeys[i];
+        fingerprints.Clear();
+        groupIndices.Clear();
+      }
+
+      // now we'll do the secret keys, as well as move 'start' to the beginning of the next group, if any
+      for(; start<end; start++)
+      {
+        if(keys[start].Secret)
+        {
+          fingerprints.Add(keys[start].Fingerprint);
+          groupIndices.Add(indices[start]);
+        }
+      }
+
+      if(fingerprints.Count != 0)
+      {
+        PrimaryKey[] foundKeys = FindSecretKeys(fingerprints.ToArray(), keyring, options);
+        for(int i=0; i<foundKeys.Length; i++) refreshedKeys[groupIndices[i]] = foundKeys[i];
+        fingerprints.Clear();
+        groupIndices.Clear();
+      }
+    }
+
+    return refreshedKeys;
   }
 
   /// <summary>Exports the given public key to the given stream.</summary>
@@ -1928,6 +2133,29 @@ public abstract class PGPSystem
   protected virtual void OnInvalidPassword(string keyId)
   {
     if(KeyPasswordInvalid != null) KeyPasswordInvalid(keyId);
+  }
+  
+  /// <summary>Compares keys based on their keyring.</summary>
+  sealed class CompareKeysByKeyring : IComparer<Key>
+  {
+    public int Compare(Key a, Key b)
+    {
+      Keyring ak = a.GetPrimaryKey().Keyring, bk = b.GetPrimaryKey().Keyring;
+ 
+      if(ak == bk) return 0;
+      else if(ak == null) return -1;
+      else if(bk == null) return 1;
+      else
+      {
+        int cmp = string.CompareOrdinal(ak.PublicFile, bk.PublicFile);
+        if(cmp == 0)
+        {
+          cmp = string.CompareOrdinal(ak.SecretFile, bk.SecretFile);
+          if(cmp == 0) cmp = string.CompareOrdinal(ak.TrustDbFile, bk.TrustDbFile);
+        }
+        return cmp;
+      }
+    }
   }
 }
 #endregion

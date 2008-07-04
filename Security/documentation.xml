@@ -243,6 +243,13 @@
       </returns>
     </FindSecretKeys>
 
+    <GenerateRevocationCertificate>
+      <summary>
+        Generates a revocation certificate for the given key. The revocation certificate can be imported at a
+        later time to revoke the key.
+      </summary>
+    </GenerateRevocationCertificate>
+    
     <GetPreferences>
       <summary>Returns the preferences for the given user id or attribute.</summary>
     </GetPreferences>
@@ -389,6 +396,11 @@
 
     <SetPreferences>
       <summary>Sets the preferences of the given user attribute.</summary>
+      <remarks>
+        Note that if the <see cref="UserPreferences.Primary"/> property is set to false, it won't cause any change in
+        the <see cref="UserAttribute.Primary"/> property of the user attribute. To make an attribute non-primary, set
+        another attribute as primary.
+      </remarks>
     </SetPreferences>
 
     <SetTrustLevel>
@@ -420,7 +432,7 @@
     </SignKey>
 
     <SignUser>
-      <summary>Signs the given user ID.</summary>
+      <summary>Signs the given user ID or user attribute.</summary>
       <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </SignUser>
     
