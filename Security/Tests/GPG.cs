@@ -498,7 +498,7 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
   }
 
   [Test]
-  public void T09_TestEditing()
+  public void T09_TestEditingUidsAndSigs()
   {
     EnsureImported();
 
@@ -522,7 +522,7 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
     UserId newId = keys[Encrypter].UserIds[1];
     Assert.IsFalse(newId.Primary);
     Assert.AreEqual("John (big man) <john@gmail.com>", newId.Name);
-    
+
     // test GetPreferences(), and ensure that AddUserId() added the preferences properly
     UserPreferences newPrefs = gpg.GetPreferences(newId);
     // TODO: make the keyserver thing work
@@ -607,7 +607,7 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
       }
       gpg.AddPhoto(keys[Encrypter], bmp, preferences);
     }
-    
+
     // verify that the photo was added correctly
     keys[Encrypter] = gpg.RefreshKey(keys[Encrypter], ListOptions.RetrieveAttributes);
     Assert.AreEqual(2, keys[Encrypter].Attributes.Count);
@@ -634,6 +634,16 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
     gpg.SetTrustLevel(keys[Receiver], TrustLevel.Marginal);
     keys[Receiver] = gpg.RefreshKey(keys[Receiver]);
     Assert.AreEqual(TrustLevel.Marginal, keys[Receiver].OwnerTrust);
+
+    // delete the keys and reimport them to put everything back how it was
+    gpg.DeleteKeys(keys, KeyDeletion.PublicAndSecret);
+    T01_ImportTestKeys();
+  }
+
+  [Test]
+  public void T10_TestEditingKeysAndSubkeys()
+  {
+    EnsureImported();
 
     // allow Signer to revoke Encrypter's key
     gpg.AddDesignatedRevoker(keys[Encrypter], keys[Signer]);

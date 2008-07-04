@@ -1983,11 +1983,12 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     ListOptions signatures = options & ListOptions.SignatureMask;
 
     string args;
+    
     if(secretKeys) args = "--list-secret-keys "; // TODO: add --no-auto-check-trustdb to this?
-    else if(signatures == 0) args = "--list-keys "; // TODO: add --no-auto-check-trustdb to this?
-    else if(RetrieveKeySignatureFingerprints) args = "--check-sigs --no-sig-cache ";
+    else if(signatures != 0 && RetrieveKeySignatureFingerprints) args = "--check-sigs --no-sig-cache ";
     else if(signatures == ListOptions.RetrieveSignatures) args = "--list-sigs ";
     else if(signatures == ListOptions.VerifySignatures) args = "--check-sigs ";
+    else args = "--list-keys "; // TODO: add --no-auto-check-trustdb to this?
 
     // produce machine-readable output
     args += "--with-fingerprint --with-fingerprint --with-colons --fixed-list-mode ";
