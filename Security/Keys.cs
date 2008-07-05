@@ -573,11 +573,23 @@ public abstract class Key : ReadOnlyClass
   }
 
   /// <summary>Gets or sets the ID of the key. Note that the key ID is not guaranteed to be unique. For a more unique
-  /// ID, use the <see cref="Fingerprint"/>.
+  /// ID, use the <see cref="Fingerprint"/>. If the key ID is not set, but the fingerprint is, the property will return
+  /// a key ID value calculated from the fingerprint.
   /// </summary>
   public string KeyId
   {
-    get { return keyId; }
+    get
+    {
+      if(!string.IsNullOrEmpty(keyId))
+      {
+        return keyId;
+      }
+      else if(!string.IsNullOrEmpty(Fingerprint) && Fingerprint.Length >= 16)
+      {
+        return Fingerprint.Substring(Fingerprint.Length - 16);
+      }
+      else return null;
+    }
     set 
     {
       AssertNotReadOnly();
@@ -643,6 +655,31 @@ public abstract class Key : ReadOnlyClass
     {
       AssertNotReadOnly();
       sigs = value;
+    }
+  }
+
+  /// <summary>Gets or sets the short version of the <see cref="KeyId"/>. Note that the key ID is not guaranteed to be
+  /// unique. For a more unique ID, use the <see cref="Fingerprint"/>. If the key ID is not set, but the fingerprint
+  /// is, the property will return a key ID value calculated from the fingerprint.
+  /// </summary>
+  public string ShortKeyId
+  {
+    get
+    {
+      if(!string.IsNullOrEmpty(keyId) && keyId.Length >= 8)
+      {
+        return keyId.Substring(keyId.Length - 8);
+      }
+      else if(!string.IsNullOrEmpty(Fingerprint) && Fingerprint.Length >= 8)
+      {
+        return Fingerprint.Substring(Fingerprint.Length - 8);
+      }
+      else return null;
+    }
+    set
+    {
+      AssertNotReadOnly();
+      keyId = value;
     }
   }
 
@@ -752,7 +789,7 @@ public class PrimaryKey : Key, ISignableObject
     }
   }
 
-  /// <summary>Gets the primary user ID for this key, or null if no user ID has been marked as primary.</summary>
+  /// <summary>Gets the primary user ID for this key, or the first user ID if no user ID has been marked as primary.</summary>
   public UserId PrimaryUserId
   {
     get { return primaryUserId; }
@@ -794,6 +831,7 @@ public class PrimaryKey : Key, ISignableObject
   /// <include file="documentation.xml" path="/Security/Key/Finish/*"/>
   public override void MakeReadOnly()
   {
+    if(string.IsNullOrEmpty(EffectiveId)) throw new InvalidOperationException("No key ID or fingerprint is set.");
     if(Attributes == null) throw new InvalidOperationException("The Attributes property is not set.");
     if(DesignatedRevokers == null) throw new InvalidOperationException("The DesignatedRevokers property is not set.");
     if(Subkeys == null) throw new InvalidOperationException("The Subkeys property is not set.");
@@ -812,6 +850,8 @@ public class PrimaryKey : Key, ISignableObject
         primaryUserId = user;
       }
     }
+
+    if(primaryUserId == null) primaryUserId = UserIds[0]; // if no user ID is marked as primary, just use the first one
 
     foreach(UserAttribute attr in Attributes)
     {

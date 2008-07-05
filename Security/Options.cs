@@ -437,6 +437,16 @@ public class KeyRevocationReason
 }
 #endregion
 
+#region KeySearchHandler
+/// <summary>A callback for the key search that is passed a chunk of matching keys.</summary>
+/// <param name="keys">The keys found in this chunk. The keys will not be complete keys, but will only have minimal
+/// fields filled out. To use the keys, they should first be downloaded from the keyserver with
+/// <see cref="PGPSystem.ImportKeysFromServer(KeyDownloadOptions,Keyring,string[])"/>.
+/// </param>
+/// <returns>Returns true to continue the search and false to stop it.</returns>
+public delegate bool KeySearchHandler(PrimaryKey[] keys);
+#endregion
+
 #region KeySigningOptions
 /// <summary>Options to control the signing of others' keys and attributes.</summary>
 public class KeySigningOptions
