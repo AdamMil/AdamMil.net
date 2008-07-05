@@ -1,5 +1,5 @@
 /*
-GPG.net is a .NET interface to the GNU Privacy Guard (www.gnupg.org).
+AdamMil.Security is a .NET library providing OpenPGP-based security.
 http://www.adammil.net/
 Copyright (C) 2008 Adam Milazzo
 
@@ -25,6 +25,8 @@ using AdamMil.Collections;
 
 namespace AdamMil.Security.PGP
 {
+
+// TODO: add smart card functions
 
 #region Algorithms and key types
 #region Compression
@@ -179,740 +181,188 @@ public static class SubkeyType
   public static readonly string RSAEncryptOnly = "RSA-E";
 }
 #endregion
-#endregion
 
-#region Command options
-#region DecryptionOptions
-/// <summary>Specifies options that control the decryption of data.</summary>
-public class DecryptionOptions : VerificationOptions
+#region OpenPGPAttributeType
+/// <summary>Represents the user attribute types defined in the OpenPGP standard (RFC-4880). This is to help with
+/// parsing OpenPGP packets.
+/// </summary>
+public enum OpenPGPAttributeType
 {
-  /// <summary>Initializes a new <see cref="DecryptionOptions"/> object with the default options.</summary>
-  public DecryptionOptions() { }
-
-  /// <summary>Initializes a new <see cref="DecryptionOptions"/> object with the given cipher password.</summary>
-  public DecryptionOptions(SecureString password)
-  {
-    Password = password;
-  }
-
-  /// <summary>Gets or sets the password used to decrypt the data. This is not related to the password used to access
-  /// an encryption key on the keyring. The password used is decrypt ciphertext that was with a simple password (using
-  /// <see cref="EncryptionOptions.Password"/>). The value null, which is the default, specifies that password-based
-  /// decryption will not be attempted.
-  /// </summary>
-  /// <seealso cref="EncryptionOptions.Password"/>
-  public SecureString Password
-  {
-    get { return password; }
-    set { password = value; }
-  }
-
-  SecureString password;
-  string cipher = SymmetricCipher.Default;
+  /// <summary>An user ID containing an image of the user.</summary>
+  Image=1
 }
 #endregion
 
-#region EncryptionOptions
-/// <summary>Specifies options that control the encryption of data.</summary>
-public class EncryptionOptions
+#region OpenPGPCipher
+/// <summary>Represents the symmetric ciphers defined in the OpenPGP standard (RFC-4880). This is to help with parsing
+/// OpenPGP packets.
+/// </summary>
+public enum OpenPGPCipher
 {
-  /// <summary>Initializes a new <see cref="EncryptionOptions"/> object with no recipients.</summary>
-  public EncryptionOptions() { }
-
-  /// <summary>Initializes a new <see cref="EncryptionOptions"/> object with the given recipients.</summary>
-  public EncryptionOptions(params Key[] recipients)
-  {
-    foreach(Key recipient in recipients) Recipients.Add(recipient);
-  }
-
-  /// <summary>Initializes a new <see cref="EncryptionOptions"/> object with the given symmetric cipher password.</summary>
-  public EncryptionOptions(SecureString password)
-  {
-    Password = password;
-  }
-
-  /// <summary>Gets or sets whether recipients are always trusted. If false, trust issues with recipients can cause
-  /// the encryption to fail. If true, trust issues with recipients will be ignored. The default is false.
-  /// </summary>
-  public bool AlwaysTrustRecipients
-  {
-    get { return alwaysTrust; }
-    set { alwaysTrust = value; }
-  }
-
-  /// <summary>Gets or sets the name of the cipher algorithm used to encrypt the data. This can be one of the
-  /// <see cref="SymmetricCipher"/> values, or another cipher name. However, specifying a cipher can cause the message
-  /// to not be decryptable by some of the recipients, if their PGP clients do not support that algorithm, so it's
-  /// usually best to leave it at the default value of <see cref="SymmetricCipher.Default"/>, and allow the software to
-  /// determine the algorithm used.
-  /// </summary>
-  public string Cipher
-  {
-    get { return cipher; }
-    set { cipher = value; }
-  }
-
-  /// <summary>Gets or sets the value of the "for your eyes only" flag in the message. If true, client programs will
-  /// take extra precautions to prevent information from being disclosed, for instance by refusing to save the
-  /// plaintext and only displaying it with a TEMPEST-resistant font.
-  /// </summary>
-  public bool EyesOnly
-  {
-    get { return eyesOnly; }
-    set { eyesOnly = value; }
-  }
-
-  /// <summary>Gets or sets the password used to encrypt the data. This is not related to the password used to access
-  /// an encryption key on the keyring. The password is used to create ciphertext that can be decrypted without a key,
-  /// using only the password. This value can be combined with <see cref="Recipients"/> and/or
-  /// <see cref="HiddenRecipients"/> to create ciphertext that can be decrypted with a password or a key. The value
-  /// null, which is the default, specifies that password-based encryption will not be used, so the data can only be
-  /// decrypted using the appropriate key. An empty password is treated as if the password was null.
-  /// </summary>
-  public SecureString Password
-  {
-    get { return password; }
-    set { password = value; }
-  }
-
-  /// <summary>Specifies the public keys of the recipients of the message. The IDs of the recipients' keys will be
-  /// included in the message, allowing easy decryption by the intended recipients, but also the disclosure of the
-  /// recipients' key identities. <see cref="HiddenRecipients"/> can be used to include additional, unnamed recipients.
-  /// In general, it is recommended that recipients be named and not hidden.
-  /// </summary>
-  public KeyCollection Recipients
-  {
-    get { return recipients; }
-  }
-
-  /// <summary>Specifies the public keys of the hidden recipients of the message. The IDs of the recipients keys will
-  /// not be included in the message, and their client software will not know which key to use when decrypting the
-  /// ciphertext. This can be cumbersome, requiring every key to be tried by the recipients, but it prevents the
-  /// obvious association of their key IDs with the data.
-  /// </summary>
-  public KeyCollection HiddenRecipients
-  {
-    get { return hiddenRecipients; }
-  }
-
-  readonly KeyCollection recipients = new KeyCollection(KeyCapability.Encrypt);
-  readonly KeyCollection hiddenRecipients = new KeyCollection(KeyCapability.Encrypt);
-  SecureString password;
-  string cipher = SymmetricCipher.Default;
-  bool alwaysTrust, eyesOnly;
+  /// <summary>This value indicates that the message is not encrypted.</summary>
+  Unencrypted=0,
+  /// <summary>The IDEA cipher, corresponding to <see cref="SymmetricCipher.IDEA"/>.</summary>
+  IDEA=1,
+  /// <summary>The 3DES cipher, corresponding to <see cref="SymmetricCipher.TripleDES"/>.</summary>
+  TripleDES=2,
+  /// <summary>The CAST5 cipher, corresponding to <see cref="SymmetricCipher.CAST5"/>.</summary>
+  CAST5=3,
+  /// <summary>The Blowfish cipher, corresponding to <see cref="SymmetricCipher.Blowfish"/>.</summary>
+  Blowfish=4,
+  /// <summary>The sAFER-SK128 cipher.</summary>
+  SAFER=5,
+  /// <summary>The DES/SK cipher.</summary>
+  DESSK=6,
+  /// <summary>The AES cipher with a 128-bit key, corresponding to <see cref="SymmetricCipher.AES"/>.</summary>
+  AES=7,
+  /// <summary>The AES cipher with a 192-bit key, corresponding to <see cref="SymmetricCipher.AES192"/>.</summary>
+  AES192=8,
+  /// <summary>The AES cipher with a 256-bit key, corresponding to <see cref="SymmetricCipher.AES256"/>.</summary>
+  AES256=9,
+  /// <summary>The Twofish cipher, corresponding to <see cref="SymmetricCipher.Twofish"/>.</summary>
+  Twofish=10,
 }
 #endregion
 
-#region ExportOptions
-/// <summary>Options that control how keys are exported.</summary>
-[Flags]
-public enum ExportOptions
+#region OpenPGPCompression
+/// <summary>Represents the compression types defined in the OpenPGP standard (RFC-4880). This is to help with parsing
+/// OpenPGP packets.
+/// </summary>
+public enum OpenPGPCompression
 {
-  /// <summary>The default export options will be used. This will cause only public keys to be exported.</summary>
-  Default=0,
-  /// <summary>Key signatures marked as "local only" will be exported. Normally, they are skipped.</summary>
-  ExportLocalSignatures=1,
-  /// <summary>Attribute user IDs (eg, photo IDs) will not be included in the output.</summary>
-  ExcludeAttributes=2,
-  /// <summary>Includes revoker information that was marked as sensitive.</summary>
-  ExportSensitiveRevokerInfo=4,
-  /// <summary>When exporting secret keys, this option causes the secret portion of the master key to not be exported.
-  /// Only the secret subkeys are exported. This is not OpenPGP compliant and currently only GPG is known to
-  /// implement this option or be capable of importing keys created by this option.
-  /// </summary>
-  ClobberMasterSecretKey=8,
-  /// <summary>When exporting secret subkeys, resets their passwords to empty.</summary>
-  ResetSubkeyPassword=16,
-  /// <summary>Does not export unusable signatures, and does not export any signatures for unusable user IDs.</summary>
-  CleanKeys=32,
-  /// <summary>Exports only the most recent self-signature on each user ID.</summary>
-  MinimizeKeys=64
+  /// <summary>A value indicating that the message is uncompressed.</summary>
+  Uncompressed=0,
+  /// <summary>The Zip algorith, corresponding to <see cref="Compression.Zip"/>.</summary>
+  Zip=1,
+  /// <summary>The Zlib algorith, corresponding to <see cref="Compression.Zlib"/>.</summary>
+  Zlib=2,
+  /// <summary>The Bzip2 algorith, corresponding to <see cref="Compression.Bzip2"/>.</summary>
+  Bzip2=3
 }
 #endregion
 
-#region ImportOptions
-/// <summary>Options that control how keys are imported.</summary>
-[Flags]
-public enum ImportOptions
+#region OpenPGPHashAlgorithm
+/// <summary>Represents the hash algorithms defined in the OpenPGP standard (RFC-4880). This is to help with parsing
+/// OpenPGP packets.
+/// </summary>
+public enum OpenPGPHashAlgorithm
 {
-  /// <summary>The default import options will be used.</summary>
-  Default=0,
-  /// <summary>Key signatures marked as "local only" will be imported. Normally, they are skipped.</summary>
-  ImportLocalSignatures=1,
-  /// <summary>Existing keys will be updated with the data from the import, but new keys will not be created.</summary>
-  MergeOnly=2,
-  /// <summary>Removes from imported keys all signatures that are unusable, and removes all signatures from user IDs
-  /// that are unusable.
-  /// </summary>
-  CleanKeys=4,
-  /// <summary>Removes from imported keys all signatures except the most recent self-signatures on each user ID.</summary>
-  MinimizeKeys=8
+  /// <summary>The MD5 algorithm, corresponding to <see cref="HashAlgorithm.MD5"/>.</summary>
+  MD5=1,
+  /// <summary>The SHA1 algorithm, corresponding to <see cref="HashAlgorithm.SHA1"/>.</summary>
+  SHA1=2,
+  /// <summary>The RIPE-MD/160 algorithm, corresponding to <see cref="HashAlgorithm.RIPEMD160"/>.</summary>
+  RIPEMD160=3,
+  /// <summary>The MD2 algorithm.</summary>
+  MD2=5,
+  /// <summary>The TIGER/192 algorithm.</summary>
+  TIGER192=6,
+  /// <summary>The HAVAL algorithm.</summary>
+  HAVAL=7,
+  /// <summary>The SHA256 algorithm, corresponding to <see cref="HashAlgorithm.SHA256"/>.</summary>
+  SHA256=8,
+  /// <summary>The SHA384 algorithm, corresponding to <see cref="HashAlgorithm.SHA384"/>.</summary>
+  SHA384=9,
+  /// <summary>The SHA512 algorithm, corresponding to <see cref="HashAlgorithm.SHA512"/>.</summary>
+  SHA512=10,
+  /// <summary>The SHA224 algorithm, corresponding to <see cref="HashAlgorithm.SHA224"/>.</summary>
+  SHA224=11
 }
 #endregion
 
-#region KeyDeletion
-/// <summary>Determines which parts of a primary should be deleted.</summary>
-public enum KeyDeletion
+#region OpenPGPImageType
+/// <summary>Represents the image types defined in the OpenPGP standard (RFC-4880). This is to help with parsing
+/// OpenPGP packets.
+/// </summary>
+public enum OpenPGPImageType
 {
-  /// <summary>The secret keys should be deleted.</summary>
-  Secret,
-  /// <summary>The entire primary key should be deleted.</summary>
-  PublicAndSecret
+  /// <summary>The ISO 10918-1 JPEG format.</summary>
+  Jpeg=1,
 }
 #endregion
 
-#region KeyRevocationCode
-/// <summary>Gives the reason for the revocation of a key.</summary>
-public enum KeyRevocationCode
+#region OpenPGPKeyType
+/// <summary>Represents the key types defined in the OpenPGP standard (RFC-4880). This is to help with parsing OpenPGP
+/// packets.
+/// </summary>
+public enum OpenPGPKeyType
 {
-  /// <summary>No reason was given for the revocation, although there might be a textual explanation.</summary>
-  Unspecified=0,
-  /// <summary>The key is being replaced by a new key.</summary>
-  KeySuperceded=1,
-  /// <summary>The key may have been compromised.</summary>
-  KeyCompromised=2,
-  /// <summary>The key is no longer used.</summary>
-  KeyRetired=3,
+  /// <summary>An RSA key type, equivalent to <see cref="SubkeyType.RSA"/>.</summary>
+  RSA=1,
+  /// <summary>An RSA encryption-only key type, corresponding to <see cref="SubkeyType.RSAEncryptOnly"/>.</summary>
+  RSAEncryptOnly=2,
+  /// <summary>An RSA signing-only key type, corresponding to <see cref="SubkeyType.RSASignOnly"/>.</summary>
+  RSASignOnly=3,
+  /// <summary>An ElGamal encryption-only key type, corresponding to <see cref="SubkeyType.ElGamalEncryptOnly"/>.</summary>
+  ElGamalEncryptOnly=16,
+  /// <summary>A DSA signing key, corresponding to <see cref="SubkeyType.DSA"/>.</summary>
+  DSA=17,
+  /// <summary>An elliptic curve key.</summary>
+  EllipticCurve=18,
+  /// <summary>An elliptic curve DSA key.</summary>
+  ECDSA=19,
+  /// <summary>An ElGamal key that can be used for both signing and encryption. Because of security weaknesses, this
+  /// should not be used.
+  /// </summary>
+  ElGamal=20,
+  /// <summary>The Diffie Hellmen X9.42 key type, as defined for IETF-S/MIME.</summary>
+  DiffieHellman=21
 }
 #endregion
 
-#region KeyRevocationReason
-/// <summary>Options that control how keys are revoked.</summary>
-public class KeyRevocationReason
+#region OpenPGPSignatureType
+/// <summary>Represents the signature types defined in the OpenPGP standard (RFC-4880). This is to help with parsing
+/// OpenPGP packets.
+/// </summary>
+public enum OpenPGPSignatureType
 {
-  /// <summary>Initializes a new <see cref="KeyRevocationReason"/> object with the default options.</summary>
-  public KeyRevocationReason() { }
-
-  /// <summary>Initializes a new <see cref="KeyRevocationReason"/> object with the given reason and explanation.</summary>
-  public KeyRevocationReason(KeyRevocationCode reason, string explanation)
-  {
-    this.reason      = reason;
-    this.explanation = explanation;
-  }
-
-  /// <summary>Gets or sets a human-readable string explaining the reason for the revocation.</summary>
-  public string Explanation
-  {
-    get { return explanation; }
-    set { explanation = value; }
-  }
-
-  /// <summary>Gets or sets the machine-readable reason for the revocation.</summary>
-  public KeyRevocationCode Reason
-  {
-    get { return reason; }
-    set { reason = value; }
-  }
-
-  string explanation;
-  KeyRevocationCode reason;
-}
-#endregion
-
-#region KeySigningOptions
-/// <summary>Options to control the signing of others' keys and attributes.</summary>
-public class KeySigningOptions
-{
-  /// <summary>Initializes a new <see cref="KeySigningOptions"/> with the default values.</summary>
-  public KeySigningOptions() { }
-
-  /// <summary>Initializes a new <see cref="KeySigningOptions"/> with the given values.</summary>
-  public KeySigningOptions(bool exportable)
-  {
-    Exportable  = exportable;
-  }
-
-  /// <summary>Initializes a new <see cref="KeySigningOptions"/> with the given values.</summary>
-  public KeySigningOptions(bool exportable, bool irrevocable)
-  {
-    Exportable  = exportable;
-    Irrevocable = irrevocable;
-  }
-
-  /// <summary>Gets or sets whether the signature will be exportable. You create an exportable signature only if you've
-  /// done proper validation of the owner's identity. The default is false.
+  /// <summary>A signature of a canonical binary document. The signer owns the document, created it, or certifies that
+  /// it has not been modified.
   /// </summary>
-  public bool Exportable
-  {
-    get { return exportable; }
-    set { exportable = value; }
-  }
-
-  /// <summary>Gets or sets whether this signature is irrevocable. An irrevocable signature can never be revoked.
-  /// The default is false.
+  CanonicalBinary=0,
+  /// <summary>A signature of a canonical text document. The signer owns the document, created it, or certifies that
+  /// it has not been modified. The signature is computed over the text document with line endings normalized to CRLF.
   /// </summary>
-  public bool Irrevocable
-  {
-    get { return irrevocable; }
-    set { irrevocable = value; }
-  }
-
-  /// <summary>Gets or sets whether a trust signature will be created, and the trust level of the signature. This
-  /// property is limited to three values: <see cref="PGP.TrustLevel.Unknown"/>, <see cref="PGP.TrustLevel.Marginal"/>,
-  /// and <see cref="PGP.TrustLevel.Full"/>. If set to <see cref="PGP.TrustLevel.Unknown"/> (the default), a standard
-  /// signature will be created. If set to <see cref="PGP.TrustLevel.Marginal"/> or <see cref="PGP.TrustLevel.Full"/>,
-  /// a trust signature will be created, which signifies that the user is trusted to issue signatures with any lower
-  /// trust level.
+  CanonicalText=1,
+  /// <summary>A signature of its own subpacket contents.</summary>
+  Standalone=2,
+  /// <summary>A signature on a key's user ID that makes no statement about how well the key's ownership has been
+  /// verified.
   /// </summary>
-  public TrustLevel TrustLevel
-  {
-    get { return trustLevel; }
-    set
-    {
-      if(trustLevel != TrustLevel.Unknown && trustLevel != TrustLevel.Marginal && trustLevel != TrustLevel.Full)
-      {
-        throw new ArgumentException("TrustLevel can only be Unknown, Marginal, or Full.");
-      }
-      trustLevel = value; 
-    }
-  }
-
-  /// <summary>Gets or sets the depth of the trust, as a positive integer. This property only takes effect if
-  /// <see cref="TrustLevel"/> is not <see cref="PGP.TrustLevel.Unknown"/>. A value greater than one allows the signed
-  /// key to make trust signatures on your behalf. In general, a key signed with a depth of trust D can make trust
-  /// signatures with a trust depth of at most D-1.
+  GenericCertification=0x10,
+  /// <summary>A signature on a key's user ID which states that no verification of the key's ownership has been
+  /// performed.
   /// </summary>
-  public int TrustDepth
-  {
-    get { return trustDepth; }
-    set
-    {
-      if(value < 1) throw new ArgumentOutOfRangeException();
-      trustDepth = value;
-    }
-  }
-
-  /// <summary>Gets or sets the trust domain, as a regular expression in the same format as Henry Spencer's "almost
-  /// public domain" regular expression package (see RFC-4880 section 5.2.3.14). Only signatures by the signed key on
-  /// user IDs that match the regular expression have trust extended to them. If empty or null, there will be no
-  /// restriction on trusted user IDs.
+  PersonaCertification=0x11,
+  /// <summary>A signature on a key's user ID which states that casual verification of the key's ownership has been
+  /// performed.
   /// </summary>
-  public string TrustDomain
-  {
-    get { return trustDomain; }
-    set { trustDomain = value; }
-  }
-
-  string trustDomain;
-  TrustLevel trustLevel;
-  int trustDepth = 1;
-  bool exportable, irrevocable;
-}
-#endregion
-
-#region ListOptions
-/// <summary>Options that control how keys will be retrieved.</summary>
-[Flags]
-public enum ListOptions
-{
-  /// <summary>The default options will be used.</summary>
-  Default=0,
-
-  /// <summary>Signatures on keys will be ignored.</summary>
-  IgnoreSignatures=0,
-  /// <summary>Signatures on keys will be retrieved, but not verified.</summary>
-  RetrieveSignatures=1,
-  /// <summary>Signatures on keys will be retrieved and verified.</summary>
-  VerifySignatures=3,
-  /// <summary>A mask that can be ANDed with a <see cref="ListOptions"/> to get the signature handling value, which is
-  /// one of <see cref="IgnoreSignatures"/>, <see cref="RetrieveSignatures"/>, or <see cref="VerifySignatures"/>.
+  CasualCertification=0x12,
+  /// <summary>A signature on a key's user ID which states that rigorous verification of the key's ownership has been
+  /// performed.
   /// </summary>
-  SignatureMask=3,
-
-  /// <summary>User attributes on keys will be ignored.</summary>
-  IgnoreAttributes=0,
-  /// <summary>User attributes will be retrieved, but unknown attributes will be ignored.</summary>
-  RetrieveAttributes=4,
-  /// <summary>A mask that can be ANDed with a <see cref="ListOptions"/> to get the attribute handling value, which is
-  /// one of <see cref="IgnoreAttributes"/> or <see cref="RetrieveAttributes"/>.
+  PositiveCertification=0x13,
+  /// <summary>A statement by a primary key that it owns a given subkey.</summary>
+  SubkeyBinding=0x18,
+  /// <summary>A statement by a subkey that it is owned by the primary key.</summary>
+  PrimaryKeyBinding=0x19,
+  /// <summary>A signature on a key, usually not made by the key itself, that binds additional information to the key.</summary>
+  DirectKeySignature=0x1f,
+  /// <summary>A signature on a key, usually made by the key itself, that indicates that the key has been revoked.</summary>
+  PrimaryKeyRevocation=0x20,
+  /// <summary>A signature on a subkey, usually made by the primary key, thath indicates that the subkey has been
+  /// revoked.
   /// </summary>
-  AttributeMask=4
-}
-#endregion
-
-#region NewKeyOptions
-/// <summary>Options that control how a new primary key should be created.</summary>
-public class NewKeyOptions
-{
-  /// <summary>Gets or sets the name of the master key type. This can be a member of <see cref="PrimaryKeyType"/>, or
-  /// another key type, but it's best to leave it at the default value of <see cref="PrimaryKeyType.Default"/>, which
-  /// specifies that a default key type will be used.
+  SubkeyRevocation=0x28,
+  /// <summary>A signature that revokes a certification signature (<see cref="GenericCertification"/>,
+  /// <see cref="PersonaCertification"/>, <see cref="CasualCertification"/>, or <see cref="PositiveCertification"/>) or
+  /// a <see cref="DirectKeySignature"/>.
   /// </summary>
-  public string KeyType
-  {
-    get { return keyType; }
-    set { keyType = value; }
-  }
-
-  /// <summary>Gets or sets the length of the master key, in bits. If set to zero, a default value will be used.</summary>
-  public int KeyLength
-  {
-    get { return keyLength; }
-    set { keyLength = value; }
-  }
-
-  /// <summary>Gets or sets the name of the subkey type. This can be a member of <see cref="PGP.SubkeyType"/>, or
-  /// another key type, but it's best to leave it at the default value of <see cref="PGP.SubkeyType.Default"/>, which
-  /// specifies that a default key type will be used. If set to <see cref="PGP.SubkeyType.None"/>, no subkey will be
-  /// created.
-  /// </summary>
-  /// <remarks>Multiple subkeys can be associated with a master key. If set to a value other than 
-  /// <see cref="PGP.SubkeyType.None"/>, this property causes a subkey to be created along with the master key. This
-  /// is convenient, but it can be useful to create the subkey separately, for instance to set a different expiration
-  /// date on the subkey.
-  /// </remarks>
-  public string SubkeyType
-  {
-    get { return subkeyType; }
-    set { subkeyType = value; }
-  }
-
-  /// <summary>Gets or sets the length of the subkey, in bits. If set to zero, a default value will be used.</summary>
-  public int SubkeyLength
-  {
-    get { return subkeyLength; }
-    set { subkeyLength = value; }
-  }
-
-  /// <summary>Gets or sets the expiration of the master key and the subkey. This must be a time in the future.</summary>
-  public DateTime? Expiration
-  {
-    get { return expiration; }
-    set { expiration = value; }
-  }
-
-  /// <summary>Gets or sets the password used to encrypt the key. Because this password is often the weakest link in
-  /// the entire encryption system, it should be very strong: at least 20 characters, containing upper and lowercase
-  /// characters, numbers, and punctuation symbols. It should not contain words, even obfuscated using publically-known
-  /// obfuscation schemes (such as "H31l0" instead of "Hello"), since these are vulnerable to dictionary attacks. If
-  /// null or empty, no password will be used. This is very insecure.
-  /// </summary>
-  public SecureString Password
-  {
-    get { return password; }
-    set { password = value; }
-  }
-
-  /// <summary>Gets or sets the the keyring in which the new key will be stored. The keyring must have both public and
-  /// secret parts. If null, the default keyring will be used.
-  /// </summary>
-  public Keyring Keyring
-  {
-    get { return keyring; }
-    set
-    {
-      if(value.SecretFile == null) throw new ArgumentException("The keyring must both public and secret parts.");
-      keyring = value;
-    }
-  }
-
-  /// <summary>Gets or sets the name of the person who owns the key. This value must be set to a non-empty string.</summary>
-  public string RealName
-  {
-    get { return realName; }
-    set { realName = value; }
-  }
-
-  /// <summary>Gets or sets the email address of the person who owns the key.</summary>
-  public string Email
-  {
-    get { return email; }
-    set { email = value; }
-  }
-
-  /// <summary>Gets or sets the comment associated with the person who owns the key, for instance "old email",
-  /// "maiden name", or "<c>CompanyName</c>", used to help those who receive the key associate it with the right, and
-  /// to help the key owner keep track of his own keys.
-  /// </summary>
-  public string Comment
-  {
-    get { return comment; }
-    set { comment = value; }
-  }
-
-  SecureString password;
-  string realName, email, comment;
-  Keyring keyring;
-  int keyLength, subkeyLength;
-  DateTime? expiration;
-  string keyType = PrimaryKeyType.Default, subkeyType = PGP.SubkeyType.Default;
-}
-#endregion
-
-#region OutputFormat
-/// <summary>Specifies the output format of an encryption or signing operation.</summary>
-public enum OutputFormat
-{
-  /// <summary>The output will be in the OpenPGP binary format.</summary>
-  Binary,
-  /// <summary>The output will be in the ASCII-armored OpenPGP format. This format is suitable for sending through
-  /// email and other text-based systems.
-  /// </summary>
-  ASCII
-}
-#endregion
-
-#region OutputOptions
-/// <summary>Specifies options that control the output of data.</summary>
-public class OutputOptions
-{
-  /// <summary>Initializes a new <see cref="OutputOptions"/> object with a binary output format and no comments.</summary>
-  public OutputOptions() { }
-
-  /// <summary>Initializes a new <see cref="OutputOptions"/> object with the given format and comments.</summary>
-  public OutputOptions(OutputFormat format, params string[] comments)
-  {
-    Format = format;
-
-    foreach(string comment in comments)
-    {
-      if(comment != null) Comments.Add(comment);
-    }
-  }
-
-  /// <summary>Gets a collection of comments to be added to the message. They are intended to be used with
-  /// <see cref="OutputFormat.ASCII"/> output, and for maximum compatibility with mail systems should be limited to
-  /// less than 60 characters per comment.
-  /// </summary>
-  public List<string> Comments
-  {
-    get { return comments; }
-  }
-
-  /// <summary>Gets or sets the format of the output. The default is <see cref="OutputFormat.Binary"/>.</summary>
-  public OutputFormat Format
-  {
-    get { return format; }
-    set { format = value; }
-  }
-
-  readonly List<string> comments = new List<string>();
-  OutputFormat format = OutputFormat.Binary;
-}
-#endregion
-
-#region Randomness
-/// <summary>Determines the security level of random data generated by a <see cref="PGPSystem">PGP system</see>.</summary>
-public enum Randomness
-{
-  /// <summary>The randomness produced is not very strong, but this is the fastest generator.</summary>
-  Weak,
-  /// <summary>The randomness produced is fairly strong, and the generator is quite fast. This is the recommended
-  /// value for most uses.
-  /// </summary>
-  Strong,
-  /// <summary>The randomness is the strongest available. This quality level is typically used only for key generation,
-  /// and it can be very slow -- it might not complete for several minutes or longer for even a modest amount of random
-  /// data. Since key generation should be handled by the PGP system itself, there is usually no reason for this option
-  /// to be used.
-  /// </summary>
-  TooStrong
-}
-#endregion
-
-#region SigningOptions
-/// <summary>Specifies options that control the signing of data.</summary>
-public class SigningOptions
-{
-  /// <summary>Initializes a new <see cref="SigningOptions"/> object with the default options and no signing keys.</summary>
-  public SigningOptions() { }
-
-  /// <summary>Initializes a new <see cref="SigningOptions"/> object with the given list of signing keys.</summary>
-  public SigningOptions(params Key[] signers)
-  {
-    foreach(Key key in signers) Signers.Add(key);
-  }
-
-  /// <summary>Initializes a new <see cref="SigningOptions"/> object with the given detached flag and list of signing
-  /// keys.
-  /// </summary>
-  public SigningOptions(bool detached, params Key[] signers)
-  {
-    Detached = detached;
-    foreach(Key key in signers) Signers.Add(key);
-  }
-
-  /// <summary>Gets or sets a value that determines whether the signature will be embedded in or detached from the
-  /// data. If true, the output of the signature operation will be only the signature itself. If false, the output will
-  /// be a copy of the data with the signature embedded. The default is false.
-  /// </summary>
-  public bool Detached
-  {
-    get { return detached; }
-    set { detached = value; }
-  }
-
-  /// <summary>Gets or sets the name of the algorithm used to hash the data. This can be one of the
-  /// <see cref="HashAlgorithm"/> values, or another algorithm name, but it's usually best to leave it at the default
-  /// value of <see cref="HashAlgorithm.Default"/>, and allow the software to determine the algorithm used.
-  /// </summary>
-  public string Hash
-  {
-    get { return hash; }
-    set { hash = value; }
-  }
-
-  /// <summary>Gets a collection that should be filled with the keys used to sign the message. There must be at
-  /// least one key added to the collection. The keys must have both public and private portions.
-  /// </summary>
-  public KeyCollection Signers
-  {
-    get { return signers; }
-  }
-
-  readonly KeyCollection signers = new KeyCollection(KeyCapability.Sign);
-  string hash = HashAlgorithm.Default;
-  bool detached;
-}
-#endregion
-
-#region UserPreferences
-/// <summary>Stores the preferences of a user, as associated with a user ID or attribute.</summary>
-public class UserPreferences
-{
-  /// <summary>Gets or sets the user's preferred keyserver, or null if no keyserver is preferred.</summary>
-  public Uri Keyserver
-  {
-    get { return keyServer; }
-    set { keyServer = value; }
-  }
-
-  /// <summary>Gets or sets a list containing the user's preferred ciphers, in order from most to least preferred.
-  /// Algorithms not listed are assumed to be unsupported by the user.
-  /// </summary>
-  public PreferenceList<OpenPGPCipher> PreferredCiphers
-  {
-    get { return preferredCiphers; }
-  }
-
-  /// <summary>Gets or sets a list containing the user's preferred compression algorithms, in order from most to least
-  /// preferred. Algorithms not listed are assumed to be unsupported by the user.
-  /// </summary>
-  public PreferenceList<OpenPGPCompression> PreferredCompressions
-  {
-    get { return preferredCompressions; }
-  }
-
-  /// <summary>Gets or sets a list containing the user's preferred hash algorithms, in order from most to least
-  /// preferred. Algorithms not listed are assumed to be unsupported by the user.
-  /// </summary>
-  public PreferenceList<OpenPGPHashAlgorithm> PreferredHashes
-  {
-    get { return preferredHashes; }
-  }
-
-  /// <summary>Gets or sets whether this user ID or attribute is the primary one.</summary>
-  public bool Primary
-  {
-    get { return primary; }
-    set { primary = value; }
-  }
-
-  readonly PreferenceList<OpenPGPCipher> preferredCiphers = new PreferenceList<OpenPGPCipher>();
-  readonly PreferenceList<OpenPGPCompression> preferredCompressions = new PreferenceList<OpenPGPCompression>();
-  readonly PreferenceList<OpenPGPHashAlgorithm> preferredHashes = new PreferenceList<OpenPGPHashAlgorithm>();
-  Uri keyServer;
-  bool primary;
-}
-#endregion
-
-#region UserRevocationCode
-/// <summary>Gives the reason for the revocation of a user ID.</summary>
-public enum UserRevocationCode
-{
-  /// <summary>No reason was given for the revocation, although there might be a textual explanation.</summary>
-  Unspecified=0,
-  /// <summary>The user ID is no longer valid (eg, email address, job, or name changed, etc).</summary>
-  IdNoLongerValid=32
-}
-#endregion
-
-#region UserRevocationReason
-/// <summary>Options that control how user IDs are revoked.</summary>
-public class UserRevocationReason
-{
-  /// <summary>Initializes a new <see cref="UserRevocationReason"/> object with the default options.</summary>
-  public UserRevocationReason() { }
-
-  /// <summary>Initializes a new <see cref="UserRevocationReason"/> object with the given reason and explanation.</summary>
-  public UserRevocationReason(UserRevocationCode reason, string explanation)
-  {
-    this.reason      = reason;
-    this.explanation = explanation;
-  }
-
-  /// <summary>Gets or sets a human-readable string explaining the reason for the revocation.</summary>
-  public string Explanation
-  {
-    get { return explanation; }
-    set { explanation = value; }
-  }
-
-  /// <summary>Gets or sets the machine-readable reason for the revocation.</summary>
-  public UserRevocationCode Reason
-  {
-    get { return reason; }
-    set { reason = value; }
-  }
-
-  string explanation;
-  UserRevocationCode reason;
-}
-#endregion
-
-#region VerificationOptions
-/// <summary>Specifies options that control the verification of signatures.</summary>
-public class VerificationOptions
-{
-  /// <summary>Gets a collection of additional keyrings that will be searched to find the appropriate public key.</summary>
-  public List<Keyring> AdditionalKeyrings
-  {
-    get { return keyrings; }
-  }
-
-  /// <summary>Gets or sets a value that determines whether the input will be assumed to be binary. If true, the input
-  /// will be assumed to be binary. If false, the default, the input will be checked for ASCII armoring, allowing both
-  /// text and binary input to be decrypted. The default is false.
-  /// </summary>
-  public bool AssumeBinaryInput
-  {
-    get { return binaryOnly; }
-    set { binaryOnly = value; }
-  }
-
-  /// <summary>Gets or sets a value that determines whether the system should attempt to find keys not on the local
-  /// keyrings by contacting public key servers, etc. If <see cref="KeyServer"/> is set, a limited form of key fetching
-  /// will be enabled even if this is set to false. Note that downloaded keys may be added to a local keyring.
-  /// The default is false.
-  /// </summary>
-  public bool AutoFetchKeys
-  {
-    get { return autoFetch; }
-    set { autoFetch = value; }
-  }
-
-  /// <summary>Gets or sets a value that determines whether the default keyring should be ignored -- that is, not
-  /// searched to find the secret key.
-  /// </summary>
-  public bool IgnoreDefaultKeyring
-  {
-    get { return ignoreDefaultKeyring; }
-    set { ignoreDefaultKeyring = value; }
-  }
-
-  /// <summary>Gets or sets the URI of the public key to search for keys that are not found on the local keyrings. If
-  /// set, a limited form of auto fetching (sufficient to contact the public key server) will be enabled even if
-  /// <see cref="AutoFetchKeys"/> is false. Note that downloaded keys may be added to a local keyring.
-  /// </summary>
-  public Uri KeyServer
-  {
-    get { return keyServer; }
-    set { keyServer = value; }
-  }
-
-  List<Keyring> keyrings = new List<Keyring>();
-  Uri keyServer;
-  bool autoFetch, ignoreDefaultKeyring, binaryOnly;
+  CertificateRevocation=0x30,
+  /// <summary>A signature that is only useful for its embedded timestamp.</summary>
+  TimestampSignature=0x40,
+  /// <summary>A signature over some arbitrary OpenPGP packets, certifying that the packets have not been altered.</summary>
+  ConfirmationSignature=0x50
 }
 #endregion
 #endregion
@@ -1260,37 +710,6 @@ public delegate void PasswordInvalidHandler(string keyId);
 #endregion
 #endregion
 
-#region Miscellaneous types
-#region PreferenceList
-/// <summary>A collection for managing preference lists. It behaves like a normal list, except that it does not allow
-/// duplicate entries.
-/// </summary>
-public class PreferenceList<T> : System.Collections.ObjectModel.Collection<T> where T : struct
-{
-  /// <summary>Called when an item is about to be inserted into the collection.</summary>
-  protected override void InsertItem(int index, T item)
-  {
-    if(Contains(item)) throw new InvalidOperationException("The collection already contains " + item.ToString());
-
-    base.InsertItem(index, item);
-  }
-
-  /// <summary>Called when an item is about to be set in the collection.</summary>
-  protected override void SetItem(int index, T item)
-  {
-    for(int i=0; i<Count; i++)
-    {
-      if(i != index && item.Equals(this[i]))
-      {
-        throw new InvalidOperationException("The collection already contains " + item.ToString());
-      }
-    }
-
-    base.SetItem(index, item);
-  }
-}
-#endregion
-
 #region ReadOnlyClass
 /// <summary>Represents a class that allows its properties to be set until <see cref="MakeReadOnly"/> is called, at
 /// which point the object becomes read-only.
@@ -1311,231 +730,6 @@ public abstract class ReadOnlyClass
 
   bool readOnly;
 }
-#endregion
-
-#region TrustLevel
-/// <summary>Key trust indicates the extent to which the owner(s) of a key are trusted to validate the ownership
-/// of other people's keys.
-/// </summary>
-public enum TrustLevel
-{
-  /// <summary>You don't know how thoroughly the owner of this key validates others' keys.</summary>
-  Unknown,
-  /// <summary>You do not trust the owner of this key to do proper validation of others' keys.</summary>
-  Never,
-  /// <summary>You trust the owner of this key to do only marginal validation of others' keys.</summary>
-  Marginal,
-  /// <summary>You trust the owner of this key to do full validation of others' keys.</summary>
-  Full,
-  /// <summary>You ultimately trust the owner of this key, making them a new root in the web of trust. This should
-  /// normally be set only for keys you personally own.
-  /// </summary>
-  Ultimate
-}
-#endregion
-
-#region VerificationLevel
-/// <summary>Indicates how thoroughly you have verified the ownership of a given key -- that is, what steps you have
-/// taken to prove that the key actually belongs to the person named on it.
-/// </summary>
-public enum VerificationLevel
-{
-  /// <summary>You do not wish to provide an answer as to how thoroughly you've verified the ownership of the key.</summary>
-  Nondisclosed,
-  /// <summary>You have not verified the ownership of the key.</summary>
-  None,
-  /// <summary>You have performed casual verification of the key ownership.</summary>
-  Casual,
-  /// <summary>You have performed rigorous verification of the key ownership.</summary>
-  Rigorous
-}
-#endregion
-#endregion
-
-#region OpenPGP enumeration values
-#region OpenPGPAttributeType
-/// <summary>Represents the user attribute types defined in the OpenPGP standard (RFC-4880). This is to help with
-/// parsing OpenPGP packets.
-/// </summary>
-public enum OpenPGPAttributeType
-{
-  /// <summary>An user ID containing an image of the user.</summary>
-  Image=1
-}
-#endregion
-
-#region OpenPGPCipher
-/// <summary>Represents the symmetric ciphers defined in the OpenPGP standard (RFC-4880). This is to help with parsing
-/// OpenPGP packets.
-/// </summary>
-public enum OpenPGPCipher
-{
-  /// <summary>This value indicates that the message is not encrypted.</summary>
-  Unencrypted=0,
-  /// <summary>The IDEA cipher, corresponding to <see cref="SymmetricCipher.IDEA"/>.</summary>
-  IDEA=1,
-  /// <summary>The 3DES cipher, corresponding to <see cref="SymmetricCipher.TripleDES"/>.</summary>
-  TripleDES=2,
-  /// <summary>The CAST5 cipher, corresponding to <see cref="SymmetricCipher.CAST5"/>.</summary>
-  CAST5=3,
-  /// <summary>The Blowfish cipher, corresponding to <see cref="SymmetricCipher.Blowfish"/>.</summary>
-  Blowfish=4,
-  /// <summary>The sAFER-SK128 cipher.</summary>
-  SAFER=5,
-  /// <summary>The DES/SK cipher.</summary>
-  DESSK=6,
-  /// <summary>The AES cipher with a 128-bit key, corresponding to <see cref="SymmetricCipher.AES"/>.</summary>
-  AES=7,
-  /// <summary>The AES cipher with a 192-bit key, corresponding to <see cref="SymmetricCipher.AES192"/>.</summary>
-  AES192=8,
-  /// <summary>The AES cipher with a 256-bit key, corresponding to <see cref="SymmetricCipher.AES256"/>.</summary>
-  AES256=9,
-  /// <summary>The Twofish cipher, corresponding to <see cref="SymmetricCipher.Twofish"/>.</summary>
-  Twofish=10,
-}
-#endregion
-
-#region OpenPGPCompression
-/// <summary>Represents the compression types defined in the OpenPGP standard (RFC-4880). This is to help with parsing
-/// OpenPGP packets.
-/// </summary>
-public enum OpenPGPCompression
-{
-  /// <summary>A value indicating that the message is uncompressed.</summary>
-  Uncompressed=0,
-  /// <summary>The Zip algorith, corresponding to <see cref="Compression.Zip"/>.</summary>
-  Zip=1,
-  /// <summary>The Zlib algorith, corresponding to <see cref="Compression.Zlib"/>.</summary>
-  Zlib=2,
-  /// <summary>The Bzip2 algorith, corresponding to <see cref="Compression.Bzip2"/>.</summary>
-  Bzip2=3
-}
-#endregion
-
-#region OpenPGPHashAlgorithm
-/// <summary>Represents the hash algorithms defined in the OpenPGP standard (RFC-4880). This is to help with parsing
-/// OpenPGP packets.
-/// </summary>
-public enum OpenPGPHashAlgorithm
-{
-  /// <summary>The MD5 algorithm, corresponding to <see cref="HashAlgorithm.MD5"/>.</summary>
-  MD5=1,
-  /// <summary>The SHA1 algorithm, corresponding to <see cref="HashAlgorithm.SHA1"/>.</summary>
-  SHA1=2,
-  /// <summary>The RIPE-MD/160 algorithm, corresponding to <see cref="HashAlgorithm.RIPEMD160"/>.</summary>
-  RIPEMD160=3,
-  /// <summary>The MD2 algorithm.</summary>
-  MD2=5,
-  /// <summary>The TIGER/192 algorithm.</summary>
-  TIGER192=6,
-  /// <summary>The HAVAL algorithm.</summary>
-  HAVAL=7,
-  /// <summary>The SHA256 algorithm, corresponding to <see cref="HashAlgorithm.SHA256"/>.</summary>
-  SHA256=8,
-  /// <summary>The SHA384 algorithm, corresponding to <see cref="HashAlgorithm.SHA384"/>.</summary>
-  SHA384=9,
-  /// <summary>The SHA512 algorithm, corresponding to <see cref="HashAlgorithm.SHA512"/>.</summary>
-  SHA512=10,
-  /// <summary>The SHA224 algorithm, corresponding to <see cref="HashAlgorithm.SHA224"/>.</summary>
-  SHA224=11
-}
-#endregion
-
-#region OpenPGPImageType
-/// <summary>Represents the image types defined in the OpenPGP standard (RFC-4880). This is to help with parsing
-/// OpenPGP packets.
-/// </summary>
-public enum OpenPGPImageType
-{
-  /// <summary>The ISO 10918-1 JPEG format.</summary>
-  Jpeg=1,
-}
-#endregion
-
-#region OpenPGPKeyType
-/// <summary>Represents the key types defined in the OpenPGP standard (RFC-4880). This is to help with parsing OpenPGP
-/// packets.
-/// </summary>
-public enum OpenPGPKeyType
-{
-  /// <summary>An RSA key type, equivalent to <see cref="SubkeyType.RSA"/>.</summary>
-  RSA=1,
-  /// <summary>An RSA encryption-only key type, corresponding to <see cref="SubkeyType.RSAEncryptOnly"/>.</summary>
-  RSAEncryptOnly=2,
-  /// <summary>An RSA signing-only key type, corresponding to <see cref="SubkeyType.RSASignOnly"/>.</summary>
-  RSASignOnly=3,
-  /// <summary>An ElGamal encryption-only key type, corresponding to <see cref="SubkeyType.ElGamalEncryptOnly"/>.</summary>
-  ElGamalEncryptOnly=16,
-  /// <summary>A DSA signing key, corresponding to <see cref="SubkeyType.DSA"/>.</summary>
-  DSA=17,
-  /// <summary>An elliptic curve key.</summary>
-  EllipticCurve=18,
-  /// <summary>An elliptic curve DSA key.</summary>
-  ECDSA=19,
-  /// <summary>An ElGamal key that can be used for both signing and encryption. Because of security weaknesses, this
-  /// should not be used.
-  /// </summary>
-  ElGamal=20,
-  /// <summary>The Diffie Hellmen X9.42 key type, as defined for IETF-S/MIME.</summary>
-  DiffieHellman=21
-}
-#endregion
-
-#region OpenPGPSignatureType
-/// <summary>Represents the signature types defined in the OpenPGP standard (RFC-4880). This is to help with parsing
-/// OpenPGP packets.
-/// </summary>
-public enum OpenPGPSignatureType
-{
-  /// <summary>A signature of a canonical binary document. The signer owns the document, created it, or certifies that
-  /// it has not been modified.
-  /// </summary>
-  CanonicalBinary=0,
-  /// <summary>A signature of a canonical text document. The signer owns the document, created it, or certifies that
-  /// it has not been modified. The signature is computed over the text document with line endings normalized to CRLF.
-  /// </summary>
-  CanonicalText=1,
-  /// <summary>A signature of its own subpacket contents.</summary>
-  Standalone=2,
-  /// <summary>A signature on a key's user ID that makes no statement about how well the key's ownership has been
-  /// verified.
-  /// </summary>
-  GenericCertification=0x10,
-  /// <summary>A signature on a key's user ID which states that no verification of the key's ownership has been
-  /// performed.
-  /// </summary>
-  PersonaCertification=0x11,
-  /// <summary>A signature on a key's user ID which states that casual verification of the key's ownership has been
-  /// performed.
-  /// </summary>
-  CasualCertification=0x12,
-  /// <summary>A signature on a key's user ID which states that rigorous verification of the key's ownership has been
-  /// performed.
-  /// </summary>
-  PositiveCertification=0x13,
-  /// <summary>A statement by a primary key that it owns a given subkey.</summary>
-  SubkeyBinding=0x18,
-  /// <summary>A statement by a subkey that it is owned by the primary key.</summary>
-  PrimaryKeyBinding=0x19,
-  /// <summary>A signature on a key, usually not made by the key itself, that binds additional information to the key.</summary>
-  DirectKeySignature=0x1f,
-  /// <summary>A signature on a key, usually made by the key itself, that indicates that the key has been revoked.</summary>
-  PrimaryKeyRevocation=0x20,
-  /// <summary>A signature on a subkey, usually made by the primary key, thath indicates that the subkey has been
-  /// revoked.
-  /// </summary>
-  SubkeyRevocation=0x28,
-  /// <summary>A signature that revokes a certification signature (<see cref="GenericCertification"/>,
-  /// <see cref="PersonaCertification"/>, <see cref="CasualCertification"/>, or <see cref="PositiveCertification"/>) or
-  /// a <see cref="DirectKeySignature"/>.
-  /// </summary>
-  CertificateRevocation=0x30,
-  /// <summary>A signature that is only useful for its embedded timestamp.</summary>
-  TimestampSignature=0x40,
-  /// <summary>A signature over some arbitrary OpenPGP packets, certifying that the packets have not been altered.</summary>
-  ConfirmationSignature=0x50
-}
-#endregion
 #endregion
 
 #region PGPSystem
@@ -1640,117 +834,207 @@ public abstract class PGPSystem
   public abstract Signature[] Verify(Stream signature, Stream signedData, VerificationOptions options);
   #endregion
 
-  #region Primary key management
+  #region Key import and export
+  /// <summary>Exports the given public key to the given stream.</summary>
+  public void ExportPublicKey(PrimaryKey key, Stream destination)
+  {
+    ExportPublicKey(key, destination, ExportOptions.Default, null);
+  }
+
+  /// <summary>Exports the given public key to the given stream.</summary>
+  public void ExportPublicKey(PrimaryKey key, Stream destination, ExportOptions exportOptions)
+  {
+    ExportPublicKey(key, destination, exportOptions, null);
+  }
+
+  /// <summary>Exports the given public key to the given stream.</summary>
+  public void ExportPublicKey(PrimaryKey key, Stream destination, ExportOptions exportOptions,
+                              OutputOptions outputOptions)
+  {
+    ExportPublicKeys(new PrimaryKey[] { key }, destination, exportOptions, outputOptions);
+  }
+
+  /// <summary>Exports the given public keys to the given stream.</summary>
+  public void ExportPublicKeys(PrimaryKey[] keys, Stream destination)
+  {
+    ExportPublicKeys(keys, destination, ExportOptions.Default, null);
+  }
+
+  /// <summary>Exports the given public keys to the given stream.</summary>
+  public void ExportPublicKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions)
+  {
+    ExportPublicKeys(keys, destination, exportOptions, null);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportPublicKeys/*"/>
+  public abstract void ExportPublicKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions,
+                                        OutputOptions outputOptions);
+
+  /// <summary>Exports all public keys in the given keyring files and/or the default keyring to the given stream.</summary>
+  public void ExportPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination)
+  {
+    ExportPublicKeys(keyrings, includeDefaultKeyring, destination, ExportOptions.Default, null);
+  }
+
+  /// <summary>Exports all public keys in the given keyring files and/or the default keyring to the given stream.</summary>
+  public void ExportPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
+                               ExportOptions options)
+  {
+    ExportPublicKeys(keyrings, includeDefaultKeyring, destination, options, null);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportPublicKeys/*"/>
+  public abstract void ExportPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
+                                        ExportOptions exportOptions, OutputOptions outputOptions);
+
+  /// <summary>Exports the secret and public portion of the given key to the given stream.</summary>
+  public void ExportSecretKey(PrimaryKey key, Stream destination)
+  {
+    ExportSecretKey(key, destination, ExportOptions.Default, null);
+  }
+
+  /// <summary>Exports the secret and public portion of the given key to the given stream.</summary>
+  public void ExportSecretKey(PrimaryKey key, Stream destination, ExportOptions exportOptions)
+  {
+    ExportSecretKey(key, destination, exportOptions, null);
+  }
+
+  /// <summary>Exports the secret and public portion of the given key to the given stream.</summary>
+  public void ExportSecretKey(PrimaryKey key, Stream destination, ExportOptions exportOptions,
+                              OutputOptions outputOptions)
+  {
+    ExportSecretKeys(new PrimaryKey[] { key }, destination, exportOptions, outputOptions);
+  }
+
+  /// <summary>Exports the given secret and public keys to the given stream.</summary>
+  public void ExportSecretKeys(PrimaryKey[] keys, Stream destination)
+  {
+    ExportSecretKeys(keys, destination, ExportOptions.Default, null);
+  }
+
+  /// <summary>Exports the given secret and public keys to the given stream.</summary>
+  public void ExportSecretKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions)
+  {
+    ExportSecretKeys(keys, destination, exportOptions, null);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportSecretKeys/*"/>
+  public abstract void ExportSecretKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions,
+                                        OutputOptions outputOptions);
+
+  /// <summary>Exports all secret keys in the given keyring files and/or the default keyring to the given stream.</summary>
+  public void ExportSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination)
+  {
+    ExportSecretKeys(keyrings, includeDefaultKeyring, destination, ExportOptions.Default, null);
+  }
+
+  /// <summary>Exports all secret keys in the given keyring files and/or the default keyring to the given stream.</summary>
+  public void ExportSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
+                               ExportOptions exportOptions)
+  {
+    ExportSecretKeys(keyrings, includeDefaultKeyring, destination, exportOptions, null);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportSecretKeys/*"/>
+  public abstract void ExportSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
+                                        ExportOptions exportOptions, OutputOptions outputOptions);
+
+  /// <summary>Imports keys from the given source into the default keyring.</summary>
+  public ImportedKey[] ImportKeys(Stream source)
+  {
+    return ImportKeys(source, null, ImportOptions.Default);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeys2/*"/>
+  public ImportedKey[] ImportKeys(Stream source, ImportOptions options)
+  {
+    return ImportKeys(source, null, options);
+  }
+
+  /// <summary>Imports keys from the given source into the given keyring.</summary>
+  public ImportedKey[] ImportKeys(Stream source, Keyring keyring)
+  {
+    return ImportKeys(source, keyring, ImportOptions.Default);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeys3/*"/>
+  public abstract ImportedKey[] ImportKeys(Stream source, Keyring keyring, ImportOptions options);
+  #endregion
+
+  #region Key revocation
   /// <include file="documentation.xml" path="/Security/PGPSystem/AddDesignatedRevoker/*" />
   public abstract void AddDesignatedRevoker(PrimaryKey key, PrimaryKey revokerKey);
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/AddPhoto2/*" />
-  public virtual void AddPhoto(PrimaryKey key, Image image, UserPreferences preferences)
-  {
-    if(key == null || image == null) throw new ArgumentNullException();
-
-    string jpegFilename = Path.GetTempFileName();
-    try
-    {
-      using(FileStream stream = new FileStream(jpegFilename, FileMode.Open, FileAccess.ReadWrite))
-      {
-        image.Save(stream, System.Drawing.Imaging.ImageFormat.Jpeg);
-        stream.Position = 0;
-        AddPhoto(key, stream, OpenPGPImageType.Jpeg, preferences);
-      }
-    }
-    finally { File.Delete(jpegFilename); }
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/AddPhoto4/*" />
-  public abstract void AddPhoto(PrimaryKey key, Stream image, OpenPGPImageType imageFormat,
-                                UserPreferences preferences);
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/AddUserId/*" />
-  public abstract void AddUserId(PrimaryKey key, string realName, string email, string comment,
-                                 UserPreferences preferences);
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/AddSubkey/*" />
-  public abstract void AddSubkey(PrimaryKey key, string keyType, int keyLength, DateTime? expiration);
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ChangeExpiration/*" />
-  public abstract void ChangeExpiration(Key key, DateTime? expiration);
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ChangePassword/*" />
-  public abstract void ChangePassword(PrimaryKey key, SecureString password);
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/CleanKeys/*" />
-  public abstract void CleanKeys(params PrimaryKey[] keys);
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/MinimizeKeys/*" />
-  public abstract void MinimizeKeys(params PrimaryKey[] keys);
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/CreateKey/*"/>
-  public abstract PrimaryKey CreateKey(NewKeyOptions options);
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DisableKeys/*" />
-  public abstract void DisableKeys(params PrimaryKey[] keys);
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/EnableKeys/*" />
-  public abstract void EnableKeys(params PrimaryKey[] keys);
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteAttributes/*" />
-  public abstract void DeleteAttributes(params UserAttribute[] attributes);
-
-  /// <summary>Deletes the given primary key, or a part of it, from its keyring.</summary>
-  /// <param name="key">The primary key to delete.</param>
-  /// <param name="deletion">The portion of the key to delete.</param>
-  /// <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
-  public void DeleteKey(PrimaryKey key, KeyDeletion deletion)
-  {
-    DeleteKeys(new PrimaryKey[] { key }, deletion);
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteKeys/*"/>
-  public abstract void DeleteKeys(PrimaryKey[] keys, KeyDeletion deletion);
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSignatures/*" />
-  public abstract void DeleteSignatures(params KeySignature[] signatures);
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSubkeys/*" />
-  public abstract void DeleteSubkeys(params Subkey[] subkeys);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRevocationCertificate/*" />
   public abstract void GenerateRevocationCertificate(PrimaryKey key, Stream destination, KeyRevocationReason reason,
                                                      OutputOptions outputOptions);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetPreferences/*" />
-  public abstract UserPreferences GetPreferences(UserAttribute user);
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeAttributes/*" />
-  public abstract void RevokeAttributes(UserRevocationReason reason, params UserAttribute[] attributes);
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRevocationCertificateD/*" />
+  public abstract void GenerateRevocationCertificate(PrimaryKey keyToRevoke, PrimaryKey designatedRevoker,
+                                                     Stream destination, KeyRevocationReason reason,
+                                                     OutputOptions outputOptions);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeKeys/*" />
   public abstract void RevokeKeys(KeyRevocationReason reason, params PrimaryKey[] keys);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSignatures/*" />
-  public abstract void RevokeSignatures(UserRevocationReason reason, params KeySignature[] signatures);
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeKeysD/*" />
+  public abstract void RevokeKeys(PrimaryKey designatedRevoker, KeyRevocationReason reason, params PrimaryKey[] keys);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSubkeys/*" />
   public abstract void RevokeSubkeys(KeyRevocationReason reason, params Subkey[] subkeys);
+  #endregion
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SetPreferences/*" />
-  public abstract void SetPreferences(UserAttribute user, UserPreferences preferences);
+  #region Key server operations
+  /// <summary>Downloads the public keys specified with the given fingerprints (or key IDs) from the given key server,
+  /// and imports them into the default keyring.
+  /// </summary>
+  public ImportedKey[] ImportKeysFromServer(KeyDownloadOptions options, params string[] keyFingerprintsOrIds)
+  {
+    return ImportKeysFromServer(options, null, keyFingerprintsOrIds);
+  }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SetTrustLevel/*" />
-  public abstract void SetTrustLevel(PrimaryKey key, TrustLevel trust);
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeysFromServer/*"/>
+  public abstract ImportedKey[] ImportKeysFromServer(KeyDownloadOptions options, Keyring keyring,
+                                                     params string[] keyFingerprintsOrIds);
+
+  /// <summary>Refreshes all of the keys on the default keyring from a key server.</summary>
+  public ImportedKey[] RefreshKeysFromServer(KeyDownloadOptions options)
+  {
+    return RefreshKeysFromServer(options, (Keyring)null);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RefreshKeyringFromServer/*"/>
+  public abstract ImportedKey[] RefreshKeysFromServer(KeyDownloadOptions options, Keyring keyring);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RefreshKeysFromServer/*"/>
+  public abstract ImportedKey[] RefreshKeysFromServer(KeyDownloadOptions options, params PrimaryKey[] keys);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/UploadKeys/*"/>
+  public abstract void UploadKeys(KeyUploadOptions options, params PrimaryKey[] keys);
+  #endregion
+
+  #region Key signing
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSignatures/*" />
+  public abstract void DeleteSignatures(params KeySignature[] signatures);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSignatures/*" />
+  public abstract void RevokeSignatures(UserRevocationReason reason, params KeySignature[] signatures);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/SignKey/*" />
   public abstract void SignKey(PrimaryKey keyToSign, PrimaryKey signingKey, KeySigningOptions options);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/SignUser/*"/>
   public abstract void SignKey(UserAttribute userId, PrimaryKey signingKey, KeySigningOptions options);
+  #endregion
 
-  /// <summary>Searches for the public keys with the given fingerprint in the given keyring.</summary>
-  /// <param name="fingerprint">The fingerprints of the key to search for.</param>
-  /// <param name="keyring">The keyring to search, or null to search the default keyring.</param>
-  /// <param name="options">Options controlling how keys should be returned.</param>
-  /// <returns>Returns the key if it was found, or null if it was not.</returns>
+  #region Keyring queries
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKey/*[@name != 'options']"/>
+  public PrimaryKey FindPublicKey(string fingerprint, Keyring keyring)
+  {
+    return FindPublicKey(fingerprint, keyring, ListOptions.Default);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKey/*"/>
   public PrimaryKey FindPublicKey(string fingerprint, Keyring keyring, ListOptions options)
   {
     PrimaryKey[] keys = FindPublicKeys(new string[] { fingerprint },
@@ -1769,11 +1053,13 @@ public abstract class PGPSystem
   public abstract PrimaryKey[] FindPublicKeys(string[] fingerprints, Keyring[] keyrings, bool includeDefaultKeyring,
                                               ListOptions options);
 
-  /// <summary>Searches for the secret keys with the given fingerprint in the given keyring.</summary>
-  /// <param name="fingerprint">The fingerprints of the key to search for.</param>
-  /// <param name="keyring">The keyring to search, or null to search the default keyring.</param>
-  /// <param name="options">Options controlling how keys should be returned.</param>
-  /// <returns>Returns the key if it was found, or null if it was not.</returns>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKey/*[@name != 'options']"/>
+  public PrimaryKey FindSecretKey(string fingerprint, Keyring keyring)
+  {
+    return FindSecretKey(fingerprint, keyring, ListOptions.Default);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKey/*"/>
   public PrimaryKey FindSecretKey(string fingerprint, Keyring keyring, ListOptions options)
   {
     PrimaryKey[] keys = FindSecretKeys(new string[] { fingerprint },
@@ -1934,131 +1220,6 @@ public abstract class PGPSystem
 
     return refreshedKeys;
   }
-
-  /// <summary>Exports the given public key to the given stream.</summary>
-  public void ExportPublicKey(PrimaryKey key, Stream destination)
-  {
-    ExportPublicKey(key, destination, ExportOptions.Default, null);
-  }
-
-  /// <summary>Exports the given public key to the given stream.</summary>
-  public void ExportPublicKey(PrimaryKey key, Stream destination, ExportOptions exportOptions)
-  {
-    ExportPublicKey(key, destination, exportOptions, null);
-  }
-
-  /// <summary>Exports the given public key to the given stream.</summary>
-  public void ExportPublicKey(PrimaryKey key, Stream destination, ExportOptions exportOptions,
-                              OutputOptions outputOptions)
-  {
-    ExportPublicKeys(new PrimaryKey[] { key }, destination, exportOptions, outputOptions);
-  }
-
-  /// <summary>Exports the given public keys to the given stream.</summary>
-  public void ExportPublicKeys(PrimaryKey[] keys, Stream destination)
-  {
-    ExportPublicKeys(keys, destination, ExportOptions.Default, null);
-  }
-
-  /// <summary>Exports the given public keys to the given stream.</summary>
-  public void ExportPublicKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions)
-  {
-    ExportPublicKeys(keys, destination, exportOptions, null);
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportPublicKeys/*"/>
-  public abstract void ExportPublicKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions,
-                                        OutputOptions outputOptions);
-
-  /// <summary>Exports all public keys in the given keyring files and/or the default keyring to the given stream.</summary>
-  public void ExportPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination)
-  {
-    ExportPublicKeys(keyrings, includeDefaultKeyring, destination, ExportOptions.Default, null);
-  }
-
-  /// <summary>Exports all public keys in the given keyring files and/or the default keyring to the given stream.</summary>
-  public void ExportPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
-                               ExportOptions options)
-  {
-    ExportPublicKeys(keyrings, includeDefaultKeyring, destination, options, null);
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportPublicKeys/*"/>
-  public abstract void ExportPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
-                                        ExportOptions exportOptions, OutputOptions outputOptions);
-
-  /// <summary>Exports the secret and public portion of the given key to the given stream.</summary>
-  public void ExportSecretKey(PrimaryKey key, Stream destination)
-  {
-    ExportSecretKey(key, destination, ExportOptions.Default, null);
-  }
-
-  /// <summary>Exports the secret and public portion of the given key to the given stream.</summary>
-  public void ExportSecretKey(PrimaryKey key, Stream destination, ExportOptions exportOptions)
-  {
-    ExportSecretKey(key, destination, exportOptions, null);
-  }
-
-  /// <summary>Exports the secret and public portion of the given key to the given stream.</summary>
-  public void ExportSecretKey(PrimaryKey key, Stream destination, ExportOptions exportOptions,
-                              OutputOptions outputOptions)
-  {
-    ExportSecretKeys(new PrimaryKey[] { key }, destination, exportOptions, outputOptions);
-  }
-
-  /// <summary>Exports the given secret and public keys to the given stream.</summary>
-  public void ExportSecretKeys(PrimaryKey[] keys, Stream destination)
-  {
-    ExportSecretKeys(keys, destination, ExportOptions.Default, null);
-  }
-
-  /// <summary>Exports the given secret and public keys to the given stream.</summary>
-  public void ExportSecretKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions)
-  {
-    ExportSecretKeys(keys, destination, exportOptions, null);
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportSecretKeys/*"/>
-  public abstract void ExportSecretKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions,
-                                        OutputOptions outputOptions);
-
-  /// <summary>Exports all secret keys in the given keyring files and/or the default keyring to the given stream.</summary>
-  public void ExportSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination)
-  {
-    ExportSecretKeys(keyrings, includeDefaultKeyring, destination, ExportOptions.Default, null);
-  }
-
-  /// <summary>Exports all secret keys in the given keyring files and/or the default keyring to the given stream.</summary>
-  public void ExportSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
-                               ExportOptions exportOptions)
-  {
-    ExportSecretKeys(keyrings, includeDefaultKeyring, destination, exportOptions, null);
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportSecretKeys/*"/>
-  public abstract void ExportSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
-                                        ExportOptions exportOptions, OutputOptions outputOptions);
-
-  /// <summary>Imports keys from the given source into the default keyring.</summary>
-  public ImportedKey[] ImportKeys(Stream source)
-  {
-    return ImportKeys(source, null, ImportOptions.Default);
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeys2/*"/>
-  public ImportedKey[] ImportKeys(Stream source, ImportOptions options)
-  {
-    return ImportKeys(source, null, options);
-  }
-
-  /// <summary>Imports keys from the given source into the given keyring.</summary>
-  public ImportedKey[] ImportKeys(Stream source, Keyring keyring)
-  {
-    return ImportKeys(source, keyring, ImportOptions.Default);
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeys3/*"/>
-  public abstract ImportedKey[] ImportKeys(Stream source, Keyring keyring, ImportOptions options);
   #endregion
 
   #region Miscellaneous
@@ -2111,6 +1272,90 @@ public abstract class PGPSystem
   public abstract byte[] Hash(Stream data, string hashAlgorithm);
   #endregion
 
+  #region Primary key management
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddSubkey/*" />
+  public abstract void AddSubkey(PrimaryKey key, string keyType, int keyLength, DateTime? expiration);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ChangeExpiration/*" />
+  public abstract void ChangeExpiration(Key key, DateTime? expiration);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ChangePassword/*" />
+  public abstract void ChangePassword(PrimaryKey key, SecureString password);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/CleanKeys/*" />
+  public abstract void CleanKeys(params PrimaryKey[] keys);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/CreateKey/*"/>
+  public abstract PrimaryKey CreateKey(NewKeyOptions options);
+
+  /// <summary>Deletes the given primary key, or a part of it, from its keyring.</summary>
+  /// <param name="key">The primary key to delete.</param>
+  /// <param name="deletion">The portion of the key to delete.</param>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+  public void DeleteKey(PrimaryKey key, KeyDeletion deletion)
+  {
+    DeleteKeys(new PrimaryKey[] { key }, deletion);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteKeys/*"/>
+  public abstract void DeleteKeys(PrimaryKey[] keys, KeyDeletion deletion);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSubkeys/*" />
+  public abstract void DeleteSubkeys(params Subkey[] subkeys);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DisableKeys/*" />
+  public abstract void DisableKeys(params PrimaryKey[] keys);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/EnableKeys/*" />
+  public abstract void EnableKeys(params PrimaryKey[] keys);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/MinimizeKeys/*" />
+  public abstract void MinimizeKeys(params PrimaryKey[] keys);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SetTrustLevel/*" />
+  public abstract void SetTrustLevel(PrimaryKey key, TrustLevel trust);
+  #endregion
+
+  #region User ID management
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddPhoto2/*" />
+  public virtual void AddPhoto(PrimaryKey key, Image image, UserPreferences preferences)
+  {
+    if(key == null || image == null) throw new ArgumentNullException();
+
+    string jpegFilename = Path.GetTempFileName();
+    try
+    {
+      using(FileStream stream = new FileStream(jpegFilename, FileMode.Open, FileAccess.ReadWrite))
+      {
+        image.Save(stream, System.Drawing.Imaging.ImageFormat.Jpeg);
+        stream.Position = 0;
+        AddPhoto(key, stream, OpenPGPImageType.Jpeg, preferences);
+      }
+    }
+    finally { File.Delete(jpegFilename); }
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddPhoto4/*" />
+  public abstract void AddPhoto(PrimaryKey key, Stream image, OpenPGPImageType imageFormat,
+                                UserPreferences preferences);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddUserId/*" />
+  public abstract void AddUserId(PrimaryKey key, string realName, string email, string comment,
+                                 UserPreferences preferences);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteAttributes/*" />
+  public abstract void DeleteAttributes(params UserAttribute[] attributes);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetPreferences/*" />
+  public abstract UserPreferences GetPreferences(UserAttribute user);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SetPreferences/*" />
+  public abstract void SetPreferences(UserAttribute user, UserPreferences preferences);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeAttributes/*" />
+  public abstract void RevokeAttributes(UserRevocationReason reason, params UserAttribute[] attributes);
+  #endregion
+
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetCardPin/*"/>
   protected virtual SecureString GetCardPin(string cardType, string chvNumber, string serialNumber)
   {
@@ -2134,14 +1379,14 @@ public abstract class PGPSystem
   {
     if(KeyPasswordInvalid != null) KeyPasswordInvalid(keyId);
   }
-  
+
   /// <summary>Compares keys based on their keyring.</summary>
   sealed class CompareKeysByKeyring : IComparer<Key>
   {
     public int Compare(Key a, Key b)
     {
       Keyring ak = a.GetPrimaryKey().Keyring, bk = b.GetPrimaryKey().Keyring;
- 
+
       if(ak == bk) return 0;
       else if(ak == null) return -1;
       else if(bk == null) return 1;

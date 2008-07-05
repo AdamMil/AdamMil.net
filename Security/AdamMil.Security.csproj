@@ -35,6 +35,7 @@
     <Compile Include="Exceptions.cs" />
     <Compile Include="GPG.cs" />
     <Compile Include="GPGMessages.cs" />
+    <Compile Include="Options.cs" />
     <Compile Include="PGPSystem.cs" />
     <Compile Include="Keys.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

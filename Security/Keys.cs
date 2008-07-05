@@ -1,5 +1,5 @@
 /*
-GPG.net is a .NET interface to the GNU Privacy Guard (www.gnupg.org).
+AdamMil.Security is a .NET library providing OpenPGP-based security.
 http://www.adammil.net/
 Copyright (C) 2008 Adam Milazzo
 
@@ -912,34 +912,34 @@ public class Subkey : Key, ISignableObject
 #endregion
 
 #region KeyCollection
-/// <summary>A collection of <see cref="Key"/> objects.</summary>
-public class KeyCollection : Collection<Key>
+/// <summary>A collection of <see cref="Key"/> objects. The key objects cannot be null.</summary>
+public class KeyCollection<KeyType> : Collection<KeyType> where KeyType : Key
 {
-  /// <summary>Initializes a new <see cref="KeyCollection"/> with no required key capabilities.</summary>
+  /// <summary>Initializes a new <see cref="KeyCollection{T}"/> with no required key capabilities.</summary>
   public KeyCollection() { }
   
-  /// <summary>Initializes a new <see cref="KeyCollection"/> with the given set of required key capabilities.</summary>
+  /// <summary>Initializes a new <see cref="KeyCollection{T}"/> with the given set of required key capabilities.</summary>
   public KeyCollection(KeyCapability requiredCapabilities)
   {
     this.requiredCapabilities = requiredCapabilities;
   }
 
   /// <summary>Called when a new item is about to be inserted.</summary>
-  protected override void InsertItem(int index, Key item)
+  protected override void InsertItem(int index, KeyType item)
   {
     ValidateKey(item);
     base.InsertItem(index, item);
   }
 
   /// <summary>Called when an item is about to be changed.</summary>
-  protected override void SetItem(int index, Key item)
+  protected override void SetItem(int index, KeyType item)
   {
     ValidateKey(item);
     base.SetItem(index, item);
   }
 
   /// <summary>Called to verify that the key matches is allowed in the collection.</summary>
-  protected void ValidateKey(Key key)
+  protected void ValidateKey(KeyType key)
   {
     if(key == null) throw new ArgumentNullException();
 
