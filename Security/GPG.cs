@@ -144,6 +144,20 @@ public class ExeGPG : GPG
   /// <summary>Raised when a line of text is to be logged.</summary>
   public event TextLineHandler LineLogged;
 
+  /// <summary>Gets or sets whether the GPG agent will be used. If enabled, GPG will use its own user interface to
+  /// query for passwords, bypassing the support provided by this library. The default is false. However, the agent is
+  /// always enabled when using GPG 2.
+  /// </summary>
+  public bool EnableGPGAgent
+  {
+    get { return enableAgent; }
+    set
+    {
+      if(value) throw new NotImplementedException(); // TODO: we need to rewrite the code to ask for passwords only
+      enableAgent = value;                           // when we get the GET_HIDDEN prompt, not when we just get the
+    }                                                // NEED_PASSPHRASE message
+  }
+
   /// <summary>Gets the path to the GPG executable, or null if <see cref="Initialize"/> has not been called.</summary>
   public string ExecutablePath
   {
@@ -482,6 +496,8 @@ public class ExeGPG : GPG
       List<PrimaryKey> keysFound = new List<PrimaryKey>();
       List<UserId> userIds = new List<UserId>();
 
+      // GPG seems to send a lot of blank lines in here, but actually i suspect it's send inconsistent line endings
+      // which is confusing the StreamReader and making it think CRLF is two EOL characters
       while(true)
       {
         string line = cmd.Process.StandardOutput.ReadLine();
@@ -1343,7 +1359,11 @@ public class ExeGPG : GPG
     /// <summary>Kills the process if it's running.</summary>
     public void Kill()
     {
-      if(process != null) process.Kill();
+      if(process != null && !process.HasExited)
+      {
+        try { process.Kill(); }
+        catch(InvalidOperationException) { } // if it exited before the Kill(), don't worry about it
+      }
     }
 
     /// <summary>Parses a string containing a status line into a status message.</summary>
@@ -1980,6 +2000,11 @@ public class ExeGPG : GPG
       throw new NotImplementedException("Unhandled passphrase request.");
     }
 
+    /// <summary>Gets or sets whether this command expects a relist before the next prompt. If true, and GPG doesn't
+    /// issue a relist, one will be manually requested.
+    /// </summary>
+    public bool ExpectRelist;
+
     /// <summary>Returns an exception that represents an unexpected condition.</summary>
     protected static PGPException UnexpectedError(string problem)
     {
@@ -2390,6 +2415,7 @@ public class ExeGPG : GPG
           }
           cmd.SendLine("delsig");
           sentCommand = true;
+          ExpectRelist = false;
         }
         else return EditCommandResult.Next;
       }
@@ -2445,6 +2471,11 @@ public class ExeGPG : GPG
   /// <summary>An edit command that deletes a user ID or attribute.</summary>
   sealed class DeleteUidCommand : EditCommand
   {
+    public DeleteUidCommand()
+    {
+      ExpectRelist = true;
+    }
+
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
                                               Command cmd, string promptId)
     {
@@ -2463,6 +2494,7 @@ public class ExeGPG : GPG
 
           cmd.SendLine("deluid");
           sentCommand = true;
+          ExpectRelist = false;
         }
         else return EditCommandResult.Next;
       }
@@ -2483,7 +2515,10 @@ public class ExeGPG : GPG
   /// <summary>A base class for commands that edit signatures.</summary>
   abstract class EditSigsBase : RevokeBase
   {
-    protected EditSigsBase(KeySignature[] sigs) : this(null, sigs) { }
+    protected EditSigsBase(KeySignature[] sigs) : this(null, sigs)
+    {
+      ExpectRelist = true;
+    }
 
     protected EditSigsBase(UserRevocationReason reason, KeySignature[] sigs) : base(reason)
     {
@@ -2542,6 +2577,11 @@ public class ExeGPG : GPG
   /// <summary>An edit command that retrieves user preferences.</summary>
   sealed class GetPrefsCommand : EditCommand
   {
+    public GetPrefsCommand()
+    {
+      ExpectRelist = true;
+    }
+
     /// <param name="preferences">A <see cref="UserPreferences"/> object that will be filled with the user preferences.</param>
     public GetPrefsCommand(UserPreferences preferences)
     {
@@ -2575,6 +2615,7 @@ public class ExeGPG : GPG
 
           cmd.SendLine("showpref"); // this will cause GPG to print the preferences in a
           sentCommand = true;       // text format that we can parse below
+          ExpectRelist = false;
           return EditCommandResult.Continue;
         }
         else return EditCommandResult.Next;
@@ -2711,6 +2752,7 @@ public class ExeGPG : GPG
           }
           cmd.SendLine("revsig");
           sentCommand = true;
+          ExpectRelist = false;
         }
         else return EditCommandResult.Next;
       }
@@ -2773,7 +2815,10 @@ public class ExeGPG : GPG
   /// <summary>An edit command that revokes user IDs and attributes.</summary>
   sealed class RevokeUidCommand : RevokeBase
   {
-    public RevokeUidCommand(UserRevocationReason reason) : base(reason) { }
+    public RevokeUidCommand(UserRevocationReason reason) : base(reason)
+    {
+      ExpectRelist = true;
+    }
 
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
                                               Command cmd, string promptId)
@@ -2791,6 +2836,7 @@ public class ExeGPG : GPG
 
             cmd.SendLine("revuid");
             sentCommand = true;
+            ExpectRelist = false;
           }
           else if(!sentConfirmation) // if GPG never asked us if we were sure, then that means it failed
           {
@@ -2817,6 +2863,11 @@ public class ExeGPG : GPG
   /// <summary>An edit command that selects the last user ID or attribute in the list.</summary>
   sealed class SelectLastUidCommand : EditCommand
   {
+    public SelectLastUidCommand()
+    {
+      ExpectRelist = true;
+    }
+
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
                                               Command cmd, string promptId)
     {
@@ -2898,6 +2949,7 @@ public class ExeGPG : GPG
     {
       if(id == null) throw new ArgumentNullException();
       this.id = id;
+      ExpectRelist = true;
     }
 
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
@@ -3039,6 +3091,11 @@ public class ExeGPG : GPG
   /// <summary>An edit command that sets the currently-selected user ID or attribute as primary.</summary>
   sealed class SetPrimaryCommand : EditCommand
   {
+    public SetPrimaryCommand()
+    {
+      ExpectRelist = true;
+    }
+
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
                                               Command cmd, string promptId)
     {
@@ -3443,6 +3500,8 @@ public class ExeGPG : GPG
 
       cmd.Start();
 
+      bool gotFreshList = false;
+
       // the ExecuteForEdit() command coallesced the status lines into STDOUT, so we need to parse out the status
       // messages ourselves
       while(true)
@@ -3496,6 +3555,7 @@ public class ExeGPG : GPG
             LogLine(line);
           } while(!string.IsNullOrEmpty(line) && line[0] != '['); // break out if the line is empty or a status line
 
+          gotFreshList = true;
           // keep a copy of the original key state. this is useful to tell which user ID was initially primary, etc.
           if(originalKey == null) originalKey = editKey;
 
@@ -3520,7 +3580,14 @@ public class ExeGPG : GPG
                   // if the queue is empty, add a quit command
                   if(commands.Count == 0) commands.Enqueue(new QuitCommand(true));
 
+                  if(!gotFreshList && commands.Peek().ExpectRelist)
+                  {
+                    cmd.SendLine("list");
+                    break;
+                  }
+
                   EditCommandResult result = commands.Peek().Process(commands, originalKey, editKey, cmd, promptId);
+                  gotFreshList = false;
                   if(result == EditCommandResult.Next || result == EditCommandResult.Done) commands.Dequeue();
                   if(result == EditCommandResult.Continue || result == EditCommandResult.Done) break;
                 }
@@ -3646,6 +3713,12 @@ public class ExeGPG : GPG
     }
     return new Command(this, GetProcessStartInfo(ExecutablePath, args), commandPipe,
                        closeStdInput, stdOutHandling, StreamHandling.ProcessText);
+  }
+
+  /// <summary>Executes the given GPG executable with the given arguments.</summary>
+  Process Execute(string exePath, string args)
+  {
+    return Process.Start(GetProcessStartInfo(exePath, args));
   }
 
   /// <summary>Creates and returns a command with no STDIN, and with status messages mixed into STDOUT.</summary>
@@ -4042,6 +4115,25 @@ public class ExeGPG : GPG
     if(!searchFoundNothing) cmd.CheckExitCode();
   }
 
+  /// <summary>Creates and returns a new <see cref="ProcessStartInfo"/> for the given GPG executable and arguments.</summary>
+  ProcessStartInfo GetProcessStartInfo(string exePath, string args)
+  {
+    ProcessStartInfo psi = new ProcessStartInfo();
+    psi.Arguments              = (EnableGPGAgent ? "--use-agent" : "--no-use-agent") +
+                                 " --no-tty --no-options --display-charset utf-8 " + args;
+    psi.CreateNoWindow         = true;
+    psi.ErrorDialog            = false;
+    psi.FileName               = exePath;
+    psi.RedirectStandardError  = true;
+    psi.RedirectStandardInput  = true;
+    psi.RedirectStandardOutput = true;
+    psi.StandardErrorEncoding  = Encoding.UTF8;
+    psi.StandardOutputEncoding = Encoding.UTF8;
+    psi.UseShellExecute        = false;
+
+    return psi;
+  }
+
   /// <summary>Executes a command and collects import-related information.</summary>
   ImportedKey[] ImportCore(Command cmd, Stream source, out CommandState state)
   {
@@ -4283,12 +4375,6 @@ public class ExeGPG : GPG
       int index = line.IndexOf("secret key \"", StringComparison.Ordinal);
       if(index != -1 && index < line.IndexOf("\" not found")) state.FailureReasons |= FailureReason.MissingSecretKey;
     }
-  }
-
-  /// <summary>Executes the given GPG executable with the given arguments.</summary>
-  static Process Execute(string exePath, string args)
-  {
-    return Process.Start(GetProcessStartInfo(exePath, args));
   }
 
   /// <summary>Exits a process by closing STDIN, STDOUT, and STDERR, and waiting for it to exit. If it doesn't exit
@@ -4782,24 +4868,6 @@ public class ExeGPG : GPG
     return args;
   }
 
-  /// <summary>Creates and returns a new <see cref="ProcessStartInfo"/> for the given GPG executable and arguments.</summary>
-  static ProcessStartInfo GetProcessStartInfo(string exePath, string args)
-  {
-    ProcessStartInfo psi = new ProcessStartInfo();
-    psi.Arguments              = "--no-tty --no-options --display-charset utf-8 " + args;
-    psi.CreateNoWindow         = true;
-    psi.ErrorDialog            = false;
-    psi.FileName               = exePath;
-    psi.RedirectStandardError  = true;
-    psi.RedirectStandardInput  = true;
-    psi.RedirectStandardOutput = true;
-    psi.StandardErrorEncoding  = Encoding.UTF8;
-    psi.StandardOutputEncoding = Encoding.UTF8;
-    psi.UseShellExecute        = false;
-
-    return psi;
-  }
-
   /// <summary>Given an array of user attributes, returns a collection of user attribute lists, where the attributes in
   /// each list are grouped by key.
   /// </summary>
@@ -5154,7 +5222,7 @@ public class ExeGPG : GPG
 
   string[] ciphers, hashes, keyTypes, compressions;
   string exePath;
-  bool retrieveKeySignatureFingerprints;
+  bool enableAgent, retrieveKeySignatureFingerprints;
 
   static readonly ReadOnlyListWrapper<UserAttribute> NoAttributes =
     new ReadOnlyListWrapper<UserAttribute>(new UserAttribute[0]);

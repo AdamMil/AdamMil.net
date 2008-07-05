@@ -50,7 +50,8 @@ public class GPGTest : IDisposable
       password.MakeReadOnly();
     }
 
-    gpg = new ExeGPG("d:/adammil/programs/gnupg/gpg.exe");
+    //gpg = new ExeGPG("d:/adammil/programs/gnupg/gpg.exe");
+    gpg = new ExeGPG("c:/program files/gnu/gnupg/gpg2.exe");
     gpg.LineLogged += delegate(string line) { System.Diagnostics.Debugger.Log(0, "GPG", line+"\n"); };
     gpg.KeyPasswordNeeded += delegate(string keyId, string userIdHint) { return password.Copy(); };
     gpg.PlainPasswordNeeded += delegate() { return password.Copy(); };
@@ -305,7 +306,7 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
   public void T03_RandomData()
   {
     byte[] random = new byte[100];
-    gpg.GetRandomData(Randomness.Strong, random, 0, random.Length);
+    gpg.GetRandomData(Randomness.Weak, random, 0, random.Length);
   }
 
   [Test]
