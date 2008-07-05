@@ -144,7 +144,7 @@ public class ExeGPG : GPG
   /// <summary>Raised when a line of text is to be logged.</summary>
   public event TextLineHandler LineLogged;
 
-  /// <summary>Gets or sets whether the GPG agent will be used. If enabled, GPG will use its own user interface to
+  /// <summary>Gets or sets whether the GPG agent will be used. If enabled, GPG may use its own user interface to
   /// query for passwords, bypassing the support provided by this library. The default is false. However, the agent is
   /// always enabled when using GPG 2.
   /// </summary>
@@ -1210,7 +1210,7 @@ public class ExeGPG : GPG
       string line = process.StandardOutput.ReadLine();
       if(line == null) break;
 
-      Match match = versionLineRe.Match(line);
+      Match match = supportLineRe.Match(line);
       if(match.Success)
       {
         string key = match.Groups[1].Value.ToLowerInvariant();
@@ -1219,6 +1219,17 @@ public class ExeGPG : GPG
         else if(string.Equals(key, "cipher", StringComparison.Ordinal)) ciphers = list;
         else if(string.Equals(key, "hash", StringComparison.Ordinal)) hashes = list;
         else if(string.Equals(key, "compression", StringComparison.Ordinal)) compressions = list;
+      }
+      else
+      {
+        match = versionLineRe.Match(line);
+        if(match.Success)
+        {
+          string[] bits = match.Groups[1].Value.Split('.');
+          gpgVersion = int.Parse(bits[0]) * 10000; // 1.4.9 becomes 10409, and 2.0.21 becomes 20021
+          if(bits.Length > 1) gpgVersion += int.Parse(bits[1]) * 100;
+          if(bits.Length > 2) gpgVersion += int.Parse(bits[2]);
+        }
       }
     }
 
@@ -4118,8 +4129,9 @@ public class ExeGPG : GPG
   ProcessStartInfo GetProcessStartInfo(string exePath, string args)
   {
     ProcessStartInfo psi = new ProcessStartInfo();
-    psi.Arguments              = (EnableGPGAgent ? "--use-agent" : "--no-use-agent") +
-                                 " --no-tty --no-options --display-charset utf-8 " + args;
+    // enable or disable the GPG agent on GPG 1.x, but on GPG 2.x, the agent is always enabled...
+    psi.Arguments              = (EnableGPGAgent && gpgVersion < 20000 ? "--use-agent " : "--no-use-agent ") +
+                                 "--no-tty --no-options --display-charset utf-8 " + args;
     psi.CreateNoWindow         = true;
     psi.ErrorDialog            = false;
     psi.FileName               = exePath;
@@ -5221,6 +5233,8 @@ public class ExeGPG : GPG
 
   string[] ciphers, hashes, keyTypes, compressions;
   string exePath;
+  /// <summary>The GPG version, encoded so that 1.4.9 becomes 10409 and 2.0.21 becomes 20021</summary>
+  int gpgVersion;
   bool enableAgent, retrieveKeySignatureFingerprints;
 
   static readonly ReadOnlyListWrapper<UserAttribute> NoAttributes =
@@ -5229,7 +5243,8 @@ public class ExeGPG : GPG
   static readonly ReadOnlyListWrapper<KeySignature> NoSignatures =
     new ReadOnlyListWrapper<KeySignature>(new KeySignature[0]);
   static readonly ReadOnlyListWrapper<Subkey> NoSubkeys = new ReadOnlyListWrapper<Subkey>(new Subkey[0]);
-  static readonly Regex versionLineRe = new Regex(@"^(\w+):\s*(.+)", RegexOptions.Singleline);
+  static readonly Regex versionLineRe = new Regex(@"gpg .*?(\d+(\.\d+)+)", RegexOptions.Singleline);
+  static readonly Regex supportLineRe = new Regex(@"^(\w+):\s*(.+)", RegexOptions.Singleline);
   static readonly Regex commaSepRe = new Regex(@",\s*", RegexOptions.Singleline);
   static readonly Regex cEscapeRe = new Regex(@"\\x[0-9a-f]{2}",
     RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase | RegexOptions.Compiled);
