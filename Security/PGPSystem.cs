@@ -984,7 +984,9 @@ public abstract class PGPSystem
   public abstract void RevokeSubkeys(KeyRevocationReason reason, params Subkey[] subkeys);
   #endregion
 
+  // TODO: public Something[] FindKeysOnServer(Uri keyServer, params string[] searchKeywords);
   #region Key server operations
+
   /// <summary>Downloads the public keys specified with the given fingerprints (or key IDs) from the given key server,
   /// and imports them into the default keyring.
   /// </summary>
