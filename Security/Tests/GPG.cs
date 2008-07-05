@@ -11,10 +11,14 @@ using AdamMil.Tests;
 namespace AdamMil.Security.Tests
 {
 
-[TestFixture]
-public class GPGTest : IDisposable
+public abstract class GPGTestBase : IDisposable
 {
-  ~GPGTest() { Dispose(true); }
+  protected GPGTestBase(string gpgPath)
+  {
+    this.gpgPath = gpgPath;
+  }
+
+  ~GPGTestBase() { Dispose(true); }
 
   [TestFixtureTearDown]
   public void Dispose()
@@ -39,6 +43,7 @@ public class GPGTest : IDisposable
   public void Setup()
   {
     // we'll use "aoeu" as the password in places where passwords are needed
+    // unfortunately, GPG2 insists on using the gpg-agent, which pops up and asks questions during the test
     unsafe
     {
       char* pass = stackalloc char[4];
@@ -50,8 +55,7 @@ public class GPGTest : IDisposable
       password.MakeReadOnly();
     }
 
-    //gpg = new ExeGPG("d:/adammil/programs/gnupg/gpg.exe");
-    gpg = new ExeGPG("c:/program files/gnu/gnupg/gpg2.exe");
+    gpg = new ExeGPG(gpgPath);
     gpg.LineLogged += delegate(string line) { System.Diagnostics.Debugger.Log(0, "GPG", line+"\n"); };
     gpg.KeyPasswordNeeded += delegate(string keyId, string userIdHint) { return password.Copy(); };
     gpg.PlainPasswordNeeded += delegate() { return password.Copy(); };
@@ -708,7 +712,40 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
   }
 
   [Test]
-  public void T11_KeyServer()
+  public void T11_Keyring()
+  {
+    EnsureImported();
+
+    // try searching by partial name
+    PrimaryKey key = gpg.FindPublicKey("encrypt", keyring);
+    Assert.IsNotNull(key);
+    Assert.IsTrue(key.PrimaryUserId.Name.StartsWith("Encrypter"));
+
+    // try searching by email
+    key = gpg.FindPublicKey("e@x.com", keyring);
+    Assert.IsNotNull(key);
+    Assert.IsTrue(key.PrimaryUserId.Name.StartsWith("Encrypter"));
+
+    // try searching by short key ID
+    key = gpg.FindPublicKey(key.ShortKeyId, keyring);
+    Assert.IsNotNull(key);
+    Assert.IsTrue(key.PrimaryUserId.Name.StartsWith("Encrypter"));
+
+    // try searching for secret keys
+    key = gpg.FindSecretKey(key.ShortKeyId, keyring);
+    Assert.IsNotNull(key);
+    Assert.IsTrue(key.PrimaryUserId.Name.StartsWith("Encrypter"));
+    Assert.IsTrue(key.Secret);
+
+    // try refreshing a secret key
+    key = gpg.RefreshKey(key);
+    Assert.IsNotNull(key);
+    Assert.IsTrue(key.PrimaryUserId.Name.StartsWith("Encrypter"));
+    Assert.IsTrue(key.Secret);
+  }
+
+  [Test]
+  public void T12_KeyServer()
   {
     KeyDownloadOptions downloadOptions = new KeyDownloadOptions(new Uri("hkp://pgp.mit.edu"));
 
@@ -730,16 +767,6 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
     Assert.IsNotNull(adamsKey);
     Assert.IsTrue(adamsKey.PrimaryUserId.Name.StartsWith("Adam M"));
     // TODO: Assert.IsNotNull(gpg.GetPreferences(adamsKey.PrimaryUserId).Keyserver);
-
-    // try searching by name
-    adamsKey = gpg.FindPublicKey("adam", keyring);
-    Assert.IsNotNull(adamsKey);
-    Assert.IsTrue(adamsKey.PrimaryUserId.Name.StartsWith("Adam M"));
-
-    // try searching by email
-    adamsKey = gpg.FindPublicKey("adam@adammil.net", keyring);
-    Assert.IsNotNull(adamsKey);
-    Assert.IsTrue(adamsKey.PrimaryUserId.Name.StartsWith("Adam M"));
 
     // refresh the key
     result = gpg.RefreshKeysFromServer(downloadOptions, adamsKey);
@@ -773,9 +800,22 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
   }
 
   ExeGPG gpg;
+  string gpgPath;
   System.Security.SecureString password;
   Keyring keyring;
   PrimaryKey[] keys;
+}
+
+[TestFixture]
+public class GPG1Test : GPGTestBase
+{
+  public GPG1Test() : base("c:/program files/gnu/gnupg/gpg.exe") { }
+}
+
+[TestFixture]
+public class GPG2Test : GPGTestBase
+{
+  public GPG2Test() : base("c:/program files/gnu/gnupg/gpg2.exe") { }
 }
 
 } // namespace AdamMil.Security.Tests
