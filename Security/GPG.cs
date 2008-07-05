@@ -153,9 +153,9 @@ public class ExeGPG : GPG
     get { return enableAgent; }
     set
     {
-      if(value) throw new NotImplementedException(); // TODO: we need to rewrite the code to ask for passwords only
-      enableAgent = value;                           // when we get the GET_HIDDEN prompt, not when we just get the
-    }                                                // NEED_PASSPHRASE message
+      if(value) throw new NotImplementedException();
+      enableAgent = value;
+    }
   }
 
   /// <summary>Gets the path to the GPG executable, or null if <see cref="Initialize"/> has not been called.</summary>
@@ -299,17 +299,18 @@ public class ExeGPG : GPG
           if(!alwaysTrust) state.FailureReasons |= FailureReason.UntrustedRecipient;
           cmd.SendLine(alwaysTrust ? "Y" : "N");
         }
-        else DefaultPromptHandler(promptId);
+        else if(string.Equals(promptId, "passphrase.enter", StringComparison.Ordinal) &&
+                state.PasswordMessage != null && state.PasswordMessage.Type == StatusMessageType.NeedCipherPassphrase)
+        {
+          cmd.SendPassword(encryptionOptions.Password, false);
+        }
+        else DefaultPromptHandler(promptId, state);
       };
 
       cmd.StatusMessageReceived += delegate(StatusMessage msg)
       {
         switch(msg.Type)
         {
-          case StatusMessageType.NeedCipherPassphrase: // need the password for symmetric encryption
-            cmd.SendPassword(encryptionOptions.Password, false);
-            break;
-
           case StatusMessageType.BeginEncryption: case StatusMessageType.BeginSigning:
             ready.Set(); // all set. send the data!
             break;
@@ -1063,7 +1064,7 @@ public class ExeGPG : GPG
         {
           cmd.SendLine("Y");
         }
-        else DefaultPromptHandler(promptId);
+        else DefaultPromptHandler(promptId, state);
       };
 
       cmd.Start();
@@ -1271,7 +1272,9 @@ public class ExeGPG : GPG
     }
 
     /// <summary>The command being executed.</summary>
-    public Command Command;
+    public readonly Command Command;
+    /// <summary>The status message that informed us of the most recent password request.</summary>
+    public StatusMessage PasswordMessage;
     /// <summary>The hint for the next password to be requested.</summary>
     public string PasswordHint;
     /// <summary>Some potential causes of a failure.</summary>
@@ -1304,7 +1307,6 @@ public class ExeGPG : GPG
     /// <summary>Called for each status message sent on the status pipe.</summary>
     public event StatusMessageHandler StatusMessageReceived;
 
-
     /// <summary>Gets the exit code of the process, or throws an exception if the process has not yet exited.</summary>
     public int ExitCode
     {
@@ -1316,6 +1318,12 @@ public class ExeGPG : GPG
         }
         return process.ExitCode;
       }
+    }
+
+    /// <summary>Gets the <see cref="ExeGPG"/> object that created this command.</summary>
+    public ExeGPG GPG
+    {
+      get { return gpg; }
     }
 
     /// <summary>Returns true if the process has exited and the remaining data has been read from all streams.</summary>
@@ -1979,10 +1987,16 @@ public class ExeGPG : GPG
   {
     /// <summary>Responds to a request for input.</summary>
     public virtual EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
-                                             Command cmd, string promptId)
+                                             CommandState state, string promptId)
     {
-      if(string.Equals(promptId, "passphrase.enter", StringComparison.Ordinal)) // ignore these
+      if(string.Equals(promptId, "passphrase.enter", StringComparison.Ordinal) && state.PasswordMessage != null &&
+         state.PasswordMessage.Type == StatusMessageType.NeedKeyPassphrase)
       {
+        if(!state.Command.GPG.SendKeyPassword(state.Command, state.PasswordHint,
+                                              (NeedKeyPassphraseMessage)state.PasswordMessage, false))
+        {
+          throw new OperationCanceledException(); // abort if the password was not provided
+        }
         return EditCommandResult.Continue;
       }
       else throw new NotImplementedException("Unhandled prompt: " + promptId);
@@ -1992,12 +2006,6 @@ public class ExeGPG : GPG
     public virtual EditCommandResult Process(string line)
     {
       return EditCommandResult.Continue;
-    }
-
-    /// <summary>Sends a plain password.</summary>
-    public virtual EditCommandResult SendPassword(EditKey originalKey, EditKey key, Command cmd)
-    {
-      throw new NotImplementedException("Unhandled passphrase request.");
     }
 
     /// <summary>Gets or sets whether this command expects a relist before the next prompt. If true, and GPG doesn't
@@ -2062,14 +2070,14 @@ public class ExeGPG : GPG
       this.filename = filename;
     }
 
-    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
-                                              Command cmd, string promptId)
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
         if(!sentCommand)
         {
-          cmd.SendLine("addphoto " + filename);
+          state.Command.SendLine("addphoto " + filename);
           sentCommand = true;
         }
         else
@@ -2080,14 +2088,14 @@ public class ExeGPG : GPG
       }
       else if(string.Equals(promptId, "photoid.jpeg.size", StringComparison.Ordinal))
       {
-        cmd.SendLine("Y"); // yes, it's okay if the photo is large
+        state.Command.SendLine("Y"); // yes, it's okay if the photo is large
       }
       else if(string.Equals(promptId, "photoid.jpeg.add", StringComparison.Ordinal))
       {
         // if GPG asks us for the filename, that means it rejected the file we gave originally
         throw UnexpectedError("The image was rejected. Perhaps it's not a valid JPEG?");
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
 
       return EditCommandResult.Continue;
     }
@@ -2107,13 +2115,14 @@ public class ExeGPG : GPG
       this.fingerprint = fingerprint;
     }
 
-    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, Command cmd, string promptId)
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
         if(!sentCommand)
         {
-          cmd.SendLine("addrevoker");
+          state.Command.SendLine("addrevoker");
           sentCommand = true;
         }
         else return EditCommandResult.Next;
@@ -2122,7 +2131,7 @@ public class ExeGPG : GPG
       {
         if(!sentFingerprint)
         {
-          cmd.SendLine(fingerprint);
+          state.Command.SendLine(fingerprint);
           sentFingerprint = true;
         }
         else // if it asks us again, that means it rejected the first fingerprint
@@ -2132,9 +2141,9 @@ public class ExeGPG : GPG
       }
       else if(string.Equals(promptId, "keyedit.add_revoker.okay", StringComparison.Ordinal))
       {
-        cmd.SendLine("Y");
+        state.Command.SendLine("Y");
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
 
       return EditCommandResult.Continue;
     }
@@ -2185,13 +2194,13 @@ public class ExeGPG : GPG
     }
 
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
-                                              Command cmd, string promptId)
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
         if(!sentCommand)
         {
-          cmd.SendLine("addkey");
+          state.Command.SendLine("addkey");
           sentCommand = true;
         }
         else return EditCommandResult.Next;
@@ -2200,10 +2209,10 @@ public class ExeGPG : GPG
       {
         if(!sentAlgo)
         {
-          if(isDSA) cmd.SendLine("2");
-          else if(isELG) cmd.SendLine("4");
-          else if(isRSAS) cmd.SendLine("5");
-          else cmd.SendLine("6");
+          if(isDSA) state.Command.SendLine("2");
+          else if(isELG) state.Command.SendLine("4");
+          else if(isRSAS) state.Command.SendLine("5");
+          else state.Command.SendLine("6");
           sentAlgo = true;
         }
         else // if GPG asks a second time, then it rejected the algorithm choice
@@ -2215,7 +2224,7 @@ public class ExeGPG : GPG
       {
         if(!sentLength)
         {
-          cmd.SendLine(length.ToString(CultureInfo.InvariantCulture));
+          state.Command.SendLine(length.ToString(CultureInfo.InvariantCulture));
           sentLength = true;
         }
         else // if GPG asks a second time, then it rejected the key length
@@ -2228,7 +2237,7 @@ public class ExeGPG : GPG
       {
         if(!sentExpiration)
         {
-          cmd.SendLine(expirationDays.ToString(CultureInfo.InvariantCulture));
+          state.Command.SendLine(expirationDays.ToString(CultureInfo.InvariantCulture));
           sentExpiration = true;
         }
         else // if GPG asks a second time, then it rejected the expiration date
@@ -2237,7 +2246,7 @@ public class ExeGPG : GPG
                                                " is not supported.");
         }
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
 
       return EditCommandResult.Continue;
     }
@@ -2267,14 +2276,14 @@ public class ExeGPG : GPG
       this.comment     = comment;
     }
 
-    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
-                                              Command cmd, string promptId)
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
         if(!startedUid)
         {
-          cmd.SendLine("adduid");
+          state.Command.SendLine("adduid");
           startedUid = true;
         }
         else // if we didn't get to the "comment" prompt, then it probably failed
@@ -2282,15 +2291,15 @@ public class ExeGPG : GPG
           throw UnexpectedError("Adding a new user ID seemed to fail.");
         }
       }
-      else if(string.Equals(promptId, "keygen.name", StringComparison.Ordinal)) cmd.SendLine(realName);
-      else if(string.Equals(promptId, "keygen.email", StringComparison.Ordinal)) cmd.SendLine(email);
+      else if(string.Equals(promptId, "keygen.name", StringComparison.Ordinal)) state.Command.SendLine(realName);
+      else if(string.Equals(promptId, "keygen.email", StringComparison.Ordinal)) state.Command.SendLine(email);
       else if(string.Equals(promptId, "keygen.comment", StringComparison.Ordinal))
       {
-        cmd.SendLine(comment);
+        state.Command.SendLine(comment);
         AddPreferenceCommands(commands, originalKey);
         return EditCommandResult.Done;
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
 
       return EditCommandResult.Continue;
     }
@@ -2311,13 +2320,13 @@ public class ExeGPG : GPG
     }
 
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
-                                              Command cmd, string promptId)
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
         if(!sentCommand)
         {
-          cmd.SendLine("expire");
+          state.Command.SendLine("expire");
           sentCommand = true;
         }
         else return EditCommandResult.Next;
@@ -2326,7 +2335,7 @@ public class ExeGPG : GPG
       {
         if(!sentExpiration)
         {
-          cmd.SendLine(expirationDays.ToString(CultureInfo.InvariantCulture));
+          state.Command.SendLine(expirationDays.ToString(CultureInfo.InvariantCulture));
           sentExpiration = true;
         }
         else // if GPG asked us twice, that means it rejected the expiration date
@@ -2334,7 +2343,7 @@ public class ExeGPG : GPG
           throw UnexpectedError("Changing expiration date to " + Convert.ToString(expiration) + " failed.");
         }
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
 
       return EditCommandResult.Continue;
     }
@@ -2355,29 +2364,28 @@ public class ExeGPG : GPG
     }
 
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
-                                              Command cmd, string promptId)
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
         if(!sentCommand)
         {
-          cmd.SendLine("passwd");
+          state.Command.SendLine("passwd");
           sentCommand = true;
         }
         else return EditCommandResult.Next;
       }
       else if(string.Equals(promptId, "change_passwd.empty.okay", StringComparison.Ordinal))
       {
-        cmd.SendLine("Y"); // yes, an empty password is okay
+        state.Command.SendLine("Y"); // yes, an empty password is okay
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else if(string.Equals(promptId, "passphrase.enter", StringComparison.Ordinal) && state.PasswordMessage != null &&
+              state.PasswordMessage.Type == StatusMessageType.NeedCipherPassphrase)
+      {
+        state.Command.SendPassword(password, false);
+      }
+      else return base.Process(commands, originalKey, key, state, promptId);
 
-      return EditCommandResult.Continue;
-    }
-
-    public override EditCommandResult SendPassword(EditKey originalKey, EditKey key, Command cmd)
-    {
-      cmd.SendPassword(password, false);
       return EditCommandResult.Continue;
     }
 
@@ -2402,7 +2410,7 @@ public class ExeGPG : GPG
     public DeleteSigsCommand(KeySignature[] sigs) : base(sigs) { }
 
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
-                                              Command cmd, string promptId)
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
@@ -2413,7 +2421,7 @@ public class ExeGPG : GPG
             throw UnexpectedError("Can't delete signatures because no user ID is selected. "+
                                   "Perhaps it no longer exists?");
           }
-          cmd.SendLine("delsig");
+          state.Command.SendLine("delsig");
           sentCommand = true;
           ExpectRelist = false;
         }
@@ -2423,13 +2431,13 @@ public class ExeGPG : GPG
       {
         // the previous line should have contained a sig: line that was parsed into the various sig* member variables.
         // we'll answer yes if the parsed signature appears to match any of the KeySignature objects we have
-        cmd.SendLine(CurrentSigMatches ? "Y" : "N"); // do we want to delete this particular signature?
+        state.Command.SendLine(CurrentSigMatches ? "Y" : "N"); // do we want to delete this particular signature?
       }
       else if(string.Equals(promptId, "keyedit.delsig.selfsig", StringComparison.Ordinal))
       {
-        cmd.SendLine("Y"); // yes, it's okay to delete a self-signature
+        state.Command.SendLine("Y"); // yes, it's okay to delete a self-signature
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
 
       return EditCommandResult.Continue;
     }
@@ -2443,22 +2451,22 @@ public class ExeGPG : GPG
   sealed class DeleteSubkeysCommand : EditCommand
   {
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
-                                              Command cmd, string promptId)
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
         if(!sentCommand)
         {
-          cmd.SendLine("delkey");
+          state.Command.SendLine("delkey");
           sentCommand = true;
         }
         else return EditCommandResult.Next;
       }
       else if(string.Equals(promptId, "keyedit.remove.subkey.okay", StringComparison.Ordinal))
       {
-        cmd.SendLine("Y"); // yes, it's okay to delete a subkey
+        state.Command.SendLine("Y"); // yes, it's okay to delete a subkey
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
 
       return EditCommandResult.Continue;
     }
@@ -2477,7 +2485,7 @@ public class ExeGPG : GPG
     }
 
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
-                                              Command cmd, string promptId)
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
@@ -2492,7 +2500,7 @@ public class ExeGPG : GPG
           // if they're all selected, then that's a problem
           if(i == key.UserIds.Count) throw UnexpectedError("Can't delete the last user ID!");
 
-          cmd.SendLine("deluid");
+          state.Command.SendLine("deluid");
           sentCommand = true;
           ExpectRelist = false;
         }
@@ -2500,9 +2508,9 @@ public class ExeGPG : GPG
       }
       else if(string.Equals(promptId, "keyedit.remove.uid.okay", StringComparison.Ordinal))
       {
-        cmd.SendLine("Y"); // yes, it's okay to delete a user id
+        state.Command.SendLine("Y"); // yes, it's okay to delete a user id
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
 
       return EditCommandResult.Continue;
     }
@@ -2592,8 +2600,8 @@ public class ExeGPG : GPG
       this.preferences = preferences;
     }
 
-    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
-                                              Command cmd, string promptId)
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
@@ -2613,14 +2621,14 @@ public class ExeGPG : GPG
           }
           preferences.Primary = selectedId.Primary;
 
-          cmd.SendLine("showpref"); // this will cause GPG to print the preferences in a
+          state.Command.SendLine("showpref"); // this will cause GPG to print the preferences in a
           sentCommand = true;       // text format that we can parse below
           ExpectRelist = false;
           return EditCommandResult.Continue;
         }
         else return EditCommandResult.Next;
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
     }
 
     public override EditCommandResult Process(string line)
@@ -2651,14 +2659,14 @@ public class ExeGPG : GPG
       this.save = save;
     }
 
-    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
-                                              Command cmd, string promptId)
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
         if(!sentCommand)
         {
-          cmd.SendLine(save ? "save" : "quit");
+          state.Command.SendLine(save ? "save" : "quit");
           sentCommand = true;
         }
         else // if GPG didn't quit, then something's wrong...
@@ -2669,9 +2677,9 @@ public class ExeGPG : GPG
       }
       else if(string.Equals(promptId, "keyedit.save.okay", StringComparison.Ordinal))
       {
-        cmd.SendLine(save ? "Y" : "N");
+        state.Command.SendLine(save ? "Y" : "N");
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
 
       return EditCommandResult.Continue;
     }
@@ -2690,10 +2698,10 @@ public class ExeGPG : GPG
       this.command = command;
     }
 
-    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
-                                              Command cmd, string promptId)
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              CommandState state, string promptId)
     {
- 	    cmd.SendLine(command);
+ 	    state.Command.SendLine(command);
       return EditCommandResult.Done;
     }
 
@@ -2716,13 +2724,13 @@ public class ExeGPG : GPG
     }
 
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
-                                              Command cmd, string promptId)
+                                              CommandState state, string promptId)
     {
-      if(HandleRevokePrompt(cmd, promptId, keyReason, userReason, ref lines, ref lineIndex))
+      if(HandleRevokePrompt(state.Command, promptId, keyReason, userReason, ref lines, ref lineIndex))
       {
         return EditCommandResult.Continue;
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
     }
 
     readonly UserRevocationReason userReason;
@@ -2739,7 +2747,7 @@ public class ExeGPG : GPG
     public RevokeSigsCommand(UserRevocationReason reason, KeySignature[] sigs) : base(reason, sigs) { }
 
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
-                                              Command cmd, string promptId)
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
@@ -2750,7 +2758,7 @@ public class ExeGPG : GPG
             throw UnexpectedError("Can't revoke signatures because no user ID is selected. "+
                                   "Perhaps the user ID no longer exists?");
           }
-          cmd.SendLine("revsig");
+          state.Command.SendLine("revsig");
           sentCommand = true;
           ExpectRelist = false;
         }
@@ -2760,13 +2768,13 @@ public class ExeGPG : GPG
       {
         // the previous line should have contained a sig: line that was parsed into the various sig* member variables.
         // we'll answer yes if the parsed signature appears to match any of the KeySignature objects we have
-        cmd.SendLine(CurrentSigMatches ? "Y" : "N"); // do we want to revoke this particular signature?
+        state.Command.SendLine(CurrentSigMatches ? "Y" : "N"); // do we want to revoke this particular signature?
       }
       else if(string.Equals(promptId, "ask_revoke_sig.okay", StringComparison.Ordinal))
       {
-        cmd.SendLine("Y");
+        state.Command.SendLine("Y");
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
 
       return EditCommandResult.Continue;
     }
@@ -2782,13 +2790,13 @@ public class ExeGPG : GPG
     public RevokeSubkeysCommand(KeyRevocationReason reason) : base(reason) { }
 
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
-                                              Command cmd, string promptId)
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
         if(!sentCommand)
         {
-          cmd.SendLine("revkey");
+          state.Command.SendLine("revkey");
           sentCommand = true;
         }
         else if(!sentConfirmation) // if GPG never asked us if we were sure, then that means it failed
@@ -2799,10 +2807,10 @@ public class ExeGPG : GPG
       }
       else if(string.Equals(promptId, "keyedit.revoke.subkey.okay", StringComparison.Ordinal))
       {
-        cmd.SendLine("Y");
+        state.Command.SendLine("Y");
         sentConfirmation = true;
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
 
       return EditCommandResult.Continue;
     }
@@ -2821,7 +2829,7 @@ public class ExeGPG : GPG
     }
 
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
-                                              Command cmd, string promptId)
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
@@ -2834,7 +2842,7 @@ public class ExeGPG : GPG
               throw UnexpectedError("Can't revoke user IDs because none are selected. Perhaps they no longer exist?");
             }
 
-            cmd.SendLine("revuid");
+            state.Command.SendLine("revuid");
             sentCommand = true;
             ExpectRelist = false;
           }
@@ -2847,10 +2855,10 @@ public class ExeGPG : GPG
       }
       else if(string.Equals(promptId, "keyedit.revoke.uid.okay", StringComparison.Ordinal))
       {
-        cmd.SendLine("Y");
+        state.Command.SendLine("Y");
         sentConfirmation = true;
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
 
       return EditCommandResult.Continue;
     }
@@ -2869,25 +2877,25 @@ public class ExeGPG : GPG
     }
 
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
-                                              Command cmd, string promptId)
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
         if(key.SelectedUserId != null) // clear the existing selection first
         {
-          cmd.SendLine("uid -");
+          state.Command.SendLine("uid -");
           return EditCommandResult.Continue;
         }
 
         if(!key.UserIds[key.UserIds.Count-1].Selected) // then, if the UID is not already selected, select it
         {
-          cmd.SendLine("uid " + key.UserIds.Count.ToString(CultureInfo.InvariantCulture));
+          state.Command.SendLine("uid " + key.UserIds.Count.ToString(CultureInfo.InvariantCulture));
           return EditCommandResult.Done;
         }
 
         return EditCommandResult.Next;
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
     }
   }
   #endregion
@@ -2906,13 +2914,13 @@ public class ExeGPG : GPG
     }
 
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
-                                              Command cmd, string promptId)
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
         if(deselectFirst && !clearedSelection)
         {
-          cmd.SendLine("key -");   // GPG doesn't let us know which keys are currently selected, so we'll assume the
+          state.Command.SendLine("key -");   // GPG doesn't let us know which keys are currently selected, so we'll assume the
           clearedSelection = true; // worst and deselect all keys
           return EditCommandResult.Continue;
         }
@@ -2928,11 +2936,11 @@ public class ExeGPG : GPG
           if(index == key.Subkeys.Count) throw UnexpectedError("No subkey found with fingerprint " + fingerprint);
 
           // then select it
-          cmd.SendLine("key " + (index+1).ToString(CultureInfo.InvariantCulture));
+          state.Command.SendLine("key " + (index+1).ToString(CultureInfo.InvariantCulture));
           return EditCommandResult.Done;
         }
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
     }
 
     readonly string fingerprint;
@@ -2953,7 +2961,7 @@ public class ExeGPG : GPG
     }
 
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
-                                              Command cmd, string promptId)
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
@@ -2979,7 +2987,7 @@ public class ExeGPG : GPG
         {
           if(i != index && key.UserIds[i].Selected)
           {
-            cmd.SendLine("uid -");
+            state.Command.SendLine("uid -");
             return EditCommandResult.Continue;
           }
         }
@@ -2987,13 +2995,13 @@ public class ExeGPG : GPG
         // if the one we want is not currently selected, select it
         if(!key.UserIds[index].Selected)
         {
-          cmd.SendLine("uid " + (index+1).ToString(CultureInfo.InvariantCulture));
+          state.Command.SendLine("uid " + (index+1).ToString(CultureInfo.InvariantCulture));
           return EditCommandResult.Done;
         }
 
         return EditCommandResult.Next;
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
     }
 
     readonly EditUserId id;
@@ -3026,22 +3034,22 @@ public class ExeGPG : GPG
     }
 
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
-                                              Command cmd, string promptId)
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
         if(!sentPrefs)
         {
-          cmd.SendLine("setpref " + prefString);
+          state.Command.SendLine("setpref " + prefString);
           sentPrefs = true;
         }
         else return EditCommandResult.Next;
       }
       else if(string.Equals(promptId, "keyedit.setpref.okay", StringComparison.Ordinal))
       {
-        cmd.SendLine("Y");
+        state.Command.SendLine("Y");
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
 
       return EditCommandResult.Continue;
     }
@@ -3061,7 +3069,7 @@ public class ExeGPG : GPG
     }
 
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
-                                              Command cmd, string promptId)
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
@@ -3080,7 +3088,7 @@ public class ExeGPG : GPG
 
         return EditCommandResult.Next;
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
     }
 
     readonly UserPreferences preferences;
@@ -3097,7 +3105,7 @@ public class ExeGPG : GPG
     }
 
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
-                                              Command cmd, string promptId)
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
@@ -3108,12 +3116,12 @@ public class ExeGPG : GPG
 
         if(!key.SelectedUserId.Primary) // if it's not already primary, make it so
         {
-          cmd.SendLine("primary");
+          state.Command.SendLine("primary");
           return EditCommandResult.Done;
         }
         else return EditCommandResult.Next; // otherwise, just go to the next command
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
     }
   }
   #endregion
@@ -3128,13 +3136,13 @@ public class ExeGPG : GPG
     }
 
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
-                                              Command cmd, string promptId)
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
         if(!sentCommand)
         {
-          cmd.SendLine("trust");
+          state.Command.SendLine("trust");
           sentCommand = true;
         }
         else return EditCommandResult.Next;
@@ -3143,18 +3151,18 @@ public class ExeGPG : GPG
       {
         switch(level)
         {
-          case TrustLevel.Never: cmd.SendLine("2"); break;
-          case TrustLevel.Marginal: cmd.SendLine("3"); break;
-          case TrustLevel.Full: cmd.SendLine("4"); break;
-          case TrustLevel.Ultimate: cmd.SendLine("5"); break;
-          default: cmd.SendLine("1"); break;
+          case TrustLevel.Never: state.Command.SendLine("2"); break;
+          case TrustLevel.Marginal: state.Command.SendLine("3"); break;
+          case TrustLevel.Full: state.Command.SendLine("4"); break;
+          case TrustLevel.Ultimate: state.Command.SendLine("5"); break;
+          default: state.Command.SendLine("1"); break;
         }
       }
       else if(string.Equals(promptId, "edit_ownertrust.set_ultimate.okay", StringComparison.Ordinal))
       {
-        cmd.SendLine("Y"); // yes, it's okay to set ultimate trust
+        state.Command.SendLine("Y"); // yes, it's okay to set ultimate trust
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
 
       return EditCommandResult.Continue;
     }
@@ -3184,7 +3192,7 @@ public class ExeGPG : GPG
     }
 
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
-                                              Command cmd, string promptId)
+                                              CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
@@ -3198,21 +3206,21 @@ public class ExeGPG : GPG
             if(options.TrustLevel != TrustLevel.Unknown) prefix += "t";
             if(options.Irrevocable) prefix += "nr";
           }
-          cmd.SendLine(prefix + "sign");
+          state.Command.SendLine(prefix + "sign");
           sentCommand = true;
         }
         else return EditCommandResult.Next;
       }
       else if(string.Equals(promptId, "sign_uid.okay", StringComparison.Ordinal))
       {
-        cmd.SendLine("Y"); // yes, it's okay to sign a UID
+        state.Command.SendLine("Y"); // yes, it's okay to sign a UID
       }
       else if(string.Equals(promptId, "keyedit.sign_all.okay", StringComparison.Ordinal))
       {
         // GPG is saying that no UID is selected, and asking if we want to sign the whole key
         if(signWholeKey)
         {
-          cmd.SendLine("Y");
+          state.Command.SendLine("Y");
         }
         else // if that wasn't what the user asked for, then bail out
         {
@@ -3226,19 +3234,19 @@ public class ExeGPG : GPG
         {
           throw UnexpectedError("GPG asked about trust levels for a non-trust signature.");
         }
-        else if(options.TrustLevel == TrustLevel.Marginal) cmd.SendLine("1");
-        else if(options.TrustLevel == TrustLevel.Full) cmd.SendLine("2");
+        else if(options.TrustLevel == TrustLevel.Marginal) state.Command.SendLine("1");
+        else if(options.TrustLevel == TrustLevel.Full) state.Command.SendLine("2");
         else throw new NotSupportedException("Trust level " + options.TrustLevel.ToString() + " is not supported.");
       }
       else if(string.Equals(promptId, "trustsig_prompt.trust_depth", StringComparison.Ordinal))
       {
-        cmd.SendLine(options.TrustDepth.ToString(CultureInfo.InvariantCulture));
+        state.Command.SendLine(options.TrustDepth.ToString(CultureInfo.InvariantCulture));
       }
       else if(string.Equals(promptId, "trustsig_prompt.trust_regexp", StringComparison.Ordinal))
       {
-        cmd.SendLine(options.TrustDomain);
+        state.Command.SendLine(options.TrustDomain);
       }
-      else return base.Process(commands, originalKey, key, cmd, promptId);
+      else return base.Process(commands, originalKey, key, state, promptId);
 
       return EditCommandResult.Continue;
     }
@@ -3285,7 +3293,35 @@ public class ExeGPG : GPG
       bool sigFilled = false, triedPasswordInOptions = false;
 
       cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
-      cmd.InputNeeded += DefaultPromptHandler;
+      cmd.InputNeeded += delegate(string promptId)
+      {
+        if(string.Equals(promptId, "passphrase.enter", StringComparison.Ordinal) && state.PasswordMessage != null &&
+           (state.PasswordMessage.Type == StatusMessageType.NeedKeyPassphrase ||
+            state.PasswordMessage.Type == StatusMessageType.NeedCipherPassphrase))
+        {
+          if(state.PasswordMessage.Type == StatusMessageType.NeedKeyPassphrase)
+          {
+            SendKeyPassword(cmd, state.PasswordHint, (NeedKeyPassphraseMessage)state.PasswordMessage, false);
+          }
+          else
+          {
+            // we'll first try sending the password from the options if we have it, but only once.
+            if(!triedPasswordInOptions &&
+               options != null && options.Password != null && options.Password.Length != 0)
+            {
+              triedPasswordInOptions = true;
+              cmd.SendPassword(options.Password, false);
+            }
+            else // we either don't have a password in the options, or we already sent it (and it probably failed),
+            {    // so ask the user
+              SecureString password = GetPlainPassword();
+              if(password != null) cmd.SendPassword(password, true);
+              else cmd.SendLine();
+            }
+          }
+        }
+        else DefaultPromptHandler(promptId, state);
+      };
 
       cmd.StatusMessageReceived += delegate(StatusMessage msg)
       {
@@ -3378,30 +3414,6 @@ public class ExeGPG : GPG
               break;
             }
             
-            case StatusMessageType.NeedKeyPassphrase:
-            {
-              SendKeyPassword(cmd, state.PasswordHint, (NeedKeyPassphraseMessage)msg, false);
-              break;
-            }
-
-            case StatusMessageType.NeedCipherPassphrase:
-            {
-              // we'll first try sending the password from the options if we have it, but only once.
-              if(!triedPasswordInOptions &&
-                 options != null && options.Password != null && options.Password.Length != 0)
-              {
-                triedPasswordInOptions = true;
-                cmd.SendPassword(options.Password, false);
-              }
-              else // we either don't have a password in the options, or we already sent it (and it probably failed),
-              {    // so ask the user
-                SecureString password = GetPlainPassword();
-                if(password != null) cmd.SendPassword(password, true);
-                else cmd.SendLine();
-              }
-              break;
-            }
-
             default: DefaultStatusMessageHandler(msg, state); break;
           }
         }
@@ -3426,12 +3438,14 @@ public class ExeGPG : GPG
   }
 
   /// <summary>Provides default handling for input prompts.</summary>
-  void DefaultPromptHandler(string promptId)
+  void DefaultPromptHandler(string promptId, CommandState state)
   {
-    if(!string.Equals(promptId, "passphrase.enter", StringComparison.Ordinal))
+    if(string.Equals(promptId, "passphrase.enter", StringComparison.Ordinal) && state.PasswordMessage != null &&
+       state.PasswordMessage.Type == StatusMessageType.NeedKeyPassphrase)
     {
-      throw new NotImplementedException("GPG requested unknown user input: " + promptId);
+      SendKeyPassword(state.Command, state.PasswordHint, (NeedKeyPassphraseMessage)state.PasswordMessage, true);
     }
+    else throw new NotImplementedException("Unhandled input request: " + promptId);
   }
 
   /// <summary>Provides default handling for status messages.</summary>
@@ -3456,6 +3470,12 @@ public class ExeGPG : GPG
       case StatusMessageType.NoPublicKey: state.FailureReasons |= FailureReason.MissingPublicKey; break;
       case StatusMessageType.NoSecretKey: state.FailureReasons |= FailureReason.MissingSecretKey; break;
 
+      case StatusMessageType.NeedKeyPassphrase:
+      case StatusMessageType.NeedCipherPassphrase:
+      case StatusMessageType.NeedPin:
+        state.PasswordMessage = msg; // keep track of the password request message so it can be handled if we get a
+        break;                       // password request prompt
+
       case StatusMessageType.UnexpectedData: case StatusMessageType.NoData:
         state.FailureReasons |= FailureReason.BadData;
         break;
@@ -3467,12 +3487,8 @@ public class ExeGPG : GPG
         break;
       }
 
-      case StatusMessageType.NeedKeyPassphrase:
-        SendKeyPassword(state.Command, state.PasswordHint, (NeedKeyPassphraseMessage)msg, true);
-        break;
-
       case StatusMessageType.GetBool: case StatusMessageType.GetHidden: case StatusMessageType.GetLine:
-        throw new NotImplementedException("GPG requested unknown user input: " + ((GetInputMessage)msg).PromptId);
+        throw new NotImplementedException("Unhandled input request: " + ((GetInputMessage)msg).PromptId);
     }
   }
 
@@ -3580,37 +3596,20 @@ public class ExeGPG : GPG
                   // if the queue is empty, add a quit command
                   if(commands.Count == 0) commands.Enqueue(new QuitCommand(true));
 
-                  if(!gotFreshList && commands.Peek().ExpectRelist)
+                  if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal) &&
+                     !gotFreshList && commands.Peek().ExpectRelist)
                   {
                     cmd.SendLine("list");
                     break;
                   }
 
-                  EditCommandResult result = commands.Peek().Process(commands, originalKey, editKey, cmd, promptId);
+                  EditCommandResult result = commands.Peek().Process(commands, originalKey, editKey, state, promptId);
                   gotFreshList = false;
                   if(result == EditCommandResult.Next || result == EditCommandResult.Done) commands.Dequeue();
                   if(result == EditCommandResult.Continue || result == EditCommandResult.Done) break;
                 }
                 break;
               }
-
-              case StatusMessageType.NeedCipherPassphrase:
-                while(true) // a plain password is needed
-                {
-                  if(commands.Count == 0) goto default;
-
-                  EditCommandResult result = commands.Peek().SendPassword(originalKey, editKey, cmd);
-                  if(result == EditCommandResult.Next || result == EditCommandResult.Done) commands.Dequeue();
-                  if(result == EditCommandResult.Continue || result == EditCommandResult.Done) break;
-                }
-                break;
-
-              case StatusMessageType.NeedKeyPassphrase:
-                if(!SendKeyPassword(cmd, state.PasswordHint, (NeedKeyPassphraseMessage)msg, false))
-                {
-                  throw new OperationCanceledException(); // abort if the password was not provided
-                }
-                break;
 
               default: DefaultStatusMessageHandler(msg, state); break;
             }
@@ -3860,7 +3859,7 @@ public class ExeGPG : GPG
         }
         else if(!HandleRevokePrompt(cmd, promptId, reason, null, ref lines, ref lineIndex))
         {
-          DefaultPromptHandler(promptId);
+          DefaultPromptHandler(promptId, state);
         }
       };
 
