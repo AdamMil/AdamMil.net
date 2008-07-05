@@ -217,6 +217,14 @@
       <param name="outputOptions">Options that control the output format.</param>
     </ExportSecretKeys2>
 
+    <FindPublicKey>
+      <summary>Searches for the public key with the given fingerprint in the given keyring.</summary>
+      <param name="fingerprint">The fingerprints of the key to search for.</param>
+      <param name="keyring">The keyring to search, or null to search the default keyring.</param>
+      <param name="options">Options controlling how keys should be returned.</param>
+      <returns>Returns the key if it was found, or null if it was not.</returns>
+    </FindPublicKey>
+
     <FindPublicKeys>
       <summary>Searches for the public keys with the given fingerprints in the given keyrings.</summary>
       <param name="fingerprints">An array containing the fingerprints of the keys to search for.</param>
@@ -229,6 +237,14 @@
         could be found.
       </returns>
     </FindPublicKeys>
+
+    <FindSecretKey>
+      <summary>Searches for the secret key with the given fingerprint in the given keyring.</summary>
+      <param name="fingerprint">The fingerprints of the key to search for.</param>
+      <param name="keyring">The keyring to search, or null to search the default keyring.</param>
+      <param name="options">Options controlling how keys should be returned.</param>
+      <returns>Returns the key if it was found, or null if it was not.</returns>
+    </FindSecretKey>
 
     <FindSecretKeys>
       <summary>Searches for the secret keys with the given fingerprints in the given keyrings.</summary>
@@ -245,11 +261,20 @@
 
     <GenerateRevocationCertificate>
       <summary>
-        Generates a revocation certificate for the given key. The revocation certificate can be imported at a
-        later time to revoke the key.
+        Generates a revocation certificate for the given primary key. The revocation certificate can be imported at a
+        later time to revoke the key. You must have the secret key.
       </summary>
     </GenerateRevocationCertificate>
-    
+
+    <GenerateRevocationCertificateD>
+      <summary>
+        Generates a revocation certificate for the given key, using the given designated revoker key. You do not need
+        the secret portion of the key to be revoked, but you need the secret portion of the designated revoker key and
+        permission from the key to be revoked. The revocation certificate can be imported at a later time to revoke the
+        key.
+      </summary>
+    </GenerateRevocationCertificateD>
+
     <GetPreferences>
       <summary>Returns the preferences for the given user id or attribute.</summary>
     </GetPreferences>
@@ -357,6 +382,12 @@
       <summary>Imports keys from the given source into the given keyring.</summary>
     </ImportKeys3>
 
+    <ImportKeysFromServer>
+      <summary>Downloads the public keys specified with the given fingerprints (or key IDs) from the given key server,
+        and imports them into the given keyring.
+      </summary>
+    </ImportKeysFromServer>
+    
     <MinimizeKeys>
       <summary>
         Minimizes the given keys by removing all signatures except the most recent self-signature, and removes
@@ -374,15 +405,46 @@
       <param name="keyId">The key ID whose password was invalid.</param>
     </OnInvalidPassword>
 
+    <RefreshKeyringFromServer>
+      <summary>Refreshes all of the keys on the given keyring from a key server.</summary>
+      <param name="options">
+        Options that control the download, or null to use the default options. Note that using the
+        default options will only succeed if all keys have preferred key servers set, which is probably not the case.
+      </param>
+      <param name="keyring">The keyring to refresh, or null to refresh the default keyring.</param>
+    </RefreshKeyringFromServer>
+
+    <RefreshKeysFromServer>
+      <summary>Refreshes the given keys from a key server.</summary>
+      <param name="options">
+        Options that control the download, or null to use the default options. Note that using the
+        default options will only succeed if all keys have preferred key servers set, which is probably not the case.
+      </param>
+      <param name="keys">The keys to refresh.</param>
+    </RefreshKeysFromServer>
+    
     <RevokeAttributes>
       <summary>Revokes the given attributes from their owning keys.</summary>
       <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </RevokeAttributes>
 
     <RevokeKeys>
-      <summary>Revokes the given primary keys.</summary>
+      <summary>
+        Revokes the given primary keys if you have their secret keys. You will typically want to publish the revoked
+        keys to a key server or otherwise distribute them afterwards so that other people will know the keys have been
+        revoked.
+      </summary>
       <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </RevokeKeys>
+
+    <RevokeKeysD>
+      <summary>Revokes the given primary keys using the given designated revoker key. You do not need the secret keys
+        of the keys to be revoked, but you must have the secret key of the designated revoker key, and permission from
+        the keys to be revoked. You will typically want to publish the revoked keys to a key server or otherwise
+        distribute them afterwards so that other people will know the keys have been revoked.
+      </summary>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </RevokeKeysD>
 
     <RevokeSignatures>
       <summary>Revokes the given signatures from their owning attributes.</summary>
@@ -435,7 +497,11 @@
       <summary>Signs the given user ID or user attribute.</summary>
       <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </SignUser>
-    
+
+    <UploadKeys>
+      <summary>Uploads the given keys to a key server.</summary>
+    </UploadKeys>
+
     <Verify2>
       <summary>Verifies embedded signatures in the given signed data. The signed data should not have been
         simultaneously encrypted. To verify signatures in encrypted, signed data, call

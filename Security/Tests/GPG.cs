@@ -50,6 +50,7 @@ public class GPGTest : IDisposable
     }
 
     gpg = new ExeGPG("d:/adammil/programs/gnupg/gpg.exe");
+    gpg.LineLogged += delegate(string line) { System.Diagnostics.Debugger.Log(0, "GPG", line+"\n"); };
     gpg.KeyPasswordNeeded += delegate(string keyId, string userIdHint) { return password.Copy(); };
     gpg.PlainPasswordNeeded += delegate() { return password.Copy(); };
     gpg.RetrieveKeySignatureFingerprints = true;
@@ -356,7 +357,7 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
 
     // test ASCII key-based encryption
     EncryptionOptions encryptOptions = new EncryptionOptions(keys[Encrypter], keys[Receiver]);
-    encryptOptions.AlwaysTrustRecipients = true; // TODO: remove this when we implement key editing
+    encryptOptions.AlwaysTrustRecipients = true;
     gpg.Encrypt(plaintext, ciphertext, encryptOptions, new OutputOptions(OutputFormat.ASCII, "Woot"));
 
     // verify that it decrypts properly
@@ -384,7 +385,7 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
 
     // test signed, encrypted data
     encryptOptions = new EncryptionOptions(keys[Encrypter]);
-    encryptOptions.AlwaysTrustRecipients = true; // TODO: remove this when we implement key editing
+    encryptOptions.AlwaysTrustRecipients = true;
     ciphertext = new MemoryStream();
     plaintext.Position = 0;
     gpg.SignAndEncrypt(plaintext, ciphertext, new SigningOptions(keys[Signer], keys[Encrypter]), encryptOptions);
@@ -498,7 +499,7 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
   }
 
   [Test]
-  public void T09_TestEditingUidsAndSigs()
+  public void T09_EditUidAndSig()
   {
     EnsureImported();
 
@@ -525,8 +526,7 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
 
     // test GetPreferences(), and ensure that AddUserId() added the preferences properly
     UserPreferences newPrefs = gpg.GetPreferences(newId);
-    // TODO: make the keyserver thing work
-    //Assert.AreEqual(preferences.Keyserver, newPrefs.Keyserver);
+    // TODO: Assert.AreEqual(preferences.Keyserver, newPrefs.Keyserver);
     Assert.AreEqual(preferences.Primary, newPrefs.Primary);
     CollectionAssert.AreEqual(preferences.PreferredCiphers, newPrefs.PreferredCiphers);
     CollectionAssert.AreEqual(preferences.PreferredCompressions, newPrefs.PreferredCompressions);
@@ -641,15 +641,9 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
   }
 
   [Test]
-  public void T10_TestEditingKeysAndSubkeys()
+  public void T10_EditKeyAndSubkey()
   {
     EnsureImported();
-
-    // allow Signer to revoke Encrypter's key
-    gpg.AddDesignatedRevoker(keys[Encrypter], keys[Signer]);
-    keys[Encrypter] = gpg.RefreshKey(keys[Encrypter]);
-    Assert.AreEqual(1, keys[Encrypter].DesignatedRevokers.Count);
-    Assert.AreEqual(keys[Signer].Fingerprint, keys[Encrypter].DesignatedRevokers[0]);
 
     // add a new subkey to Encrypter's key
     DateTime expiration = new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -691,8 +685,17 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
     // delete all subkeys from Encrypter
     gpg.DeleteSubkeys(keys[Encrypter].Subkeys.ToArray());
 
-    // revoke the keys
-    gpg.RevokeKeys(null, keys[Encrypter], keys[Signer]);
+    // allow Signer to revoke Encrypter's key
+    gpg.AddDesignatedRevoker(keys[Encrypter], keys[Signer]);
+    keys[Encrypter] = gpg.RefreshKey(keys[Encrypter]);
+    Assert.AreEqual(1, keys[Encrypter].DesignatedRevokers.Count);
+    Assert.AreEqual(keys[Signer].Fingerprint, keys[Encrypter].DesignatedRevokers[0]);
+
+    // revoke Encrypter's key using the designated revoker
+    gpg.RevokeKeys(keys[Signer], null, keys[Encrypter]);
+
+    // revoke Signer's key directly
+    gpg.RevokeKeys(null, keys[Signer]);
     keys = gpg.RefreshKeys(keys);
     Assert.IsTrue(keys[Encrypter].Revoked);
     Assert.IsTrue(keys[Signer].Revoked);
@@ -700,6 +703,41 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
     // delete the keys and reimport them to put everything back how it was
     gpg.DeleteKeys(keys, KeyDeletion.PublicAndSecret);
     T01_ImportTestKeys();
+  }
+
+  [Test]
+  public void T11_KeyServer()
+  {
+    KeyDownloadOptions downloadOptions = new KeyDownloadOptions(new Uri("hkp://wwwkeys.pgp.net"));
+
+    // import Adam Milazzo's public key from a key server
+    ImportedKey[] result = gpg.ImportKeysFromServer(downloadOptions, keyring,
+                                                    new string[] { "3B0592E6818F19CF853BB9E172DFF658727BA638" });
+    Assert.AreEqual(1, result.Length);
+    Assert.IsTrue(result[0].Successful);
+    Assert.AreEqual("3B0592E6818F19CF853BB9E172DFF658727BA638", result[0].Fingerprint);
+
+    // make sure it was really imported
+    PrimaryKey adamsKey = gpg.FindPublicKey("3B0592E6818F19CF853BB9E172DFF658727BA638", keyring);
+    Assert.IsNotNull(adamsKey);
+    Assert.IsTrue(adamsKey.PrimaryUserId.Name.StartsWith("Adam M"));
+    // TODO: Assert.IsNotNull(gpg.GetPreferences(adamsKey.PrimaryUserId).Keyserver);
+
+    // refresh the key
+    result = gpg.RefreshKeysFromServer(null, adamsKey);
+    Assert.AreEqual(1, result.Length);
+    Assert.IsTrue(result[0].Successful);
+
+    // refresh the entire keyring
+    result = gpg.RefreshKeysFromServer(downloadOptions, keyring);
+    Assert.AreEqual(1, result.Length);
+    Assert.IsTrue(result[0].Successful);
+
+    // upload the key back to the key server
+    gpg.UploadKeys(new KeyUploadOptions(downloadOptions.KeyServer), adamsKey);
+
+    // delete the key from the keyring
+    gpg.DeleteKey(adamsKey, KeyDeletion.PublicAndSecret);
   }
 
   void CheckSignatures(PrimaryKey[] keys, Signature[] sigs)

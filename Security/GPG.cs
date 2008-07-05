@@ -1,3 +1,21 @@
+/*
+AdamMil.Security is a .NET library providing OpenPGP-based security.
+http://www.adammil.net/
+Copyright (C) 2008 Adam Milazzo
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+*/
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -15,6 +33,9 @@ using SecureString = System.Security.SecureString;
 
 namespace AdamMil.Security.PGP.GPG
 {
+
+/// <summary>Processes text output from GPG.</summary>
+public delegate void TextLineHandler(string line);
 
 #region GPG
 /// <summary>A base class to aid in the implementation of interfaces to the GNU Privacy Guard (GPG).</summary>
@@ -118,6 +139,9 @@ public class ExeGPG : GPG
     Initialize(exePath);
   }
 
+  /// <summary>Raised when a line of text is to be logged.</summary>
+  public event TextLineHandler LineLogged;
+
   /// <summary>Gets the path to the GPG executable, or null if <see cref="Initialize"/> has not been called.</summary>
   public string ExecutablePath
   {
@@ -138,21 +162,7 @@ public class ExeGPG : GPG
     set { retrieveKeySignatureFingerprints = value; }
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/CreateTrustDatabase/*"/>
-  public override void CreateTrustDatabase(string path)
-  {
-    // the following creates a valid, empty version 3 trust database. (see gpg-src\doc\DETAILS)
-    using(FileStream dbFile = File.Open(path, FileMode.Create, FileAccess.Write))
-    {
-      dbFile.SetLength(40); // the database is 40 bytes long, but only the first 16 bytes are non-zero
-
-      byte[] headerStart = new byte[] { 1, 0x67, 0x70, 0x67, 3, 3, 1, 5, 1, 0, 0, 0 };
-      dbFile.Write(headerStart, 0, headerStart.Length);
-
-      // the next four bytes are the big-endian creation timestamp in seconds since epoch
-      IOH.WriteBE4(dbFile, (int)((DateTime.Now - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds));
-    }
-  }
+  #region Configuration
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedCiphers/*"/>
   public override string[] GetSupportedCiphers()
   {
@@ -180,7 +190,9 @@ public class ExeGPG : GPG
     AssertInitialized();
     return keyTypes == null ? new string[0] : (string[])keyTypes.Clone();
   }
+  #endregion
 
+  #region Encryption and signing
   /// <include file="documentation.xml" path="/Security/PGPSystem/SignAndEncrypt/*"/>
   public override void SignAndEncrypt(Stream sourceData, Stream destination, SigningOptions signingOptions,
                                       EncryptionOptions encryptionOptions, OutputOptions outputOptions)
@@ -212,7 +224,7 @@ public class ExeGPG : GPG
       }
 
       // add the keyrings of all the recipient keys to the command line
-      List<Key> totalRecipients = new List<Key>();
+      List<PrimaryKey> totalRecipients = new List<PrimaryKey>();
       totalRecipients.AddRange(encryptionOptions.Recipients);
       totalRecipients.AddRange(encryptionOptions.HiddenRecipients);
       args += GetKeyringArgs(totalRecipients, true, false, false);
@@ -359,7 +371,235 @@ public class ExeGPG : GPG
     }
     finally { File.Delete(sigFileName); }
   }
+  #endregion
 
+  #region Key import and export
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportPublicKeys/*"/>
+  public override void ExportPublicKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions,
+                                        OutputOptions outputOptions)
+  {
+    ExportKeys(keys, destination, exportOptions, outputOptions, false);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportPublicKeys2/*"/>
+  public override void ExportPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
+                                        ExportOptions exportOptions, OutputOptions outputOptions)
+  {
+    ExportKeyrings(keyrings, includeDefaultKeyring, destination, exportOptions, outputOptions, false);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportSecretKeys/*"/>
+  public override void ExportSecretKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions, OutputOptions outputOptions)
+  {
+    ExportKeys(keys, destination, exportOptions, outputOptions, true);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportSecretKeys2/*"/>
+  public override void ExportSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
+                                        ExportOptions exportOptions, OutputOptions outputOptions)
+  {
+    ExportKeyrings(keyrings, includeDefaultKeyring, destination, exportOptions, outputOptions, true);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeys3/*"/>
+  public override ImportedKey[] ImportKeys(Stream source, Keyring keyring, ImportOptions options)
+  {
+    if(source == null) throw new ArgumentNullException();
+
+    CommandState state;
+    Command cmd = Execute(GetImportArgs(keyring, options) + "--import", true, false,
+                          StreamHandling.ProcessText, StreamHandling.ProcessText);
+    ImportedKey[] keys = ImportCore(cmd, source, out state);
+    if(!cmd.SuccessfulExit) throw new ImportFailedException(state.FailureReasons);
+    return keys;
+  }
+  #endregion
+
+  #region Key revocation
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddDesignatedRevoker/*" />
+  public override void AddDesignatedRevoker(PrimaryKey key, PrimaryKey revokerKey)
+  {
+    if(key == null || revokerKey == null) throw new ArgumentNullException();
+
+    if(key.Keyring == null && revokerKey.Keyring != null ||
+       key.Keyring != null && !key.Keyring.Equals(revokerKey.Keyring))
+    {
+      throw new NotSupportedException("Adding a revoker from a different keyring is not supported.");
+    }
+
+    if(string.IsNullOrEmpty(revokerKey.Fingerprint))
+    {
+      throw new ArgumentException("The revoker key has no fingerprint.");
+    }
+
+    if(string.Equals(key.Fingerprint, revokerKey.Fingerprint, StringComparison.Ordinal))
+    {
+      throw new ArgumentException("You can't add a key as its own designated revoker.");
+    }
+
+    DoEdit(key, new AddRevoker(revokerKey.Fingerprint));
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRevocationCertificate/*" />
+  public override void GenerateRevocationCertificate(PrimaryKey key, Stream destination, KeyRevocationReason reason,
+                                                     OutputOptions outputOptions)
+  {
+    GenerateRevocationCertificateCore(key, null, destination, reason, outputOptions);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRevocationCertificateD/*" />
+  public override void GenerateRevocationCertificate(PrimaryKey keyToRevoke, PrimaryKey designatedRevoker,
+                                                     Stream destination, KeyRevocationReason reason,
+                                                     OutputOptions outputOptions)
+  {
+    if(designatedRevoker == null) throw new ArgumentNullException();
+    GenerateRevocationCertificateCore(keyToRevoke, designatedRevoker, destination, reason, outputOptions);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeKeys/*" />
+  public override void RevokeKeys(KeyRevocationReason reason, params PrimaryKey[] keys)
+  {
+    RevokeKeysCore(null, reason, keys);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeKeysD/*" />
+  public override void RevokeKeys(PrimaryKey designatedRevoker, KeyRevocationReason reason, params PrimaryKey[] keys)
+  {
+    if(designatedRevoker == null) throw new ArgumentNullException();
+    RevokeKeysCore(designatedRevoker, reason, keys);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSubkeys/*" />
+  public override void RevokeSubkeys(KeyRevocationReason reason, params Subkey[] subkeys)
+  {
+    foreach(List<Subkey> keyList in GroupSubkeysByKey(subkeys))
+    {
+      EditCommand[] commands = new EditCommand[keyList.Count+1];
+      for(int i=0; i<keyList.Count; i++) commands[i] = new SelectSubkey(keyList[i].Fingerprint, false);
+      commands[keyList.Count] = new RevokeSubkeysCommand(reason);
+      DoEdit(keyList[0].PrimaryKey, commands);
+    }
+  }
+  #endregion
+
+  #region Key server operations
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeysFromServer/*"/>
+  public override ImportedKey[] ImportKeysFromServer(KeyDownloadOptions options, Keyring keyring,
+                                                     params string[] keyFingerprintsOrIds)
+  {
+    if(keyFingerprintsOrIds == null) throw new ArgumentNullException();
+    if(keyFingerprintsOrIds.Length == 0) return new ImportedKey[0];
+
+    string args = GetKeyServerArgs(options, true) + GetImportArgs(keyring, options.ImportOptions) + "--recv-keys";
+    foreach(string id in keyFingerprintsOrIds)
+    {
+      if(string.IsNullOrEmpty(id)) throw new ArgumentException("A key ID was null or empty.");
+      args += " " + id;
+    }
+    return KeyServerCore(args, "Key import", true);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RefreshKeyringFromServer/*"/>
+  public override ImportedKey[] RefreshKeysFromServer(KeyDownloadOptions options, Keyring keyring)
+  {
+    string args = GetImportArgs(keyring, options == null ? ImportOptions.Default : options.ImportOptions) +
+                  GetKeyServerArgs(options, false) + "--refresh-keys";
+    return KeyServerCore(args, "Keyring refresh", true);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RefreshKeysFromServer/*"/>
+  public override ImportedKey[] RefreshKeysFromServer(KeyDownloadOptions options, params PrimaryKey[] keys)
+  {
+    if(keys == null) throw new ArgumentNullException();
+    if(keys.Length == 0) return new ImportedKey[0];
+
+    string args = GetKeyringArgs(keys, true, true, true) + GetKeyServerArgs(options, false) +
+                  GetImportArgs(null, options == null ? ImportOptions.Default : options.ImportOptions) +
+                  "--refresh-keys " + GetFingerprintArgs(keys);
+    return KeyServerCore(args, "Key refresh", true);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/UploadKeys/*"/>
+  public override void UploadKeys(KeyUploadOptions options, params PrimaryKey[] keys)
+  {
+    if(keys == null) throw new ArgumentNullException();
+    if(keys.Length == 0) return;
+
+    string args = GetKeyringArgs(keys, true, false, true) + GetKeyServerArgs(options, true) +
+                  GetExportArgs(options.ExportOptions, false, false) + "--send-keys " + GetFingerprintArgs(keys);
+    KeyServerCore(args, "Key upload", false);
+  }
+  #endregion
+
+  #region Key signing
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSignatures/*" />
+  public override void DeleteSignatures(params KeySignature[] signatures)
+  {
+    Dictionary<string, List<UserAttribute>> uidMap;
+    Dictionary<string, List<KeySignature>> sigMap;
+    GroupSignaturesByKeyAndObject(signatures, out uidMap, out sigMap);
+
+    List<EditCommand> commands = new List<EditCommand>();
+    foreach(KeyValuePair<string,List<UserAttribute>> pair in uidMap) // for each key to be edited...
+    {
+      bool firstUid = true;
+      foreach(UserAttribute uid in pair.Value) // for each affected UID in the key
+      {
+        if(!firstUid) commands.Add(new RawCommand("uid -")); // select the UID
+        commands.Add(new RawCommand("uid " + uid.Id));
+        commands.Add(new DeleteSigs(sigMap[uid.Id].ToArray())); // then delete its corresponding signatures
+        firstUid = false;
+      }
+
+      DoEdit(pair.Value[0].Key, commands.ToArray());
+      commands.Clear();
+    }
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSignatures/*" />
+  public override void RevokeSignatures(UserRevocationReason reason, params KeySignature[] signatures)
+  {
+    Dictionary<string, List<UserAttribute>> uidMap;
+    Dictionary<string, List<KeySignature>> sigMap;
+    GroupSignaturesByKeyAndObject(signatures, out uidMap, out sigMap);
+
+    List<EditCommand> commands = new List<EditCommand>();
+    foreach(KeyValuePair<string, List<UserAttribute>> pair in uidMap) // for each key to be edited...
+    {
+      bool firstUid = true;
+      foreach(UserAttribute uid in pair.Value) // for each affected UID in the key
+      {
+        if(!firstUid) commands.Add(new RawCommand("uid -")); // select the UID
+        commands.Add(new RawCommand("uid " + uid.Id));
+        commands.Add(new RevokeSigs(reason, sigMap[uid.Id].ToArray())); // then delete its corresponding signatures
+        firstUid = false;
+      }
+
+      DoEdit(pair.Value[0].Key, commands.ToArray());
+      commands.Clear();
+    }
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignKey/*" />
+  public override void SignKey(PrimaryKey keyToSign, PrimaryKey signingKey, KeySigningOptions options)
+  {
+    if(keyToSign == null || signingKey == null) throw new ArgumentNullException();
+    DoEdit(keyToSign, GetKeyringArgs(new PrimaryKey[] { keyToSign, signingKey }, true, true, true) +
+           "-u " + signingKey.Fingerprint, false, new SignKeyCommand(options, true));
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignUser/*"/>
+  public override void SignKey(UserAttribute userId, PrimaryKey signingKey, KeySigningOptions options)
+  {
+    if(userId == null || signingKey == null) throw new ArgumentNullException();
+    if(userId.Key == null) throw new ArgumentException("The user attribute must be associated with a key.");
+
+    DoEdit(userId.Key, GetKeyringArgs(new PrimaryKey[] { userId.Key, signingKey }, true, true, true) + "-u " +
+           signingKey.Fingerprint, false, new RawCommand("uid " + userId.Id), new SignKeyCommand(options, false));
+  }
+  #endregion
+
+  #region Keyring queries
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKeys/*"/>
   public override PrimaryKey[] FindPublicKeys(string[] fingerprints, Keyring[] keyrings, bool includeDefaultKeyring,
                                               ListOptions options)
@@ -384,6 +624,158 @@ public class ExeGPG : GPG
   public override PrimaryKey[] GetSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring)
   {
     return GetKeys(keyrings, includeDefaultKeyring, ListOptions.Default, true, null);
+  }
+  #endregion
+
+  #region Miscellaneous
+  /// <include file="documentation.xml" path="/Security/PGPSystem/CreateTrustDatabase/*"/>
+  public override void CreateTrustDatabase(string path)
+  {
+    // the following creates a valid, empty version 3 trust database. (see gpg-src\doc\DETAILS)
+    using(FileStream dbFile = File.Open(path, FileMode.Create, FileAccess.Write))
+    {
+      dbFile.SetLength(40); // the database is 40 bytes long, but only the first 16 bytes are non-zero
+
+      byte[] headerStart = new byte[] { 1, 0x67, 0x70, 0x67, 3, 3, 1, 5, 1, 0, 0, 0 };
+      dbFile.Write(headerStart, 0, headerStart.Length);
+
+      // the next four bytes are the big-endian creation timestamp in seconds since epoch
+      IOH.WriteBE4(dbFile, (int)((DateTime.Now - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds));
+    }
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRandomData/*"/>
+  public override void GetRandomData(Randomness quality, byte[] buffer, int index, int count)
+  {
+    if(buffer == null) throw new ArgumentNullException();
+    if(index < 0 || count < 0 || index+count > buffer.Length) throw new ArgumentOutOfRangeException();
+    if(count == 0) return;
+
+    // "gpg --gen-random QUALITY COUNT" writes random COUNT bytes to standard output. QUALITY is a value from 0 to 2
+    // representing the quality of the random number generator to use
+    string qualityArg;
+    if(quality == Randomness.Weak) qualityArg = "0";
+    else if(quality == Randomness.TooStrong) qualityArg = "2";
+    else qualityArg = "1"; // we'll default to the Strong level
+
+    Command cmd = Execute("--gen-random " + qualityArg + " " + count.ToString(CultureInfo.InvariantCulture),
+                          false, true, StreamHandling.Unprocessed, StreamHandling.ProcessText);
+    using(cmd)
+    {
+      cmd.Start();
+      do
+      {
+        int read = cmd.Process.StandardOutput.BaseStream.Read(buffer, index, count);
+        if(read == 0) break;
+        index += read;
+        count -= read;
+      } while(count != 0);
+
+      cmd.WaitForExit();
+    }
+
+    if(count != 0) throw new PGPException("GPG didn't write enough random bytes.");
+    cmd.CheckExitCode();
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/Hash/*"/>
+  public override byte[] Hash(Stream data, string hashAlgorithm)
+  {
+    if(data == null) throw new ArgumentNullException();
+
+    bool customAlgorithm = false;
+    if(hashAlgorithm == null || hashAlgorithm == HashAlgorithm.Default) hashAlgorithm = HashAlgorithm.SHA1;
+    else if(hashAlgorithm.Length == 0) throw new ArgumentException("Unspecified hash algorithm.");
+    else
+    {
+      AssertSupported(hashAlgorithm, hashes, "hash");
+      customAlgorithm = true;
+    }
+
+    // "gpg --print-md ALGO" hashes data presented on standard input. if the algorithm is not supported, gpg exits
+    // immediately with error code 2. otherwise, it consumes all available input, and then prints the hash in a
+    // human-readable form, with hex digits nicely formatted into blocks and lines. we'll feed it all the input and
+    // then read the output.
+    List<byte> hash = new List<byte>();
+    Command cmd = Execute("--print-md " + EscapeArg(hashAlgorithm), false, false,
+                          StreamHandling.Unprocessed, StreamHandling.ProcessText);
+    using(cmd)
+    {
+      cmd.Start();
+
+      if(WriteStreamToProcess(data, cmd.Process))
+      {
+        while(true)
+        {
+          string line = cmd.Process.StandardOutput.ReadLine();
+          if(line == null) break;
+
+          int value = 0, chars = 0;
+          foreach(char c in line.ToLowerInvariant())
+          {
+            if(c >= '0' && c <= '9' || c >= 'a' && c <= 'f')
+            {
+              value = (value<<4) + GetHexValue(c);
+              if(++chars == 2)
+              {
+                hash.Add((byte)value);
+                chars = value = 0;
+              }
+            }
+          }
+        }
+      }
+
+      cmd.WaitForExit();
+    }
+
+    if(!cmd.SuccessfulExit || hash.Count == 0)
+    {
+      throw new PGPException("Hash failed.",
+                             customAlgorithm ? FailureReason.UnsupportedAlgorithm : FailureReason.None);
+    }
+
+    return hash.ToArray();
+  }
+  #endregion
+
+  #region Primary key management
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddSubkey/*" />
+  public override void AddSubkey(PrimaryKey key, string keyType, int keyLength, DateTime? expiration)
+  {
+    DoEdit(key, keyLength == 0 ? null : "--enable-dsa2", true, new AddSubkeyCommand(keyType, keyLength, expiration));
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ChangeExpiration/*" />
+  public override void ChangeExpiration(Key key, DateTime? expiration)
+  {
+    if(key == null) throw new ArgumentNullException();
+
+    Subkey subkey = key as Subkey;
+    if(subkey == null)
+    {
+      DoEdit(key.GetPrimaryKey(), new ChangeExpirationCommand(expiration));
+    }
+    else
+    {
+      DoEdit(key.GetPrimaryKey(), new SelectSubkey(subkey.Fingerprint, true), new ChangeExpirationCommand(expiration));
+    }
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ChangePassword/*" />
+  public override void ChangePassword(PrimaryKey key, SecureString password)
+  {
+    DoEdit(key, new ChangePasswordCommand(password));
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/CleanKeys/*" />
+  public override void CleanKeys(params PrimaryKey[] keys)
+  {
+    foreach(PrimaryKey key in keys)
+    {
+      if(key == null) throw new ArgumentNullException("A key was null.");
+      DoEdit(key, new RawCommand("clean"));
+    }
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/CreateKey/*"/>
@@ -587,214 +979,142 @@ public class ExeGPG : GPG
     if(!cmd.SuccessfulExit) throw new KeyEditFailedException(state.FailureReasons);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportPublicKeys/*"/>
-  public override void ExportPublicKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions,
-                                        OutputOptions outputOptions)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSubkeys/*" />
+  public override void DeleteSubkeys(params Subkey[] subkeys)
   {
-    ExportKeys(keys, destination, exportOptions, outputOptions, false);
+    foreach(List<Subkey> keyList in GroupSubkeysByKey(subkeys))
+    {
+      EditCommand[] commands = new EditCommand[keyList.Count+1];
+      for(int i=0; i<keyList.Count; i++) commands[i] = new SelectSubkey(keyList[i].Fingerprint, false);
+      commands[keyList.Count] = new DeleteSubkeysCommand();
+      DoEdit(keyList[0].PrimaryKey, commands);
+    }
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportPublicKeys2/*"/>
-  public override void ExportPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
-                                        ExportOptions exportOptions, OutputOptions outputOptions)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DisableKeys/*" />
+  public override void DisableKeys(params PrimaryKey[] keys)
   {
-    ExportKeyrings(keyrings, includeDefaultKeyring, destination, exportOptions, outputOptions, false);
+    foreach(PrimaryKey key in keys)
+    {
+      if(key == null) throw new ArgumentNullException("A key was null.");
+      DoEdit(key, new RawCommand("disable"));
+    }
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportSecretKeys/*"/>
-  public override void ExportSecretKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions, OutputOptions outputOptions)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/EnableKeys/*" />
+  public override void EnableKeys(params PrimaryKey[] keys)
   {
-    ExportKeys(keys, destination, exportOptions, outputOptions, true);
+    foreach(PrimaryKey key in keys)
+    {
+      if(key == null) throw new ArgumentNullException("A key was null.");
+      DoEdit(key, new RawCommand("enable"));
+    }
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportSecretKeys2/*"/>
-  public override void ExportSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
-                                        ExportOptions exportOptions, OutputOptions outputOptions)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/MinimizeKeys/*" />
+  public override void MinimizeKeys(params PrimaryKey[] keys)
   {
-    ExportKeyrings(keyrings, includeDefaultKeyring, destination, exportOptions, outputOptions, true);
+    foreach(PrimaryKey key in keys)
+    {
+      if(key == null) throw new ArgumentNullException("A key was null.");
+      DoEdit(key, new RawCommand("minimize"));
+    }
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeys3/*"/>
-  public override ImportedKey[] ImportKeys(Stream source, Keyring keyring, ImportOptions options)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SetTrustLevel/*" />
+  public override void SetTrustLevel(PrimaryKey key, TrustLevel trust)
   {
-    if(source == null) throw new ArgumentNullException();
+    DoEdit(key, new SetTrust(trust));
+  }
+  #endregion
 
-    string args = GetKeyringArgs(keyring, true, true, true);
-
-    if(keyring != null)
+  #region User ID management
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddPhoto4/*" />
+  public override void AddPhoto(PrimaryKey key, Stream image, OpenPGPImageType imageFormat,
+                                UserPreferences preferences)
+  {
+    if(key == null || image == null) throw new ArgumentNullException();
+    if(imageFormat != OpenPGPImageType.Jpeg)
     {
-      // add the --primary-keyring option so that GPG will import into the keyrings we've given it
-      args += "--primary-keyring " + EscapeArg(NormalizeKeyringFile(keyring.PublicFile)) + " ";
+      throw new NotImplementedException("Only JPEG photos are currently supported.");
     }
 
-    if(options != ImportOptions.Default)
+    string filename = Path.GetTempFileName();
+    try
     {
-      args += "--import-options ";
-      if((options & ImportOptions.CleanKeys) != 0) args += "import-clean ";
-      if((options & ImportOptions.ImportLocalSignatures) != 0) args += "import-local-sigs ";
-      if((options & ImportOptions.MergeOnly) != 0) args += "merge-only ";
-      if((options & ImportOptions.MinimizeKeys) != 0) args += "import-minimize ";
+      using(FileStream file = new FileStream(filename, FileMode.Open, FileAccess.Write)) IOH.CopyStream(image, file);
+      DoEdit(key, new AddPhotoCommand(filename, preferences)); 
     }
-
-    // GPG sometimes sends multiple messages for a single key, for instance when the key has several subkeys or a
-    // secret portion. so we'll keep track of how fingerprints map to ImportedKey objects, so we'll know whether to
-    // modify the existing object or create a new one
-    Dictionary<string, ImportedKey> keysByFingerprint = new Dictionary<string, ImportedKey>();
-    // we want to return keys in the order they were processed, so we'll keep this ordered list of fingerprints
-    List<string> fingerprintsSeen = new List<string>();
-
-    CommandState state = new CommandState();
-    Command cmd = Execute(args + "--import", true, false, StreamHandling.ProcessText, StreamHandling.ProcessText);
-    using(cmd)
-    {
-      cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, ref state); };
-
-      cmd.StatusMessageReceived += delegate(StatusMessage msg)
-      {
-        if(msg.Type == StatusMessageType.ImportOkay)
-        {
-          KeyImportOkayMessage m = (KeyImportOkayMessage)msg;
-          
-          ImportedKey key;
-          if(!keysByFingerprint.TryGetValue(m.Fingerprint, out key))
-          {
-            key = new ImportedKey();
-            key.Fingerprint = m.Fingerprint;
-            key.Successful  = true;
-            keysByFingerprint[key.Fingerprint] = key;
-            fingerprintsSeen.Add(key.Fingerprint);
-          }
-
-          if((m.Reason & KeyImportReason.ContainsSecretKey) != 0) key.Secret = true;
-        }
-        else if(msg.Type == StatusMessageType.ImportProblem)
-        {
-          KeyImportFailedMessage m = (KeyImportFailedMessage)msg;
-
-          ImportedKey key;
-          if(!keysByFingerprint.TryGetValue(m.Fingerprint, out key))
-          {
-            key = new ImportedKey();
-            key.Fingerprint = m.Fingerprint;
-            keysByFingerprint[key.Fingerprint] = key;
-            fingerprintsSeen.Add(key.Fingerprint);
-          }
-
-          key.Successful = false;
-        }
-        else DefaultStatusMessageHandler(msg, ref state);
-      };
-
-      cmd.Start();
-      WriteStreamToProcess(source, cmd.Process);
-      cmd.WaitForExit();
-    }
-
-    if(!cmd.SuccessfulExit) throw new ImportFailedException(state.FailureReasons);
-
-    // return the keys in the order that they were seen
-    ImportedKey[] keysProcessed = new ImportedKey[fingerprintsSeen.Count];
-    for(int i=0; i<keysProcessed.Length; i++)
-    {
-      keysProcessed[i] = keysByFingerprint[fingerprintsSeen[i]];
-      keysProcessed[i].MakeReadOnly();
-    }
-    return keysProcessed;
+    finally { File.Delete(filename); }
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRandomData/*"/>
-  public override void GetRandomData(Randomness quality, byte[] buffer, int index, int count)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddUserId/*" />
+  public override void AddUserId(PrimaryKey key, string realName, string email, string comment,
+                                 UserPreferences preferences)
   {
-    if(buffer == null) throw new ArgumentNullException();
-    if(index < 0 || count < 0 || index+count > buffer.Length) throw new ArgumentOutOfRangeException();
-    if(count == 0) return;
+    realName = Trim(realName);
+    email    = Trim(email);
+    comment  = Trim(comment);
 
-    // "gpg --gen-random QUALITY COUNT" writes random COUNT bytes to standard output. QUALITY is a value from 0 to 2
-    // representing the quality of the random number generator to use
-    string qualityArg;
-    if(quality == Randomness.Weak) qualityArg = "0";
-    else if(quality == Randomness.TooStrong) qualityArg = "2";
-    else qualityArg = "1"; // we'll default to the Strong level
-
-    Command cmd = Execute("--gen-random " + qualityArg + " " + count.ToString(CultureInfo.InvariantCulture),
-                          false, true, StreamHandling.Unprocessed, StreamHandling.ProcessText);
-    using(cmd)
+    if(string.IsNullOrEmpty(realName) && string.IsNullOrEmpty(email))
     {
-      cmd.Start();
-      do
-      {
-        int read = cmd.Process.StandardOutput.BaseStream.Read(buffer, index, count);
-        if(read == 0) break;
-        index += read;
-        count -= read;
-      } while(count != 0);
-
-      cmd.WaitForExit();
+      throw new ArgumentException("At least one of the real name or email must be set.");
     }
 
-    if(count != 0) throw new PGPException("GPG didn't write enough random bytes.");
-    cmd.CheckExitCode();
+    if(ContainsControlCharacters(realName + email + comment))
+    {
+      throw new ArgumentException("Name, email, or comment contains control characters. Remove them.");
+    }
+
+    DoEdit(key, "--allow-freeform-uid", true, new AddUid(realName, email, comment, preferences));
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/Hash/*"/>
-  public override byte[] Hash(Stream data, string hashAlgorithm)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteAttributes/*" />
+  public override void DeleteAttributes(params UserAttribute[] attributes)
   {
-    if(data == null) throw new ArgumentNullException();
-
-    bool customAlgorithm = false;
-    if(hashAlgorithm == null || hashAlgorithm == HashAlgorithm.Default) hashAlgorithm = HashAlgorithm.SHA1;
-    else if(hashAlgorithm.Length == 0) throw new ArgumentException("Unspecified hash algorithm.");
-    else
+    foreach(List<UserAttribute> list in GroupAttributesByKey(attributes))
     {
-      AssertSupported(hashAlgorithm, hashes, "hash");
-      customAlgorithm = true;
+      EditCommand[] commands = new EditCommand[list.Count+1];
+      for(int i=0; i<list.Count; i++) commands[i] = new RawCommand("uid " + list[i].Id);
+      commands[commands.Length-1] = new DeleteUids();
+      DoEdit(list[0].Key, commands);
     }
-
-    // "gpg --print-md ALGO" hashes data presented on standard input. if the algorithm is not supported, gpg exits
-    // immediately with error code 2. otherwise, it consumes all available input, and then prints the hash in a
-    // human-readable form, with hex digits nicely formatted into blocks and lines. we'll feed it all the input and
-    // then read the output.
-    List<byte> hash = new List<byte>();
-    Command cmd = Execute("--print-md " + EscapeArg(hashAlgorithm), false, false,
-                          StreamHandling.Unprocessed, StreamHandling.ProcessText);
-    using(cmd)
-    {
-      cmd.Start();
-
-      if(WriteStreamToProcess(data, cmd.Process))
-      {
-        while(true)
-        {
-          string line = cmd.Process.StandardOutput.ReadLine();
-          if(line == null) break;
-
-          int value = 0, chars = 0;
-          foreach(char c in line.ToLowerInvariant())
-          {
-            if(c >= '0' && c <= '9' || c >= 'a' && c <= 'f')
-            {
-              value = (value<<4) + GetHexValue(c);
-              if(++chars == 2)
-              {
-                hash.Add((byte)value);
-                chars = value = 0;
-              }
-            }
-          }
-        }
-      }
-
-      cmd.WaitForExit();
-    }
-
-    if(!cmd.SuccessfulExit || hash.Count == 0)
-    {
-      throw new PGPException("Hash failed.",
-                             customAlgorithm ? FailureReason.UnsupportedAlgorithm : FailureReason.None);
-    }
-
-    return hash.ToArray();
   }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetPreferences/*" />
+  public override UserPreferences GetPreferences(UserAttribute user)
+  {
+    if(user == null) throw new ArgumentNullException();
+    if(user.Key == null) throw new ArgumentException("The user attribute must be associated with a key.");
+
+    // TODO: currently, this fails to retrieve the user's preferred keyserver, because GPG writes it to the TTY where
+    // it can't be captured...
+
+    UserPreferences preferences = new UserPreferences();
+    DoEdit(user.Key, new RawCommand("uid " + user.Id), new GetPrefs(preferences));
+    return preferences;
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeAttributes/*" />
+  public override void RevokeAttributes(UserRevocationReason reason, params UserAttribute[] attributes)
+  {
+    foreach(List<UserAttribute> list in GroupAttributesByKey(attributes))
+    {
+      EditCommand[] commands = new EditCommand[list.Count+1];
+      for(int i=0; i<list.Count; i++) commands[i] = new RawCommand("uid " + list[i].Id);
+      commands[commands.Length-1] = new RevokeUids(reason);
+      DoEdit(list[0].Key, commands);
+    }
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SetPreferences/*" />
+  public override void SetPreferences(UserAttribute user, UserPreferences preferences)
+  {
+    if(user == null || preferences == null) throw new ArgumentNullException();
+    if(user.Key == null) throw new ArgumentException("The user attribute must be associated with a key.");
+    DoEdit(user.Key, new RawCommand("uid " + user.Id), new SetPrefs(preferences));
+  }
+  #endregion
 
   /// <summary>Initializes a new <see cref="ExeGPG"/> object with path the path to the GPG executable. It is assumed
   /// that the executable file will not be altered during the lifetime of this object.
@@ -866,8 +1186,6 @@ public class ExeGPG : GPG
 
   /// <summary>Processes status messages from GPG.</summary>
   delegate void StatusMessageHandler(StatusMessage message);
-  /// <summary>Processes text output from GPG.</summary>
-  delegate void TextLineHandler(string line);
 
   /// <summary>Holds variables set by the default STDERR and status message handlers.</summary>
   struct CommandState
@@ -882,10 +1200,11 @@ public class ExeGPG : GPG
   /// <summary>Represents a GPG command.</summary>
   sealed class Command : System.Runtime.ConstrainedExecution.CriticalFinalizerObject, IDisposable
   {
-    public Command(ProcessStartInfo psi, InheritablePipe commandPipe,
+    public Command(ExeGPG gpg, ProcessStartInfo psi, InheritablePipe commandPipe,
                    bool closeStdInput, StreamHandling stdOut, StreamHandling stdError)
     {
-      if(psi == null) throw new ArgumentNullException();
+      if(gpg == null || psi == null) throw new ArgumentNullException();
+      this.gpg           = gpg;
       this.psi           = psi;
       this.commandPipe   = commandPipe;
       this.closeStdInput = closeStdInput;
@@ -982,7 +1301,9 @@ public class ExeGPG : GPG
     public void SendLine(string line)
     {
       if(commandStream == null) throw new InvalidOperationException("The command stream is not open.");
-Debugger.Log(0, "GPG", ">> "+line+"\n");
+      
+      if(gpg.LoggingEnabled) gpg.LogLine(">> " + line);
+
       if(!string.IsNullOrEmpty(line))
       {
         byte[] bytes = Encoding.UTF8.GetBytes(line);
@@ -1166,14 +1487,14 @@ Debugger.Log(0, "GPG", ">> "+line+"\n");
     /// <summary>Handles a line of text from STDOUT.</summary>
     void OnStdOutLine(string line)
     {
-Debugger.Log(0, "", "OUT: "+line+"\n");
+      if(gpg.LoggingEnabled) gpg.LogLine("OUT: " + line);
       if(StandardOutputLine != null) StandardOutputLine(line);
     }
 
     /// <summary>Handles a line of text from STDERR.</summary>
     void OnStdErrorLine(string line)
     {
-Debugger.Log(0, "", "ERR: "+line+"\n");
+      if(gpg.LoggingEnabled) gpg.LogLine("ERR: " + line);
       if(StandardErrorLine != null) StandardErrorLine(line);
     }
 
@@ -1205,6 +1526,84 @@ Debugger.Log(0, "", "ERR: "+line+"\n");
     }
     #pragma warning restore 420
 
+    /// <summary>Parses a status message with the given type and arguments, and returns the corresponding
+    /// <see cref="StatusMessage"/>, or null if the message could not be parsed or was ignored.
+    /// </summary>
+    StatusMessage ParseStatusMessage(string type, string[] arguments)
+    {
+      StatusMessage message;
+      switch(type)
+      {
+        case "NEWSIG": message = new GenericMessage(StatusMessageType.NewSig); break;
+        case "GOODSIG": message = new GoodSigMessage(arguments); break;
+        case "EXPSIG": message = new ExpiredSigMessage(arguments); break;
+        case "EXPKEYSIG": message = new ExpiredKeySigMessage(arguments); break;
+        case "REVKEYSIG": message = new RevokedKeySigMessage(arguments); break;
+        case "BADSIG": message = new BadSigMessage(arguments); break;
+        case "ERRSIG": message = new ErrorSigMessage(arguments); break;
+        case "VALIDSIG": message = new ValidSigMessage(arguments); break;
+
+        case "IMPORTED": message = new KeySigImportedMessage(arguments); break;
+        case "IMPORT_OK": message = new KeyImportOkayMessage(arguments); break;
+        case "IMPORT_PROBLEM": message = new KeyImportFailedMessage(arguments); break;
+        case "IMPORT_RES": message = new KeyImportResultsMessage(arguments); break;
+
+        case "USERID_HINT": message = new UserIdHintMessage(arguments); break;
+        case "NEED_PASSPHRASE": message = new NeedKeyPassphraseMessage(arguments); break;
+        case "GOOD_PASSPHRASE": message = new GenericMessage(StatusMessageType.GoodPassphrase); break;
+        case "MISSING_PASSPHRASE": message = new GenericMessage(StatusMessageType.MissingPassphrase); break;
+        case "BAD_PASSPHRASE": message = new BadPassphraseMessage(arguments); break;
+        case "NEED_PASSPHRASE_SYM": message = new GenericMessage(StatusMessageType.NeedCipherPassphrase); break;
+
+        case "BEGIN_SIGNING": message = new GenericMessage(StatusMessageType.BeginSigning); break;
+        case "SIG_CREATED": message = new GenericMessage(StatusMessageType.SigCreated); break;
+
+        case "BEGIN_DECRYPTION": message = new GenericMessage(StatusMessageType.BeginDecryption); break;
+        case "END_DECRYPTION": message = new GenericMessage(StatusMessageType.EndDecryption); break;
+        case "ENC_TO": message = new GenericKeyIdMessage(StatusMessageType.EncTo, arguments); break;
+        case "DECRYPTION_OKAY": message = new GenericMessage(StatusMessageType.DecryptionOkay); break;
+        case "DECRYPTION_FAILED": message = new GenericMessage(StatusMessageType.DecryptionFailed); break;
+        case "GOODMDC": message = new GenericMessage(StatusMessageType.GoodMDC); break;
+
+        case "BEGIN_ENCRYPTION": message = new GenericMessage(StatusMessageType.BeginEncryption); break;
+        case "END_ENCRYPTION": message = new GenericMessage(StatusMessageType.EndEncryption); break;
+
+        case "INV_RECP": message = new InvalidRecipientMessage(arguments); break;
+        case "NODATA": message = new GenericMessage(StatusMessageType.NoData); break;
+        case "NO_PUBKEY": message = new GenericKeyIdMessage(StatusMessageType.NoPublicKey, arguments); break;
+        case "NO_SECKEY": message = new GenericKeyIdMessage(StatusMessageType.NoSecretKey, arguments); break;
+        case "UNEXPECTED": message = new GenericMessage(StatusMessageType.UnexpectedData); break;
+
+        case "TRUST_UNDEFINED": message = new TrustLevelMessage(StatusMessageType.TrustUndefined); break;
+        case "TRUST_NEVER": message = new TrustLevelMessage(StatusMessageType.TrustNever); break;
+        case "TRUST_MARGINAL": message = new TrustLevelMessage(StatusMessageType.TrustMarginal); break;
+        case "TRUST_FULLY": message = new TrustLevelMessage(StatusMessageType.TrustFully); break;
+        case "TRUST_ULTIMATE": message = new TrustLevelMessage(StatusMessageType.TrustUltimate); break;
+
+        case "ATTRIBUTE": message = new AttributeMessage(arguments); break;
+
+        case "GET_HIDDEN": message = new GetInputMessage(StatusMessageType.GetHidden, arguments); break;
+        case "GET_BOOL": message = new GetInputMessage(StatusMessageType.GetBool, arguments); break;
+        case "GET_LINE": message = new GetInputMessage(StatusMessageType.GetLine, arguments); break;
+
+        case "DELETE_PROBLEM": message = new DeleteFailedMessage(arguments); break;
+
+        case "KEY_CREATED": message = new KeyCreatedMessage(arguments); break;
+        case "KEY_NOT_CREATED": message = new GenericMessage(StatusMessageType.KeyNotCreated); break;
+
+        // ignore these messages
+        case "PLAINTEXT": case "PLAINTEXT_LENGTH": case "SIG_ID": case "GOT_IT": case "PROGRESS":
+          message = null;
+          break;
+
+        default:
+          if(gpg.LoggingEnabled) gpg.LogLine("Unprocessed status message: "+type);
+          message = null;
+          break;
+      }
+      return message;
+    }
+
     void ProcessStatusStream(IAsyncResult result, Stream stream, StreamHandling handling,
                              ref byte[] buffer, ref int bufferBytes, ref bool bufferDone)
     {
@@ -1224,11 +1623,44 @@ Debugger.Log(0, "", "ERR: "+line+"\n");
       }
     }
 
+    /// <summary>Splits a decoded ASCII line representing a status message into a message type and message arguments.</summary>
+    void SplitDecodedLine(byte[] line, int length, out string type, out string[] arguments)
+    {
+      if(gpg.LoggingEnabled) gpg.LogLine(Encoding.ASCII.GetString(line, 0, length));
+
+      List<string> chunks = new List<string>();
+      type      = null;
+      arguments = null;
+
+      // the chunks are whitespace-separated
+      for(int index=0; ; )
+      {
+        while(index < length && line[index] == (byte)' ') index++; // find the next non-whitespace character
+        int start = index;
+        while(index < length && line[index] != (byte)' ') index++; // find the next whitespace character after that
+
+        if(start == length) break; // if we're at the end of the line, we're done
+
+        chunks.Add(Encoding.UTF8.GetString(line, start, index-start)); // grab the text between the two
+
+        // if this isn't a status line, don't waste time splitting the rest of it
+        if(chunks.Count == 1 && !string.Equals(chunks[0], "[GNUPG:]", StringComparison.Ordinal)) break;
+      }
+
+      if(chunks.Count >= 2) // if there are enough chunks to make up a status line
+      {
+        type      = chunks[1]; // skip the first chunk, which is assumed to be "[GNUPG:]". the second becomes the type
+        arguments = new string[chunks.Count-2]; // grab the rest as the arguments
+        chunks.CopyTo(2, arguments, 0, arguments.Length);
+      }
+    }
+
     Process process;
     InheritablePipe commandPipe;
     FileStream commandStream;
     byte[] statusBuffer, outBuffer, errorBuffer;
     ProcessStartInfo psi;
+    ExeGPG gpg;
     int statusBytes, outBytes, errorBytes;
     StreamHandling outHandling, errorHandling;
     volatile bool statusDone, outDone, errorDone;
@@ -1356,114 +1788,14 @@ Debugger.Log(0, "", "ERR: "+line+"\n");
       }
       return lines;
     }
-
-    /// <summary>Parses a status message with the given type and arguments, and returns the corresponding
-    /// <see cref="StatusMessage"/>, or null if the message could not be parsed or was ignored.
-    /// </summary>
-    static StatusMessage ParseStatusMessage(string type, string[] arguments)
-    {
-      StatusMessage message;
-      switch(type)
-      {
-        case "NEWSIG": message = new GenericMessage(StatusMessageType.NewSig); break;
-        case "GOODSIG": message = new GoodSigMessage(arguments); break;
-        case "EXPSIG": message = new ExpiredSigMessage(arguments); break;
-        case "EXPKEYSIG": message = new ExpiredKeySigMessage(arguments); break;
-        case "REVKEYSIG": message = new RevokedKeySigMessage(arguments); break;
-        case "BADSIG": message = new BadSigMessage(arguments); break;
-        case "ERRSIG": message = new ErrorSigMessage(arguments); break;
-        case "VALIDSIG": message = new ValidSigMessage(arguments); break;
-
-        case "IMPORTED": message = new KeySigImportedMessage(arguments); break;
-        case "IMPORT_OK": message = new KeyImportOkayMessage(arguments); break;
-        case "IMPORT_PROBLEM": message = new KeyImportFailedMessage(arguments); break;
-        case "IMPORT_RES": message = new KeyImportResultsMessage(arguments); break;
-
-        case "USERID_HINT": message = new UserIdHintMessage(arguments); break;
-        case "NEED_PASSPHRASE": message = new NeedKeyPassphraseMessage(arguments); break;
-        case "GOOD_PASSPHRASE": message = new GenericMessage(StatusMessageType.GoodPassphrase); break;
-        case "MISSING_PASSPHRASE": message = new GenericMessage(StatusMessageType.MissingPassphrase); break;
-        case "BAD_PASSPHRASE": message = new BadPassphraseMessage(arguments); break;
-        case "NEED_PASSPHRASE_SYM": message = new GenericMessage(StatusMessageType.NeedCipherPassphrase); break;
-
-        case "BEGIN_SIGNING": message = new GenericMessage(StatusMessageType.BeginSigning); break;
-        case "SIG_CREATED": message = new GenericMessage(StatusMessageType.SigCreated); break;
-
-        case "BEGIN_DECRYPTION": message = new GenericMessage(StatusMessageType.BeginDecryption); break;
-        case "END_DECRYPTION": message = new GenericMessage(StatusMessageType.EndDecryption); break;
-        case "ENC_TO": message = new GenericKeyIdMessage(StatusMessageType.EncTo, arguments); break;
-        case "DECRYPTION_OKAY": message = new GenericMessage(StatusMessageType.DecryptionOkay); break;
-        case "DECRYPTION_FAILED": message = new GenericMessage(StatusMessageType.DecryptionFailed); break;
-        case "GOODMDC": message = new GenericMessage(StatusMessageType.GoodMDC); break;
-
-        case "BEGIN_ENCRYPTION": message = new GenericMessage(StatusMessageType.BeginEncryption); break;
-        case "END_ENCRYPTION": message = new GenericMessage(StatusMessageType.EndEncryption); break;
-
-        case "INV_RECP": message = new InvalidRecipientMessage(arguments); break;
-        case "NODATA": message = new GenericMessage(StatusMessageType.NoData); break;
-        case "NO_PUBKEY": message = new GenericKeyIdMessage(StatusMessageType.NoPublicKey, arguments); break;
-        case "NO_SECKEY": message = new GenericKeyIdMessage(StatusMessageType.NoSecretKey, arguments); break;
-        case "UNEXPECTED": message = new GenericMessage(StatusMessageType.UnexpectedData); break;
-
-        case "TRUST_UNDEFINED": message = new TrustLevelMessage(StatusMessageType.TrustUndefined); break;
-        case "TRUST_NEVER": message = new TrustLevelMessage(StatusMessageType.TrustNever); break;
-        case "TRUST_MARGINAL": message = new TrustLevelMessage(StatusMessageType.TrustMarginal); break;
-        case "TRUST_FULLY": message = new TrustLevelMessage(StatusMessageType.TrustFully); break;
-        case "TRUST_ULTIMATE": message = new TrustLevelMessage(StatusMessageType.TrustUltimate); break;
-
-        case "ATTRIBUTE": message = new AttributeMessage(arguments); break;
-
-        case "GET_HIDDEN": message = new GetInputMessage(StatusMessageType.GetHidden, arguments); break;
-        case "GET_BOOL": message = new GetInputMessage(StatusMessageType.GetBool, arguments); break;
-        case "GET_LINE": message = new GetInputMessage(StatusMessageType.GetLine, arguments); break;
-
-        case "DELETE_PROBLEM": message = new DeleteFailedMessage(arguments); break;
-
-        case "KEY_CREATED": message = new KeyCreatedMessage(arguments); break;
-        case "KEY_NOT_CREATED": message = new GenericMessage(StatusMessageType.KeyNotCreated); break;
-
-        // ignore these messages
-        case "PLAINTEXT": case "PLAINTEXT_LENGTH": case "SIG_ID": case "GOT_IT": case "PROGRESS":
-          message = null;
-          break;
-
-        default: message = null; break; // TODO: remove later, or replace with logging?
-      }
-      return message;
-    }
-
-    /// <summary>Splits a decoded ASCII line representing a status message into a message type and message arguments.</summary>
-    static void SplitDecodedLine(byte[] line, int length, out string type, out string[] arguments)
-    {
-Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO: remove this
-      List<string> chunks = new List<string>();
-      type      = null;
-      arguments = null;
-
-      // the chunks are whitespace-separated
-      for(int index=0; ; )
-      {
-        while(index < length && line[index] == (byte)' ') index++; // find the next non-whitespace character
-        int start = index;
-        while(index < length && line[index] != (byte)' ') index++; // find the next whitespace character after that
-
-        if(start == length) break; // if we're at the end of the line, we're done
-
-        chunks.Add(Encoding.UTF8.GetString(line, start, index-start)); // grab the text between the two
-
-        // if this isn't a status line, don't waste time splitting the rest of it
-        if(chunks.Count == 1 && !string.Equals(chunks[0], "[GNUPG:]", StringComparison.Ordinal)) break;
-      }
-
-      if(chunks.Count >= 2) // if there are enough chunks to make up a status line
-      {
-        type      = chunks[1]; // skip the first chunk, which is assumed to be "[GNUPG:]". the second becomes the type
-        arguments = new string[chunks.Count-2]; // grab the rest as the arguments
-        chunks.CopyTo(2, arguments, 0, arguments.Length);
-      }
-    }
   }
   #endregion
+
+  /// <summary>Gets whether logging is enabled.</summary>
+  bool LoggingEnabled
+  {
+    get { return LineLogged != null; }
+  }
 
   /// <summary>Throws an exception if <see cref="Initialize"/> has not yet been called.</summary>
   void AssertInitialized()
@@ -1676,7 +2008,12 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     }
   }
 
-  void DoEdit(PrimaryKey key, string extraArgs, params EditCommand[] initialCommands)
+  void DoEdit(PrimaryKey key, params EditCommand[] initialCommands)
+  {
+    DoEdit(key, null, true, initialCommands);
+  }
+
+  void DoEdit(PrimaryKey key, string extraArgs, bool addKeyring, params EditCommand[] initialCommands)
   {
     if(key == null) throw new ArgumentNullException();
     if(string.IsNullOrEmpty(key.Fingerprint)) throw new ArgumentException("The key to edit has no fingerprint.");
@@ -1685,7 +2022,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     Queue<EditCommand> commands = new Queue<EditCommand>(initialCommands);
     CommandState state = new CommandState();
 
-    Command cmd = ExecuteForEdit(key, extraArgs);
+    Command cmd = ExecuteForEdit(key, extraArgs, addKeyring);
     try
     {
       cmd.StandardErrorLine += delegate(string line)
@@ -1698,7 +2035,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
       while(true)
       {
         string line = cmd.Process.StandardOutput.ReadLine();
-        Debugger.Log(0, "GPG", line+"\n");
+        LogLine(line);
         gotLine:
         if(line == null) break;
 
@@ -1750,7 +2087,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
             }
 
             line = cmd.Process.StandardOutput.ReadLine();
-            Debugger.Log(0, "GPG", line+"\n");
+            LogLine(line);
           } while(!string.IsNullOrEmpty(line) && line[0] != '['); // break out if the line is empty or a status line
 
           if(currentSubkey != null) newKey.Subkeys.Add(currentSubkey);
@@ -1885,20 +2222,20 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
       // and use it for both the status-fd and the command-fd
       args = "--exit-on-status-write-error --status-fd " + fd + " --command-fd " + fd + " " + args;
     }
-    return new Command(GetProcessStartInfo(ExecutablePath, args, false), commandPipe,
+    return new Command(this, GetProcessStartInfo(ExecutablePath, args), commandPipe,
                        closeStdInput, stdOutHandling, stdErrorHandling);
   }
 
-  Command ExecuteForEdit(PrimaryKey key, string extraArgs)
+  Command ExecuteForEdit(PrimaryKey key, string extraArgs, bool addKeyring)
   {
     // we'll use the pipe for the command-fd, but we'll pipe the status messages to STDOUT
     InheritablePipe commandPipe = new InheritablePipe(); // create a two-way pipe
     string fd = commandPipe.ClientHandle.ToInt64().ToString(CultureInfo.InvariantCulture);
-    string args = GetKeyringArgs(key.Keyring, true, true, true) + "--with-colons --fixed-list-mode "+
-                  "--exit-on-status-write-error --status-fd 1 --command-fd " + fd + " " + extraArgs + " --edit-key " +
-                  key.Fingerprint;
-    return new Command(GetProcessStartInfo(ExecutablePath, args, true), commandPipe,
-                       true, StreamHandling.Mixed, StreamHandling.ProcessText);
+    string args = "--with-colons --fixed-list-mode --exit-on-status-write-error --status-fd 1 "+
+                  "--command-fd " + fd + " " + extraArgs + " --edit-key " + key.Fingerprint;
+    if(addKeyring) args = GetKeyringArgs(key.Keyring, true, true, true) + args;
+    return new Command(this, GetProcessStartInfo(ExecutablePath, args), commandPipe,
+                       true, StreamHandling.Mixed, StreamHandling.DumpBinary);
   }
 
   /// <summary>Performs the main work of exporting keys.</summary>
@@ -1924,7 +2261,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     if(destination == null) throw new ArgumentNullException();
 
     string args = GetKeyringArgs(keyrings, !includeDefaultKeyring, exportSecretKeys) +
-                  GetExportArgs(exportOptions, exportSecretKeys) + GetOutputArgs(outputOptions);
+                  GetExportArgs(exportOptions, exportSecretKeys, true) + GetOutputArgs(outputOptions);
 
     ExportCore(args, destination);
   }
@@ -1936,14 +2273,9 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     if(keys == null || destination == null) throw new ArgumentNullException();
     if(keys.Length == 0) return;
 
-    string args = GetKeyringArgs(keys, true, exportSecretKeys, true) + GetExportArgs(exportOptions, exportSecretKeys) +
-                  GetOutputArgs(outputOptions);
-
-    foreach(PrimaryKey key in keys)
-    {
-      if(key == null) throw new ArgumentException("A key was null.");
-      args += key.Fingerprint + " ";
-    }
+    string args = GetKeyringArgs(keys, true, exportSecretKeys, true) +
+                  GetExportArgs(exportOptions, exportSecretKeys, true) + GetOutputArgs(outputOptions) +
+                  GetFingerprintArgs(keys);
 
     ExportCore(args, destination);
   }
@@ -1976,6 +2308,73 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     return keys;
   }
 
+  /// <summary>Generates a revocation certificate, either directly or via a designated revoker.</summary>
+  void GenerateRevocationCertificateCore(PrimaryKey key, PrimaryKey designatedRevoker, Stream destination,
+                                         KeyRevocationReason reason, OutputOptions outputOptions)
+  {
+    if(key == null || destination == null) throw new ArgumentNullException();
+
+    string args = GetOutputArgs(outputOptions);
+    if(designatedRevoker == null)
+    {
+      args += GetKeyringArgs(key.Keyring, true, true, true) + "--gen-revoke ";
+    }
+    else
+    { 
+      args += GetKeyringArgs(new PrimaryKey[] { key, designatedRevoker }, true, true, true) + "-u " +
+              designatedRevoker.Fingerprint + " --desig-revoke ";
+    }
+    args += key.Fingerprint;
+
+    CommandState state = new CommandState(); 
+    Command cmd = Execute(args, true, true, StreamHandling.Unprocessed, StreamHandling.ProcessText);
+    using(cmd)
+    {
+      string[] lines = null;
+      int lineIndex  = 0;
+
+      cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, ref state); };
+
+      cmd.StatusMessageReceived += delegate(StatusMessage msg)
+      {
+        switch(msg.Type)
+        {
+          case StatusMessageType.GetLine: case StatusMessageType.GetBool: case StatusMessageType.GetHidden:
+          { 
+            GetInputMessage m = (GetInputMessage)msg;
+            if(string.Equals(m.PromptId, "gen_revoke.okay", StringComparison.Ordinal) ||
+               string.Equals(m.PromptId, "gen_desig_revoke.okay", StringComparison.Ordinal))
+            {
+              cmd.SendLine("Y");
+            }
+            else if(string.Equals(m.PromptId, "passphrase.enter", StringComparison.Ordinal))
+            {
+              // handled by NeedKeyPassphrase handler, below
+            }
+            else if(!HandleRevokePrompt(cmd, m.PromptId, reason, null, ref lines, ref lineIndex)) goto default;
+            break;
+          }
+
+          case StatusMessageType.NeedKeyPassphrase:
+            SendKeyPassword(cmd, state.PasswordHint, (NeedKeyPassphraseMessage)msg, true);
+            break;
+
+          default: DefaultStatusMessageHandler(msg, ref state); break;
+        }
+      };
+
+      cmd.Start();
+      IOH.CopyStream(cmd.Process.StandardOutput.BaseStream, destination);
+      cmd.WaitForExit();
+    }
+
+    if(!cmd.SuccessfulExit)
+    {
+      throw new PGPException("Unable to generate revocation certificate for key " + key.ToString(),
+                             state.FailureReasons);
+    }
+  }
+
   /// <summary>Does the work of retrieving and searching for keys.</summary>
   PrimaryKey[] GetKeys(Keyring[] keyrings, bool includeDefaultKeyring, ListOptions options, bool secretKeys,
                        string searchArgs)
@@ -1984,11 +2383,11 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
 
     string args;
     
-    if(secretKeys) args = "--list-secret-keys "; // TODO: add --no-auto-check-trustdb to this?
+    if(secretKeys) args = "--list-secret-keys ";
     else if(signatures != 0 && RetrieveKeySignatureFingerprints) args = "--check-sigs --no-sig-cache ";
     else if(signatures == ListOptions.RetrieveSignatures) args = "--list-sigs ";
     else if(signatures == ListOptions.VerifySignatures) args = "--check-sigs ";
-    else args = "--list-keys "; // TODO: add --no-auto-check-trustdb to this?
+    else args = "--list-keys ";
 
     // produce machine-readable output
     args += "--with-fingerprint --with-fingerprint --with-colons --fixed-list-mode ";
@@ -2222,6 +2621,132 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     if(!searchFoundNothing) cmd.CheckExitCode();
   }
 
+  /// <summary>Executes a command and collects import-related information.</summary>
+  ImportedKey[] ImportCore(Command cmd, Stream source, out CommandState state)
+  {
+    // GPG sometimes sends multiple messages for a single key, for instance when the key has several subkeys or a
+    // secret portion. so we'll keep track of how fingerprints map to ImportedKey objects, so we'll know whether to
+    // modify the existing object or create a new one
+    Dictionary<string, ImportedKey> keysByFingerprint = new Dictionary<string, ImportedKey>();
+    // we want to return keys in the order they were processed, so we'll keep this ordered list of fingerprints
+    List<string> fingerprintsSeen = new List<string>();
+
+    CommandState localState = state = new CommandState();
+    try
+    {
+      cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, ref localState); };
+
+      cmd.StatusMessageReceived += delegate(StatusMessage msg)
+      {
+        if(msg.Type == StatusMessageType.ImportOkay)
+        {
+          KeyImportOkayMessage m = (KeyImportOkayMessage)msg;
+
+          ImportedKey key;
+          if(!keysByFingerprint.TryGetValue(m.Fingerprint, out key))
+          {
+            key = new ImportedKey();
+            key.Fingerprint = m.Fingerprint;
+            key.Successful  = true;
+            keysByFingerprint[key.Fingerprint] = key;
+            fingerprintsSeen.Add(key.Fingerprint);
+          }
+
+          if((m.Reason & KeyImportReason.ContainsSecretKey) != 0) key.Secret = true;
+        }
+        else if(msg.Type == StatusMessageType.ImportProblem)
+        {
+          KeyImportFailedMessage m = (KeyImportFailedMessage)msg;
+
+          ImportedKey key;
+          if(!keysByFingerprint.TryGetValue(m.Fingerprint, out key))
+          {
+            key = new ImportedKey();
+            key.Fingerprint = m.Fingerprint;
+            keysByFingerprint[key.Fingerprint] = key;
+            fingerprintsSeen.Add(key.Fingerprint);
+          }
+
+          key.Successful = false;
+        }
+        else { DefaultStatusMessageHandler(msg, ref localState); }
+      };
+
+      cmd.Start();
+      if(source != null) WriteStreamToProcess(source, cmd.Process);
+      cmd.WaitForExit();
+    }
+    finally
+    {
+      state.FailureReasons = localState.FailureReasons;
+      cmd.Dispose();
+    }
+
+    ImportedKey[] keysProcessed = new ImportedKey[fingerprintsSeen.Count];
+    for(int i=0; i<keysProcessed.Length; i++)
+    {
+      keysProcessed[i] = keysByFingerprint[fingerprintsSeen[i]];
+      keysProcessed[i].MakeReadOnly();
+    }
+    return keysProcessed;
+  }
+
+  /// <summary>Performs the main work for key server operations.</summary>
+  ImportedKey[] KeyServerCore(string args, string name, bool isImport)
+  {
+    Command cmd = Execute(args, true, true, StreamHandling.ProcessText, StreamHandling.ProcessText);
+
+    CommandState state;
+    ImportedKey[] keys = ImportCore(cmd, null, out state);
+
+    // during a keyring refresh, it's very likely that one of the keys won't be found on a keyserver, but we don't want
+    // to throw an exception unless no keys were refreshed or we got a failure reason other than BadData or KeyNotFound
+    if(!cmd.SuccessfulExit &&
+       (!string.Equals(name, "Keyring refresh", StringComparison.Ordinal) || keys.Length == 0 ||
+        (state.FailureReasons & ~(FailureReason.KeyNotFound | FailureReason.BadData)) != 0))
+    {
+      throw isImport ? new ImportFailedException(state.FailureReasons)
+                     : new PGPException(name + " failed.", state.FailureReasons);
+    }
+
+    return keys;
+  }
+
+  void LogLine(string line)
+  {
+    if(LineLogged != null) LineLogged(line);
+  }
+
+  /// <summary>Does the work of revoking keys, either directly or via a designated revoker.</summary>
+  void RevokeKeysCore(PrimaryKey designatedRevoker, KeyRevocationReason reason, PrimaryKey[] keysToRevoke)
+  {
+    if(keysToRevoke == null) throw new ArgumentNullException();
+
+    foreach(PrimaryKey key in keysToRevoke)
+    {
+      if(key == null || string.IsNullOrEmpty(key.Fingerprint))
+      {
+        throw new ArgumentException("A key was null or had no fingerprint.");
+      }
+    }
+
+    MemoryStream ms = new MemoryStream();
+    foreach(PrimaryKey key in keysToRevoke)
+    {
+      if(!key.Revoked)
+      {
+        if(designatedRevoker == null) GenerateRevocationCertificate(key, ms, reason, null);
+        else GenerateRevocationCertificate(key, designatedRevoker, ms, reason, null);
+
+        ms.Position = 0;
+        ImportKeys(ms, key.Keyring);
+
+        ms.Position = 0;
+        ms.SetLength(0);
+      }
+    }
+  }
+
   /// <summary>Gets a key password from the user and sends it to the command stream.</summary>
   bool SendKeyPassword(Command command, string passwordHint, NeedKeyPassphraseMessage msg, bool passwordRequired)
   {
@@ -2284,20 +2809,45 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
   /// <summary>Performs default handling for lines of text read from STDERR.</summary>
   static void DefaultStandardErrorHandler(string line, ref CommandState state)
   {
-    if(line.IndexOf(" file write error", StringComparison.Ordinal) != -1 ||
-       line.IndexOf(" file rename error", StringComparison.Ordinal) != -1)
+    // this is such a messy way to detect errors, but what else can we do?
+    if((state.FailureReasons & FailureReason.KeyringLocked) == 0 &&
+       (line.IndexOf(" file write error", StringComparison.Ordinal) != -1 ||
+        line.IndexOf(" file rename error", StringComparison.Ordinal) != -1))
     {
       state.FailureReasons |= FailureReason.KeyringLocked;
     }
-    else if(line.IndexOf(" already in secret keyring", StringComparison.Ordinal) != -1)
+    else if((state.FailureReasons & FailureReason.KeyNotFound) == 0 &&
+            line.IndexOf(" not found on keyserver", StringComparison.Ordinal) != -1)
+    {
+      state.FailureReasons |= FailureReason.KeyNotFound;
+    }
+    else if((state.FailureReasons & (FailureReason.KeyNotFound | FailureReason.MissingPublicKey)) !=
+            (FailureReason.KeyNotFound | FailureReason.MissingPublicKey) &&
+            line.IndexOf(" public key not found", StringComparison.Ordinal) != -1)
+    {
+      state.FailureReasons |= FailureReason.KeyNotFound | FailureReason.MissingPublicKey;
+    }
+    else if((state.FailureReasons & FailureReason.SecretKeyAlreadyExists) == 0 &&
+            line.IndexOf(" already in secret keyring", StringComparison.Ordinal) != -1)
     {
       state.FailureReasons |= FailureReason.SecretKeyAlreadyExists;
     }
-    else if(line.Equals("Need the secret key to do this.", StringComparison.Ordinal))
+    else if((state.FailureReasons & FailureReason.MissingSecretKey) == 0 &&
+            line.Equals("Need the secret key to do this.", StringComparison.Ordinal))
     {
       state.FailureReasons |= FailureReason.MissingSecretKey;
     }
-    else // handle: secret key "Foo" not found
+    else if((state.FailureReasons & FailureReason.NoKeyServer) == 0 &&
+            line.IndexOf(" no keyserver known", StringComparison.Ordinal) != -1)
+    {
+      state.FailureReasons |= FailureReason.NoKeyServer;
+    }
+    else if((state.FailureReasons & FailureReason.BadKeyServerUri) == 0 &&
+            line.IndexOf(" bad URI", StringComparison.Ordinal) != -1)
+    {
+      state.FailureReasons |= FailureReason.BadKeyServerUri;
+    }
+    else if((state.FailureReasons & FailureReason.MissingSecretKey) == 0) // handle: secret key "Foo" not found
     {
       int index = line.IndexOf("secret key \"", StringComparison.Ordinal);
       if(index != -1 && index < line.IndexOf("\" not found")) state.FailureReasons |= FailureReason.MissingSecretKey;
@@ -2307,7 +2857,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
   /// <summary>Executes the given GPG executable with the given arguments.</summary>
   static Process Execute(string exePath, string args)
   {
-    return Process.Start(GetProcessStartInfo(exePath, args, true));
+    return Process.Start(GetProcessStartInfo(exePath, args));
   }
 
   /// <summary>Exits a process by closing STDIN, STDOUT, and STDERR, and waiting for it to exit. If it doesn't exit
@@ -2483,6 +3033,22 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     }
   }
 
+  /// <summary>Given a list of fingerprints, returns a string containing the fingerprints of each, separated by spaces.</summary>
+  static string GetFingerprintArgs(IEnumerable<PrimaryKey> keys)
+  {
+    string args = null;
+    foreach(PrimaryKey key in keys)
+    {
+      if(key == null) throw new ArgumentException("A key was null.");
+      if(string.IsNullOrEmpty(key.Fingerprint))
+      {
+        throw new ArgumentException("The key " + key.ToString() + " had no fingerprint.");
+      }
+      args += key.Fingerprint + " ";
+    }
+    return args;
+  }
+
   /// <summary>Converts a hex digit into its integer value.</summary>
   static int GetHexValue(char c)
   {
@@ -2526,7 +3092,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
   }
 
   /// <summary>Creates GPG arguments to represent the given <see cref="ExportOptions"/>.</summary>
-  static string GetExportArgs(ExportOptions options, bool exportSecretKeys)
+  static string GetExportArgs(ExportOptions options, bool exportSecretKeys, bool addExportCommand)
   {
     string args = null;
 
@@ -2541,12 +3107,15 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
       if((options & ExportOptions.ResetSubkeyPassword) != 0) args += "export-reset-subkey-passwd ";
     }
 
-    if(exportSecretKeys)
+    if(addExportCommand)
     {
-      args += (options & ExportOptions.ClobberMasterSecretKey) != 0 ?
-        "--export-secret-subkeys " : "--export-secret-keys ";
+      if(exportSecretKeys)
+      {
+        args += (options & ExportOptions.ClobberMasterSecretKey) != 0 ?
+          "--export-secret-subkeys " : "--export-secret-keys ";
+      }
+      else args += "--export "; // exporting public keys
     }
-    else args += "--export "; // exporting public keys
 
     return args;
   }
@@ -2573,6 +3142,29 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
       }
     }
     
+    return args;
+  }
+
+  /// <summary>Creates GPG arguments to represent the given <see cref="ExportOptions"/>.</summary>
+  static string GetImportArgs(Keyring keyring, ImportOptions options)
+  {
+    string args = GetKeyringArgs(keyring, true, true, true);
+
+    if(keyring != null)
+    {
+      // add the --primary-keyring option so that GPG will import into the keyrings we've given it
+      args += "--primary-keyring " + EscapeArg(NormalizeKeyringFile(keyring.PublicFile)) + " ";
+    }
+
+    if(options != ImportOptions.Default)
+    {
+      args += "--import-options ";
+      if((options & ImportOptions.CleanKeys) != 0) args += "import-clean ";
+      if((options & ImportOptions.ImportLocalSignatures) != 0) args += "import-local-sigs ";
+      if((options & ImportOptions.MergeOnly) != 0) args += "merge-only ";
+      if((options & ImportOptions.MinimizeKeys) != 0) args += "import-minimize ";
+    }
+
     return args;
   }
 
@@ -2621,7 +3213,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
   }
 
   /// <summary>Returns keyring arguments for all of the given keys.</summary>
-  static string GetKeyringArgs(IEnumerable<Key> keys, bool publicKeyrings, bool secretKeyrings,
+  static string GetKeyringArgs(IEnumerable<PrimaryKey> keys, bool publicKeyrings, bool secretKeyrings,
                                bool overrideDefaultKeyring)
   {
     string args = null, trustDb = null;
@@ -2635,6 +3227,8 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
 
       foreach(Key key in keys)
       {
+        if(key == null) throw new ArgumentException("A key was null.");
+
         string thisTrustDb = key.Keyring == null ? null : NormalizeKeyringFile(key.Keyring.TrustDbFile);
 
         if(!trustDbSet)
@@ -2685,6 +3279,32 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     return args;
   }
 
+  /// <summary>Creates GPG arguments to represent the given <see cref="KeyServerOptions"/>.</summary>
+  static string GetKeyServerArgs(KeyServerOptions options, bool requireKeyServer)
+  {
+    if(requireKeyServer)
+    {
+      if(options == null) throw new ArgumentNullException();
+      if(options.KeyServer == null) throw new ArgumentException("No key server was specified.");
+    }
+    
+    string args = null;
+
+    if(options != null)
+    {
+      if(options.KeyServer != null) args += "--keyserver " + EscapeArg(options.KeyServer.AbsoluteUri) + " ";
+
+      if(options.HttpProxy != null || options.Timeout != 0)
+      {
+        args += "--keyserver-options ";
+        if(options.HttpProxy != null) args += "http-proxy=" + EscapeArg(options.HttpProxy.AbsoluteUri) + " ";
+        if(options.Timeout != 0) args += "timeout=" + options.Timeout.ToString(CultureInfo.InvariantCulture) + " ";
+      }
+    }
+    
+    return args;
+  }
+
   /// <summary>Creates GPG arguments to represent the given <see cref="OutputOptions"/>.</summary>
   static string GetOutputArgs(OutputOptions options)
   {
@@ -2728,10 +3348,10 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
   }
 
   /// <summary>Creates and returns a new <see cref="ProcessStartInfo"/> for the given GPG executable and arguments.</summary>
-  static ProcessStartInfo GetProcessStartInfo(string exePath, string args, bool allowTTY)
+  static ProcessStartInfo GetProcessStartInfo(string exePath, string args)
   {
     ProcessStartInfo psi = new ProcessStartInfo();
-    psi.Arguments              = (allowTTY ? null : "--no-tty ") + "--no-options --display-charset utf-8 " + args;
+    psi.Arguments              = "--no-tty --no-options --display-charset utf-8 " + args;
     psi.CreateNoWindow         = true;
     psi.ErrorDialog            = false;
     psi.FileName               = exePath;
@@ -3631,12 +4251,10 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
       {
-        EditUserId selectedId = key.SelectedUserId;
-        if(selectedId == null) throw UnexpectedError("No user ID is selected.");
-
         if(!sentCommand)
         {
-          cmd.SendLine("showpref");
+          EditUserId selectedId = key.SelectedUserId;
+          if(selectedId == null) throw UnexpectedError("No user ID is selected.");
 
           foreach(string pref in selectedId.Prefs.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
           {
@@ -3647,6 +4265,7 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
           }
           preferences.Primary = selectedId.Primary;
 
+          cmd.SendLine("showpref");
           sentCommand = true;
           return EditCommandResult.Continue;
         }
@@ -3655,17 +4274,19 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
       else return base.Process(commands, originalKey, key, cmd, promptId);
     }
 
-    // TODO: GPG writes this on STDERR like a bastard, so we currently can't get at it...
-    /*public override EditCommandResult Process(string line)
+    public override EditCommandResult Process(string line)
     {
-      line = line.Trim();
-      if(line.StartsWith("Preferred keyserver: ", StringComparison.Ordinal))
+      if(sentCommand)
       {
-        preferences.Keyserver = new Uri(line.Substring(21));
-        return EditCommandResult.Done;
+        line = line.Trim();
+        if(line.StartsWith("Preferred keyserver: ", StringComparison.Ordinal))
+        {
+          preferences.Keyserver = new Uri(line.Substring(21));
+          return EditCommandResult.Done;
+        }
       }
-      else return EditCommandResult.Continue;
-    }*/
+      return EditCommandResult.Continue;
+    }
 
     readonly UserPreferences preferences;
     bool sentCommand;
@@ -4172,370 +4793,6 @@ Debugger.Log(0, "GPG", Encoding.ASCII.GetString(line, 0, length)+"\n"); // TODO:
     readonly KeySigningOptions options;
     readonly bool allowImplicitUidSignature;
     bool sentCommand;
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/AddDesignatedRevoker/*" />
-  public override void AddDesignatedRevoker(PrimaryKey key, PrimaryKey revokerKey)
-  {
-    if(revokerKey == null) throw new ArgumentNullException();
-
-    if(key.Keyring == null && revokerKey.Keyring != null ||
-       key.Keyring != null && !key.Keyring.Equals(revokerKey.Keyring))
-    {
-      throw new NotSupportedException("Adding a revoker from a different keyring is not supported.");
-    }
-
-    if(string.IsNullOrEmpty(revokerKey.Fingerprint))
-    {
-      throw new ArgumentException("The revoker key has no fingerprint.");
-    }
-
-    DoEdit(key, null, new AddRevoker(revokerKey.Fingerprint));
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/AddPhoto4/*" />
-  public override void AddPhoto(PrimaryKey key, Stream image, OpenPGPImageType imageFormat,
-                                UserPreferences preferences)
-  {
-    if(key == null || image == null) throw new ArgumentNullException();
-    if(imageFormat != OpenPGPImageType.Jpeg)
-    {
-      throw new NotImplementedException("Only JPEG photos are currently supported.");
-    }
-
-    string filename = Path.GetTempFileName();
-    try
-    {
-      using(FileStream file = new FileStream(filename, FileMode.Open, FileAccess.Write)) IOH.CopyStream(image, file);
-      DoEdit(key, null, new AddPhotoCommand(filename, preferences)); 
-    }
-    finally { File.Delete(filename); }
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/AddUserId/*" />
-  public override void AddUserId(PrimaryKey key, string realName, string email, string comment,
-                                 UserPreferences preferences)
-  {
-    realName = Trim(realName);
-    email    = Trim(email);
-    comment  = Trim(comment);
-
-    if(string.IsNullOrEmpty(realName) && string.IsNullOrEmpty(email))
-    {
-      throw new ArgumentException("At least one of the real name or email must be set.");
-    }
-
-    if(ContainsControlCharacters(realName + email + comment))
-    {
-      throw new ArgumentException("Name, email, or comment contains control characters. Remove them.");
-    }
-
-    DoEdit(key, "--allow-freeform-uid", new AddUid(realName, email, comment, preferences));
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/AddSubkey/*" />
-  public override void AddSubkey(PrimaryKey key, string keyType, int keyLength, DateTime? expiration)
-  {
-    DoEdit(key, keyLength == 0 ? null : "--enable-dsa2", new AddSubkeyCommand(keyType, keyLength, expiration));
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ChangeExpiration/*" />
-  public override void ChangeExpiration(Key key, DateTime? expiration)
-  {
-    if(key == null) throw new ArgumentNullException();
-
-    Subkey subkey = key as Subkey;
-    if(subkey == null)
-    {
-      DoEdit(key.GetPrimaryKey(), null, new ChangeExpirationCommand(expiration));
-    }
-    else
-    {
-      DoEdit(key.GetPrimaryKey(), null, new SelectSubkey(subkey.Fingerprint, true),
-             new ChangeExpirationCommand(expiration));
-    }
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ChangePassword/*" />
-  public override void ChangePassword(PrimaryKey key, SecureString password)
-  {
-    DoEdit(key, null, new ChangePasswordCommand(password));
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/CleanKeys/*" />
-  public override void CleanKeys(params PrimaryKey[] keys)
-  {
-    foreach(PrimaryKey key in keys)
-    {
-      if(key == null) throw new ArgumentNullException("A key was null.");
-      DoEdit(key, null, new RawCommand("clean"));
-    }
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/MinimizeKeys/*" />
-  public override void MinimizeKeys(params PrimaryKey[] keys)
-  {
-    foreach(PrimaryKey key in keys)
-    {
-      if(key == null) throw new ArgumentNullException("A key was null.");
-      DoEdit(key, null, new RawCommand("minimize"));
-    }
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DisableKeys/*" />
-  public override void DisableKeys(params PrimaryKey[] keys)
-  {
-    foreach(PrimaryKey key in keys)
-    {
-      if(key == null) throw new ArgumentNullException("A key was null.");
-      DoEdit(key, null, new RawCommand("disable"));
-    }
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/EnableKeys/*" />
-  public override void EnableKeys(params PrimaryKey[] keys)
-  {
-    foreach(PrimaryKey key in keys)
-    {
-      if(key == null) throw new ArgumentNullException("A key was null.");
-      DoEdit(key, null, new RawCommand("enable"));
-    }
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteAttributes/*" />
-  public override void DeleteAttributes(params UserAttribute[] attributes)
-  {
-    foreach(List<UserAttribute> list in GroupAttributesByKey(attributes))
-    {
-      EditCommand[] commands = new EditCommand[list.Count+1];
-      for(int i=0; i<list.Count; i++) commands[i] = new RawCommand("uid " + list[i].Id);
-      commands[commands.Length-1] = new DeleteUids();
-      DoEdit(list[0].Key, null, commands);
-    }
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSignatures/*" />
-  public override void DeleteSignatures(params KeySignature[] signatures)
-  {
-    Dictionary<string, List<UserAttribute>> uidMap;
-    Dictionary<string, List<KeySignature>> sigMap;
-    GroupSignaturesByKeyAndObject(signatures, out uidMap, out sigMap);
-
-    List<EditCommand> commands = new List<EditCommand>();
-    foreach(KeyValuePair<string,List<UserAttribute>> pair in uidMap) // for each key to be edited...
-    {
-      bool firstUid = true;
-      foreach(UserAttribute uid in pair.Value) // for each affected UID in the key
-      {
-        if(!firstUid) commands.Add(new RawCommand("uid -")); // select the UID
-        commands.Add(new RawCommand("uid " + uid.Id));
-        commands.Add(new DeleteSigs(sigMap[uid.Id].ToArray())); // then delete its corresponding signatures
-        firstUid = false;
-      }
-
-      DoEdit(pair.Value[0].Key, null, commands.ToArray());
-      commands.Clear();
-    }
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSubkeys/*" />
-  public override void DeleteSubkeys(params Subkey[] subkeys)
-  {
-    foreach(List<Subkey> keyList in GroupSubkeysByKey(subkeys))
-    {
-      EditCommand[] commands = new EditCommand[keyList.Count+1];
-      for(int i=0; i<keyList.Count; i++) commands[i] = new SelectSubkey(keyList[i].Fingerprint, false);
-      commands[keyList.Count] = new DeleteSubkeysCommand();
-      DoEdit(keyList[0].PrimaryKey, null, commands);
-    }
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRevocationCertificate/*" />
-  public override void GenerateRevocationCertificate(PrimaryKey key, Stream destination, KeyRevocationReason reason,
-                                                     OutputOptions outputOptions)
-  {
-    if(key == null || destination == null) throw new ArgumentNullException();
-
-    string args = GetKeyringArgs(key.Keyring, true, true, true) + GetOutputArgs(outputOptions) +
-                  "--gen-revoke " + key.Fingerprint;
-    CommandState state = new CommandState(); 
-    Command cmd = Execute(args, true, true, StreamHandling.Unprocessed, StreamHandling.ProcessText);
-    using(cmd)
-    {
-      string[] lines = null;
-      int lineIndex  = 0;
-
-      cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, ref state); };
-
-      cmd.StatusMessageReceived += delegate(StatusMessage msg)
-      {
-        switch(msg.Type)
-        {
-          case StatusMessageType.GetLine: case StatusMessageType.GetBool: case StatusMessageType.GetHidden:
-          { 
-            GetInputMessage m = (GetInputMessage)msg;
-            if(string.Equals(m.PromptId, "gen_revoke.okay", StringComparison.Ordinal))
-            {
-              cmd.SendLine("Y");
-            }
-            else if(string.Equals(m.PromptId, "passphrase.enter", StringComparison.Ordinal))
-            {
-              // handled by NeedKeyPassphrase handler, below
-            }
-            else if(!HandleRevokePrompt(cmd, m.PromptId, reason, null, ref lines, ref lineIndex)) goto default;
-            break;
-          }
-
-          case StatusMessageType.NeedKeyPassphrase:
-            SendKeyPassword(cmd, state.PasswordHint, (NeedKeyPassphraseMessage)msg, true);
-            break;
-
-          default: DefaultStatusMessageHandler(msg, ref state); break;
-        }
-      };
-
-      cmd.Start();
-      IOH.CopyStream(cmd.Process.StandardOutput.BaseStream, destination);
-      cmd.WaitForExit();
-    }
-
-    if(!cmd.SuccessfulExit)
-    {
-      throw new PGPException("Unable to generate revocation certificate for key " + key.ToString(),
-                             state.FailureReasons);
-    }
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetPreferences/*" />
-  public override UserPreferences GetPreferences(UserAttribute user)
-  {
-    if(user == null) throw new ArgumentNullException();
-    if(user.Key == null) throw new ArgumentException("The user attribute must be associated with a key.");
-
-    // TODO: FIXME: currently, this cannot retrieve the user's preferred keyring (because GPG writes it to STDERR
-    // rather than STDOUT...)
-
-    UserPreferences preferences = new UserPreferences();
-    DoEdit(user.Key, null, new RawCommand("uid " + user.Id), new GetPrefs(preferences));
-    return preferences;
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeAttributes/*" />
-  public override void RevokeAttributes(UserRevocationReason reason, params UserAttribute[] attributes)
-  {
-    foreach(List<UserAttribute> list in GroupAttributesByKey(attributes))
-    {
-      EditCommand[] commands = new EditCommand[list.Count+1];
-      for(int i=0; i<list.Count; i++) commands[i] = new RawCommand("uid " + list[i].Id);
-      commands[commands.Length-1] = new RevokeUids(reason);
-      DoEdit(list[0].Key, null, commands);
-    }
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeKeys/*" />
-  public override void RevokeKeys(KeyRevocationReason reason, params PrimaryKey[] keys)
-  {
-    if(keys == null) throw new ArgumentNullException();
-    
-    foreach(PrimaryKey key in keys)
-    {
-      if(key == null || string.IsNullOrEmpty(key.Fingerprint))
-      {
-        throw new ArgumentException("A key was null or had no fingerprint.");
-      }
-    }
-
-    MemoryStream ms = new MemoryStream();
-    foreach(PrimaryKey key in keys)
-    {
-      if(!key.Revoked)
-      {
-        GenerateRevocationCertificate(key, ms, reason, null);
-        ms.Position = 0;
-        ImportKeys(ms, key.Keyring);
-
-        ms.Position = 0;
-        ms.SetLength(0);
-      }
-    }
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSignatures/*" />
-  public override void RevokeSignatures(UserRevocationReason reason, params KeySignature[] signatures)
-  {
-    Dictionary<string, List<UserAttribute>> uidMap;
-    Dictionary<string, List<KeySignature>> sigMap;
-    GroupSignaturesByKeyAndObject(signatures, out uidMap, out sigMap);
-
-    List<EditCommand> commands = new List<EditCommand>();
-    foreach(KeyValuePair<string, List<UserAttribute>> pair in uidMap) // for each key to be edited...
-    {
-      bool firstUid = true;
-      foreach(UserAttribute uid in pair.Value) // for each affected UID in the key
-      {
-        if(!firstUid) commands.Add(new RawCommand("uid -")); // select the UID
-        commands.Add(new RawCommand("uid " + uid.Id));
-        commands.Add(new RevokeSigs(reason, sigMap[uid.Id].ToArray())); // then delete its corresponding signatures
-        firstUid = false;
-      }
-
-      DoEdit(pair.Value[0].Key, null, commands.ToArray());
-      commands.Clear();
-    }
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSubkeys/*" />
-  public override void RevokeSubkeys(KeyRevocationReason reason, params Subkey[] subkeys)
-  {
-    foreach(List<Subkey> keyList in GroupSubkeysByKey(subkeys))
-    {
-      EditCommand[] commands = new EditCommand[keyList.Count+1];
-      for(int i=0; i<keyList.Count; i++) commands[i] = new SelectSubkey(keyList[i].Fingerprint, false);
-      commands[keyList.Count] = new RevokeSubkeysCommand(reason);
-      DoEdit(keyList[0].PrimaryKey, null, commands);
-    }
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SetPreferences/*" />
-  public override void SetPreferences(UserAttribute user, UserPreferences preferences)
-  {
-    if(user == null || preferences == null) throw new ArgumentNullException();
-    if(user.Key == null) throw new ArgumentException("The user attribute must be associated with a key.");
-    DoEdit(user.Key, null, new RawCommand("uid " + user.Id), new SetPrefs(preferences));
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SetTrustLevel/*" />
-  public override void SetTrustLevel(PrimaryKey key, TrustLevel trust)
-  {
-    DoEdit(key, null, new SetTrust(trust));
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SignKey/*" />
-  public override void SignKey(PrimaryKey keyToSign, PrimaryKey signingKey, KeySigningOptions options)
-  {
-    if(keyToSign == null || signingKey == null) throw new ArgumentNullException();
-
-    if(!Keyring.Equals(keyToSign.Keyring, signingKey.Keyring)) // TODO: maybe this can be relaxed
-    {
-      throw new ArgumentException("The keys must be on the same keyring.");
-    }
-
-    DoEdit(keyToSign, "-u " + signingKey.Fingerprint, new SignKeyCommand(options, true));
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SignUser/*"/>
-  public override void SignKey(UserAttribute userId, PrimaryKey signingKey, KeySigningOptions options)
-  {
-    if(userId == null || signingKey == null) throw new ArgumentNullException();
-    if(userId.Key == null) throw new ArgumentException("The user attribute must be associated with a key.");
-
-    if(!Keyring.Equals(userId.Key.Keyring, signingKey.Keyring)) // TODO: maybe this can be relaxed
-    {
-      throw new ArgumentException("The keys must be on the same keyring.");
-    }
-
-    DoEdit(userId.Key, "-u " + signingKey.Fingerprint,
-           new RawCommand("uid " + userId.Id), new SignKeyCommand(options, false));
   }
 }
 #endregion

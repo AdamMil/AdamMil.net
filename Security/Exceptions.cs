@@ -1,5 +1,5 @@
 /*
-GPG.net is a .NET interface to the GNU Privacy Guard (www.gnupg.org).
+AdamMil.Security is a .NET library providing OpenPGP-based security.
 http://www.adammil.net/
 Copyright (C) 2008 Adam Milazzo
 
@@ -50,6 +50,10 @@ public enum FailureReason
   SecretKeyAlreadyExists=0x100,
   /// <summary>The failure could have been caused by the given key not being found.</summary>
   KeyNotFound=0x200,
+  /// <summary>The failure could have been caused by the library not knowing which key server to query.</summary>
+  NoKeyServer=0x400,
+  /// <summary>The failure could have been caused by a bad key server URI.</summary>
+  BadKeyServerUri=0x800,
 }
 #endregion
 
@@ -101,6 +105,8 @@ public class PGPException : ApplicationException
     if((reasons & FailureReason.UntrustedRecipient) != 0) reasonString += " a recipient was not trusted.";
     if((reasons & FailureReason.SecretKeyAlreadyExists) != 0) reasonString += " the secret key already exists.";
     if((reasons & FailureReason.KeyNotFound) != 0) reasonString += " the key was not found.";
+    if((reasons & FailureReason.NoKeyServer) != 0) reasonString += " no preferred key server known and no default key server given.";
+    if((reasons & FailureReason.KeyNotFound) != 0) reasonString += " bad keyserver URI.";
     return reasonString == null ? null : " Suspected reason(s):" + reasonString;
   }
 
