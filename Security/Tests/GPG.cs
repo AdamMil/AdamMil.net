@@ -724,7 +724,7 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
     // TODO: Assert.IsNotNull(gpg.GetPreferences(adamsKey.PrimaryUserId).Keyserver);
 
     // refresh the key
-    result = gpg.RefreshKeysFromServer(null, adamsKey);
+    result = gpg.RefreshKeysFromServer(downloadOptions, adamsKey);
     Assert.AreEqual(1, result.Length);
     Assert.IsTrue(result[0].Successful);
 
