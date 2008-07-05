@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Text;
@@ -708,20 +709,36 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
   [Test]
   public void T11_KeyServer()
   {
-    KeyDownloadOptions downloadOptions = new KeyDownloadOptions(new Uri("hkp://wwwkeys.pgp.net"));
+    KeyDownloadOptions downloadOptions = new KeyDownloadOptions(new Uri("hkp://pgp.mit.edu"));
 
-    // import Adam Milazzo's public key from a key server
-    ImportedKey[] result = gpg.ImportKeysFromServer(downloadOptions, keyring,
-                                                    new string[] { "3B0592E6818F19CF853BB9E172DFF658727BA638" });
+    // try searching for keys
+    List<PrimaryKey> keysFound = new List<PrimaryKey>();
+    gpg.FindPublicKeysOnServer(downloadOptions.KeyServer,
+                         delegate(PrimaryKey[] keys) { keysFound.AddRange(keys); return true; }, "adam@adammil.net");
+    Assert.AreEqual(1, keysFound.Count);
+    Assert.IsTrue(keysFound[0].PrimaryUserId.Name.StartsWith("Adam M"));
+
+    // import the key found
+    ImportedKey[] result = gpg.ImportKeysFromServer(downloadOptions, keyring, keysFound[0].EffectiveId);
     Assert.AreEqual(1, result.Length);
     Assert.IsTrue(result[0].Successful);
     Assert.AreEqual("3B0592E6818F19CF853BB9E172DFF658727BA638", result[0].Fingerprint);
 
     // make sure it was really imported
-    PrimaryKey adamsKey = gpg.FindPublicKey("3B0592E6818F19CF853BB9E172DFF658727BA638", keyring);
+    PrimaryKey adamsKey = gpg.FindPublicKey("727BA638", keyring);
     Assert.IsNotNull(adamsKey);
     Assert.IsTrue(adamsKey.PrimaryUserId.Name.StartsWith("Adam M"));
     // TODO: Assert.IsNotNull(gpg.GetPreferences(adamsKey.PrimaryUserId).Keyserver);
+
+    // try searching by name
+    adamsKey = gpg.FindPublicKey("adam", keyring);
+    Assert.IsNotNull(adamsKey);
+    Assert.IsTrue(adamsKey.PrimaryUserId.Name.StartsWith("Adam M"));
+
+    // try searching by email
+    adamsKey = gpg.FindPublicKey("adam@adammil.net", keyring);
+    Assert.IsNotNull(adamsKey);
+    Assert.IsTrue(adamsKey.PrimaryUserId.Name.StartsWith("Adam M"));
 
     // refresh the key
     result = gpg.RefreshKeysFromServer(downloadOptions, adamsKey);

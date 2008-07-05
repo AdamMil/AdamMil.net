@@ -984,8 +984,9 @@ public abstract class PGPSystem
   public abstract void RevokeSubkeys(KeyRevocationReason reason, params Subkey[] subkeys);
   #endregion
 
-  // TODO: public Something[] FindKeysOnServer(Uri keyServer, params string[] searchKeywords);
   #region Key server operations
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKeysOnServer/*"/>
+  public abstract void FindPublicKeysOnServer(Uri keyServer, KeySearchHandler handler, params string[] searchKeywords);
 
   /// <summary>Downloads the public keys specified with the given fingerprints (or key IDs) from the given key server,
   /// and imports them into the default keyring.
@@ -1031,54 +1032,46 @@ public abstract class PGPSystem
 
   #region Keyring queries
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKey/*[@name != 'options']"/>
-  public PrimaryKey FindPublicKey(string fingerprint, Keyring keyring)
+  public PrimaryKey FindPublicKey(string keywordOrId, Keyring keyring)
   {
-    return FindPublicKey(fingerprint, keyring, ListOptions.Default);
+    return FindPublicKey(keywordOrId, keyring, ListOptions.Default);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKey/*"/>
-  public PrimaryKey FindPublicKey(string fingerprint, Keyring keyring, ListOptions options)
-  {
-    PrimaryKey[] keys = FindPublicKeys(new string[] { fingerprint },
-                                       keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
-    return keys[0];
-  }
+  public abstract PrimaryKey FindPublicKey(string keywordOrId, Keyring keyring, ListOptions options);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKeys/*[@name != 'keyrings' and @name != 'includeDefaultKeyring']"/>
   /// <param name="keyring">The keyring to search, or null to search the default keyring.</param>
-  public PrimaryKey[] FindPublicKeys(string[] fingerprints, Keyring keyring, ListOptions options)
+  public PrimaryKey[] FindPublicKeys(string[] fingerprintsOrIds, Keyring keyring, ListOptions options)
   {
-    return FindPublicKeys(fingerprints, keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
+    return FindPublicKeys(fingerprintsOrIds,
+                          keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKeys/*"/>
-  public abstract PrimaryKey[] FindPublicKeys(string[] fingerprints, Keyring[] keyrings, bool includeDefaultKeyring,
-                                              ListOptions options);
+  public abstract PrimaryKey[] FindPublicKeys(string[] fingerprintsOrIds, Keyring[] keyrings,
+                                              bool includeDefaultKeyring, ListOptions options);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKey/*[@name != 'options']"/>
-  public PrimaryKey FindSecretKey(string fingerprint, Keyring keyring)
+  public PrimaryKey FindSecretKey(string keywordOrId, Keyring keyring)
   {
-    return FindSecretKey(fingerprint, keyring, ListOptions.Default);
+    return FindSecretKey(keywordOrId, keyring, ListOptions.Default);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKey/*"/>
-  public PrimaryKey FindSecretKey(string fingerprint, Keyring keyring, ListOptions options)
-  {
-    PrimaryKey[] keys = FindSecretKeys(new string[] { fingerprint },
-                                       keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
-    return keys[0];
-  }
+  public abstract PrimaryKey FindSecretKey(string keywordOrId, Keyring keyring, ListOptions options);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKeys/*[@name != 'keyrings' and @name != 'includeDefaultKeyring']"/>
   /// <param name="keyring">The keyring to search, or null to search the default keyring.</param>
-  public PrimaryKey[] FindSecretKeys(string[] fingerprints, Keyring keyring, ListOptions options)
+  public PrimaryKey[] FindSecretKeys(string[] fingerprintsOrIds, Keyring keyring, ListOptions options)
   {
-    return FindSecretKeys(fingerprints, keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
+    return FindSecretKeys(fingerprintsOrIds,
+                          keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKeys/*"/>
-  public abstract PrimaryKey[] FindSecretKeys(string[] fingerprints, Keyring[] keyrings, bool includeDefaultKeyring,
-                                              ListOptions options);
+  public abstract PrimaryKey[] FindSecretKeys(string[] fingerprintsOrIds, Keyring[] keyrings,
+                                              bool includeDefaultKeyring, ListOptions options);
 
   /// <summary>Gets all public keys in the default keyring, without retrieving key signatures.</summary>
   public PrimaryKey[] GetPublicKeys()

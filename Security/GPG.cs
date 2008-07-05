@@ -464,6 +464,140 @@ public class ExeGPG : GPG
   #endregion
 
   #region Key server operations
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKeysOnServer/*"/>
+  public override void FindPublicKeysOnServer(Uri keyServer, KeySearchHandler handler, params string[] searchKeywords)
+  {
+    if(keyServer == null || handler == null || searchKeywords == null) throw new ArgumentNullException();
+    if(searchKeywords.Length == 0) throw new ArgumentException("No keywords were given.");
+
+    string args = "--keyserver " + EscapeArg(keyServer.AbsoluteUri) + " --with-colons --fixed-list-mode --search-keys";
+    foreach(string keyword in searchKeywords) args += " " + EscapeArg(keyword);
+
+    Command cmd = ExecuteForInteraction(args, StreamHandling.DumpBinary);
+    CommandState state = new CommandState(cmd);
+    using(cmd)
+    {
+      cmd.Start();
+
+      List<PrimaryKey> keysFound = new List<PrimaryKey>();
+      List<UserId> userIds = new List<UserId>();
+
+      while(true)
+      {
+        string line = cmd.Process.StandardOutput.ReadLine();
+        if(!string.IsNullOrEmpty(line)) LogLine(line);
+        gotLine:
+        if(line == null) break;
+
+        if(line.StartsWith("pub:", StringComparison.Ordinal)) // a key description follows
+        {
+          string[] fields = line.Split(':');
+
+          PrimaryKey key = new PrimaryKey();
+
+          if(IsValidKeyId(fields[1])) key.KeyId = fields[1].ToUpperInvariant();
+          else if(IsValidFingerprint(fields[1])) key.Fingerprint = fields[1].ToUpperInvariant();
+          else // there's no valid ID, so skip any related records that follow
+          {
+            do
+            {
+              line = cmd.Process.StandardOutput.ReadLine();
+              if(!string.IsNullOrEmpty(line)) LogLine(line);
+            }
+            while(line != null && line.Length == 0 ||
+                  (line[0] != '[' && line.StartsWith("pub:", StringComparison.Ordinal)));
+            goto gotLine;
+          }
+
+          if(fields.Length > 2 && !string.IsNullOrEmpty(fields[2])) key.KeyType = ParseKeyType(fields[2]);
+          if(fields.Length > 3 && !string.IsNullOrEmpty(fields[3])) key.Length = int.Parse(fields[3]);
+          if(fields.Length > 4 && !string.IsNullOrEmpty(fields[4])) key.CreationTime = ParseTimestamp(fields[4]);
+          if(fields.Length > 5 && !string.IsNullOrEmpty(fields[5])) key.ExpirationTime = ParseNullableTimestamp(fields[5]);
+          
+          if(fields.Length > 6 && !string.IsNullOrEmpty(fields[6]))
+          {
+            foreach(char c in fields[6])
+            {
+              switch(char.ToLowerInvariant(c))
+              {
+                case 'd': key.Disabled = true; break;
+                case 'e': key.Expired = true; break;
+                case 'r': key.Revoked = true; break;
+              }
+            }
+          }
+
+          // now parse the user IDs
+          while(true)
+          {
+            line = cmd.Process.StandardOutput.ReadLine();
+            if(line == null) break;
+            else if(line.Length == 0) continue;
+            else
+            {
+              LogLine(line);
+              if(line[0] == '[' || line.StartsWith("pub:", StringComparison.Ordinal)) break;
+              if(!line.StartsWith("uid", StringComparison.Ordinal)) continue;
+            }
+
+            fields = line.Split(':');
+            if(string.IsNullOrEmpty(fields[1])) continue;
+
+            UserId id = new UserId();
+            id.Key        = key;
+            id.Name       = CUnescape(fields[1]);
+            id.Signatures = NoSignatures;
+            if(fields.Length > 2 && !string.IsNullOrEmpty(fields[2])) id.CreationTime = ParseTimestamp(fields[2]);
+            id.MakeReadOnly();
+            userIds.Add(id);
+          }
+
+          if(userIds.Count != 0)
+          {
+            key.Attributes         = NoAttributes;
+            key.DesignatedRevokers = NoRevokers;
+            key.Signatures         = NoSignatures;
+            key.Subkeys            = NoSubkeys;
+            key.UserIds            = new ReadOnlyListWrapper<UserId>(userIds.ToArray());
+            key.MakeReadOnly();
+            keysFound.Add(key);
+
+            userIds.Clear();
+          }
+
+          goto gotLine;
+        }
+        else if(line.StartsWith("[GNUPG:] ", StringComparison.Ordinal))
+        {
+          StatusMessage msg = cmd.ParseStatusMessage(line);
+          if(msg != null)
+          {
+            switch(msg.Type)
+            {
+              case StatusMessageType.GetLine:
+                GetInputMessage m = (GetInputMessage)msg;
+                if(string.Equals(m.PromptId, "keysearch.prompt", StringComparison.Ordinal))
+                {
+                  // we're done with this chunk of the search, so we'll give the keys to the search handler.
+                  // we won't continue if we didn't find anything, even if the handler returns true
+                  bool shouldContinue = keysFound.Count != 0 && handler(keysFound.ToArray());
+                  cmd.SendLine(shouldContinue ? "N" : "Q");
+                  keysFound.Clear();
+                  break;
+                }
+                else goto default;
+
+              default: DefaultStatusMessageHandler(msg, state); break;
+            }
+          }
+        }
+      }
+
+      cmd.WaitForExit();
+      cmd.CheckExitCode();
+    }
+  }
+
   /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeysFromServer/*"/>
   public override ImportedKey[] ImportKeysFromServer(KeyDownloadOptions options, Keyring keyring,
                                                      params string[] keyFingerprintsOrIds)
@@ -545,18 +679,34 @@ public class ExeGPG : GPG
   #endregion
 
   #region Keyring queries
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKeys/*"/>
-  public override PrimaryKey[] FindPublicKeys(string[] fingerprints, Keyring[] keyrings, bool includeDefaultKeyring,
-                                              ListOptions options)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKey/*"/>
+  public override PrimaryKey FindPublicKey(string keywordOrId, Keyring keyring, ListOptions options)
   {
-    return FindKeys(fingerprints, keyrings, includeDefaultKeyring, options, false);
+    PrimaryKey[] keys = FindPublicKeys(new string[] { keywordOrId },
+                                       keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
+    return keys[0];
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKeys/*"/>
+  public override PrimaryKey[] FindPublicKeys(string[] fingerprintsOrIds, Keyring[] keyrings,
+                                              bool includeDefaultKeyring, ListOptions options)
+  {
+    return FindKeys(fingerprintsOrIds, keyrings, includeDefaultKeyring, options, false);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKey/*"/>
+  public override PrimaryKey FindSecretKey(string keywordOrId, Keyring keyring, ListOptions options)
+  {
+    PrimaryKey[] keys = FindSecretKeys(new string[] { keywordOrId },
+                                       keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
+    return keys[0];
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKeys/*"/>
-  public override PrimaryKey[] FindSecretKeys(string[] fingerprints, Keyring[] keyrings, bool includeDefaultKeyring,
-                                              ListOptions options)
+  public override PrimaryKey[] FindSecretKeys(string[] fingerprintsOrIds, Keyring[] keyrings,
+                                              bool includeDefaultKeyring, ListOptions options)
   {
-    return FindKeys(fingerprints, keyrings, includeDefaultKeyring, options, true);
+    return FindKeys(fingerprintsOrIds, keyrings, includeDefaultKeyring, options, true);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetPublicKeys2/*"/>
@@ -3274,7 +3424,7 @@ public class ExeGPG : GPG
     DoEdit(key, null, true, initialCommands);
   }
 
-  void DoEdit(PrimaryKey key, string extraArgs, bool addKeyring, params EditCommand[] initialCommands)
+  void DoEdit(PrimaryKey key, string args, bool addKeyring, params EditCommand[] initialCommands)
   {
     if(key == null) throw new ArgumentNullException();
     if(string.IsNullOrEmpty(key.Fingerprint)) throw new ArgumentException("The key to edit has no fingerprint.");
@@ -3282,7 +3432,10 @@ public class ExeGPG : GPG
     EditKey originalKey = null, editKey = null;
     Queue<EditCommand> commands = new Queue<EditCommand>(initialCommands);
 
-    Command cmd = ExecuteForEdit(key, extraArgs, addKeyring);
+    args += " --edit-key " + key.EffectiveId;
+    if(addKeyring) args = GetKeyringArgs(key.Keyring, true) + args;
+
+    Command cmd = ExecuteForInteraction(args, StreamHandling.ProcessText);
     CommandState state = new CommandState(cmd);
     try
     {
@@ -3495,16 +3648,16 @@ public class ExeGPG : GPG
                        closeStdInput, stdOutHandling, StreamHandling.ProcessText);
   }
 
-  Command ExecuteForEdit(PrimaryKey key, string extraArgs, bool addKeyring)
+  /// <summary>Creates and returns a command with no STDIN, and with status messages mixed into STDOUT.</summary>
+  Command ExecuteForInteraction(string args, StreamHandling stdErrorHandling)
   {
     // we'll use the pipe for the command-fd, but we'll pipe the status messages to STDOUT
     InheritablePipe commandPipe = new InheritablePipe(); // create a two-way pipe
     string fd = commandPipe.ClientHandle.ToInt64().ToString(CultureInfo.InvariantCulture);
-    string args = "--with-colons --fixed-list-mode --exit-on-status-write-error --status-fd 1 "+
-                  "--command-fd " + fd + " " + extraArgs + " --edit-key " + key.Fingerprint;
-    if(addKeyring) args = GetKeyringArgs(key.Keyring, true) + args;
+    args = "--with-colons --fixed-list-mode --exit-on-status-write-error --status-fd 1 " +
+           "--command-fd " + fd + " " + args;
     return new Command(this, GetProcessStartInfo(ExecutablePath, args), commandPipe,
-                       true, StreamHandling.Mixed, StreamHandling.DumpBinary);
+                       true, StreamHandling.Mixed, stdErrorHandling);
   }
 
   /// <summary>Performs the main work of exporting keys.</summary>
@@ -3547,32 +3700,54 @@ public class ExeGPG : GPG
     ExportCore(args, destination);
   }
 
-  /// <summary>Finds the keys identified by the given fingerprints.</summary>
-  PrimaryKey[] FindKeys(string[] fingerprints, Keyring[] keyrings, bool includeDefaultKeyring, ListOptions options,
-                        bool secretkeys)
+  /// <summary>Finds the keys identified by the given fingerprints or key IDs.</summary>
+  PrimaryKey[] FindKeys(string[] fingerprintsOrIds, Keyring[] keyrings, bool includeDefaultKeyring,
+                        ListOptions options, bool secretkeys)
   {
-    if(fingerprints == null) throw new ArgumentNullException();
-    if(fingerprints.Length == 0) return new PrimaryKey[0];
+    if(fingerprintsOrIds == null) throw new ArgumentNullException();
+    if(fingerprintsOrIds.Length == 0) return new PrimaryKey[0];
 
-    // create search arguments containing all the fingerprints
+    // create search arguments containing all the key IDs
     string searchArgs = null;
-    foreach(string fingerprint in fingerprints)
-    {
-      if(string.IsNullOrEmpty(fingerprint)) throw new ArgumentException("A fingerprint was null or empty.");
-      searchArgs += fingerprint + " ";
+
+    if(fingerprintsOrIds.Length > 1) // if there's more than one ID, we can't allow fancy matches like email addresses,
+    {                                // so validate and normalize all IDs
+      // clone the array so we don't modify the parameters
+      fingerprintsOrIds = (string[])fingerprintsOrIds.Clone();
+      for(int i=0; i<fingerprintsOrIds.Length; i++)
+      {
+        if(string.IsNullOrEmpty(fingerprintsOrIds[i]))
+        {
+          throw new ArgumentException("A fingerprint/ID was null or empty.");
+        }
+        fingerprintsOrIds[i] = NormalizeKeyId(fingerprintsOrIds[i]);
+      }
     }
 
-    // add each key found to a dictionary
-    Dictionary<string, PrimaryKey> keyDict = new Dictionary<string, PrimaryKey>();
-    foreach(PrimaryKey key in GetKeys(keyrings, includeDefaultKeyring, options, secretkeys, searchArgs))
-    {
-      keyDict[key.Fingerprint] = key;
-    }
+    // add all IDs to the command line
+    foreach(string id in fingerprintsOrIds) searchArgs += EscapeArg(id) + " ";
+    PrimaryKey[] keys = GetKeys(keyrings, includeDefaultKeyring, options, secretkeys, searchArgs);
 
-    // then create the return array and return the keys found
-    PrimaryKey[] keys = new PrimaryKey[fingerprints.Length];
-    for(int i=0; i<keys.Length; i++) keyDict.TryGetValue(fingerprints[i].ToUpperInvariant(), out keys[i]);
-    return keys;
+    if(fingerprintsOrIds.Length == 1) // if there was only a single key returned, then that's the one
+    {
+      return keys.Length == 1 ? keys : new PrimaryKey[1];
+    }
+    else
+    {
+      // add each key found to a dictionary
+      Dictionary<string, PrimaryKey> keyDict = new Dictionary<string, PrimaryKey>();
+      foreach(PrimaryKey key in keys)
+      {
+        keyDict[key.Fingerprint] = key;
+        keyDict[key.KeyId]       = key;
+        keyDict[key.ShortKeyId]  = key;
+      }
+
+      // then create the return array and return the keys found
+      if(keys.Length != fingerprintsOrIds.Length) keys = new PrimaryKey[fingerprintsOrIds.Length];
+      for(int i=0; i<keys.Length; i++) keyDict.TryGetValue(fingerprintsOrIds[i], out keys[i]);
+      return keys;
+    }
   }
 
   /// <summary>Generates a revocation certificate, either directly or via a designated revoker.</summary>
@@ -4792,6 +4967,34 @@ public class ExeGPG : GPG
     }
   }
 
+  /// <summary>Determines whether the given string is a valid key fingerprint.</summary>
+  static bool IsValidKeyId(string str)
+  {
+    if(!string.IsNullOrEmpty(str) && (str.Length == 8 || str.Length == 16))
+    {
+      foreach(char c in str)
+      {
+        if(!IsHexDigit(c)) return false;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  /// <summary>Determines whether the given string is a valid key fingerprint.</summary>
+  static bool IsValidFingerprint(string str)
+  {
+    if(!string.IsNullOrEmpty(str) && (str.Length == 32 || str.Length == 40))
+    {
+      foreach(char c in str)
+      {
+        if(!IsHexDigit(c)) return false;
+      }
+      return true;
+    }
+    return false;
+  }
+
   /// <summary>A helper for reading key listings, that reads the data for a primary key or subkey.</summary>
   static void ReadKeyData(Key key, string[] data)
   {
@@ -4840,6 +5043,45 @@ public class ExeGPG : GPG
 
       if(primaryKey != null) primaryKey.TotalCapabilities = totalCapabilities;
     }
+  }
+
+  /// <summary>Validates and normalize a key ID.</summary>
+  static string NormalizeKeyId(string id)
+  {
+    string newId = id;
+
+    // strip off any 0x prefix
+    if(newId != null)
+    {
+      newId = newId.ToUpperInvariant();
+      if(newId.StartsWith("0X", StringComparison.Ordinal)) newId = newId.Substring(2);
+      newId = newId.Replace(":", ""); // some fingerprints have the octets separated by colons
+    }
+
+    if(string.IsNullOrEmpty(newId)) throw new ArgumentException("The key ID was null or empty.");
+
+    // some key ids have a leading zero for no obvious reason...
+    if(newId[0] == '0' && (newId.Length == 9 || newId.Length == 17 || newId.Length == 33 || newId.Length == 41))
+    {
+      newId = newId.Substring(1);
+    }
+
+    bool invalid = newId.Length != 8 && newId.Length != 16 && newId.Length != 32 && newId.Length != 40;
+    if(!invalid)
+    {
+      foreach(char c in newId)
+      {
+        if(!IsHexDigit(c))
+        {
+          invalid = true;
+          break;
+        }
+      }
+    }
+
+    if(invalid) throw new ArithmeticException("Invalid key ID: " + id);
+
+    return newId;
   }
 
   /// <summary>Normalizes a keyring filename to something that is acceptable to GPG, and that allows two normalized
@@ -4919,6 +5161,7 @@ public class ExeGPG : GPG
   static readonly ReadOnlyListWrapper<string> NoRevokers = new ReadOnlyListWrapper<string>(new string[0]);
   static readonly ReadOnlyListWrapper<KeySignature> NoSignatures =
     new ReadOnlyListWrapper<KeySignature>(new KeySignature[0]);
+  static readonly ReadOnlyListWrapper<Subkey> NoSubkeys = new ReadOnlyListWrapper<Subkey>(new Subkey[0]);
   static readonly Regex versionLineRe = new Regex(@"^(\w+):\s*(.+)", RegexOptions.Singleline);
   static readonly Regex commaSepRe = new Regex(@",\s*", RegexOptions.Singleline);
   static readonly Regex cEscapeRe = new Regex(@"\\x[0-9a-f]{2}",
