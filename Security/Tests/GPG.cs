@@ -752,20 +752,22 @@ IAUCSGijRgIbLwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBOCnD/MlopQTykD
     // try searching for keys
     List<PrimaryKey> keysFound = new List<PrimaryKey>();
     gpg.FindPublicKeysOnServer(downloadOptions.KeyServer,
-                         delegate(PrimaryKey[] keys) { keysFound.AddRange(keys); return true; }, "adam@adammil.net");
-    Assert.AreEqual(1, keysFound.Count);
-    Assert.IsTrue(keysFound[0].PrimaryUserId.Name.StartsWith("Adam M"));
+                               delegate(PrimaryKey[] keys) { keysFound.AddRange(keys); return true; },
+                               "adam@adammil.net");
+    Assert.AreEqual(2, keysFound.Count);
+    Assert.IsTrue(keysFound[0].PrimaryUserId.Name.StartsWith("Adam Milazzo"));
+    Assert.IsTrue(keysFound[1].Revoked);
 
     // import the key found
     ImportedKey[] result = gpg.ImportKeysFromServer(downloadOptions, keyring, keysFound[0].EffectiveId);
     Assert.AreEqual(1, result.Length);
     Assert.IsTrue(result[0].Successful);
-    Assert.AreEqual("3B0592E6818F19CF853BB9E172DFF658727BA638", result[0].Fingerprint);
+    Assert.AreEqual("21A3235327E64C6256B7912BB6E5982D6252430A", result[0].Fingerprint);
 
     // make sure it was really imported
-    PrimaryKey adamsKey = gpg.FindPublicKey("727BA638", keyring);
+    PrimaryKey adamsKey = gpg.FindPublicKey("6252430A", keyring);
     Assert.IsNotNull(adamsKey);
-    Assert.IsTrue(adamsKey.PrimaryUserId.Name.StartsWith("Adam M"));
+    Assert.IsTrue(adamsKey.PrimaryUserId.Name.StartsWith("Adam Milazzo"));
     // TODO: Assert.IsNotNull(gpg.GetPreferences(adamsKey.PrimaryUserId).Keyserver);
 
     // refresh the key

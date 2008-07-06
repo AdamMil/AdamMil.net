@@ -31,8 +31,6 @@ using AdamMil.Security.PGP.GPG.StatusMessages;
 using Marshal      = System.Runtime.InteropServices.Marshal;
 using SecureString = System.Security.SecureString;
 
-// TODO: test with gpg2
-
 namespace AdamMil.Security.PGP.GPG
 {
 
@@ -144,18 +142,14 @@ public class ExeGPG : GPG
   /// <summary>Raised when a line of text is to be logged.</summary>
   public event TextLineHandler LineLogged;
 
-  /// <summary>Gets or sets whether the GPG agent will be used. If enabled, GPG may use its own user interface to
-  /// query for passwords, bypassing the support provided by this library. The default is false. However, the agent is
-  /// always enabled when using GPG 2.
+  /// <summary>Gets or sets whether the GPG agent will be used. If enabled, GPG may use its own user interface to query
+  /// for passwords, bypassing the support provided by this library. The default is false. However, this property has
+  /// no effect when using GPG2, because GPG2 doesn't allow the agent to be disabled.
   /// </summary>
   public bool EnableGPGAgent
   {
     get { return enableAgent; }
-    set
-    {
-      if(value) throw new NotImplementedException();
-      enableAgent = value;
-    }
+    set { enableAgent = value; }
   }
 
   /// <summary>Gets the path to the GPG executable, or null if <see cref="Initialize"/> has not been called.</summary>
@@ -1782,22 +1776,24 @@ public class ExeGPG : GPG
     /// <returns>Returns the new length of the text (the text is decoded in place, and can get shorter).</returns>
     static int Decode(byte[] encoded)
     {
-      int newLength = encoded.Length, index = -1;
+      int index = Array.IndexOf(encoded, (byte)'%'), offset = 0, newLength = encoded.Length;
 
-      while(true)
+      if(index != -1)
       {
-        index = Array.IndexOf(encoded, (byte)'%', index+1); // find the next percent sign
-        if(index == -1) break;
-
-        if(index < encoded.Length-2) // if there's enough space for two hex digits after the percent sign
+        for(; index < newLength; index++)
         {
-          char high = (char)encoded[index+1], low = (char)encoded[index+2];
-          if(IsHexDigit(high) && IsHexDigit(low))
+          byte c = encoded[index + offset];
+          if(c == (byte)'%' && index < newLength-2)
           {
-            encoded[index] = (byte)GetHexValue(high, low); // convert the hex value to the new byte value
-            index     += 2; // skip over two of the three digits. the third will be skipped on the next iteration
-            newLength -= 2;
+            char high = (char)encoded[index + offset+1], low = (char)encoded[index + offset+2];
+            if(IsHexDigit(high) && IsHexDigit(low))
+            {
+              encoded[index] = (byte)GetHexValue(high, low); // convert the hex value to the new byte value
+              offset    += 2;
+              newLength -= 2;
+            }
           }
+          else encoded[index] = encoded[index + offset];
         }
       }
 
@@ -2010,7 +2006,7 @@ public class ExeGPG : GPG
         }
         return EditCommandResult.Continue;
       }
-      else throw new NotImplementedException("Unhandled prompt: " + promptId);
+      else throw new NotImplementedException("Unhandled input request: " + promptId);
     }
 
     /// <summary>Processes a line of text received from GPG.</summary>
@@ -4130,7 +4126,7 @@ public class ExeGPG : GPG
   {
     ProcessStartInfo psi = new ProcessStartInfo();
     // enable or disable the GPG agent on GPG 1.x, but on GPG 2.x, the agent is always enabled...
-    psi.Arguments              = (EnableGPGAgent && gpgVersion < 20000 ? "--use-agent " : "--no-use-agent ") +
+    psi.Arguments              = (gpgVersion >= 20000 ? null : EnableGPGAgent ? "--use-agent " : "--no-use-agent ") +
                                  "--no-tty --no-options --display-charset utf-8 " + args;
     psi.CreateNoWindow         = true;
     psi.ErrorDialog            = false;
@@ -4407,23 +4403,68 @@ public class ExeGPG : GPG
   /// <summary>Escapes a command-line argument or throws an exception if it cannot be escaped.</summary>
   static string EscapeArg(string arg)
   {
-    // TODO: does this handle everything? unfortunately, ProcessStartInfo.Arguments is very poorly designed
-    if(arg.IndexOf(' ') != -1) // if the argument contains spaces, we need to quote it.
-    {
-      if(arg.IndexOf('"') == -1) return "\"" + arg + "\""; // if it doesn't contain a double-quote, use those
-      else if(arg.IndexOf('\'') == -1) return "'" + arg + "'"; // otherwise, try single quotes
-    }
-    else if(arg.IndexOf('"') != -1)
-    {
-      throw new NotImplementedException();
-    }
-    else if(ContainsControlCharacters(arg))
+    if(arg == null) throw new ArgumentNullException();
+
+    if(ContainsControlCharacters(arg))
     {
       throw new ArgumentException("Argument '"+arg+"' contains illegal control characters.");
     }
-    else return arg;
 
-    throw new ArgumentException("Argument could not be escaped: "+arg);
+    // this is almost the ugliest escaping algorithm ever, beaten only by the algorithm needed to escape cmd.exe
+    // commands. and it's not even guaranteed to work because it's actually IMPOSSIBLE to properly escape command-line
+    // arguments on Windows.
+    //
+    // first we need to escape double quotes with backslashes. but if those quotes have backslashes before them, then
+    // we need to escape all of those backslashes too. (ie, if a run of backslashes is followed by a quote, all the
+    // backslashes and the quote must be escaped, but if a run of backslashes isn't followed by a quote, the
+    // backslashes must NOT be escaped. this means we need an arbitrary amount of look-ahead.) finally, if it contains
+    // a space or tab, or is zero-length, it must be wrapped with double quotes. and after all that, it's not
+    // guaranteed to work because it relies on the assumption that the target program will use CommandLineToArgvW to
+    // parse its command line, which not all programs do. but GPG does, at least for the moment, so we should be okay.
+    //
+    // thank goodness we're not invoking cmd.exe. if we were, the task would be an order of magnitude more arcane.
+    //
+    // this all stems from the original, stupid decision in Windows to make programs parse their own command line. the
+    // command line is from the USER INTERFACE level (ie, from the shell). it's what the user types in. but what
+    // programs want to have is a list of arguments, not the raw text that the user typed! the shell receives the
+    // command line, so the shell should parse it! the fact that the .NET standard library copied this insanity is what
+    // really annoys me. ProcessStartInfo.Arguments should be a string array of unescaped arguments. c'mon!!
+
+    // we have to wrap the argument with double quotes if it contains a space or a tab or is zero-length
+    bool mustWrapWithQuotes = arg.IndexOf(' ') != -1 || arg.IndexOf('\t') != -1 || arg.Length == 0;
+
+    // if we don't have to wrap it with quotes, and it also doesn't contain any quotes, then we don't need to escape it
+    if(!mustWrapWithQuotes && arg.IndexOf('"') == -1) return arg;
+
+    StringBuilder escaped = new StringBuilder(arg.Length + 10);
+    if(mustWrapWithQuotes) escaped.Append('"');
+
+    int start = 0;
+    while(start < arg.Length)
+    {
+      // if there's a run of backslashes starting here, we need to find the end of it
+      int bsEnd = start;
+      while(bsEnd < arg.Length && arg[bsEnd] == '\\') bsEnd++;
+
+      if(bsEnd == start) // there was no run of backslashes
+      {
+        if(arg[start] == '"') escaped.Append("\\\""); // but there was a double quote, so we need to escape it
+        else escaped.Append(arg[start]);
+        start++;
+      }
+      else // there was one or more backslashes. we need to see if it ends (or will end) with a quote
+      {
+        // it ends with a quote, or will end with one after we wrap the argument with quotes
+        if(bsEnd == arg.Length && mustWrapWithQuotes || arg[bsEnd] == '"')
+        {
+          escaped.Append('\\', (bsEnd-start) * 2); // double the number of backslashes
+        }
+        start = bsEnd; // continue with the character after the backslashes
+      }
+    }
+
+    if(mustWrapWithQuotes) escaped.Append('"');
+    return escaped.ToString();
   }
 
   /// <summary>A helper for reading key listings, that finishes the current primary key.</summary>
