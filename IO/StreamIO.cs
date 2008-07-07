@@ -113,21 +113,22 @@ public unsafe static partial class IOH
     if(index < 0 || length < 0 || index+length > buf.Length) throw new ArgumentOutOfRangeException();
 
     int read, total=0;
-    while(true)
+    while(length != 0)
     {
       read = stream.Read(buf, index, length);
       total += read;
 
-      if(total == length) return total;
       if(read == 0)
       {
         if(throwOnEOF) throw new EndOfStreamException();
-        return total;
+        else break;
       }
 
       index  += read;
       length -= read;
     }
+
+    return total;
   }
 
   /// <summary>Reads the given number of bytes from the stream and converts them into a string using ASCII encoding.</summary>

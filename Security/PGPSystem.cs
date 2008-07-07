@@ -450,14 +450,16 @@ public class ImportedKey : ReadOnlyClass
 [Flags]
 public enum SignatureStatus
 {
+  /// <summary>The signature was not verified.</summary>
+  Unverified=0,
   /// <summary>An error prevented the signature from being verified.</summary>
-  Error=0,
+  Error=0x1,
   /// <summary>The signature is valid.</summary>
-  Valid=0x1,
+  Valid=0x2,
   /// <summary>The signature is invalid.</summary>
-  Invalid=0x2,
+  Invalid=0x3,
   /// <summary>A mask that can be ANDed with a <see cref="SignatureStatus"/> to retrieve the overall success value:
-  /// <c>Valid</c>, <c>Invalid</c>, or <c>Error</c>.
+  /// <c>Unverified, </c><c>Valid</c>, <c>Invalid</c>, or <c>Error</c>.
   /// </summary>
   SuccessMask=0x3,
 
@@ -483,22 +485,18 @@ public enum SignatureStatus
 }
 #endregion
 
-#region Signature
-/// <summary>Contains information about a digital signature.</summary>
-/// <remarks>This class derives from <see cref="ReadOnlyClass"/>, and it is expected that a <see cref="PGPSystem"/>
-/// implementation will call <see cref="ReadOnlyClass.MakeReadOnly"/> before returning a <see cref="Signature"/>
-/// object.
-/// </remarks>
-public class Signature : ReadOnlyClass
+#region SignatureBase
+/// <summary>A base class for types that represent signatures.</summary>
+public class SignatureBase : ReadOnlyClass
 {
-  /// <summary>Gets the time the signature expires, or null if the signature does not expire.</summary>
-  public DateTime? Expiration
+  /// <summary>Gets or sets the time when the signature was created.</summary>
+  public DateTime CreationTime
   {
-    get { return expiration; }
-    set 
+    get { return creationTime; }
+    set
     {
       AssertNotReadOnly();
-      expiration = value; 
+      creationTime = value;
     }
   }
 
@@ -524,6 +522,83 @@ public class Signature : ReadOnlyClass
     get { return (Status & SignatureStatus.SuccessMask) == SignatureStatus.Invalid; }
   }
 
+  /// <summary>Gets or sets the fingerprint of the signing key.</summary>
+  public string KeyFingerprint
+  {
+    get { return keyFingerprint; }
+    set
+    {
+      AssertNotReadOnly();
+      keyFingerprint = value;
+    }
+  }
+
+  /// <summary>Gets or sets the ID of the signing key. Note that key IDs are not unique. For a unique identifier, use
+  /// the key fingerprint (if set) instead.
+  /// </summary>
+  public string KeyId
+  {
+    get { return keyId; }
+    set
+    {
+      AssertNotReadOnly();
+      keyId = value;
+    }
+  }
+
+  /// <summary>Gets a human-readable description of the identity of the signer.</summary>
+  public string SignerName
+  {
+    get { return signerName; }
+    set
+    {
+      AssertNotReadOnly();
+      signerName = value;
+    }
+  }
+
+  /// <summary>Gets the shortened version of the <see cref="KeyId"/>.</summary>
+  public string ShortKeyId
+  {
+    get { return keyId == null || keyId.Length <= 8 ? keyId : keyId.Substring(keyId.Length - 8); }
+  }
+
+  /// <summary>Gets or sets the status of the signature.</summary>
+  public SignatureStatus Status
+  {
+    get { return status; }
+    set
+    {
+      AssertNotReadOnly();
+      status = value;
+    }
+  }
+
+  string keyId, keyFingerprint, signerName;
+  DateTime creationTime;
+  SignatureStatus status;
+}
+#endregion
+
+#region Signature
+/// <summary>Contains information about a digital signature.</summary>
+/// <remarks>This class derives from <see cref="ReadOnlyClass"/>, and it is expected that a <see cref="PGPSystem"/>
+/// implementation will call <see cref="ReadOnlyClass.MakeReadOnly"/> before returning a <see cref="Signature"/>
+/// object.
+/// </remarks>
+public class Signature : SignatureBase
+{
+  /// <summary>Gets the time the signature expires, or null if the signature does not expire.</summary>
+  public DateTime? Expiration
+  {
+    get { return expiration; }
+    set 
+    {
+      AssertNotReadOnly();
+      expiration = value; 
+    }
+  }
+
   /// <summary>Gets or sets the name of the hash algorithm used for the signature, or null if the algorithm could not
   /// be determined. Note that the algorithm is not necessarily supported by the PGP system.
   /// </summary>
@@ -534,30 +609,6 @@ public class Signature : ReadOnlyClass
     {
       AssertNotReadOnly();
       hashAlgorithm = value; 
-    }
-  }
-
-  /// <summary>Gets or sets the fingerprint of the signing key.</summary>
-  public string KeyFingerprint
-  {
-    get { return keyFingerprint; }
-    set 
-    {
-      AssertNotReadOnly();
-      keyFingerprint = value; 
-    }
-  }
-
-  /// <summary>Gets or sets the ID of the signing key. Note that key IDs are not unique. For a unique identifier, use
-  /// the key fingerprint (if set) instead.
-  /// </summary>
-  public string KeyId
-  {
-    get { return keyId; }
-    set 
-    {
-      AssertNotReadOnly();
-      keyId = value; 
     }
   }
 
@@ -585,49 +636,16 @@ public class Signature : ReadOnlyClass
     }
   }
 
-  /// <summary>Gets or sets the status of the signature.</summary>
-  public SignatureStatus Status
-  {
-    get { return status; }
-    set 
-    {
-      AssertNotReadOnly();
-      status = value; 
-    }
-  }
-
-  /// <summary>Gets or sets the time when the signature was made, or null if the time is not known.</summary>
-  public DateTime? Timestamp
-  {
-    get { return timestamp; }
-    set 
-    {
-      AssertNotReadOnly();
-      timestamp = value; 
-    }
-  }
-
   /// <summary>Gets or sets the trust level of the signature, indicating how strongly the signature is believed to be
   /// valid.
   /// </summary>
   public TrustLevel TrustLevel
   {
     get { return trustLevel; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      trustLevel = value; 
-    }
-  }
-
-  /// <summary>Gets a human-readable description of the identity of the signer.</summary>
-  public string UserName
-  {
-    get { return userName; }
-    set 
-    {
-      AssertNotReadOnly();
-      userName = value; 
+      trustLevel = value;
     }
   }
 
@@ -635,9 +653,9 @@ public class Signature : ReadOnlyClass
   public override string ToString()
   {
     string from = null;
-    if(!string.IsNullOrEmpty(UserName) || !string.IsNullOrEmpty(KeyId))
+    if(!string.IsNullOrEmpty(SignerName) || !string.IsNullOrEmpty(KeyId))
     {
-      if(!string.IsNullOrEmpty(UserName)) from = UserName;
+      if(!string.IsNullOrEmpty(SignerName)) from = SignerName;
       if(!string.IsNullOrEmpty(KeyId)) from += (from == null ? "0x"+KeyId : " [0x"+KeyId+"]");
       from = " from " + from;
     }
@@ -662,7 +680,7 @@ public class Signature : ReadOnlyClass
     {
       str = "Invalid signature"+from;
     }
-    else
+    else if(ErrorOccurred)
     {
       SignatureStatus flags = Status & SignatureStatus.ErrorFlagMask;
 
@@ -676,13 +694,16 @@ public class Signature : ReadOnlyClass
       }
       str += "while verifying signature"+from;
     }
+    else
+    {
+      str = "Unverified signature"+from;
+    }
 
     return str;
   }
 
-  string hashAlgorithm, keyFingerprint, keyId, keyType, primaryKeyFingerprint, userName;
-  DateTime? timestamp, expiration;
-  SignatureStatus status = SignatureStatus.Error;
+  string hashAlgorithm, keyType, primaryKeyFingerprint;
+  DateTime? expiration;
   TrustLevel trustLevel = TrustLevel.Unknown;
 }
 #endregion
