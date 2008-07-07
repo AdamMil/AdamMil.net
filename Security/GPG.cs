@@ -158,13 +158,13 @@ public class ExeGPG : GPG
     get { return exePath; }
   }
 
-  /// <summary>Gets or sets whether the <see cref="KeySignature.KeyFingerprint"/> field will be retrieved. According to
-  /// the GPG documentation, GPG won't return fingerprints on key signatures unless signature verification is enabled
-  /// and signature caching is disabled, due to "various technical reasons". Checking the signatures and disabling the
-  /// cache causes a significant performance hit, however, so by default it is not done. If this property is set to
-  /// true, the cache will be disabled and signature verification will be enabled on all key retrievals, allowing GPG
-  /// to return the key signature fingerprint. Note that even with this property set to true, the fingerprint still
-  /// won't be set if the key signature failed verification.
+  /// <summary>Gets or sets whether the <see cref="SignatureBase.KeyFingerprint">KeySignature.KeyFingerprint</see>
+  /// field will be retrieved. According to the GPG documentation, GPG won't return fingerprints on key signatures
+  /// unless signature verification is enabled and signature caching is disabled, due to "various technical reasons".
+  /// Checking the signatures and disabling the cache causes a significant performance hit, however, so by default it
+  /// is not done. If this property is set to true, the cache will be disabled and signature verification will be
+  /// enabled on all key retrievals, allowing GPG to return the key signature fingerprint. Note that even with this
+  /// property set to true, the fingerprint still won't be set if the key signature failed verification.
   /// </summary>
   public bool RetrieveKeySignatureFingerprints
   {
@@ -491,8 +491,8 @@ public class ExeGPG : GPG
       List<PrimaryKey> keysFound = new List<PrimaryKey>();
       List<UserId> userIds = new List<UserId>();
 
-      // GPG seems to send a lot of blank lines in here, but actually i suspect it's send inconsistent line endings
-      // which is confusing the StreamReader and making it think CRLF is two EOL characters
+      // GPG sends incorrect line endings on Windows (actually, it sends CR CR LF as a line ending) which is
+      // causing the StreamReader to return many blank lines. so we need to handle those blank lines...
       while(true)
       {
         string line = cmd.Process.StandardOutput.ReadLine();
@@ -555,7 +555,7 @@ public class ExeGPG : GPG
             if(string.IsNullOrEmpty(fields[1])) continue;
 
             UserId id = new UserId();
-            id.Key        = key;
+            id.PrimaryKey = key;
             id.Name       = CUnescape(fields[1]);
             id.Signatures = NoSignatures;
             if(fields.Length > 2 && !string.IsNullOrEmpty(fields[2])) id.CreationTime = ParseTimestamp(fields[2]);
@@ -578,7 +578,7 @@ public class ExeGPG : GPG
 
           goto gotLine;
         }
-        else if(line.StartsWith("[GNUPG:] ", StringComparison.Ordinal))
+        else if(line.StartsWith(StatusMessageToken, StringComparison.Ordinal))
         {
           StatusMessage msg = cmd.ParseStatusMessage(line);
           if(msg != null)
@@ -682,9 +682,9 @@ public class ExeGPG : GPG
   public override void SignKey(UserAttribute userId, PrimaryKey signingKey, KeySigningOptions options)
   {
     if(userId == null || signingKey == null) throw new ArgumentNullException();
-    if(userId.Key == null) throw new ArgumentException("The user attribute must be associated with a key.");
+    if(userId.PrimaryKey == null) throw new ArgumentException("The user attribute must be associated with a key.");
 
-    DoEdit(userId.Key, GetKeyringArgs(new PrimaryKey[] { userId.Key, signingKey }, true) + "-u " +
+    DoEdit(userId.PrimaryKey, GetKeyringArgs(new PrimaryKey[] { userId.PrimaryKey, signingKey }, true) + "-u " +
            signingKey.Fingerprint, false, new RawCommand("uid " + userId.Id), new SignKeyCommand(options, false));
   }
   #endregion
@@ -1151,13 +1151,13 @@ public class ExeGPG : GPG
   public override UserPreferences GetPreferences(UserAttribute user)
   {
     if(user == null) throw new ArgumentNullException();
-    if(user.Key == null) throw new ArgumentException("The user attribute must be associated with a key.");
+    if(user.PrimaryKey == null) throw new ArgumentException("The user attribute must be associated with a key.");
 
     // TODO: currently, this fails to retrieve the user's preferred keyserver, because GPG writes it to the TTY where
     // it can't be captured...
 
     UserPreferences preferences = new UserPreferences(); // this will be filled out by the GetPrefs class
-    DoEdit(user.Key, new RawCommand("uid " + user.Id), new GetPrefsCommand(preferences));
+    DoEdit(user.PrimaryKey, new RawCommand("uid " + user.Id), new GetPrefsCommand(preferences));
     return preferences;
   }
 
@@ -1171,8 +1171,8 @@ public class ExeGPG : GPG
   public override void SetPreferences(UserAttribute user, UserPreferences preferences)
   {
     if(user == null || preferences == null) throw new ArgumentNullException();
-    if(user.Key == null) throw new ArgumentException("The user attribute must be associated with a key.");
-    DoEdit(user.Key, new RawCommand("uid " + user.Id), new SetPrefsCommand(preferences));
+    if(user.PrimaryKey == null) throw new ArgumentException("The user attribute must be associated with a key.");
+    DoEdit(user.PrimaryKey, new RawCommand("uid " + user.Id), new SetPrefsCommand(preferences));
   }
   #endregion
 
@@ -1265,6 +1265,8 @@ public class ExeGPG : GPG
 
   /// <summary>Creates an edit command on demand to operate on the given key signatures.</summary>
   delegate EditCommand KeySignatureEditCommandCreator(KeySignature[] sigs);
+
+  const string StatusMessageToken = "[GNUPG:]";
 
   #region CommandState
   /// <summary>Holds variables set by the default STDERR and status message handlers.</summary>
@@ -1383,7 +1385,7 @@ public class ExeGPG : GPG
     public StatusMessage ParseStatusMessage(string line)
     {
       string[] chunks = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-      if(chunks.Length >= 2 && string.Equals(chunks[0], "[GNUPG:]", StringComparison.Ordinal))
+      if(chunks.Length >= 2 && string.Equals(chunks[0], StatusMessageToken, StringComparison.Ordinal))
       {
         string[] arguments = new string[chunks.Length-2];
         Array.Copy(chunks, 2, arguments, 0, arguments.Length);
@@ -1452,6 +1454,8 @@ public class ExeGPG : GPG
     public void Start()
     {
       if(process != null) throw new InvalidOperationException("The process has already been started.");
+
+      if(gpg.LoggingEnabled) gpg.LogLine(psi.FileName + " " + psi.Arguments);
 
       process = Process.Start(psi);
 
@@ -1750,7 +1754,7 @@ public class ExeGPG : GPG
         chunks.Add(Encoding.UTF8.GetString(line, start, index-start)); // grab the text between the two
 
         // if this isn't a status line, don't waste time splitting the rest of it
-        if(chunks.Count == 1 && !string.Equals(chunks[0], "[GNUPG:]", StringComparison.Ordinal)) break;
+        if(chunks.Count == 1 && !string.Equals(chunks[0], StatusMessageToken, StringComparison.Ordinal)) break;
       }
 
       if(chunks.Count >= 2) // if there are enough chunks to make up a status line
@@ -1896,6 +1900,19 @@ public class ExeGPG : GPG
       }
       return lines;
     }
+  }
+  #endregion
+
+  #region DummyAttribute
+  /// <summary>A placeholder for a user attribute that has not been fully retrieved in the key listing.</summary>
+  sealed class DummyAttribute : UserAttribute
+  {
+    public DummyAttribute(AttributeMessage msg)
+    {
+      Message = msg;
+    }
+
+    public readonly AttributeMessage Message;
   }
   #endregion
 
@@ -3352,10 +3369,10 @@ public class ExeGPG : GPG
             case StatusMessageType.BadSig:
             {
               BadSigMessage bad = (BadSigMessage)msg;
-              sig.KeyId    = bad.KeyId;
-              sig.UserName = bad.UserName;
-              sig.Status   = SignatureStatus.Invalid;
-              sigFilled    = true;
+              sig.KeyId      = bad.KeyId;
+              sig.SignerName = bad.UserName;
+              sig.Status     = SignatureStatus.Invalid;
+              sigFilled      = true;
               break;
             }
             
@@ -3363,49 +3380,49 @@ public class ExeGPG : GPG
             {
               ErrorSigMessage error = (ErrorSigMessage)msg;
               sig.HashAlgorithm = error.HashAlgorithm;
-              sig.KeyId     = error.KeyId;
-              sig.KeyType   = error.KeyType;
-              sig.Timestamp = error.Timestamp;
-              sig.Status    = SignatureStatus.Error | (error.MissingKey ? SignatureStatus.MissingKey : 0) |
-                              (error.UnsupportedAlgorithm ? SignatureStatus.UnsupportedAlgorithm : 0);
-              sigFilled     = true;
+              sig.KeyId        = error.KeyId;
+              sig.KeyType      = error.KeyType;
+              sig.CreationTime = error.Timestamp;
+              sig.Status       = SignatureStatus.Error | (error.MissingKey ? SignatureStatus.MissingKey : 0) |
+                                 (error.UnsupportedAlgorithm ? SignatureStatus.UnsupportedAlgorithm : 0);
+              sigFilled        = true;
               break;
             }
             
             case StatusMessageType.ExpiredKeySig:
             {
               ExpiredKeySigMessage em = (ExpiredKeySigMessage)msg;
-              sig.KeyId    = em.KeyId;
-              sig.UserName = em.UserName;
-              sig.Status  |= SignatureStatus.ExpiredKey;
+              sig.KeyId      = em.KeyId;
+              sig.SignerName = em.UserName;
+              sig.Status    |= SignatureStatus.ExpiredKey;
               break;
             }
             
             case StatusMessageType.ExpiredSig:
             {
               ExpiredSigMessage em = (ExpiredSigMessage)msg;
-              sig.KeyId    = em.KeyId;
-              sig.UserName = em.UserName;
-              sig.Status  |= SignatureStatus.ExpiredSignature;
+              sig.KeyId      = em.KeyId;
+              sig.SignerName = em.UserName;
+              sig.Status    |= SignatureStatus.ExpiredSignature;
               break;
             }
             
             case StatusMessageType.GoodSig:
             {
               GoodSigMessage good = (GoodSigMessage)msg;
-              sig.KeyId    = good.KeyId;
-              sig.UserName = good.UserName;
-              sig.Status   = SignatureStatus.Valid | (sig.Status & SignatureStatus.ValidFlagMask);
-              sigFilled    = true;
+              sig.KeyId      = good.KeyId;
+              sig.SignerName = good.UserName;
+              sig.Status     = SignatureStatus.Valid | (sig.Status & SignatureStatus.ValidFlagMask);
+              sigFilled      = true;
               break;
             }
             
             case StatusMessageType.RevokedKeySig:
             {
               RevokedKeySigMessage em = (RevokedKeySigMessage)msg;
-              sig.KeyId    = em.KeyId;
-              sig.UserName = em.UserName;
-              sig.Status  |= SignatureStatus.RevokedKey;
+              sig.KeyId      = em.KeyId;
+              sig.SignerName = em.UserName;
+              sig.Status    |= SignatureStatus.RevokedKey;
               break;
             }
             
@@ -3417,7 +3434,7 @@ public class ExeGPG : GPG
               sig.PrimaryKeyFingerprint = valid.PrimaryKeyFingerprint;
               sig.Expiration            = valid.SignatureExpiration;
               sig.KeyFingerprint        = valid.SignatureKeyFingerprint;
-              sig.Timestamp             = valid.SignatureTime;
+              sig.CreationTime          = valid.SignatureTime;
               break;
             }
             
@@ -3585,7 +3602,7 @@ public class ExeGPG : GPG
           // at this point, we've got a valid line, so jump to the part where we inspect it
           goto gotLine;
         }
-        else if(line.StartsWith("[GNUPG:] ", StringComparison.Ordinal)) // a status message was received
+        else if(line.StartsWith(StatusMessageToken, StringComparison.Ordinal)) // a status message was received
         {
           // acknowledgements of input are common. we don't need to bother parsing them
           if(line.Equals("[GNUPG:] GOT_IT", StringComparison.Ordinal)) continue;
@@ -3655,7 +3672,7 @@ public class ExeGPG : GPG
       EditCommand[] commands = new EditCommand[list.Count+1];
       for(int i=0; i<list.Count; i++) commands[i] = new RawCommand("uid " + list[i].Id);
       commands[commands.Length-1] = cmdCreator();
-      DoEdit(list[0].Key, commands);
+      DoEdit(list[0].PrimaryKey, commands);
     }
   }
 
@@ -3693,7 +3710,7 @@ public class ExeGPG : GPG
         firstUid = false;
       }
 
-      DoEdit(pair.Value[0].Key, commands.ToArray());
+      DoEdit(pair.Value[0].PrimaryKey, commands.ToArray());
       commands.Clear();
     }
   }
@@ -3924,33 +3941,46 @@ public class ExeGPG : GPG
   {
     args += GetKeyringArgs(keyring, secretKeys);
 
+    // keep track of the initial key count so we know which ones were added by this call
+    int initialKeyCount = keys.Count;
+
     // if we're searching, but GPG finds no keys, it will give an error. (it doesn't give an error if it found at least
     // one item searched for.) we'll keep track of this case and ignore the error if we happen to be searching.
     bool searchFoundNothing = false, retrieveAttributes = (options & ListOptions.RetrieveAttributes) != 0;
 
+    // annoyingly, GPG doesn't flush the attribute stream after writing an attribute, so we can't reliably read
+    // attribute data in response to an ATTRIBUTE status message, because it may block waiting for data that's stuck in
+    // GPG's output buffer. so we'll write the attribute data to a temp file, and create dummy attributes. then at the
+    // end, we'll replace the dummy attributes with the real thing.
+    
     // if attributes are being retrieved, create a new pipe and some syncronization primitives to help with the task
     InheritablePipe attrPipe;
-    FileStream attrStream;
-    AutoResetEvent attrReadEvent, attrWriteEvent;
-    OpenPGPAttributeType attrType = 0;
-    int attrLength = 0;
-    bool attrPrimary = false;
+    FileStream attrStream, attrTempStream;
+    string attrTempFile;
+    IAsyncResult attrRead = null;
+    AttributeMessage attrMsg = null;
+    byte[] attrBuffer;
+    int totalAttrData = 0; // keep track of the amount of attribute data expected so we don't make the read block
     if(retrieveAttributes)
     {
       attrPipe       = new InheritablePipe();
       attrStream     = new FileStream(new SafeFileHandle(attrPipe.ServerHandle, false), FileAccess.Read);
-      attrReadEvent  = new AutoResetEvent(false);
-      attrWriteEvent = new AutoResetEvent(true);
-      args += "--attribute-fd " + attrPipe.ClientHandle.ToInt64().ToString(CultureInfo.InvariantCulture) + " ";
+      attrTempFile   = Path.GetTempFileName();
+      attrTempStream = new FileStream(attrTempFile, FileMode.Open, FileAccess.ReadWrite);
+      attrBuffer     = new byte[4096];
+
+      args += "--attribute-fd " + attrPipe.ClientHandle.ToInt64().ToString(CultureInfo.InvariantCulture) +
+              " --status-fd 1 "; // we'll also mix the status stream into STDOUT so we can get the ATTRIBUTE messages
     }
     else // otherwise, attributes are not being retrieved, so we don't need them
     {
       attrPipe      = null;
-      attrStream    = null;
-      attrReadEvent = attrWriteEvent = null;
+      attrStream    = attrTempStream = null;
+      attrTempFile  = null;
+      attrBuffer    = null;
     }
 
-    Command cmd = Execute(args + searchArgs, retrieveAttributes, true, StreamHandling.Unprocessed);
+    Command cmd = Execute(args + searchArgs, false, true, StreamHandling.Unprocessed);
     try
     {
       cmd.StandardErrorLine += delegate(string line)
@@ -3960,22 +3990,6 @@ public class ExeGPG : GPG
           if(searchArgs != null) searchFoundNothing = true; // if we're searching, this error can be ignored.
         }
       };
-
-      if(retrieveAttributes)
-      {
-        cmd.StatusMessageReceived += delegate(StatusMessage msg)
-        {
-          if(msg.Type == StatusMessageType.Attribute)
-          {
-            attrWriteEvent.WaitOne(); // wait until the main thread is ready for more attribute data
-            AttributeMessage m = (AttributeMessage)msg;
-            attrType    = m.AttributeType;
-            attrLength  = m.Length;
-            attrPrimary = m.IsPrimary;
-            attrReadEvent.Set(); // let the mait thread know that the data is available to be read
-          }
-        };
-      }
 
       cmd.Start();
 
@@ -3993,116 +4007,190 @@ public class ExeGPG : GPG
         string line = cmd.Process.StandardOutput.ReadLine();
         if(line == null) break;
 
-        // each line is a bunch of stuff separated by colons. this is documented in gpg-src\doc\DETAILS
-        string[] fields = line.Split(':');
-        switch(fields[0])
+        // keep reading attribute data in the background
+        if(attrRead == null && totalAttrData != 0 || attrRead != null && attrRead.IsCompleted)
         {
-          case "sig": case "rev": // a signature or revocation signature
-            KeySignature sig = new KeySignature();
-            if(!string.IsNullOrEmpty(fields[1]))
-            {
-              switch(fields[1][0])
-              {
-                case '!': sig.Status = SignatureStatus.Valid; break;
-                case '-': sig.Status = SignatureStatus.Invalid; break;
-                case '%': sig.Status = SignatureStatus.Error; break;
-              }
-            }
-            if(!string.IsNullOrEmpty(fields[4])) sig.KeyId        = fields[4].ToUpperInvariant();
-            if(!string.IsNullOrEmpty(fields[5])) sig.CreationTime = GPG.ParseTimestamp(fields[5]);
-            if(!string.IsNullOrEmpty(fields[9])) sig.SignerName   = CUnescape(fields[9]);
-            if(fields[10] != null && fields[10].Length >= 2)
-            {
-              string type = fields[10];
-              sig.Type = (OpenPGPSignatureType)GetHexValue(type[0], type[1]);
-              sig.Exportable = type.Length >= 3 && type[2] == 'x';
-            }
-            if(fields.Length > 12 && !string.IsNullOrEmpty(fields[12]))
-            {
-              sig.KeyFingerprint = fields[12].ToUpperInvariant();
-            }
-            sigs.Add(sig);
-            break;
-
-          case "uid": // user id
+          if(attrRead != null)
           {
-            FinishAttribute(attributes, sigs, currentPrimary, currentSubkey, ref currentAttribute);
-            UserId userId = new UserId();
-            if(!string.IsNullOrEmpty(fields[1]))
+            int bytesRead = attrStream.EndRead(attrRead);
+            if(bytesRead != 0)
             {
-              char c = fields[1][0];
-              userId.CalculatedTrust = ParseTrustLevel(c);
-              userId.Revoked         = c == 'r';
+              attrTempStream.Write(attrBuffer, 0, bytesRead);
+              totalAttrData -= bytesRead;
             }
-            if(!string.IsNullOrEmpty(fields[5])) userId.CreationTime    = ParseTimestamp(fields[5]);
-            if(!string.IsNullOrEmpty(fields[7])) userId.Id              = fields[7].ToUpperInvariant();
-            if(!string.IsNullOrEmpty(fields[9])) userId.Name            = CUnescape(fields[9]);
-            currentAttribute = userId;
-            break;
           }
 
-          case "pub": case "sec": // public and secret primary keys
-            FinishPrimaryKey(keys, subkeys, attributes, sigs, revokers,
-                             ref currentPrimary, ref currentSubkey, ref currentAttribute);
-            currentPrimary = new PrimaryKey();
-            currentPrimary.Keyring = keyring;
-            currentPrimary.Secret  = secretKeys;
-            ReadKeyData(currentPrimary, fields);
-            currentPrimary.Secret = fields[0][0] == 's'; // it's secret if the field was "sec"
-            break;
+          attrRead = totalAttrData == 0 ?
+            null : attrStream.BeginRead(attrBuffer, 0, Math.Min(totalAttrData, attrBuffer.Length), null, null);
+        }
 
-          case "sub": case "ssb": // public and secret subkeys
-            FinishSubkey(subkeys, sigs, currentPrimary, ref currentSubkey, currentAttribute);
-            currentSubkey = new Subkey();
-            currentSubkey.Secret = secretKeys;
-            ReadKeyData(currentSubkey, fields);
-            currentSubkey.Secret = fields[0][1] == 's'; // it's secret if the field was "ssb"
-            break;
-
-          case "fpr": // key fingerprint
-            if(currentSubkey != null) currentSubkey.Fingerprint = fields[9].ToUpperInvariant();
-            else if(currentPrimary != null) currentPrimary.Fingerprint = fields[9].ToUpperInvariant();
-            break;
-
-          case "uat": // user attribute
+        if(retrieveAttributes && line.StartsWith(StatusMessageToken, StringComparison.Ordinal)) // it's a status message
+        {
+          AttributeMessage msg = cmd.ParseStatusMessage(line) as AttributeMessage;
+          if(msg != null)
           {
-            FinishAttribute(attributes, sigs, currentPrimary, currentSubkey, ref currentAttribute);
+            attrMsg = msg;
+            totalAttrData += msg.Length; // increase the total amount of expected attribute data
+          }
+        }
+        else
+        {
+          // each line is a bunch of stuff separated by colons. this is documented in gpg-src\doc\DETAILS
+          string[] fields = line.Split(':');
+          switch(fields[0])
+          {
+            case "sig": case "rev": // a signature or revocation signature
+              KeySignature sig = new KeySignature();
+              if(!string.IsNullOrEmpty(fields[1]))
+              {
+                switch(fields[1][0])
+                {
+                  case '!': sig.Status = SignatureStatus.Valid; break;
+                  case '-': sig.Status = SignatureStatus.Invalid; break;
+                  case '%': sig.Status = SignatureStatus.Error; break;
+                  case '?': sig.Status = SignatureStatus.Unverified; break;
+                }
+              }
+              if(!string.IsNullOrEmpty(fields[4])) sig.KeyId        = fields[4].ToUpperInvariant();
+              if(!string.IsNullOrEmpty(fields[5])) sig.CreationTime = GPG.ParseTimestamp(fields[5]);
+              if(!string.IsNullOrEmpty(fields[9])) sig.SignerName   = CUnescape(fields[9]);
+              if(fields[10] != null && fields[10].Length >= 2)
+              {
+                string type = fields[10];
+                sig.Type = (OpenPGPSignatureType)GetHexValue(type[0], type[1]);
+                sig.Exportable = type.Length >= 3 && type[2] == 'x';
+              }
+              if(fields.Length > 12 && !string.IsNullOrEmpty(fields[12]))
+              {
+                sig.KeyFingerprint = fields[12].ToUpperInvariant();
+              }
+              sigs.Add(sig);
+              break;
 
-            if(retrieveAttributes)
+            case "uid": // user id
             {
-              attrReadEvent.WaitOne(); // wait until attribute data has been provided
+              FinishAttribute(attributes, sigs, currentPrimary, currentSubkey, ref currentAttribute);
+              UserId userId = new UserId();
+              if(!string.IsNullOrEmpty(fields[1]))
+              {
+                char c = fields[1][0];
+                userId.CalculatedTrust = ParseTrustLevel(c);
+                userId.Revoked         = c == 'r';
+              }
+              if(!string.IsNullOrEmpty(fields[5])) userId.CreationTime    = ParseTimestamp(fields[5]);
+              if(!string.IsNullOrEmpty(fields[7])) userId.Id              = fields[7].ToUpperInvariant();
+              if(!string.IsNullOrEmpty(fields[9])) userId.Name            = CUnescape(fields[9]);
+              currentAttribute = userId;
+              break;
+            }
 
-              // read the data
-              byte[] data = new byte[attrLength];
-              if(IOH.Read(attrStream, data, 0, data.Length, false) == data.Length) // add the attribute only if it was
-              {                                                                    // completely read
-                currentAttribute = UserAttribute.Create(attrType, data);
-                currentAttribute.Primary = attrPrimary;
+            case "pub": case "sec": // public and secret primary keys
+              FinishPrimaryKey(keys, subkeys, attributes, sigs, revokers,
+                               ref currentPrimary, ref currentSubkey, ref currentAttribute);
+              currentPrimary = new PrimaryKey();
+              currentPrimary.Keyring = keyring;
+              currentPrimary.Secret  = secretKeys;
+              ReadKeyData(currentPrimary, fields);
+              currentPrimary.Secret = fields[0][0] == 's'; // it's secret if the field was "sec"
+              break;
+
+            case "sub": case "ssb": // public and secret subkeys
+              FinishSubkey(subkeys, sigs, currentPrimary, ref currentSubkey, currentAttribute);
+              currentSubkey = new Subkey();
+              currentSubkey.Secret = secretKeys;
+              ReadKeyData(currentSubkey, fields);
+              currentSubkey.Secret = fields[0][1] == 's'; // it's secret if the field was "ssb"
+              break;
+
+            case "fpr": // key fingerprint
+              if(currentSubkey != null) currentSubkey.Fingerprint = fields[9].ToUpperInvariant();
+              else if(currentPrimary != null) currentPrimary.Fingerprint = fields[9].ToUpperInvariant();
+              break;
+
+            case "uat": // user attribute
+            {
+              FinishAttribute(attributes, sigs, currentPrimary, currentSubkey, ref currentAttribute);
+
+              if(retrieveAttributes && attrMsg != null)
+              {
+                currentAttribute = new DummyAttribute(attrMsg);
+                currentAttribute.Primary = attrMsg.IsPrimary;
+                currentAttribute.Revoked = attrMsg.IsRevoked;
                 if(!string.IsNullOrEmpty(fields[1])) currentAttribute.CalculatedTrust = ParseTrustLevel(fields[1][0]);
                 if(!string.IsNullOrEmpty(fields[5])) currentAttribute.CreationTime    = ParseTimestamp(fields[5]);
                 if(!string.IsNullOrEmpty(fields[7])) currentAttribute.Id              = fields[7].ToUpperInvariant();
+                attrMsg = null;
               }
-              else LogLine("Ignoring truncated attribute.");
-
-              attrWriteEvent.Set(); // we're done with this line and are ready to receive more attribute data
+              break;
             }
-            break;
+
+            case "rvk": // a designated revoker
+              revokers.Add(fields[9].ToUpperInvariant());
+              break;
+
+            case "crt": case "crs": // X.509 certificates (we just treat them as an end to the current key)
+              FinishPrimaryKey(keys, subkeys, attributes, sigs, revokers,
+                               ref currentPrimary, ref currentSubkey, ref currentAttribute);
+              break;
           }
-
-          case "rvk": // a designated revoker
-            revokers.Add(fields[9].ToUpperInvariant());
-            break;
-
-          case "crt": case "crs": // X.509 certificates (we just treat them as an end to the current key)
-            FinishPrimaryKey(keys, subkeys, attributes, sigs, revokers,
-                             ref currentPrimary, ref currentSubkey, ref currentAttribute);
-            break;
         }
       }
 
       FinishPrimaryKey(keys, subkeys, attributes, sigs, revokers,
                        ref currentPrimary, ref currentSubkey, ref currentAttribute);
       cmd.WaitForExit();
+
+      if(retrieveAttributes)
+      {
+        attrPipe.CloseClient(); // GPG should be done writing now
+
+        if(attrRead != null) // finish the current read if there is one
+        {
+          int bytesRead = attrStream.EndRead(attrRead);
+          if(bytesRead != 0) attrTempStream.Write(attrBuffer, 0, bytesRead);
+        }
+        IOH.CopyStream(attrStream, attrTempStream); // then copy the rest synchronously
+        
+        // the attribute data is done being read, so now we can go back and replace all the dummy attributes
+        attrTempStream.Position = 0;
+        for(int i=initialKeyCount; i<keys.Count; i++)
+        {
+          PrimaryKey key = keys[i];
+          if(key.Attributes.Count != 0)
+          {
+            for(int j=0; j<key.Attributes.Count; j++)
+            {
+              DummyAttribute dummy = (DummyAttribute)key.Attributes[j];
+              byte[] attrData = new byte[dummy.Message.Length];
+
+              if(IOH.Read(attrTempStream, attrData, 0, attrData.Length, false) != attrData.Length)
+              {
+                LogLine("Ignoring truncated attribute.");
+              }
+              else
+              {
+                UserAttribute real = UserAttribute.Create(dummy.Message.AttributeType, attrData);
+                real.CalculatedTrust = dummy.CalculatedTrust;
+                real.CreationTime    = dummy.CreationTime;
+                real.Id              = dummy.Id;
+                real.PrimaryKey      = dummy.PrimaryKey;
+                real.Primary         = dummy.Primary;
+                real.Revoked         = dummy.Revoked;
+                real.Signatures      = dummy.Signatures;
+                real.MakeReadOnly();
+                attributes.Add(real);
+              }
+            }
+
+            key.Attributes = attributes.Count == 0 ?
+              NoAttributes : new ReadOnlyListWrapper<UserAttribute>(attributes.ToArray());
+            attributes.Clear();
+          }
+        }
+      }
+
+      // we couldn't make the keys read-only before because we had to wait for the attribute data, so we'll do it now
+      for(int i=initialKeyCount; i<keys.Count; i++) keys[i].MakeReadOnly();
     }
     finally
     {
@@ -4111,8 +4199,8 @@ public class ExeGPG : GPG
       {
         attrStream.Dispose();
         attrPipe.Dispose();
-        attrReadEvent.Close();
-        attrWriteEvent.Close();
+        attrTempStream.Close();
+        File.Delete(attrTempFile);
       }
     }
 
@@ -4501,7 +4589,9 @@ public class ExeGPG : GPG
 
       if(currentPrimary.Signatures == null) currentPrimary.Signatures = NoSignatures;
 
-      currentPrimary.MakeReadOnly();
+      // we don't make the primary key read only here because a bug in GPG causes us to not know the real attributes
+      // until the process exits. so we'll make the key read only later. GetKeys() will do it for us.
+      //currentPrimary.MakeReadOnly();
       keys.Add(currentPrimary);
       currentPrimary = null;
     }
@@ -4582,7 +4672,7 @@ public class ExeGPG : GPG
 
     if(currentAttribute != null && currentPrimary != null)
     {
-      currentAttribute.Key = currentPrimary;
+      currentAttribute.PrimaryKey = currentPrimary;
 
       if(currentAttribute is UserId) // the primary user ID is the first one listed
       {
@@ -4932,15 +5022,15 @@ public class ExeGPG : GPG
     {
       if(attribute == null) throw new ArgumentException("An attribute was null.");
 
-      if(attribute.Key == null || string.IsNullOrEmpty(attribute.Key.Fingerprint))
+      if(attribute.PrimaryKey == null || string.IsNullOrEmpty(attribute.PrimaryKey.Fingerprint))
       {
         throw new ArgumentException("An attribute did not have a key with a fingerprint.");
       }
 
       List<UserAttribute> list;
-      if(!keyMap.TryGetValue(attribute.Key.Fingerprint, out list))
+      if(!keyMap.TryGetValue(attribute.PrimaryKey.Fingerprint, out list))
       {
-        keyMap[attribute.Key.Fingerprint] = list = new List<UserAttribute>();
+        keyMap[attribute.PrimaryKey.Fingerprint] = list = new List<UserAttribute>();
       }
 
       int i;
@@ -4973,15 +5063,15 @@ public class ExeGPG : GPG
       UserAttribute signedObject = sig.Object as UserAttribute;
       if(signedObject == null) throw new NotSupportedException("Only editing signatures on attributes is supported.");
 
-      if(signedObject.Key == null || string.IsNullOrEmpty(signedObject.Key.Fingerprint))
+      if(signedObject.PrimaryKey == null || string.IsNullOrEmpty(signedObject.PrimaryKey.Fingerprint))
       {
         throw new ArgumentException("A signed object did not have a key with a fingerprint.");
       }
 
       List<UserAttribute> uidList;
-      if(!uidMap.TryGetValue(signedObject.Key.Fingerprint, out uidList))
+      if(!uidMap.TryGetValue(signedObject.PrimaryKey.Fingerprint, out uidList))
       {
-        uidMap[signedObject.Key.Fingerprint] = uidList = new List<UserAttribute>();
+        uidMap[signedObject.PrimaryKey.Fingerprint] = uidList = new List<UserAttribute>();
       }
 
       int i;

@@ -39,19 +39,8 @@ public interface ISignableObject
 
 #region KeySignature
 /// <summary>Represents a signature on a key.</summary>
-public class KeySignature : ReadOnlyClass
+public class KeySignature : SignatureBase
 {
-  /// <summary>Gets or sets the time when the signature was created.</summary>
-  public DateTime CreationTime
-  {
-    get { return creationTime; }
-    set
-    {
-      AssertNotReadOnly();
-      creationTime = value;
-    }
-  }
-
   /// <summary>Gets or sets whether this signature is exportable.</summary>
   public bool Exportable
   {
@@ -60,28 +49,6 @@ public class KeySignature : ReadOnlyClass
     {
       AssertNotReadOnly();
       exportable = value;
-    }
-  }
-
-  /// <summary>Gets or sets the fingerprint of the signing key.</summary>
-  public string KeyFingerprint
-  {
-    get { return fingerprint; }
-    set
-    {
-      AssertNotReadOnly();
-      fingerprint = value;
-    }
-  }
-
-  /// <summary>Gets or sets the ID of the signing key. The key ID is not guaranteed to be unique.</summary>
-  public string KeyId
-  {
-    get { return keyId; }
-    set
-    {
-      AssertNotReadOnly();
-      keyId = value;
     }
   }
 
@@ -115,30 +82,6 @@ public class KeySignature : ReadOnlyClass
       return key != null &&
              (string.Equals(KeyFingerprint, key.Fingerprint, StringComparison.Ordinal) ||
               string.Equals(KeyId, key.KeyId, StringComparison.Ordinal));
-    }
-  }
-
-  /// <summary>Gets or sets the user ID of the signer.</summary>
-  public string SignerName
-  {
-    get { return signerName; }
-    set
-    {
-      AssertNotReadOnly();
-      signerName = value;
-    }
-  }
-
-  /// <summary>Gets or sets the status of the signature. This is only guaranteed to be valid if
-  /// <see cref="ListOptions.VerifySignatures"/> was used during the retrieval of the key.
-  /// </summary>
-  public SignatureStatus Status
-  {
-    get { return status; }
-    set
-    {
-      AssertNotReadOnly();
-      status = value;
     }
   }
 
@@ -179,9 +122,10 @@ public class KeySignature : ReadOnlyClass
   public override string ToString()
   {
     string str;
-    if((status & SignatureStatus.SuccessMask) == SignatureStatus.Valid) str = "Valid ";
-    else if((status & SignatureStatus.SuccessMask) == SignatureStatus.Error) str = "Error in ";
-    else str = "Invalid ";
+    if(IsValid) str = "Valid ";
+    else if(ErrorOccurred) str = "Error in ";
+    else if(IsInvalid) str = "Invalid ";
+    else str = "Unverified ";
 
     str += type.ToString() + " signature";
     
@@ -194,11 +138,8 @@ public class KeySignature : ReadOnlyClass
     return str;
   }
 
-  string fingerprint, keyId, signerName;
   ISignableObject signedObject;
-  DateTime creationTime;
   TrustLevel trustLevel;
-  SignatureStatus status = SignatureStatus.Valid;
   OpenPGPSignatureType type;
   bool exportable;
 }
@@ -251,7 +192,7 @@ public abstract class UserAttribute : ReadOnlyClass, ISignableObject
   }
 
   /// <summary>Gets or sets the <see cref="PrimaryKey"/> to which this attribute belongs.</summary>
-  public PrimaryKey Key
+  public PrimaryKey PrimaryKey
   {
     get { return key; }
     set
@@ -523,7 +464,11 @@ public abstract class Key : ReadOnlyClass
   /// <summary>Gets the <see cref="Fingerprint"/> if it is valid, and the <see cref="KeyId"/> otherwise.</summary>
   public string EffectiveId
   {
-    get { return !string.IsNullOrEmpty(Fingerprint) ? Fingerprint : KeyId; }
+    get
+    {
+      return !string.IsNullOrEmpty(Fingerprint) ? Fingerprint :
+             !string.IsNullOrEmpty(keyId) ? KeyId : null; // use keyId rather than KeyId to get the raw value
+    }
   }
 
   /// <summary>Gets or sets the time when the key will expire, or null if it has no expiration.</summary>

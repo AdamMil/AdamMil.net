@@ -564,7 +564,12 @@ public enum ListOptions
   /// <summary>A mask that can be ANDed with a <see cref="ListOptions"/> to get the attribute handling value, which is
   /// one of <see cref="IgnoreAttributes"/> or <see cref="RetrieveAttributes"/>.
   /// </summary>
-  AttributeMask=4
+  AttributeMask=4,
+
+  /// <summary>Retrieves both attributes and signatures.</summary>
+  RetrieveAll=RetrieveAttributes | RetrieveSignatures,
+  /// <summary>Retrieves and verifies both attributes and signatures.</summary>
+  VerifyAll=RetrieveAttributes | VerifySignatures,
 }
 #endregion
 
@@ -696,6 +701,12 @@ public class OutputOptions
 {
   /// <summary>Initializes a new <see cref="OutputOptions"/> object with a binary output format and no comments.</summary>
   public OutputOptions() { }
+
+  /// <summary>Initializes a new <see cref="OutputOptions"/> object with the given format.</summary>
+  public OutputOptions(OutputFormat format)
+  {
+    Format = format;
+  }
 
   /// <summary>Initializes a new <see cref="OutputOptions"/> object with the given format and comments.</summary>
   public OutputOptions(OutputFormat format, params string[] comments)
