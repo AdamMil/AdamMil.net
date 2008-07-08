@@ -1066,7 +1066,7 @@ public class ExeGPG : GPG
       cmd.WaitForExit();
     }
 
-    if(!cmd.SuccessfulExit) throw new KeyEditFailedException(state.FailureReasons);
+    if(!cmd.SuccessfulExit) throw new KeyEditFailedException("Deleting keys failed.", state.FailureReasons);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSubkeys/*" />
@@ -2112,9 +2112,9 @@ public class ExeGPG : GPG
     public bool ExpectRelist;
 
     /// <summary>Returns an exception that represents an unexpected condition.</summary>
-    protected static PGPException UnexpectedError(string problem)
+    protected static KeyEditFailedException UnexpectedError(string problem)
     {
-      return new PGPException("Key edit problem: "+problem);
+      return new KeyEditFailedException("Key edit failed: " + problem + ".");
     }
   }
   #endregion
@@ -2491,7 +2491,7 @@ public class ExeGPG : GPG
     {
       if(string.Equals(line, "Need the secret key to do this.", StringComparison.Ordinal))
       {
-        throw new PGPException("Changing password failed.", FailureReason.MissingSecretKey);
+        throw new KeyEditFailedException("Changing password failed.", FailureReason.MissingSecretKey);
       }
       else return EditCommandResult.Continue;
     }
@@ -2769,8 +2769,8 @@ public class ExeGPG : GPG
         }
         else // if GPG didn't quit, then something's wrong...
         {
-          throw new PGPException("An error occurred while " + (save ? "saving" : "quitting") +
-                                 ". Changes may not have been applied.");
+          throw new KeyEditFailedException("An error occurred while " + (save ? "saving" : "quitting") +
+                                           ". Changes may not have been applied.");
         }
       }
       else if(string.Equals(promptId, "keyedit.save.okay", StringComparison.Ordinal))
@@ -4298,7 +4298,7 @@ public class ExeGPG : GPG
          (state.FailureReasons & ~(FailureReason.KeyNotFound | FailureReason.MissingSecretKey |
                                    FailureReason.MissingPublicKey)) != 0)
       {
-        throw new PGPException("Retrieving keys failed.", state.FailureReasons);
+        throw new KeyRetrievalFailedException(state.FailureReasons);
       }
     }
   }
@@ -4401,8 +4401,7 @@ public class ExeGPG : GPG
        (!string.Equals(name, "Keyring refresh", StringComparison.Ordinal) || keys.Length == 0 ||
         (state.FailureReasons & ~(FailureReason.KeyNotFound | FailureReason.BadData)) != 0))
     {
-      throw isImport ? new ImportFailedException(state.FailureReasons)
-                     : new PGPException(name + " failed.", state.FailureReasons);
+      throw new KeyServerFailedException(name + " failed.", state.FailureReasons);
     }
 
     return keys;

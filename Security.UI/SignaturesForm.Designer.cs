@@ -47,19 +47,32 @@ namespace AdamMil.Security.UI
     private void InitializeComponent()
     {
       this.components = new System.ComponentModel.Container();
+      System.Windows.Forms.Label lblHelp;
+      System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(SignaturesForm));
       this.lblDescription = new System.Windows.Forms.Label();
       this.sigList = new AdamMil.Security.UI.SignatureList();
+      lblHelp = new System.Windows.Forms.Label();
       this.SuspendLayout();
       // 
       // lblDescription
       // 
       this.lblDescription.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-      this.lblDescription.Location = new System.Drawing.Point(5, 3);
+      this.lblDescription.Location = new System.Drawing.Point(5, 67);
       this.lblDescription.Name = "lblDescription";
       this.lblDescription.Size = new System.Drawing.Size(741, 19);
       this.lblDescription.TabIndex = 1;
       this.lblDescription.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+      // 
+      // lblHelp
+      // 
+      lblHelp.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+      lblHelp.Location = new System.Drawing.Point(5, 4);
+      lblHelp.Name = "lblHelp";
+      lblHelp.Size = new System.Drawing.Size(741, 63);
+      lblHelp.TabIndex = 2;
+      lblHelp.Text = resources.GetString("lblHelp.Text");
       // 
       // sigList
       // 
@@ -69,7 +82,7 @@ namespace AdamMil.Security.UI
             | System.Windows.Forms.AnchorStyles.Right)));
       this.sigList.Font = new System.Drawing.Font("Arial", 8F);
       this.sigList.FullRowSelect = true;
-      this.sigList.Location = new System.Drawing.Point(8, 26);
+      this.sigList.Location = new System.Drawing.Point(8, 90);
       this.sigList.Name = "sigList";
       this.sigList.Size = new System.Drawing.Size(736, 239);
       this.sigList.TabIndex = 0;
@@ -80,8 +93,9 @@ namespace AdamMil.Security.UI
       // 
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-      this.ClientSize = new System.Drawing.Size(752, 273);
+      this.ClientSize = new System.Drawing.Size(752, 337);
       this.Controls.Add(this.lblDescription);
+      this.Controls.Add(lblHelp);
       this.Controls.Add(this.sigList);
       this.Font = new System.Drawing.Font("Verdana", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
       this.KeyPreview = true;

@@ -121,6 +121,15 @@
     <value>False</value>
   </metadata>
   <data name="lblHelp.Text" xml:space="preserve">
-    <value>Signatures on a user ID are statements that the key is actually owned by that user. (Normally there is no guarantee because anybody can forge a key claiming to be from someone else.) Revoked signatures on a user ID are statements that a key is NOT owned by that user. If Bob signs Jane's key, AND you trust Bob to have actually checked it, then you can have more confidence that the key really does or doesn't belong to Jane.</value>
+    <value>First, press your mouse button and drag a rectangle around your face. Then click "Crop" to crop the image around your face. If you want, you can select a size. When you're done, click "Done". If you make a mistake, you can click "Undo".</value>
   </data>
+  <metadata name="lblResize.GenerateMember" type="System.Boolean, mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
+    <value>False</value>
+  </metadata>
+  <metadata name="btnDone.GenerateMember" type="System.Boolean, mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
+    <value>False</value>
+  </metadata>
+  <metadata name="btnCancel.GenerateMember" type="System.Boolean, mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
+    <value>False</value>
+  </metadata>
 </root>

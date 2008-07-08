@@ -79,6 +79,12 @@
     <Compile Include="ListBase.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="NewPhotoIdForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="NewPhotoIdForm.Designer.cs">
+      <DependentUpon>NewPhotoIdForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="OwnerTrustForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -156,6 +162,10 @@
     <EmbeddedResource Include="ListBase.resx">
       <SubType>Designer</SubType>
       <DependentUpon>ListBase.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="NewPhotoIdForm.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>NewPhotoIdForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="OwnerTrustForm.resx">
       <SubType>Designer</SubType>

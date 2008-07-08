@@ -17,46 +17,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using System.Drawing;
 using System.Windows.Forms;
-using AdamMil.Security.PGP;
 
 namespace AdamMil.Security.UI
 {
 
-public partial class UserRevocationForm : Form
+public partial class NewPhotoIdForm : Form
 {
-  public UserRevocationForm()
+  public NewPhotoIdForm()
   {
     InitializeComponent();
-  }
-
-  public ListBox.ObjectCollection UserIdList
-  {
-    get { return ids.Items; }
-  }
-
-  public UserRevocationReason Reason
-  {
-    get
-    {
-      return new UserRevocationReason(
-        rbInvalid.Checked ? UserRevocationCode.IdNoLongerValid : UserRevocationCode.Unspecified, txtExplanation.Text);
-    }
-    set
-    {
-      RadioButton button;
-      button = value != null && value.Reason == UserRevocationCode.IdNoLongerValid ? rbInvalid : rbNoReason;
-      button.Checked = true;
-      button.Focus();
-
-      txtExplanation.Text = value == null ? string.Empty : value.Explanation;
-    }
-  }
-
-  protected override void OnShown(EventArgs e)
-  {
-    base.OnShown(e);
-    rbNoReason.Focus();
+    cmbSize.SelectedIndex = 1;
   }
 }
 

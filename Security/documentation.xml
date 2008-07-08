@@ -17,6 +17,10 @@
         <param name="innerException">The exception that is the cause of the current exception.</param>
       </Cons2>
 
+      <ConsBF>
+        <summary>Initializes a new operation failure exception with the given base message and failure reasons.</summary>
+      </ConsBF>
+      
       <ConsF>
         <summary>Initializes a new exception with the given failure reasons.</summary>
         <param name="reasons">A <see cref="FailureReason"/> value that indicates potential causes for the failure.</param>

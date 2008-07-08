@@ -45,7 +45,7 @@ public class SignatureList : PGPListBase
       AttributeItem item = CreateAttributeItem(userId);
       if(item != null)
       {
-        item.Font = GetBoldFont();
+        SetFont(item, userId);
         Items.Add(item);
         AddSignatures(userId.Signatures);
       }
@@ -56,7 +56,7 @@ public class SignatureList : PGPListBase
       AttributeItem item = CreateAttributeItem(attr);
       if(item != null)
       {
-        item.Font = GetBoldFont();
+        SetFont(item, attr);
         Items.Add(item);
         AddSignatures(attr.Signatures);
       }
@@ -65,14 +65,26 @@ public class SignatureList : PGPListBase
 
   protected override void ClearCachedFonts()
   {
-    boldFont = null;
+    userIdFont = revokedIdFont = null;
   }
 
-  protected KeySignatureItem CreateSignatureItem(KeySignature sig)
+  protected override AttributeItem CreateAttributeItem(UserAttribute attr)
+  {
+    AttributeItem item = base.CreateAttributeItem(attr);
+    if(attr.Revoked) item.Text += " (revoked)";
+    return item;
+  }
+
+  protected virtual KeySignatureItem CreateSignatureItem(KeySignature sig)
   {
     if(sig == null) throw new ArgumentNullException();
 
     string name = string.IsNullOrEmpty(sig.SignerName) ? "(User ID not found)" : sig.SignerName;
+
+    if(sig.Revocation && sig.SelfSignature) name += " (self revocation)";
+    else if(sig.SelfSignature) name += " (self signature)";
+    else if(sig.Revocation) name += " (revocation)";
+
     KeySignatureItem item = new KeySignatureItem(sig, name);
 
     item.SubItems.Add(sig.ShortKeyId);
@@ -80,7 +92,40 @@ public class SignatureList : PGPListBase
     item.SubItems.Add(sig.Expired ? "Expired" : sig.IsValid ? "Valid" : sig.IsInvalid ? "Invalid" :
                       sig.ErrorOccurred ? "Error" : "Unverified");
     item.SubItems.Add(sig.CreationTime.ToShortDateString());
+
     return item;
+  }
+
+  protected virtual void SetFont(ListViewItem item, UserAttribute attr)
+  {
+    if(attr.Revoked)
+    {
+      if(revokedIdFont == null) revokedIdFont = new Font(Font, FontStyle.Italic | FontStyle.Bold);
+      item.Font      = revokedIdFont;
+      item.ForeColor = SystemColors.GrayText;
+    }
+    else
+    {
+      if(userIdFont == null) userIdFont = new Font(Font, FontStyle.Bold);
+      item.Font = userIdFont;
+    }
+  }
+
+  protected virtual void SetFont(ListViewItem item, KeySignature sig)
+  {
+    if(sig.IsInvalid)
+    {
+      item.ForeColor = Color.FromArgb(255, 96, 0);
+    }
+    else if(sig.Revocation && !sig.SelfSignature) // if the signature says this key is NOT owned by the real user
+    {
+      // we want to make it striking, but if the signature is of unknown validity, it shouldn't be too striking
+      item.ForeColor = sig.IsValid ? Color.Red : Color.FromArgb(255, 96, 96);
+    }
+    else if(!sig.IsValid)
+    {
+      item.ForeColor = SystemColors.GrayText;
+    }
   }
 
   void AddSignatures(IEnumerable<KeySignature> sigs)
@@ -91,7 +136,7 @@ public class SignatureList : PGPListBase
       item = CreateSignatureItem(sig);
       if(item != null)
       {
-        item.Font        = Font;
+        SetFont(item, sig);
         item.ImageIndex  = IndentImage;
         item.IndentCount = 1;
         Items.Add(item);
@@ -100,12 +145,6 @@ public class SignatureList : PGPListBase
 
     // change the last item's image to the corner
     if(item != null) item.ImageIndex = CornerImage;
-  }
-
-  Font GetBoldFont()
-  {
-    if(boldFont == null) boldFont = new Font(Font, FontStyle.Bold);
-    return boldFont;
   }
 
   void InitializeControl()
@@ -135,7 +174,7 @@ public class SignatureList : PGPListBase
     Columns.AddRange(new ColumnHeader[] { userIdHeader, keyIdHeader, sigTypeHeader, validityHeader, createdHeader });
   }
 
-  Font boldFont;
+  Font userIdFont, revokedIdFont;
 }
 
 } // namespace AdamMil.Security.UI
