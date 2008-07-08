@@ -26,7 +26,7 @@ using AdamMil.Collections;
 namespace AdamMil.Security.PGP
 {
 
-// TODO: add smart card functions
+// TODO: get an OpenPGP-compatible smart card, and then add smart card functions!
 
 #region Algorithms and key types
 #region Compression
@@ -133,7 +133,7 @@ public static class SymmetricCipher
 #region PrimaryKeyType
 /// <summary>A static class containing commonly-supported primary key types. Note that not all of these types may be
 /// supported, so it's recommended that <see cref="Default"/> be used whenever possible. If a specific algorithm is
-/// desired, use <see cref="PGPSystem.GetSupportedPrimaryKeys"/> to verify that it is supported.
+/// desired, use <see cref="PGPSystem.GetSupportedKeyTypes"/> to verify that it is supported.
 /// </summary>
 public static class PrimaryKeyType
 {
@@ -153,7 +153,7 @@ public static class PrimaryKeyType
 #region SubkeyType
 /// <summary>A static class containing commonly-supported subkey types. Note that not all of these types may be
 /// supported, so it's recommended that <see cref="Default"/> be used whenever possible. If a specific algorithm is
-/// desired, use <see cref="PGPSystem.GetSupportedSubkeys"/> to verify that it is supported.
+/// desired, use <see cref="PGPSystem.GetSupportedKeyTypes"/> to verify that it is supported.
 /// </summary>
 public static class SubkeyType
 {
@@ -520,6 +520,14 @@ public class SignatureBase : ReadOnlyClass
   public bool IsInvalid
   {
     get { return (Status & SignatureStatus.SuccessMask) == SignatureStatus.Invalid; }
+  }
+
+  /// <summary>Gets whether the signature is expired. This has no bearing on the signature's validity. An expired
+  /// signature can still be validate successfully -- it's simply outdated.
+  /// </summary>
+  public bool Expired
+  {
+    get { return (Status & SignatureStatus.ExpiredSignature) != 0; }
   }
 
   /// <summary>Gets or sets the fingerprint of the signing key.</summary>

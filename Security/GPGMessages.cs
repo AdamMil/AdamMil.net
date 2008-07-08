@@ -26,128 +26,13 @@ namespace AdamMil.Security.PGP.GPG.StatusMessages
 /// <summary>Indicates the type of GPG status message that was received.</summary>
 enum StatusMessageType
 {
-  /// <summary>The <c>NEWSIG</c> message, implemented by the <see cref="StatusMessages.GenericMessage"/> class.</summary>
-  NewSig, 
-  /// <summary>The <c>GOODSIG</c> message, implemented by the <see cref="StatusMessages.GoodSigMessage"/> class.</summary>
-  GoodSig, 
-  /// <summary>The <c>EXPSIG</c> message, implemented by the <see cref="StatusMessages.ExpiredSigMessage"/> class.</summary>
-  ExpiredSig, 
-  /// <summary>The <c>EXPKEYSIG</c> message, implemented by the <see cref="StatusMessages.ExpiredKeySigMessage"/> class.</summary>
-  ExpiredKeySig, 
-  /// <summary>The <c>REVKEYSIG</c> message, implemented by the <see cref="StatusMessages.RevokedKeySigMessage"/> class.</summary>
-  RevokedKeySig, 
-  /// <summary>The <c>BADSIG</c> message, implemented by the <see cref="StatusMessages.BadSigMessage"/> class.</summary>
-  BadSig, 
-  /// <summary>The <c>ERRSIG</c> message, implemented by the <see cref="StatusMessages.ErrorSigMessage"/> class.</summary>
-  ErrorSig, 
-  /// <summary>The <c>VALIDSIG</c> message, implemented by the <see cref="StatusMessages.ValidSigMessage"/> class.</summary>
-  ValidSig, 
-  /// <summary>The <c>ENC_TO</c> message, implemented by the <see cref="StatusMessages.GenericKeyIdMessage"/> class.</summary>
-  EncTo,
-#pragma warning disable 1574 // TODO: remove this!
-  /// <summary>The <c>NODATA</c> message, implemented by the <see cref="StatusMessages.NoDataMessage"/> class.</summary>
-  NoData,
-#pragma warning restore 1574 // TODO: remove this!
-  /// <summary>The <c>UNEXPECTED</c> message, implemented by the <see cref="StatusMessages.GenericMessage"/> class.</summary>
-  UnexpectedData,
-  /// <summary>The <c>TRUST_UNDEFINED</c> message, implemented by the <see cref="StatusMessages.TrustLevelMessage"/> class.</summary>
-  TrustUndefined,
-  /// <summary>The <c>TRUST_NEVER</c> message, implemented by the <see cref="StatusMessages.TrustLevelMessage"/> class.</summary>
-  TrustNever,
-  /// <summary>The <c>TRUST_MARGINAL</c> message, implemented by the <see cref="StatusMessages.TrustLevelMessage"/> class.</summary>
-  TrustMarginal,
-  /// <summary>The <c>TRUST_FULLY</c> message, implemented by the <see cref="StatusMessages.TrustLevelMessage"/> class.</summary>
-  TrustFully,
-  /// <summary>The <c>TRUST_ULTIMATE</c> message, implemented by the <see cref="StatusMessages.TrustLevelMessage"/> class.</summary>
-  TrustUltimate,
-#pragma warning disable 1574 // TODO: remove this!
-  /// <summary>The <c>PKA_TRUST_GOOD</c> message, implemented by the <see cref="StatusMessages.PKATrustGoodMessage"/> class.</summary>
-  PKATrustGood, 
-  /// <summary>The <c>PKA_TRUST_BAD</c> message, implemented by the <see cref="StatusMessages.PKATrustBadMessage"/> class.</summary>
-  PKATrustBad, 
-  /// <summary>The <c>KEYEXPIRED</c> message, implemented by the <see cref="StatusMessages.KeyExpiredMessage"/> class.</summary>
-  KeyExpired, 
-  /// <summary>The <c>KEYREVOKED</c> message, implemented by the <see cref="StatusMessages.KeyRevokedMessage"/> class.</summary>
-  KeyRevoked, 
-  /// <summary>The <c>BADARMOR</c> message, implemented by the <see cref="StatusMessages.BadArmorMessage"/> class.</summary>
-  BadArmor, 
-  /// <summary>The <c>NEED_PASSPHRASE</c> message, implemented by the <see cref="StatusMessages.NeedKeyPassphraseMessage"/> class.</summary>
-  NeedKeyPassphrase, 
-  /// <summary>The <c>NEED_PASSPHRASE_SYM</c> message, implemented by the <see cref="StatusMessages.NeedCipherPassphraseMessage"/> class.</summary>
-  NeedCipherPassphrase,
-  /// <summary>The <c>NEED_PASSPHRASE_PIN</c> message, implemented by the <see cref="StatusMessages.NeedPinMessage"/> class.</summary>
-  NeedPin, 
-  /// <summary>The <c>MISSING_PASSPHRASE</c> message, implemented by the <see cref="StatusMessages.MissingPassphraseMessage"/> class.</summary>
-  MissingPassphrase, 
-  /// <summary>The <c>BAD_PASSPHRASE</c> message, implemented by the <see cref="StatusMessages.BadPassphraseMessage"/> class.</summary>
-  BadPassphrase, 
-  /// <summary>The <c>GOOD_PASSPHRASE</c> message, implemented by the <see cref="StatusMessages.GoodPassphraseMessage"/> class.</summary>
-  GoodPassphrase, 
-  /// <summary>The <c>DECRYPTION_FAILED</c> message, implemented by the <see cref="StatusMessages.DecryptionFailedMessage"/> class.</summary>
-  DecryptionFailed, 
-  /// <summary>The <c>DECRYPTION_OKAY</c> message, implemented by the <see cref="StatusMessages.DecryptionOkayMessage"/> class.</summary>
-  DecryptionOkay, 
-  /// <summary>The <c>NO_PUBKEY</c> message, implemented by the <see cref="StatusMessages.MissingPublicKeyMessage"/> class.</summary>
-  NoPublicKey,
-  /// <summary>The <c>NO_SECKEY</c> message, implemented by the <see cref="StatusMessages.MissingSecretKeyMessage"/> class.</summary>
-  NoSecretKey, 
-  /// <summary>The <c>IMPORTED</c> message, implemented by the <see cref="StatusMessages.KeySigImportedMessage"/> class.</summary>
-  Imported, 
-  /// <summary>The <c>IMPORT_OK</c> message, implemented by the <see cref="StatusMessages.KeyImportOkayMessage"/> class.</summary>
-  ImportOkay, 
-  /// <summary>The <c>IMPORT_PROBLEM</c> message, implemented by the <see cref="StatusMessages.KeyImportProblemMessage"/> class.</summary>
-  ImportProblem, 
-  /// <summary>The <c>IMPORT_RES</c> message, implemented by the <see cref="StatusMessages.KeyImportResultsMessage"/> class.</summary>
-  ImportResult, 
-  /// <summary>The <c>FILE_START</c> message, implemented by the <see cref="StatusMessages.FileStartMessage"/> class.</summary>
-  FileStart, 
-  /// <summary>The <c>FILE_DONE</c> message, implemented by the <see cref="StatusMessages.FileDoneMessage"/> class.</summary>
-  FileDone, 
-  /// <summary>The <c>BEGIN_DECRYPTION</c> message, implemented by the <see cref="StatusMessages.BeginDecryptionMessage"/> class.</summary>
-  BeginDecryption, 
-  /// <summary>The <c>END_DECRYPTION</c> message, implemented by the <see cref="StatusMessages.EndDecryptionMessage"/> class.</summary>
-  EndDecryption, 
-  /// <summary>The <c>BEGIN_ENCRYPTION</c> message, implemented by the <see cref="StatusMessages.BeginEncryptionMessage"/> class.</summary>
-  BeginEncryption, 
-  /// <summary>The <c>END_ENCRYPTION</c> message, implemented by the <see cref="StatusMessages.EndEncryptionMessage"/> class.</summary>
-  EndEncryption, 
-  /// <summary>The <c>BEGIN_SIGNING</c> message, implemented by the <see cref="StatusMessages.BeginSigningMessage"/> class.</summary>
-  BeginSigning, 
-  /// <summary>The <c>DELETE_PROBLEM</c> message, implemented by the <see cref="StatusMessages.DeleteFailedMessage"/> class.</summary>
-  DeleteFailed, 
-  /// <summary>The <c>PROGRESS</c> message, implemented by the <see cref="StatusMessages.ProgressMessage"/> class.</summary>
-  Progress, 
-  /// <summary>The <c>SIG_CREATED</c> message, implemented by the <see cref="StatusMessages.SigCreatedMessage"/> class.</summary>
-  SigCreated, 
-  /// <summary>The <c>KEY_CREATED</c> message, implemented by the <see cref="StatusMessages.KeyCreatedMessage"/> class.</summary>
-  KeyCreated, 
-  /// <summary>The <c>KEY_NOT_CREATED</c> message, implemented by the <see cref="StatusMessages.KeyNotCreatedMessage"/> class.</summary>
-  KeyNotCreated, 
-  /// <summary>The <c>SESSION_KEY</c> message, implemented by the <see cref="StatusMessages.SessionKeyMessage"/> class.</summary>
-  SessionKey, 
-  /// <summary>The <c>USERID_HINT</c> message, implemented by the <see cref="StatusMessages.UserIdHintMessage"/> class.</summary>
-  UserIdHint, 
-  /// <summary>The <c>INV_RECP</c> message, implemented by the <see cref="StatusMessages.InvalidRecipientMessage"/> class.</summary>
-  InvalidRecipient, 
-  /// <summary>The <c>NO_RECP</c> message, implemented by the <see cref="StatusMessages.NoRecipientsMessage"/> class.</summary>
-  NoRecipients, 
-  /// <summary>The <c>ERROR</c> message, implemented by the <see cref="StatusMessages.ErrorMessage"/> class.</summary>
-  Error, 
-  /// <summary>The <c>CARDCTRL</c> message, implemented by the <see cref="StatusMessages.CardControlMessage"/> class.</summary>
-  CardControl, 
-  /// <summary>The <c>BACKUP_KEY_CREATED</c> message, implemented by the <see cref="StatusMessages.BackupKeyCreatedMessage"/> class.</summary>
-  BackupKeyCreated,
-#pragma warning restore 1574 // TODO: remove this!
-  /// <summary>The <c>GOODMDC</c> message, implemented by the <see cref="StatusMessages.GenericMessage"/> class.</summary>
-  GoodMDC,
-  /// <summary>The <c>GET_BOOL</c> message, implemented by the <see cref="StatusMessages.GetInputMessage"/> class.</summary>
-  GetBool,
-  /// <summary>The <c>GET_LINE</c> message, implemented by the <see cref="StatusMessages.GetInputMessage"/> class.</summary>
-  GetLine,
-  /// <summary>The <c>GET_HIDDEN</c> message, implemented by the <see cref="StatusMessages.GetInputMessage"/> class.</summary>
-  GetHidden,
-  /// <summary>The <c>ATTRIBUTE</c> message, implemented by the <see cref="StatusMessages.AttributeMessage"/> class.</summary>
-  Attribute,
+  NewSig, GoodSig, ExpiredSig, ExpiredKeySig, RevokedKeySig, BadSig, ErrorSig, ValidSig, EncTo, NoData, UnexpectedData,
+  TrustUndefined, TrustNever, TrustMarginal, TrustFully, TrustUltimate, PKATrustGood, PKATrustBad, KeyExpired,
+  KeyRevoked, BadArmor, NeedKeyPassphrase, NeedCipherPassphrase, NeedPin, MissingPassphrase, BadPassphrase,
+  GoodPassphrase, DecryptionFailed, DecryptionOkay, NoPublicKey, NoSecretKey, Imported, ImportOkay, ImportProblem, 
+  ImportResult, FileStart, FileDone, BeginDecryption, EndDecryption, BeginEncryption, EndEncryption, BeginSigning, 
+  DeleteFailed, Progress, SigCreated, KeyCreated, KeyNotCreated, SessionKey, UserIdHint, InvalidRecipient,
+  NoRecipients, Error, CardControl, BackupKeyCreated, GoodMDC, GetBool, GetLine, GetHidden, Attribute,
 }
 #endregion
 
