@@ -67,8 +67,7 @@ public class PGPException : ApplicationException
   public PGPException(string message) : base(message) { }
   /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/*"/>
   public PGPException(string message, Exception innerException) : base(message, innerException) { }
-
-  /// <summary>Initializes a new operation failure exception with the given base message and failure reasons.</summary>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsBF/*"/>
   public PGPException(string baseMessage, FailureReason reasons) : base(baseMessage + GetFailureText(reasons))
   {
     this.reasons = reasons;
@@ -214,11 +213,41 @@ public class KeyEditFailedException : PGPException
   public KeyEditFailedException(string message) : base(message) { }
   /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/*"/>
   public KeyEditFailedException(string message, Exception innerException) : base(message, innerException) { }
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsBF/*"/>
+  public KeyEditFailedException(string baseMessage, FailureReason reasons) : base(baseMessage, reasons) { }
+}
+#endregion
+
+#region KeyRetrievalFailedException
+/// <summary>An exception thrown when a key retrieval operation has failed.</summary>
+public class KeyRetrievalFailedException : PGPException
+{
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/*"/>
+  public KeyRetrievalFailedException() : base("Key retrieval failed.") { }
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/*"/>
+  public KeyRetrievalFailedException(string message) : base(message) { }
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/*"/>
+  public KeyRetrievalFailedException(string message, Exception innerException) : base(message, innerException) { }
   /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF/*"/>
-  public KeyEditFailedException(FailureReason reasons) : base("Key edit failed.", reasons) { }
+  public KeyRetrievalFailedException(FailureReason reasons) : base("Key retrieval failed.", reasons) { }
   /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF2/*"/>
-  public KeyEditFailedException(FailureReason reasons, string extraText)
-    : base("Key edit failed.", reasons, extraText) { }
+  public KeyRetrievalFailedException(FailureReason reasons, string extraText)
+    : base("Key retrieval failed.", reasons, extraText) { }
+}
+#endregion
+
+#region KeyServerFailedException
+/// <summary>An exception thrown when a key server operation has failed.</summary>
+public class KeyServerFailedException : PGPException
+{
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/*"/>
+  public KeyServerFailedException() : base("Key server operation failed.") { }
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/*"/>
+  public KeyServerFailedException(string message) : base(message) { }
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/*"/>
+  public KeyServerFailedException(string message, Exception innerException) : base(message, innerException) { }
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsBF/*"/>
+  public KeyServerFailedException(string baseMessage, FailureReason reasons) : base(baseMessage, reasons) { }
 }
 #endregion
 
@@ -252,4 +281,5 @@ public class UnhandledPasswordException : PGPException
   public UnhandledPasswordException(string message, Exception innerException) : base(message, innerException) { }
 }
 #endregion
+
 } // namespace AdamMil.Security.PGP

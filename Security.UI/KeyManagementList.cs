@@ -101,7 +101,61 @@ public class KeyManagementList : KeyListBase
 
   public void AddKeyPair(KeyPair pair, bool expanded)
   {
-    Items.AddRange(CreateItems(pair, expanded));
+    if(pair == null) throw new ArgumentNullException();
+
+    List<ListViewItem> items = new List<ListViewItem>();
+
+    PrimaryKeyItem primaryItem = CreatePrimaryKeyItem(pair.PublicKey, pair.SecretKey);
+    if(primaryItem == null) throw new ApplicationException("CreatePrimaryKeyItem returned null.");
+    SetFont(primaryItem, GetItemStatus(pair.PublicKey) | (pair.SecretKey == null ? 0 : ItemStatus.Owned));
+    items.Add(primaryItem);
+
+    if(DisplayUserIds)
+    {
+      List<UserAttribute> userIds = new List<UserAttribute>(pair.PublicKey.UserIds.Count +
+                                                            pair.PublicKey.Attributes.Count);
+      foreach(UserId id in pair.PublicKey.UserIds)
+      {
+        if(id != pair.PublicKey.PrimaryUserId) userIds.Add(id); // the public key item itself counts as the primary user ID
+      }
+      userIds.AddRange(pair.PublicKey.Attributes);
+
+      foreach(UserAttribute attr in userIds)
+      {
+        ListViewItem item = CreateAttributeItem(attr);
+        if(item != null)
+        {
+          item.IndentCount = 1;
+          SetFont(item, GetItemStatus(attr));
+          items.Add(item);
+        }
+      }
+    }
+
+    if(DisplaySubkeys)
+    {
+      foreach(Subkey subkey in pair.PublicKey.Subkeys)
+      {
+        ListViewItem item = CreateSubkeyItem(subkey);
+        if(item != null)
+        {
+          item.IndentCount = 1;
+          SetFont(item, GetItemStatus(subkey));
+          items.Add(item);
+        }
+      }
+    }
+
+    Items.Add(items[0]);
+
+    if(items.Count > 1)
+    {
+      primaryItem.ImageIndex = PlusImage;
+      primaryItem.relatedItems = new ListViewItem[items.Count-1];
+      items.CopyTo(1, primaryItem.relatedItems, 0, items.Count-1);
+
+      if(expanded) ExpandItem(primaryItem);
+    }
   }
 
   #region ItemComparerBase
@@ -323,74 +377,6 @@ public class KeyManagementList : KeyListBase
     return menu;
   }
 
-  protected virtual ListViewItem[] CreateItems(KeyPair pair, bool expanded)
-  {
-    if(pair == null) throw new ArgumentNullException();
-
-    List<ListViewItem> items = new List<ListViewItem>();
-
-    PrimaryKeyItem primaryItem = CreatePrimaryKeyItem(pair.PublicKey, pair.SecretKey);
-    if(primaryItem == null) throw new ApplicationException("CreatePrimaryKeyItem returned null.");
-    SetFont(primaryItem, GetItemStatus(pair.PublicKey) | (pair.SecretKey == null ? 0 : ItemStatus.Owned));
-    items.Add(primaryItem);
-
-    // TODO: these should be sorted in the same way that the list view sorter sorts them, so that the indent/corner
-    // images won't be messed up by the sorting algorithm
-
-    int relatedItemCount = (DisplayUserIds ? pair.PublicKey.UserIds.Count-1 + pair.PublicKey.Attributes.Count : 0) +
-                           (DisplaySubkeys ? pair.PublicKey.Subkeys.Count : 0);
-    if(DisplayUserIds)
-    {
-      List<UserAttribute> userIds = new List<UserAttribute>(pair.PublicKey.UserIds.Count +
-                                                            pair.PublicKey.Attributes.Count);
-      foreach(UserId id in pair.PublicKey.UserIds)
-      {
-        if(id != pair.PublicKey.PrimaryUserId) userIds.Add(id); // the public key item itself counts as the primary user ID
-      }
-      userIds.AddRange(pair.PublicKey.Attributes);
-
-      foreach(UserAttribute attr in userIds)
-      {
-        ListViewItem item = CreateAttributeItem(attr);
-        if(item != null)
-        {
-          item.ImageIndex  = IndentImage;
-          item.IndentCount = 1;
-          SetFont(item, GetItemStatus(attr));
-          items.Add(item);
-        }
-      }
-    }
-
-    if(DisplaySubkeys)
-    {
-      foreach(Subkey subkey in pair.PublicKey.Subkeys)
-      {
-        ListViewItem item = CreateSubkeyItem(subkey);
-        if(item != null)
-        {
-          item.ImageIndex  = IndentImage;
-          item.IndentCount = 1;
-          SetFont(item, GetItemStatus(subkey));
-          items.Add(item);
-        }
-      }
-    }
-
-    if(relatedItemCount != 0)
-    {
-      primaryItem.relatedItems = new ListViewItem[relatedItemCount];
-      items.CopyTo(1, primaryItem.relatedItems, 0, relatedItemCount);
-      primaryItem.relatedItems[relatedItemCount-1].ImageIndex = CornerImage;
-
-      primaryItem.expanded   = expanded;
-      primaryItem.ImageIndex = expanded ? MinusImage : PlusImage;
-      if(!expanded) items.RemoveRange(1, items.Count-1);
-    }
-
-    return items.ToArray();
-  }
-
   protected virtual PrimaryKeyItem CreatePrimaryKeyItem(PrimaryKey publicKey, PrimaryKey secretKey)
   {
     if(publicKey == null) throw new ArgumentNullException();
@@ -541,9 +527,18 @@ public class KeyManagementList : KeyListBase
   protected void ExpandItem(PrimaryKeyItem item)
   {
     if(item == null) throw new ArgumentNullException();
+
     if(!item.Expanded && item.HasRelatedItems)
     {
+      // add the items. the sorting may change the order
       for(int i=item.relatedItems.Length-1; i >= 0; i--) Items.Insert(item.Index+1, item.relatedItems[i]);
+      
+      // now that they've been added and are in order, set the icons
+      for(int i=0; i < item.relatedItems.Length; i++)
+      {
+        Items[item.Index + i + 1].ImageIndex = (i == item.relatedItems.Length-1 ? CornerImage : IndentImage);
+      }
+
       item.ImageIndex = MinusImage;
       item.expanded   = true;
     }

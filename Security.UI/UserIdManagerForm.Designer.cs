@@ -63,7 +63,7 @@ namespace AdamMil.Security.UI
       // btnAddUserId
       // 
       btnAddUserId.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-      btnAddUserId.Location = new System.Drawing.Point(8, 183);
+      btnAddUserId.Location = new System.Drawing.Point(8, 233);
       btnAddUserId.Name = "btnAddUserId";
       btnAddUserId.Size = new System.Drawing.Size(93, 23);
       btnAddUserId.TabIndex = 2;
@@ -74,12 +74,13 @@ namespace AdamMil.Security.UI
       // btnAddPhotoId
       // 
       btnAddPhotoId.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-      btnAddPhotoId.Location = new System.Drawing.Point(107, 183);
+      btnAddPhotoId.Location = new System.Drawing.Point(107, 233);
       btnAddPhotoId.Name = "btnAddPhotoId";
       btnAddPhotoId.Size = new System.Drawing.Size(93, 23);
       btnAddPhotoId.TabIndex = 3;
       btnAddPhotoId.Text = "Add &Photo ID";
       btnAddPhotoId.UseVisualStyleBackColor = true;
+      btnAddPhotoId.Click += new System.EventHandler(this.btnAddPhotoId_Click);
       // 
       // lblDescription
       // 
@@ -87,16 +88,15 @@ namespace AdamMil.Security.UI
             | System.Windows.Forms.AnchorStyles.Right)));
       this.lblDescription.Location = new System.Drawing.Point(5, 8);
       this.lblDescription.Name = "lblDescription";
-      this.lblDescription.Size = new System.Drawing.Size(484, 69);
+      this.lblDescription.Size = new System.Drawing.Size(484, 120);
       this.lblDescription.TabIndex = 0;
       this.lblDescription.Text = resources.GetString("lblDescription.Text");
       // 
       // userIds
       // 
-      this.userIds.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+      this.userIds.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-      this.userIds.Location = new System.Drawing.Point(8, 80);
+      this.userIds.Location = new System.Drawing.Point(8, 130);
       this.userIds.Name = "userIds";
       this.userIds.Size = new System.Drawing.Size(481, 95);
       this.userIds.SmallImageList = this.imageList;
@@ -119,7 +119,7 @@ namespace AdamMil.Security.UI
       // 
       this.btnSetPrimary.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.btnSetPrimary.Enabled = false;
-      this.btnSetPrimary.Location = new System.Drawing.Point(206, 183);
+      this.btnSetPrimary.Location = new System.Drawing.Point(206, 233);
       this.btnSetPrimary.Name = "btnSetPrimary";
       this.btnSetPrimary.Size = new System.Drawing.Size(121, 23);
       this.btnSetPrimary.TabIndex = 4;
@@ -131,7 +131,7 @@ namespace AdamMil.Security.UI
       // 
       this.btnDelete.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.btnDelete.Enabled = false;
-      this.btnDelete.Location = new System.Drawing.Point(333, 183);
+      this.btnDelete.Location = new System.Drawing.Point(333, 233);
       this.btnDelete.Name = "btnDelete";
       this.btnDelete.Size = new System.Drawing.Size(75, 23);
       this.btnDelete.TabIndex = 5;
@@ -143,7 +143,7 @@ namespace AdamMil.Security.UI
       // 
       this.btnRevoke.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.btnRevoke.Enabled = false;
-      this.btnRevoke.Location = new System.Drawing.Point(414, 183);
+      this.btnRevoke.Location = new System.Drawing.Point(414, 233);
       this.btnRevoke.Name = "btnRevoke";
       this.btnRevoke.Size = new System.Drawing.Size(75, 23);
       this.btnRevoke.TabIndex = 6;
@@ -155,13 +155,13 @@ namespace AdamMil.Security.UI
       // 
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-      this.ClientSize = new System.Drawing.Size(497, 212);
+      this.ClientSize = new System.Drawing.Size(497, 262);
+      this.Controls.Add(this.userIds);
       this.Controls.Add(this.btnRevoke);
       this.Controls.Add(this.btnDelete);
       this.Controls.Add(this.btnSetPrimary);
       this.Controls.Add(btnAddPhotoId);
       this.Controls.Add(btnAddUserId);
-      this.Controls.Add(this.userIds);
       this.Controls.Add(this.lblDescription);
       this.Font = new System.Drawing.Font("Verdana", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
       this.MaximizeBox = false;

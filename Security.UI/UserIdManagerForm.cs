@@ -96,10 +96,17 @@ public partial class UserIdManagerForm : Form
       bool onlyOne = userIds.SelectedItems.Count == 1;
       MessageBox.Show("You must leave at least one non-photo ID. If you don't want " +
                       (onlyOne ? "this ID" : "these IDs") + ", you must create your new ID before you "+op+" them.",
-                      "Can't "+op+" all user IDs", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                      "Can't " + op + " all user IDs", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
 
     return hasUnselectedUserId;
+  }
+
+  UserAttribute[] GetSelectedAttributes()
+  {
+    UserAttribute[] attributes = new UserAttribute[userIds.SelectedItems.Count];
+    for(int i=0; i<attributes.Length; i++) attributes[i] = (UserAttribute)userIds.SelectedItems[i].Tag;
+    return attributes;
   }
 
   void ReloadKey()
@@ -133,6 +140,13 @@ public partial class UserIdManagerForm : Form
     else if(attr.Primary) item.Font = new Font(Font, FontStyle.Bold);
   }
 
+  void btnAddPhotoId_Click(object sender, EventArgs e)
+  {
+    NewPhotoIdForm form = new NewPhotoIdForm();
+    form.ShowDialog();
+    throw new NotImplementedException();
+  }
+
   void btnAddUserId_Click(object sender, EventArgs e)
   {
     UserIdForm form = new UserIdForm();
@@ -151,21 +165,19 @@ public partial class UserIdManagerForm : Form
       if(!EnsureNotAllUserIdsSelected("delete")) return;
 
       bool onlyOne = userIds.SelectedItems.Count == 1;
-      string deleting = onlyOne ? userIds.SelectedItems[0].Text : "multiple user IDs";
+      string deleting = onlyOne ? "\""+userIds.SelectedItems[0].Text+"\"" : "multiple user IDs";
       string userId = (onlyOne ? "this user ID" : "these user IDs");
       string s = (onlyOne ? null : "s"), them = (onlyOne ? "it" : "them"), they = (onlyOne ? "it" : "they");
       if(MessageBox.Show("You are about to delete " + deleting + "! Note that you cannot retract a user ID once it "+
-                         "have been distributed, so if this key (with " + userId + ") has ever been given to another "+
+                         "has been distributed, so if this key (with " + userId + ") has ever been given to another "+
                          "person or uploaded to a public key server, you should revoke the user ID" + s + " instead "+
-                         "of deleting " + them + ", because " + they + " will only be deleted from your machine, and "+
-                         they + " may reappear in the future.\n\nAre you sure you want to delete " + userId + "?",
+                         "of deleting " + them + ", because " + they + " would only be deleted from your machine, "+
+                         "and could reappear in the future.\n\nAre you sure you want to delete " + userId + "?",
                          "Delete user IDs?",
                          MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2)
           == DialogResult.Yes)
       {
-        UserAttribute[] attributes = new UserAttribute[userIds.SelectedItems.Count];
-        for(int i=0; i<attributes.Length; i++) attributes[i] = (UserAttribute)userIds.SelectedItems[i].Tag;
-        pgp.DeleteAttributes(attributes);
+        pgp.DeleteAttributes(GetSelectedAttributes());
         ReloadKey();
       }
     }
@@ -177,7 +189,13 @@ public partial class UserIdManagerForm : Form
     {
       if(!EnsureNotAllUserIdsSelected("revoke")) return;
 
-      throw new NotImplementedException();
+      UserRevocationForm form = new UserRevocationForm();
+      foreach(ListViewItem item in userIds.SelectedItems) form.UserIdList.Add(item.Text);
+      if(form.ShowDialog() == DialogResult.OK)
+      {
+        pgp.RevokeAttributes(form.Reason, GetSelectedAttributes());
+        ReloadKey();
+      }
     }
   }
 
