@@ -77,13 +77,14 @@ namespace AdamMil.Security.UI
       this.Controls.Add(this.picture);
       this.Controls.Add(this.lblId);
       this.Font = new System.Drawing.Font("Verdana", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+      this.KeyPreview = true;
       this.MaximizeBox = false;
       this.MinimizeBox = false;
       this.MinimumSize = new System.Drawing.Size(300, 160);
       this.Name = "PhotoIdForm";
       this.ShowIcon = false;
       this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-      this.Text = "OpenPGP Photo Id";
+      this.Text = "Photo Id";
       ((System.ComponentModel.ISupportInitialize)(this.picture)).EndInit();
       this.ResumeLayout(false);
 

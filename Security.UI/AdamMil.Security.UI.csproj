@@ -19,6 +19,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <DocumentationFile>bin\Debug\AdamMil.Security.UI.xml</DocumentationFile>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -28,6 +29,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <DocumentationFile>bin\Release\AdamMil.Security.UI.xml</DocumentationFile>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -36,6 +38,13 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="documentation.xml" />
+    <Content Include="icons\corner.gif" />
+    <Content Include="icons\indent.gif" />
+    <Content Include="icons\minus.gif" />
+    <Content Include="icons\photoId.gif" />
+    <Content Include="icons\plus.gif" />
+    <Content Include="icons\unknown.gif" />
+    <Content Include="icons\userId.gif" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Collections\AdamMil.Collections.csproj">
@@ -76,6 +85,12 @@
     <Compile Include="OwnerTrustForm.Designer.cs">
       <DependentUpon>OwnerTrustForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="PasswordForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="PasswordForm.Designer.cs">
+      <DependentUpon>PasswordForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="PhotoIdForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -106,6 +121,24 @@
     <Compile Include="SimpleKeyList.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="UserIdForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserIdForm.Designer.cs">
+      <DependentUpon>UserIdForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserIdManagerForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserIdManagerForm.Designer.cs">
+      <DependentUpon>UserIdManagerForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserRevocationForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserRevocationForm.Designer.cs">
+      <DependentUpon>UserRevocationForm.cs</DependentUpon>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="KeyPropertiesForm.resx">
@@ -128,6 +161,10 @@
       <SubType>Designer</SubType>
       <DependentUpon>OwnerTrustForm.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="PasswordForm.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>PasswordForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="PhotoIdForm.resx">
       <SubType>Designer</SubType>
       <DependentUpon>PhotoIdForm.cs</DependentUpon>
@@ -143,6 +180,18 @@
     <EmbeddedResource Include="SignaturesForm.resx">
       <SubType>Designer</SubType>
       <DependentUpon>SignaturesForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserIdForm.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>UserIdForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserIdManagerForm.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>UserIdManagerForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserRevocationForm.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>UserRevocationForm.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />

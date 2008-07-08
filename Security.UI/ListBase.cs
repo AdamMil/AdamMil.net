@@ -156,6 +156,17 @@ public abstract class KeyListBase : PGPListBase
            ItemStatus.Normal;
   }
 
+  protected override void OnKeyDown(KeyEventArgs e)
+  {
+    base.OnKeyDown(e);
+
+    if(!e.Handled && e.Modifiers == Keys.Control && e.KeyCode == Keys.A&& MultiSelect) // ctrl-a selects all items
+    {
+      foreach(ListViewItem item in Items) item.Selected = true;
+      e.Handled = true;
+    }
+  }
+
   protected void SetFont(ListViewItem item, ItemStatus type)
   {
     Font font = fonts[(int)type];

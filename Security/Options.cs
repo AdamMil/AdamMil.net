@@ -821,6 +821,15 @@ public class SigningOptions
 /// <summary>Stores the preferences of a user, as associated with a user ID or attribute.</summary>
 public class UserPreferences
 {
+  /// <summary>Initializes a new <see cref="UserPreferences"/> object with the default preferences.</summary>
+  public UserPreferences() { }
+
+  /// <summary>Initializes a new <see cref="UserPreferences"/> object with the given value for <see cref="Primary"/>.</summary>
+  public UserPreferences(bool primary)
+  {
+    Primary = primary;
+  }
+
   /// <summary>Gets or sets the user's preferred key server, or null if no key server is preferred.</summary>
   public Uri Keyserver
   {

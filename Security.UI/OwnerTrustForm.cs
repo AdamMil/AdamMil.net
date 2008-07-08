@@ -48,15 +48,29 @@ public partial class OwnerTrustForm : Form
     }
     set
     {
+      RadioButton button;
       switch(value)
       {
-        case TrustLevel.Never: rbDontTrust.Checked = true; break;
-        case TrustLevel.Marginal: rbCasual.Checked = true; break;
-        case TrustLevel.Full: rbFull.Checked = true; break;
-        case TrustLevel.Ultimate: rbUltimate.Checked = true; break;
-        default: rbDontKnow.Checked = true; break;
+        case TrustLevel.Never: button = rbDontTrust; break;
+        case TrustLevel.Marginal: button = rbCasual; break;
+        case TrustLevel.Full: button = rbFull; break;
+        case TrustLevel.Ultimate: button = rbUltimate; break;
+        default: button = rbDontKnow; break;
       }
+      button.Checked = true;
+      button.Focus();
     }
+  }
+
+  public ListBox.ObjectCollection KeyList
+  {
+    get { return trustedKeys.Items; }
+  }
+
+  protected override void OnShown(EventArgs e)
+  {
+    base.OnShown(e);
+    TrustLevel = TrustLevel; // invoke the setter to focus the radio button
   }
 }
 

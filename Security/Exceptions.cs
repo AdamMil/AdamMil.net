@@ -240,4 +240,16 @@ public class SigningFailedException : PGPException
 }
 #endregion
 
+#region UnhandledPasswordException
+/// <summary>An exception thrown when a password is needed, but the no password handler is set.</summary>
+public class UnhandledPasswordException : PGPException
+{
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/*"/>
+  public UnhandledPasswordException() : base("A password was required, but no password handler was set.") { }
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/*"/>
+  public UnhandledPasswordException(string message) : base(message) { }
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/*"/>
+  public UnhandledPasswordException(string message, Exception innerException) : base(message, innerException) { }
+}
+#endregion
 } // namespace AdamMil.Security.PGP

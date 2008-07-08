@@ -17,22 +17,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using System.Security;
 using System.Windows.Forms;
-using AdamMil.Security.PGP;
 
 namespace AdamMil.Security.UI
 {
 
-public partial class SignaturesForm : Form
+// TODO: create a SecureTextBox and use it
+
+public partial class PasswordForm : Form
 {
-  public SignaturesForm()
+  public PasswordForm()
   {
     InitializeComponent();
-  }
-
-  public SignaturesForm(PrimaryKey publicKey) : this()
-  {
-    sigList.ShowSignatures(publicKey);
   }
 
   public string DescriptionText
@@ -41,19 +38,29 @@ public partial class SignaturesForm : Form
     set { lblDescription.Text = value; }
   }
 
-  public SignatureList SignatureList
+  public bool EnableRememberPassword
   {
-    get { return sigList; }
+    get { return chkRemember.Enabled; }
+    set { chkRemember.Enabled = value; }
   }
 
-  protected override void OnKeyDown(KeyEventArgs e)
+  public bool RememberPassword
   {
-    base.OnKeyDown(e);
+    get { return chkRemember.Enabled && chkRemember.Checked; }
+  }
 
-    if(!e.Handled && e.KeyCode == Keys.Escape)
+  public string RememberText
+  {
+    get { return chkRemember.Text; }
+    set { chkRemember.Text = value; }
+  }
+
+  public unsafe SecureString GetPassword()
+  {
+    // TODO: obviously, this isn't secure at all. that'll be fixed later.
+    fixed(char* chars = txtPassword.Text.ToCharArray())
     {
-      Close();
-      e.Handled = true;
+      return new SecureString(chars, txtPassword.Text.Length);
     }
   }
 }

@@ -487,6 +487,11 @@ public class KeyManagementList : KeyListBase
         }
         e.Handled = true;
       }
+      else if(e.KeyCode == Keys.Enter) // enter shows key properties
+      {
+        ShowKeyProperties(GetPrimaryItem(item));
+        e.Handled = true;
+      }
     }
   }
 
@@ -558,6 +563,11 @@ public class KeyManagementList : KeyListBase
     foreach(PrimaryKeyItem item in primaryKeyItems) AddKeyPair(item.KeyPair, item.Expanded);
   }
 
+  protected void ReloadItem(PrimaryKeyItem item)
+  {
+    ReloadItems(new PrimaryKeyItem[] { item });
+  }
+
   protected void ReloadItems(PrimaryKeyItem[] items)
   {
     AssertPGPSystem();
@@ -619,6 +629,20 @@ public class KeyManagementList : KeyListBase
   }
 
   #region Commands
+  protected void ChangePassphrase()
+  {
+    AssertPGPSystem();
+    PrimaryKey[] keys = GetSelectedPublicKeys();
+    if(keys.Length == 0) return;
+
+    PasswordForm form = new PasswordForm();
+    form.DescriptionText = "Enter the new password for the key " + PGPUI.GetKeyName(keys[0]);
+    if(form.ShowDialog() == DialogResult.OK)
+    {
+      PGPSystem.ChangePassword(keys[0], form.GetPassword());
+    }
+  }
+
   protected void CopyPublicKeysToClipboard()
   {
     AssertPGPSystem();
@@ -764,6 +788,18 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  protected void ManageUserIds()
+  {
+    AssertPGPSystem();
+
+    PrimaryKeyItem[] items = GetSelectedPrimaryKeyItems();
+    if(items.Length == 0) return;
+
+    UserIdManagerForm form = new UserIdManagerForm(PGPSystem, items[0].PublicKey);
+    form.ShowDialog();
+    ReloadItem(items[0]);
+  }
+
   protected void MinimizeKeys()
   {
     AssertPGPSystem();
@@ -829,6 +865,33 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  protected void SetOwnerTrust()
+  {
+    AssertPGPSystem();
+
+    PrimaryKeyItem[] items = GetSelectedPrimaryKeyItems();
+    if(items.Length == 0) return;
+
+    PrimaryKey[] keys = GetPublicKeys(items);
+
+    OwnerTrustForm form = new OwnerTrustForm();
+
+    // set the initial trust level to what all the keys agree on, or Unknown if they don't agree, and add the keys
+    TrustLevel initialTrustLevel = keys[0].OwnerTrust;
+    foreach(PrimaryKey key in keys)
+    {
+      if(key.OwnerTrust != initialTrustLevel) initialTrustLevel = TrustLevel.Unknown;
+      form.KeyList.Add(PGPUI.GetKeyName(key));
+    }
+
+    form.TrustLevel = initialTrustLevel;
+    if(form.ShowDialog() == DialogResult.OK)
+    {
+      PGPSystem.SetOwnerTrust(form.TrustLevel, keys);
+      ReloadItems(items);
+    }
+  }
+
   protected void ShowKeyProperties()
   {
     PrimaryKeyItem[] items = GetSelectedPrimaryKeyItems();
@@ -887,17 +950,7 @@ public class KeyManagementList : KeyListBase
     throw new NotImplementedException();
   }
 
-  private void ManageUserIds()
-  {
-    throw new NotImplementedException();
-  }
-
   private void GenerateRevocationCertificate()
-  {
-    throw new NotImplementedException();
-  }
-
-  private void ChangePassphrase()
   {
     throw new NotImplementedException();
   }
@@ -905,35 +958,6 @@ public class KeyManagementList : KeyListBase
   private void RevokeKeys()
   {
     throw new NotImplementedException();
-  }
-
-  void SetOwnerTrust()
-  {
-    AssertPGPSystem();
-
-    PrimaryKeyItem[] items = GetSelectedPrimaryKeyItems();
-    if(items.Length == 0) return;
-
-    PrimaryKey[] keys = GetPublicKeys(items);
-
-    // set the initial trust level to what all the keys agree on, or Unknown if they don't agree
-    TrustLevel initialTrustLevel = keys[0].OwnerTrust;
-    foreach(PrimaryKey key in keys)
-    {
-      if(key.OwnerTrust != initialTrustLevel)
-      {
-        initialTrustLevel = TrustLevel.Unknown;
-        break;
-      }
-    }
-
-    OwnerTrustForm form = new OwnerTrustForm();
-    form.TrustLevel = initialTrustLevel;
-    if(form.ShowDialog() == DialogResult.OK)
-    {
-      PGPSystem.SetOwnerTrust(form.TrustLevel, keys);
-      ReloadItems(items);
-    }
   }
 
   private void SignKey()

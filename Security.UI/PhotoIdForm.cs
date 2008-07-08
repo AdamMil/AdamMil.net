@@ -40,12 +40,24 @@ public partial class PhotoIdForm : Form
   {
     if(photoId == null) throw new ArgumentNullException();
 
-    lblId.Text = "Photo ID for " + photoId.PrimaryKey.PrimaryUserId.Name + "\nKey ID: " + photoId.PrimaryKey.KeyId;
+    Text = "Photo ID for " + photoId.PrimaryKey.PrimaryUserId.Name;
+    lblId.Text = Text + "\nKey ID: " + photoId.PrimaryKey.ShortKeyId;
 
     picture.Image = photoId.GetBitmap();
 
     // set the initial height of the form based on the picture
     Height = Math.Min(picture.Image.Height + 2, 384) + topSpace + bottomSpace;
+  }
+
+  protected override void OnKeyDown(KeyEventArgs e)
+  {
+    base.OnKeyDown(e);
+    
+    if(!e.Handled && e.KeyCode == Keys.Escape)
+    {
+      Close();
+      e.Handled = true;
+    }
   }
 
   protected override void OnSizeChanged(EventArgs e)

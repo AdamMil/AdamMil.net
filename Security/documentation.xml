@@ -324,12 +324,12 @@
       <param name="cardType">A string containing the type of the card.</param>
       <param name="serialNumber">A string containing the serial number of the card, if it's known.</param>
     </GetCardPin>
-    
-    <GetPlainPassword>
+
+    <GetDecryptionPassword>
       <summary>Gets the password for a document encrypted with a password, or when requesting a new password for a key
         that doesn't have one yet.
       </summary>
-    </GetPlainPassword>
+    </GetDecryptionPassword>
     
     <GetKeyPassword>
       <summary>Gets the password for the secret key named in the given password hint.</summary>

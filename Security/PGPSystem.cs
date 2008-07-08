@@ -773,8 +773,8 @@ public abstract class PGPSystem
   /// <summary>An event that is raised when a secret key password needs to be obtained from the user.</summary>
   public event CardPinHandler CardPinNeeded;
 
-  /// <summary>An event that is raised when a plain password needs to be obtained from the user.</summary>
-  public event CipherPasswordHandler PlainPasswordNeeded;
+  /// <summary>An event that is raised when a decryption password needs to be obtained from the user.</summary>
+  public event CipherPasswordHandler DecryptionPasswordNeeded;
 
   /// <summary>An event that is raised when a secret key password needs to be obtained from the user.</summary>
   public event KeyPasswordHandler KeyPasswordNeeded;
@@ -1383,19 +1383,22 @@ public abstract class PGPSystem
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetCardPin/*"/>
   protected virtual SecureString GetCardPin(string cardType, string chvNumber, string serialNumber)
   {
-    return CardPinNeeded != null ? CardPinNeeded(cardType, chvNumber, serialNumber) : null;
+    if(CardPinNeeded != null) return CardPinNeeded(cardType, chvNumber, serialNumber);
+    else throw new UnhandledPasswordException("A smart card PIN was required, but no PIN handler was set.");
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetPlainPassword/*"/>
-  protected virtual SecureString GetPlainPassword()
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetDecryptionPassword/*"/>
+  protected virtual SecureString GetDecryptionPassword()
   {
-    return PlainPasswordNeeded != null ? PlainPasswordNeeded() : null;
+    if(DecryptionPasswordNeeded != null) return DecryptionPasswordNeeded();
+    else throw new UnhandledPasswordException();
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetKeyPassword/*"/>
   protected virtual SecureString GetKeyPassword(string keyId, string userIdHint)
   {
-    return KeyPasswordNeeded != null ? KeyPasswordNeeded(keyId, userIdHint) : null;
+    if(KeyPasswordNeeded != null) return KeyPasswordNeeded(keyId, userIdHint);
+    else throw new UnhandledPasswordException();
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/OnPasswordInvalid/*"/>
