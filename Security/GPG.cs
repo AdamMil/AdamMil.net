@@ -492,15 +492,42 @@ public class ExeGPG : GPG
       List<UserId> userIds = new List<UserId>();
 
       // GPG sends incorrect line endings on Windows (actually, it sends CR CR LF as a line ending) which is
-      // causing the StreamReader to return many blank lines. so we need to handle those blank lines...
+      // causing the StreamReader to return many blank lines. so we'll instruct the reader to ignore blank lines...
+      MixedStreamReader reader = new MixedStreamReader(cmd.Process.StandardOutput, true);
+
       while(true)
       {
-        string line = cmd.Process.StandardOutput.ReadLine();
-        if(!string.IsNullOrEmpty(line)) LogLine(line);
+        string line = reader.ReadLine();
+        if(line != null) LogLine(line);
+
         gotLine:
         if(line == null) break;
 
-        if(line.StartsWith("pub:", StringComparison.Ordinal)) // a key description follows
+        if(reader.IsStatusMessage) // a status message was received
+        {
+          StatusMessage msg = cmd.ParseStatusMessage(line);
+          if(msg != null)
+          {
+            switch(msg.Type)
+            {
+              case StatusMessageType.GetLine:
+                GetInputMessage m = (GetInputMessage)msg;
+                if(string.Equals(m.PromptId, "keysearch.prompt", StringComparison.Ordinal))
+                {
+                  // we're done with this chunk of the search, so we'll give the keys to the search handler.
+                  // we won't continue if we didn't find anything, even if the handler returns true
+                  bool shouldContinue = keysFound.Count != 0 && handler(keysFound.ToArray());
+                  cmd.SendLine(shouldContinue ? "N" : "Q");
+                  keysFound.Clear();
+                  break;
+                }
+                else goto default;
+
+              default: DefaultStatusMessageHandler(msg, state); break;
+            }
+          }
+        }
+        else if(line.StartsWith("pub:", StringComparison.Ordinal)) // a key description follows
         {
           string[] fields = line.Split(':');
 
@@ -512,11 +539,10 @@ public class ExeGPG : GPG
           {
             do
             {
-              line = cmd.Process.StandardOutput.ReadLine();
+              line = reader.ReadLine();
               if(!string.IsNullOrEmpty(line)) LogLine(line);
             }
-            while(line != null && line.Length == 0 ||
-                  (line[0] != '[' && line.StartsWith("pub:", StringComparison.Ordinal)));
+            while(line != null || (line[0] != '[' && line.StartsWith("pub:", StringComparison.Ordinal)));
             goto gotLine;
           }
 
@@ -541,9 +567,8 @@ public class ExeGPG : GPG
           // now parse the user IDs
           while(true)
           {
-            line = cmd.Process.StandardOutput.ReadLine();
+            line = reader.ReadLine();
             if(line == null) break;
-            else if(line.Length == 0) continue;
             else
             {
               LogLine(line);
@@ -577,30 +602,6 @@ public class ExeGPG : GPG
           }
 
           goto gotLine;
-        }
-        else if(line.StartsWith(StatusMessageToken, StringComparison.Ordinal))
-        {
-          StatusMessage msg = cmd.ParseStatusMessage(line);
-          if(msg != null)
-          {
-            switch(msg.Type)
-            {
-              case StatusMessageType.GetLine:
-                GetInputMessage m = (GetInputMessage)msg;
-                if(string.Equals(m.PromptId, "keysearch.prompt", StringComparison.Ordinal))
-                {
-                  // we're done with this chunk of the search, so we'll give the keys to the search handler.
-                  // we won't continue if we didn't find anything, even if the handler returns true
-                  bool shouldContinue = keysFound.Count != 0 && handler(keysFound.ToArray());
-                  cmd.SendLine(shouldContinue ? "N" : "Q");
-                  keysFound.Clear();
-                  break;
-                }
-                else goto default;
-
-              default: DefaultStatusMessageHandler(msg, state); break;
-            }
-          }
         }
       }
 
@@ -1232,6 +1233,17 @@ public class ExeGPG : GPG
     this.exePath = info.FullName; // everything seems okay, so set the full exePath
   }
 
+  const string StatusMessageToken = "[GNUPG:]";
+
+  /// <summary>Processes status messages from GPG.</summary>
+  delegate void StatusMessageHandler(StatusMessage message);
+
+  /// <summary>Creates an edit command on demand.</summary>
+  delegate EditCommand EditCommandCreator();
+
+  /// <summary>Creates an edit command on demand to operate on the given key signatures.</summary>
+  delegate EditCommand KeySignatureEditCommandCreator(KeySignature[] sigs);
+
   #region StreamHandling
   /// <summary>Determines how a process' stream will be handled.</summary>
   enum StreamHandling
@@ -1256,17 +1268,6 @@ public class ExeGPG : GPG
     Mixed
   }
   #endregion
-
-  /// <summary>Processes status messages from GPG.</summary>
-  delegate void StatusMessageHandler(StatusMessage message);
-
-  /// <summary>Creates an edit command on demand.</summary>
-  delegate EditCommand EditCommandCreator();
-
-  /// <summary>Creates an edit command on demand to operate on the given key signatures.</summary>
-  delegate EditCommand KeySignatureEditCommandCreator(KeySignature[] sigs);
-
-  const string StatusMessageToken = "[GNUPG:]";
 
   #region CommandState
   /// <summary>Holds variables set by the default STDERR and status message handlers.</summary>
@@ -1913,6 +1914,79 @@ public class ExeGPG : GPG
     }
 
     public readonly AttributeMessage Message;
+  }
+  #endregion
+
+  #region MixedStreamReader
+  /// <summary>This class reads a stream that has both text lines and status messages mixed together. It is needed
+  /// because sometimes GPG writes a status message in the middle of a text line, and we need to undo that.
+  /// </summary>
+  sealed class MixedStreamReader
+  {
+    public MixedStreamReader(StreamReader reader) : this(reader, false) { }
+
+    public MixedStreamReader(StreamReader reader, bool ignoreBlankLines)
+    {
+      if(reader == null) throw new ArgumentNullException();
+      this.reader = reader;
+      this.ignoreBlankLines = ignoreBlankLines;
+    }
+
+    /// <summary>Gets whether the last line read was a status message.</summary>
+    public bool IsStatusMessage
+    {
+      get { return isStatusMessage; }
+    }
+
+    /// <summary>Returns the next line from the stream. Lines with embedded status messages will be returned after the
+    /// status messages have been.
+    /// </summary>
+    public string ReadLine()
+    {
+      string line;
+      do
+      {
+        line = reader.ReadLine();
+
+        isStatusMessage = false;
+        if(line == null) // if we're at EOF...
+        {
+          if(partialLine != null) // but we have a partial line cached (this shouldn't really happen unless GPG aborts),
+          {                       // then return the partial line first
+            line = partialLine;
+            partialLine = null;
+          }
+        }
+        else // we're not an EOF
+        {
+          int statusStartIndex = line.IndexOf(StatusMessageToken, StringComparison.Ordinal); // look for a status message
+          if(statusStartIndex == -1) // there's no status message
+          {
+            if(partialLine != null) // if we have a partial line, prepend it to the current line
+            {
+              line = partialLine + line;
+              partialLine = null;
+            }
+          }
+          else // there's a status message somewhere
+          {
+            if(statusStartIndex != 0) // it's embedded in the line
+            {
+              partialLine += line.Substring(0, statusStartIndex); // add the non-status portion to the partial line
+              line = line.Substring(statusStartIndex); // and return the status message
+            }
+            isStatusMessage = true;
+          }
+        }
+      } while(ignoreBlankLines && line != null && line.Length == 0);
+
+      return line;
+    }
+
+    readonly StreamReader reader;
+    readonly bool ignoreBlankLines;
+    string partialLine;
+    bool isStatusMessage;
   }
   #endregion
 
@@ -3540,20 +3614,58 @@ public class ExeGPG : GPG
 
       cmd.Start();
 
+      MixedStreamReader reader = new MixedStreamReader(cmd.Process.StandardOutput);
       bool gotFreshList = false;
 
       // the ExecuteForEdit() command coallesced the status lines into STDOUT, so we need to parse out the status
       // messages ourselves
       while(true)
       {
-        string line = cmd.Process.StandardOutput.ReadLine();
+        string line = reader.ReadLine();
         LogLine(line);
         gotLine:
         if(line == null) break;
 
-        // GPG outputs a key listing when edit mode is first started, and after commands that might change the key
-        if(line.StartsWith("pub:", StringComparison.Ordinal)) // a key listing is beginning
+        if(reader.IsStatusMessage) // a status message was received
         {
+          // acknowledgements of input are common. we don't need to bother parsing them
+          if(line.Equals("[GNUPG:] GOT_IT", StringComparison.Ordinal)) continue;
+
+          StatusMessage msg = cmd.ParseStatusMessage(line);
+          if(msg != null)
+          {
+            switch(msg.Type)
+            {
+              case StatusMessageType.GetLine: case StatusMessageType.GetHidden: case StatusMessageType.GetBool:
+              {
+                string promptId = ((GetInputMessage)msg).PromptId;
+                while(true) // input is needed, so process it
+                {
+                  // if the queue is empty, add a quit command
+                  if(commands.Count == 0) commands.Enqueue(new QuitCommand(true));
+
+                  if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal) &&
+                     !gotFreshList && commands.Peek().ExpectRelist)
+                  {
+                    cmd.SendLine("list");
+                    break;
+                  }
+
+                  EditCommandResult result = commands.Peek().Process(commands, originalKey, editKey, state, promptId);
+                  gotFreshList = false;
+                  if(result == EditCommandResult.Next || result == EditCommandResult.Done) commands.Dequeue();
+                  if(result == EditCommandResult.Continue || result == EditCommandResult.Done) break;
+                }
+                break;
+              }
+
+              default: DefaultStatusMessageHandler(msg, state); break;
+            }
+          }
+        }
+        else if(line.StartsWith("pub:", StringComparison.Ordinal)) // a key listing is beginning
+        {
+          // GPG outputs a key listing when edit mode is first started, and after commands that might change the key
           editKey = new EditKey();
           bool gotSubkey = false;
 
@@ -3591,7 +3703,7 @@ public class ExeGPG : GPG
               }
             }
 
-            line = cmd.Process.StandardOutput.ReadLine();
+            line = reader.ReadLine();
             LogLine(line);
           } while(!string.IsNullOrEmpty(line) && line[0] != '['); // break out if the line is empty or a status line
 
@@ -3601,43 +3713,6 @@ public class ExeGPG : GPG
 
           // at this point, we've got a valid line, so jump to the part where we inspect it
           goto gotLine;
-        }
-        else if(line.StartsWith(StatusMessageToken, StringComparison.Ordinal)) // a status message was received
-        {
-          // acknowledgements of input are common. we don't need to bother parsing them
-          if(line.Equals("[GNUPG:] GOT_IT", StringComparison.Ordinal)) continue;
-
-          StatusMessage msg = cmd.ParseStatusMessage(line);
-          if(msg != null)
-          {
-            switch(msg.Type)
-            {
-              case StatusMessageType.GetLine: case StatusMessageType.GetHidden: case StatusMessageType.GetBool:
-              {
-                string promptId = ((GetInputMessage)msg).PromptId;
-                while(true) // input is needed, so process it
-                {
-                  // if the queue is empty, add a quit command
-                  if(commands.Count == 0) commands.Enqueue(new QuitCommand(true));
-
-                  if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal) &&
-                     !gotFreshList && commands.Peek().ExpectRelist)
-                  {
-                    cmd.SendLine("list");
-                    break;
-                  }
-
-                  EditCommandResult result = commands.Peek().Process(commands, originalKey, editKey, state, promptId);
-                  gotFreshList = false;
-                  if(result == EditCommandResult.Next || result == EditCommandResult.Done) commands.Dequeue();
-                  if(result == EditCommandResult.Continue || result == EditCommandResult.Done) break;
-                }
-                break;
-              }
-
-              default: DefaultStatusMessageHandler(msg, state); break;
-            }
-          }
         }
         else // a line other than a key listing or a status line was received
         {
@@ -3955,6 +4030,7 @@ public class ExeGPG : GPG
     
     // if attributes are being retrieved, create a new pipe and some syncronization primitives to help with the task
     InheritablePipe attrPipe;
+    MixedStreamReader reader = null;
     FileStream attrStream, attrTempStream;
     string attrTempFile;
     IAsyncResult attrRead = null;
@@ -3993,6 +4069,9 @@ public class ExeGPG : GPG
 
       cmd.Start();
 
+      // if we're retrieving attributes, then there may be status messages mixed into STDOUT
+      if(retrieveAttributes) reader = new MixedStreamReader(cmd.Process.StandardOutput);
+
       List<Subkey> subkeys = new List<Subkey>(); // holds the subkeys in the current primary key
       List<KeySignature> sigs = new List<KeySignature>(); // holds the signatures on the last key or user id
       List<UserAttribute> attributes = new List<UserAttribute>(); // holds user attributes on the key
@@ -4004,7 +4083,7 @@ public class ExeGPG : GPG
 
       while(true)
       {
-        string line = cmd.Process.StandardOutput.ReadLine();
+        string line = retrieveAttributes ? reader.ReadLine() : cmd.Process.StandardOutput.ReadLine();
         if(line == null) break;
 
         // keep reading attribute data in the background
