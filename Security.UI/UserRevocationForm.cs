@@ -23,38 +23,17 @@ using AdamMil.Security.PGP;
 namespace AdamMil.Security.UI
 {
 
-public partial class SignaturesForm : Form
+public partial class UserRevocationForm : Form
 {
-  public SignaturesForm()
+  public UserRevocationForm()
   {
     InitializeComponent();
   }
 
-  public SignaturesForm(PrimaryKey publicKey) : this()
+  protected override void OnShown(EventArgs e)
   {
-    sigList.ShowSignatures(publicKey);
-  }
-
-  public string DescriptionText
-  {
-    get { return lblDescription.Text; }
-    set { lblDescription.Text = value; }
-  }
-
-  public SignatureList SignatureList
-  {
-    get { return sigList; }
-  }
-
-  protected override void OnKeyDown(KeyEventArgs e)
-  {
-    base.OnKeyDown(e);
-
-    if(!e.Handled && e.KeyCode == Keys.Escape)
-    {
-      Close();
-      e.Handled = true;
-    }
+    base.OnShown(e);
+    radNoReason.Focus();
   }
 }
 

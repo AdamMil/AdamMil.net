@@ -3179,7 +3179,7 @@ public class ExeGPG : GPG
         }
 
         if(preferences.PreferredCiphers.Count != 0 || preferences.PreferredCompressions.Count != 0 ||
-               preferences.PreferredHashes.Count != 0)
+           preferences.PreferredHashes.Count != 0)
         {
           commands.Enqueue(new SetAlgoPrefsCommand(preferences));
         }
@@ -3412,7 +3412,7 @@ public class ExeGPG : GPG
             }
             else // we either don't have a password in the options, or we already sent it (and it probably failed),
             {    // so ask the user
-              SecureString password = GetPlainPassword();
+              SecureString password = GetDecryptionPassword();
               if(password != null) cmd.SendPassword(password, true);
               else cmd.SendLine();
             }
@@ -4033,7 +4033,7 @@ public class ExeGPG : GPG
 
     // if we're searching, but GPG finds no keys, it will give an error. (it doesn't give an error if it found at least
     // one item searched for.) we'll keep track of this case and ignore the error if we happen to be searching.
-    bool searchFoundNothing = false, retrieveAttributes = (options & ListOptions.RetrieveAttributes) != 0;
+    bool retrieveAttributes = (options & ListOptions.RetrieveAttributes) != 0;
 
     // annoyingly, GPG doesn't flush the attribute stream after writing an attribute, so we can't reliably read
     // attribute data in response to an ATTRIBUTE status message, because it may block waiting for data that's stuck in
@@ -4069,15 +4069,10 @@ public class ExeGPG : GPG
     }
 
     Command cmd = Execute(args + searchArgs, false, true, StreamHandling.Unprocessed);
+    CommandState state = new CommandState(cmd);
     try
     {
-      cmd.StandardErrorLine += delegate(string line)
-      {
-        if(line.IndexOf(" public key not found", StringComparison.Ordinal) != -1)
-        {
-          if(searchArgs != null) searchFoundNothing = true; // if we're searching, this error can be ignored.
-        }
-      };
+      cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
 
       cmd.Start();
 
@@ -4295,9 +4290,17 @@ public class ExeGPG : GPG
       }
     }
 
-    // normally we'd call CheckExitCode to throw an exception if GPG failed, but if we were searching and the search
-    // came up empty, don't do that because it'll throw an unwanted exception.
-    if(!searchFoundNothing) cmd.CheckExitCode();
+    if(!cmd.SuccessfulExit)
+    {
+      // if we're searching, we don't want to throw an exception just because GPG didn't find what we were searching
+      // for. so only throw if we're not searching or there's a failure reason besides a missing key
+      if(string.IsNullOrEmpty(searchArgs) ||
+         (state.FailureReasons & ~(FailureReason.KeyNotFound | FailureReason.MissingSecretKey |
+                                   FailureReason.MissingPublicKey)) != 0)
+      {
+        throw new PGPException("Retrieving keys failed.", state.FailureReasons);
+      }
+    }
   }
 
   /// <summary>Creates and returns a new <see cref="ProcessStartInfo"/> for the given GPG executable and arguments.</summary>

@@ -56,7 +56,11 @@ public partial class KeyPropertiesForm : Form
   {
     base.OnKeyDown(e);
 
-    if(!e.Handled && e.KeyCode == Keys.Escape) Close();
+    if(!e.Handled && e.KeyCode == Keys.Escape)
+    {
+      Close();
+      e.Handled = true;
+    }
   }
 }
 

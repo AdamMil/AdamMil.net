@@ -81,7 +81,7 @@ namespace AdamMil.Security.UI
       lblFingerprint.Location = new System.Drawing.Point(9, 138);
       lblFingerprint.Name = "lblFingerprint";
       lblFingerprint.Size = new System.Drawing.Size(104, 20);
-      lblFingerprint.TabIndex = 1;
+      lblFingerprint.TabIndex = 10;
       lblFingerprint.Text = "Fingerprint";
       lblFingerprint.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
       // 
@@ -90,7 +90,7 @@ namespace AdamMil.Security.UI
       lblTrust.Location = new System.Drawing.Point(9, 112);
       lblTrust.Name = "lblTrust";
       lblTrust.Size = new System.Drawing.Size(104, 20);
-      lblTrust.TabIndex = 2;
+      lblTrust.TabIndex = 8;
       lblTrust.Text = "Owner Trust";
       lblTrust.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
       // 
@@ -99,7 +99,7 @@ namespace AdamMil.Security.UI
       lblValidity.Location = new System.Drawing.Point(9, 86);
       lblValidity.Name = "lblValidity";
       lblValidity.Size = new System.Drawing.Size(104, 20);
-      lblValidity.TabIndex = 3;
+      lblValidity.TabIndex = 6;
       lblValidity.Text = "Key Validity";
       lblValidity.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
       // 
@@ -108,7 +108,7 @@ namespace AdamMil.Security.UI
       lblType.Location = new System.Drawing.Point(9, 60);
       lblType.Name = "lblType";
       lblType.Size = new System.Drawing.Size(104, 20);
-      lblType.TabIndex = 5;
+      lblType.TabIndex = 4;
       lblType.Text = "Type";
       lblType.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
       // 
@@ -117,7 +117,7 @@ namespace AdamMil.Security.UI
       lblKeyId.Location = new System.Drawing.Point(9, 34);
       lblKeyId.Name = "lblKeyId";
       lblKeyId.Size = new System.Drawing.Size(104, 20);
-      lblKeyId.TabIndex = 6;
+      lblKeyId.TabIndex = 2;
       lblKeyId.Text = "Key ID";
       lblKeyId.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
       // 
@@ -129,7 +129,7 @@ namespace AdamMil.Security.UI
       this.txtPrimaryId.Name = "txtPrimaryId";
       this.txtPrimaryId.ReadOnly = true;
       this.txtPrimaryId.Size = new System.Drawing.Size(396, 21);
-      this.txtPrimaryId.TabIndex = 7;
+      this.txtPrimaryId.TabIndex = 1;
       // 
       // txtKeyId
       // 
@@ -139,7 +139,7 @@ namespace AdamMil.Security.UI
       this.txtKeyId.Name = "txtKeyId";
       this.txtKeyId.ReadOnly = true;
       this.txtKeyId.Size = new System.Drawing.Size(396, 21);
-      this.txtKeyId.TabIndex = 8;
+      this.txtKeyId.TabIndex = 3;
       // 
       // txtFingerprint
       // 
@@ -149,7 +149,7 @@ namespace AdamMil.Security.UI
       this.txtFingerprint.Name = "txtFingerprint";
       this.txtFingerprint.ReadOnly = true;
       this.txtFingerprint.Size = new System.Drawing.Size(396, 21);
-      this.txtFingerprint.TabIndex = 10;
+      this.txtFingerprint.TabIndex = 11;
       // 
       // txtOwnerTrust
       // 
@@ -159,7 +159,7 @@ namespace AdamMil.Security.UI
       this.txtOwnerTrust.Name = "txtOwnerTrust";
       this.txtOwnerTrust.ReadOnly = true;
       this.txtOwnerTrust.Size = new System.Drawing.Size(396, 21);
-      this.txtOwnerTrust.TabIndex = 11;
+      this.txtOwnerTrust.TabIndex = 9;
       // 
       // txtKeyValidity
       // 
@@ -169,7 +169,7 @@ namespace AdamMil.Security.UI
       this.txtKeyValidity.Name = "txtKeyValidity";
       this.txtKeyValidity.ReadOnly = true;
       this.txtKeyValidity.Size = new System.Drawing.Size(396, 21);
-      this.txtKeyValidity.TabIndex = 12;
+      this.txtKeyValidity.TabIndex = 7;
       // 
       // txtKeyType
       // 
@@ -179,7 +179,7 @@ namespace AdamMil.Security.UI
       this.txtKeyType.Name = "txtKeyType";
       this.txtKeyType.ReadOnly = true;
       this.txtKeyType.Size = new System.Drawing.Size(396, 21);
-      this.txtKeyType.TabIndex = 13;
+      this.txtKeyType.TabIndex = 5;
       // 
       // keyList
       // 
@@ -190,9 +190,10 @@ namespace AdamMil.Security.UI
       this.keyList.Font = new System.Drawing.Font("Arial", 8F);
       this.keyList.FullRowSelect = true;
       this.keyList.Location = new System.Drawing.Point(12, 165);
+      this.keyList.MultiSelect = false;
       this.keyList.Name = "keyList";
       this.keyList.Size = new System.Drawing.Size(501, 130);
-      this.keyList.TabIndex = 14;
+      this.keyList.TabIndex = 12;
       this.keyList.UseCompatibleStateImageBehavior = false;
       this.keyList.View = System.Windows.Forms.View.Details;
       // 
