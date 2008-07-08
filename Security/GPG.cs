@@ -1093,10 +1093,10 @@ public class ExeGPG : GPG
     RepeatedRawEditCommand(keys, "minimize");
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SetTrustLevel/*" />
-  public override void SetTrustLevel(PrimaryKey key, TrustLevel trust)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SetOwnerTrust/*" />
+  public override void SetOwnerTrust(TrustLevel trust, params PrimaryKey[] keys)
   {
-    DoEdit(key, new SetTrustCommand(trust));
+    EditKeys(keys, delegate { return new SetTrustCommand(trust); });
   }
   #endregion
 
@@ -3751,6 +3751,18 @@ public class ExeGPG : GPG
     }
   }
 
+  /// <summary>Performs an edit command on a list of primary keys.</summary>
+  void EditKeys(PrimaryKey[] keys, EditCommandCreator cmdCreator)
+  {
+    if(keys == null) throw new ArgumentNullException();
+
+    foreach(PrimaryKey key in keys)
+    {
+      if(key == null) throw new ArgumentNullException("A key was null.");
+      DoEdit(key, cmdCreator());
+    }
+  }
+
   /// <summary>Performs an edit command on groups of subkeys.</summary>
   void EditSubkeys(Subkey[] subkeys, EditCommandCreator cmdCreator)
   {
@@ -4402,13 +4414,7 @@ public class ExeGPG : GPG
   /// <summary>Edits each key given with a single edit command.</summary>
   void RepeatedRawEditCommand(PrimaryKey[] keys, string command)
   {
-    if(keys == null) throw new ArgumentNullException();
-
-    foreach(PrimaryKey key in keys)
-    {
-      if(key == null) throw new ArgumentNullException("A key was null.");
-      DoEdit(key, new RawCommand(command));
-    }
+    EditKeys(keys, delegate { return new RawCommand(command); });
   }
 
   /// <summary>Does the work of revoking keys, either directly or via a designated revoker.</summary>

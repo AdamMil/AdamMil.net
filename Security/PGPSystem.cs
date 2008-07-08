@@ -1336,8 +1336,8 @@ public abstract class PGPSystem
   /// <include file="documentation.xml" path="/Security/PGPSystem/MinimizeKeys/*" />
   public abstract void MinimizeKeys(params PrimaryKey[] keys);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SetTrustLevel/*" />
-  public abstract void SetTrustLevel(PrimaryKey key, TrustLevel trust);
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SetOwnerTrust/*" />
+  public abstract void SetOwnerTrust(TrustLevel trust, params PrimaryKey[] keys);
   #endregion
 
   #region User ID management
