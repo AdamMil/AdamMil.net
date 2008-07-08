@@ -111,7 +111,7 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
     keys = gpg.GetPublicKeys(keyring);
 
     // set the trust level of the encryption key to Ultimate
-    gpg.SetTrustLevel(keys[Encrypter], TrustLevel.Ultimate);
+    gpg.SetOwnerTrust(keys[Encrypter], TrustLevel.Ultimate);
   }
 
   [Test]
@@ -455,7 +455,7 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
 
     // set the trust level the reciever key to Marginal
     Assert.AreNotEqual(TrustLevel.Marginal, keys[Receiver].OwnerTrust);
-    gpg.SetTrustLevel(keys[Receiver], TrustLevel.Marginal);
+    gpg.SetOwnerTrust(keys[Receiver], TrustLevel.Marginal);
     keys[Receiver] = gpg.RefreshKey(keys[Receiver]);
     Assert.AreEqual(TrustLevel.Marginal, keys[Receiver].OwnerTrust);
 

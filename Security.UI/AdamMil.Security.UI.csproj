@@ -1,0 +1,156 @@
+﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>8.0.50727</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{46DC46B9-1E2E-48C3-9EEF-5E7A1D1F4055}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>AdamMil.Security.UI</RootNamespace>
+    <AssemblyName>AdamMil.Security.UI</AssemblyName>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\Debug\AdamMil.Security.UI.xml</DocumentationFile>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\Release\AdamMil.Security.UI.xml</DocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="documentation.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Collections\AdamMil.Collections.csproj">
+      <Project>{D9724C65-C54A-4671-BA0B-40B0B38464DD}</Project>
+      <Name>AdamMil.Collections</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Security\AdamMil.Security.csproj">
+      <Project>{79B1B71F-1D9D-426E-93D3-0C4C3381CDDA}</Project>
+      <Name>AdamMil.Security</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Helpers.cs" />
+    <Compile Include="KeyPropertiesForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="KeyPropertiesForm.Designer.cs">
+      <DependentUpon>KeyPropertiesForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="KeyServerForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="KeyServerForm.Designer.cs">
+      <DependentUpon>KeyServerForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="KeyServerSearchForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="KeyServerSearchForm.Designer.cs">
+      <DependentUpon>KeyServerSearchForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="ListBase.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="OwnerTrustForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="OwnerTrustForm.Designer.cs">
+      <DependentUpon>OwnerTrustForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="PhotoIdForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="PhotoIdForm.Designer.cs">
+      <DependentUpon>PhotoIdForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="KeyManagementList.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="ProgressForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ProgressForm.Designer.cs">
+      <DependentUpon>ProgressForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SearchResultsList.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="SignaturesForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SignaturesForm.Designer.cs">
+      <DependentUpon>SignaturesForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SignatureList.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="SimpleKeyList.cs">
+      <SubType>Component</SubType>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="KeyPropertiesForm.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>KeyPropertiesForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="KeyServerForm.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>KeyServerForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="KeyServerSearchForm.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>KeyServerSearchForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="ListBase.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>ListBase.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="OwnerTrustForm.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>OwnerTrustForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="PhotoIdForm.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>PhotoIdForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="KeyManagementList.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>KeyManagementList.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="ProgressForm.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>ProgressForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SignaturesForm.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>SignaturesForm.cs</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

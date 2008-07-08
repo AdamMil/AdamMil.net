@@ -483,6 +483,13 @@
       <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </RevokeSubkeys>
 
+    <SetOwnerTrust>
+      <summary>
+        Sets the owner trust level of the given keys, which indicates how much you trust the owner to rigorously
+        validate the identities of the keys they sign.
+      </summary>
+    </SetOwnerTrust>
+
     <SetPreferences>
       <summary>Sets the preferences of the given user attribute.</summary>
       <remarks>
@@ -492,13 +499,6 @@
       </remarks>
     </SetPreferences>
 
-    <SetTrustLevel>
-      <summary>
-        Sets the owner trust level of the given key, which indicates how much you trust the owner to rigorously
-        validate the identities of the keys they sign.
-      </summary>
-    </SetTrustLevel>
-    
     <Sign>
       <summary>Signs the given source data and writes the result to the given destination.</summary>
     </Sign>
