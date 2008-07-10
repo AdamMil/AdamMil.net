@@ -482,10 +482,11 @@ public class ExeGPG : GPG
     string args = "--keyserver " + EscapeArg(keyServer.AbsoluteUri) + " --with-colons --fixed-list-mode --search-keys";
     foreach(string keyword in searchKeywords) args += " " + EscapeArg(keyword);
 
-    Command cmd = ExecuteForInteraction(args, StreamHandling.DumpBinary);
+    Command cmd = ExecuteForInteraction(args, StreamHandling.ProcessText);
     CommandState state = new CommandState(cmd);
     using(cmd)
     {
+      cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
       cmd.Start();
 
       List<PrimaryKey> keysFound = new List<PrimaryKey>();
@@ -606,8 +607,9 @@ public class ExeGPG : GPG
       }
 
       cmd.WaitForExit();
-      cmd.CheckExitCode();
     }
+
+    if(!cmd.SuccessfulExit) throw new KeyServerFailedException("Key search failed.", state.FailureReasons);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeysFromServer/*"/>
@@ -671,22 +673,34 @@ public class ExeGPG : GPG
     EditSignatures(signatures, delegate(KeySignature[] sigs) { return new RevokeSigsCommand(reason, sigs); });
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SignKey/*" />
-  public override void SignKey(PrimaryKey keyToSign, PrimaryKey signingKey, KeySigningOptions options)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignAttributes/*"/>
+  public override void SignAttributes(UserAttribute[] attributes, PrimaryKey signingKey, KeySigningOptions options)
   {
-    if(keyToSign == null || signingKey == null) throw new ArgumentNullException();
-    DoEdit(keyToSign, GetKeyringArgs(new PrimaryKey[] { keyToSign, signingKey }, true) +
-           "-u " + signingKey.Fingerprint, false, new SignKeyCommand(options, true));
+    if(attributes == null || signingKey == null) throw new ArgumentNullException();
+
+    foreach(List<UserAttribute> attrList in GroupAttributesByKey(attributes))
+    {
+      EditCommand[] commands = new EditCommand[attrList.Count+1];
+      for(int i=0; i<attrList.Count; i++) commands[i] = new RawCommand("uid " + attrList[i].Id);
+      commands[attrList.Count] = new SignKeyCommand(options, false);
+
+      PrimaryKey keyToEdit = attrList[0].PrimaryKey;
+      DoEdit(keyToEdit, "--ask-cert-level " + GetKeyringArgs(new PrimaryKey[] { keyToEdit, signingKey }, true) +
+             "-u " + signingKey.Fingerprint, false, commands);
+    }
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SignUser/*"/>
-  public override void SignKey(UserAttribute userId, PrimaryKey signingKey, KeySigningOptions options)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignKeys/*" />
+  public override void SignKeys(PrimaryKey[] keysToSign, PrimaryKey signingKey, KeySigningOptions options)
   {
-    if(userId == null || signingKey == null) throw new ArgumentNullException();
-    if(userId.PrimaryKey == null) throw new ArgumentException("The user attribute must be associated with a key.");
+    if(keysToSign == null || signingKey == null) throw new ArgumentNullException();
 
-    DoEdit(userId.PrimaryKey, GetKeyringArgs(new PrimaryKey[] { userId.PrimaryKey, signingKey }, true) + "-u " +
-           signingKey.Fingerprint, false, new RawCommand("uid " + userId.Id), new SignKeyCommand(options, false));
+    foreach(PrimaryKey key in keysToSign)
+    {
+      if(key == null) throw new ArgumentException("A key was null.");
+      DoEdit(key, "--ask-cert-level " + GetKeyringArgs(new PrimaryKey[] { key, signingKey }, true) +
+             "-u " + signingKey.Fingerprint, false, new SignKeyCommand(options, true));
+    }
   }
   #endregion
 
@@ -1703,7 +1717,8 @@ public class ExeGPG : GPG
         case "KEY_NOT_CREATED": message = new GenericMessage(StatusMessageType.KeyNotCreated); break;
 
         // ignore these messages
-        case "PLAINTEXT": case "PLAINTEXT_LENGTH": case "SIG_ID": case "GOT_IT": case "PROGRESS": case "GOODMDC":
+        case "PROGRESS": case "PLAINTEXT": case "PLAINTEXT_LENGTH": case "SIG_ID": case "GOT_IT": case "GOODMDC":
+        case "KEYEXPIRED": case "SIGEXPIRED":
           message = null;
           break;
 
@@ -3309,6 +3324,18 @@ public class ExeGPG : GPG
         }
         else return EditCommandResult.Next;
       }
+      else if(string.Equals(promptId, "sign_uid.class", StringComparison.Ordinal))
+      {
+        if(options == null || options.CertificationLevel == CertificationLevel.Undisclosed)
+        {
+          state.Command.SendLine("0");
+        }
+        else if(options.CertificationLevel == CertificationLevel.None) state.Command.SendLine("1");
+        else if(options.CertificationLevel == CertificationLevel.Casual) state.Command.SendLine("2");
+        else if(options.CertificationLevel == CertificationLevel.Rigorous) state.Command.SendLine("3");
+        else throw new NotSupportedException("Certification level " + options.CertificationLevel.ToString() +
+                                             " is not supported.");
+      }
       else if(string.Equals(promptId, "sign_uid.okay", StringComparison.Ordinal))
       {
         state.Command.SendLine("Y"); // yes, it's okay to sign a UID
@@ -3736,7 +3763,7 @@ public class ExeGPG : GPG
     }
     finally { cmd.Dispose(); }
 
-    cmd.CheckExitCode();
+    if(!cmd.SuccessfulExit) throw new KeyEditFailedException("Key edit failed.", state.FailureReasons);
   }
 
   /// <summary>Performs an edit command on groups of user attributes.</summary>

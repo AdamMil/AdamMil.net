@@ -380,11 +380,12 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
     Assert.AreEqual(keys[Encrypter].PrimaryUserId.Name, keySig.SignerName);
 
     // test UID signing (sign Encrypter's new UID with Signer's key)
-    KeySigningOptions ksOptions = new KeySigningOptions(true, true);
+    KeySigningOptions ksOptions = new KeySigningOptions(CertificationLevel.Casual, true);
+    ksOptions.Irrevocable = true;
     ksOptions.TrustDepth  = 2;
     ksOptions.TrustDomain = "Mu.*";
     ksOptions.TrustLevel  = TrustLevel.Marginal;
-    gpg.SignKey(keys[Encrypter].UserIds[1], keys[Signer], ksOptions);
+    gpg.SignAttribute(keys[Encrypter].UserIds[1], keys[Signer], ksOptions);
     keys[Encrypter] = gpg.RefreshKey(keys[Encrypter], ListOptions.RetrieveSignatures);
     Assert.AreEqual(1, keys[Encrypter].UserIds[0].Signatures.Count);
     Assert.AreEqual(2, keys[Encrypter].UserIds[1].Signatures.Count);
@@ -392,7 +393,7 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
     Assert.IsTrue(keySig.Exportable);
     Assert.AreEqual(keys[Signer].KeyId, keySig.KeyId);
     Assert.AreEqual(keys[Signer].Fingerprint, keySig.KeyFingerprint);
-    Assert.AreEqual(OpenPGPSignatureType.GenericCertification, keySig.Type);
+    Assert.AreEqual(OpenPGPSignatureType.CasualCertification, keySig.Type);
     Assert.AreEqual(keys[Signer].PrimaryUserId.Name, keySig.SignerName);
 
     // test signature revocation

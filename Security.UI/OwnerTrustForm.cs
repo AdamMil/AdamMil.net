@@ -17,6 +17,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using System.ComponentModel;
 using System.Windows.Forms;
 using AdamMil.Security.PGP;
 
@@ -36,6 +37,7 @@ public partial class OwnerTrustForm : Form
     rbUltimate.Tag  = TrustLevel.Ultimate;
   }
 
+  [Browsable(false)]
   public TrustLevel TrustLevel
   {
     get
@@ -62,6 +64,7 @@ public partial class OwnerTrustForm : Form
     }
   }
 
+  [Browsable(false)]
   public ListBox.ObjectCollection KeyList
   {
     get { return trustedKeys.Items; }
