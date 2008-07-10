@@ -17,6 +17,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using System.Collections.Generic;
 using System.Windows.Forms;
 using AdamMil.Security.PGP;
 
@@ -47,6 +48,13 @@ public partial class KeyPropertiesForm : Form
     txtOwnerTrust.Text  = PGPUI.GetTrustDescription(pair.PublicKey.OwnerTrust);
     txtFingerprint.Text = pair.PublicKey.Fingerprint;
 
+    List<string> capabilities = new List<string>();
+    if((pair.PublicKey.TotalCapabilities & KeyCapability.Encrypt) != 0) capabilities.Add("encrypt");
+    if((pair.PublicKey.TotalCapabilities & KeyCapability.Sign) != 0) capabilities.Add("sign");
+    if((pair.PublicKey.TotalCapabilities & KeyCapability.Certify) != 0) capabilities.Add("certify");
+    if((pair.PublicKey.TotalCapabilities & KeyCapability.Authenticate) != 0) capabilities.Add("authenticate");
+    txtCapabilities.Text = string.Join(", ", capabilities.ToArray());
+
     keyList.Items.Clear();
     keyList.AddKey(pair.PublicKey);
     foreach(Subkey subkey in pair.PublicKey.Subkeys) keyList.AddKey(subkey);
@@ -61,6 +69,13 @@ public partial class KeyPropertiesForm : Form
       Close();
       e.Handled = true;
     }
+  }
+
+  protected override void OnShown(EventArgs e)
+  {
+    base.OnShown(e);
+    txtPrimaryId.Focus();
+    txtPrimaryId.DeselectAll(); // focusing a text box selects the text. we don't want that
   }
 }
 

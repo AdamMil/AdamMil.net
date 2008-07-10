@@ -84,7 +84,7 @@ public partial class PhotoIdForm : Form
       }
       
       // in any case, center the picture box
-      picture.Location = new Point((maxCtlSize.Width - imageSize.Width) / 2 + horizontalSpace, topSpace);
+      picture.Location = new Point((maxCtlSize.Width - picture.Width) / 2 + horizontalSpace, topSpace);
     }
   }
 

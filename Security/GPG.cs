@@ -4045,14 +4045,17 @@ public class ExeGPG : GPG
     MixedStreamReader reader = null;
     FileStream attrStream, attrTempStream;
     string attrTempFile;
-    IAsyncResult attrRead = null;
     AttributeMessage attrMsg = null;
+    IAsyncResult attrRead = null;
+    AsyncCallback attrCallback = null;
+    ManualResetEvent attrDone; // signaled when all attribute data has been read
     byte[] attrBuffer;
     int totalAttrData = 0; // keep track of the amount of attribute data expected so we don't make the read block
     if(retrieveAttributes)
     {
       attrPipe       = new InheritablePipe();
       attrStream     = new FileStream(new SafeFileHandle(attrPipe.ServerHandle, false), FileAccess.Read);
+      attrDone       = new ManualResetEvent(false);
       attrTempFile   = Path.GetTempFileName();
       attrTempStream = new FileStream(attrTempFile, FileMode.Open, FileAccess.ReadWrite);
       attrBuffer     = new byte[4096];
@@ -4063,6 +4066,7 @@ public class ExeGPG : GPG
     else // otherwise, attributes are not being retrieved, so we don't need them
     {
       attrPipe      = null;
+      attrDone      = null;
       attrStream    = attrTempStream = null;
       attrTempFile  = null;
       attrBuffer    = null;
@@ -4077,7 +4081,37 @@ public class ExeGPG : GPG
       cmd.Start();
 
       // if we're retrieving attributes, then there may be status messages mixed into STDOUT
-      if(retrieveAttributes) reader = new MixedStreamReader(cmd.Process.StandardOutput);
+      if(retrieveAttributes)
+      {
+        reader = new MixedStreamReader(cmd.Process.StandardOutput);
+
+        // create the callback for reading the attribute stream. we have to do this in the background because it could
+        // block if we try to read the attribute stream in the main loop -- even if we use asynchronous IO
+        attrCallback = delegate(IAsyncResult result)
+        {
+          attrRead = null;
+
+          int bytesRead = attrStream.EndRead(result);
+          if(bytesRead == 0) // if we're at EOF, then we're completely done
+          {
+            attrDone.Set();
+          }
+          else // otherwise, some data was read
+          {
+            attrTempStream.Write(attrBuffer, 0, bytesRead); // so write it to the temporary output stream
+            lock(attrBuffer) // then enter a critical section because two threads will be trying to read/write
+            {                // totalAttrData and attrRead
+              totalAttrData -= bytesRead;
+
+              if(totalAttrData != 0 && attrRead == null) // if there's more data to read, and the main thread didn't
+              {                                          // issue a read command first, then continue reading
+                attrRead = attrStream.BeginRead(attrBuffer, 0, Math.Min(totalAttrData, attrBuffer.Length),
+                                                attrCallback, null);
+              }
+            }
+          }
+        };
+      }
 
       List<Subkey> subkeys = new List<Subkey>(); // holds the subkeys in the current primary key
       List<KeySignature> sigs = new List<KeySignature>(); // holds the signatures on the last key or user id
@@ -4093,30 +4127,22 @@ public class ExeGPG : GPG
         string line = retrieveAttributes ? reader.ReadLine() : cmd.Process.StandardOutput.ReadLine();
         if(line == null) break;
 
-        // keep reading attribute data in the background
-        if(attrRead == null && totalAttrData != 0 || attrRead != null && attrRead.IsCompleted)
-        {
-          if(attrRead != null)
-          {
-            int bytesRead = attrStream.EndRead(attrRead);
-            if(bytesRead != 0)
-            {
-              attrTempStream.Write(attrBuffer, 0, bytesRead);
-              totalAttrData -= bytesRead;
-            }
-          }
-
-          attrRead = totalAttrData == 0 ?
-            null : attrStream.BeginRead(attrBuffer, 0, Math.Min(totalAttrData, attrBuffer.Length), null, null);
-        }
-
-        if(retrieveAttributes && line.StartsWith(StatusMessageToken, StringComparison.Ordinal)) // it's a status message
+        if(retrieveAttributes && reader.IsStatusMessage) // it's a status message
         {
           AttributeMessage msg = cmd.ParseStatusMessage(line) as AttributeMessage;
           if(msg != null)
           {
             attrMsg = msg;
-            totalAttrData += msg.Length; // increase the total amount of expected attribute data
+            lock(attrBuffer) // enter a critical section because the IO thread will also be trying to modify
+            {                // totalAttrData and attrRead
+              totalAttrData += msg.Length; // increase the total amount of expected attribute data
+
+              if(attrRead == null) // if we're not currently reading, we need to start
+              {
+                attrRead = attrStream.BeginRead(attrBuffer, 0, Math.Min(totalAttrData, attrBuffer.Length),
+                                                attrCallback, null);
+              }
+            }
           }
         }
         else
@@ -4229,12 +4255,7 @@ public class ExeGPG : GPG
       if(retrieveAttributes)
       {
         attrPipe.CloseClient(); // GPG should be done writing now
-
-        if(attrRead != null) // finish the current read if there is one
-        {
-          int bytesRead = attrStream.EndRead(attrRead);
-          if(bytesRead != 0) attrTempStream.Write(attrBuffer, 0, bytesRead);
-        }
+        if(attrRead != null) attrDone.WaitOne(); // wait for reading to finish
         IOH.CopyStream(attrStream, attrTempStream); // then copy the rest synchronously
         
         // the attribute data is done being read, so now we can go back and replace all the dummy attributes
@@ -4285,6 +4306,7 @@ public class ExeGPG : GPG
       {
         attrStream.Dispose();
         attrPipe.Dispose();
+        attrDone.Close();
         attrTempStream.Close();
         File.Delete(attrTempFile);
       }

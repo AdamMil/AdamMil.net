@@ -23,8 +23,6 @@ using System.Windows.Forms;
 namespace AdamMil.Security.UI
 {
 
-// TODO: create a SecureTextBox and use it
-
 public partial class PasswordForm : Form
 {
   public PasswordForm()
@@ -57,11 +55,7 @@ public partial class PasswordForm : Form
 
   public unsafe SecureString GetPassword()
   {
-    // TODO: obviously, this isn't secure at all. that'll be fixed later.
-    fixed(char* chars = txtPassword.Text.ToCharArray())
-    {
-      return new SecureString(chars, txtPassword.Text.Length);
-    }
+    return txtPassword.GetText();
   }
 }
 

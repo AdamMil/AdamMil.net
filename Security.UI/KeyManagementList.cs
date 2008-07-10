@@ -241,6 +241,27 @@ public class KeyManagementList : KeyListBase
   }
   #endregion
 
+  protected virtual void ActivateItem(ListViewItem item)
+  {
+    AttributeItem attrItem = item as AttributeItem;
+    if(attrItem != null)
+    {
+      if(attrItem.Attribute is UserImage) // activating a user image displays it
+      {
+        ShowPhotoId((UserImage)attrItem.Attribute);
+      }
+      else // activating another attribute goes to the management form
+      {
+        ManageUserIds(GetPrimaryItem(item));
+      }
+    }
+    else // otherwise, show the key properties
+    {
+      PrimaryKeyItem primaryItem = GetPrimaryItem(item);
+      if(primaryItem != null) ShowKeyProperties(primaryItem);
+    }
+  }
+
   protected void AssertPGPSystem()
   {
     if(PGPSystem == null) throw new InvalidOperationException("No PGP system has been set.");
@@ -475,7 +496,7 @@ public class KeyManagementList : KeyListBase
       }
       else if(e.KeyCode == Keys.Enter) // enter shows key properties
       {
-        ShowKeyProperties(GetPrimaryItem(item));
+        ActivateItem(item);
         e.Handled = true;
       }
     }
@@ -505,11 +526,7 @@ public class KeyManagementList : KeyListBase
     if(e.Button == MouseButtons.Left) // double-clicking on a key opens its key properties
     {
       ListViewItem item = GetItemAt(e.X, e.Y);
-      if(item != null)
-      {
-        PrimaryKeyItem primaryItem = GetPrimaryItem(item);
-        if(primaryItem != null) ShowKeyProperties(primaryItem);
-      }
+      if(item != null) ActivateItem(item);
     }
   }
 
@@ -630,11 +647,11 @@ public class KeyManagementList : KeyListBase
     PrimaryKey[] keys = GetSelectedPublicKeys();
     if(keys.Length == 0) return;
 
-    PasswordForm form = new PasswordForm();
-    form.DescriptionText = "Enter the new password for the key " + PGPUI.GetKeyName(keys[0]);
+    ChangePasswordForm form = new ChangePasswordForm();
     if(form.ShowDialog() == DialogResult.OK)
     {
-      PGPSystem.ChangePassword(keys[0], form.GetPassword());
+      try { PGPSystem.ChangePassword(keys[0], form.GetPassword()); }
+      catch(OperationCanceledException) { }
     }
   }
 
@@ -790,9 +807,14 @@ public class KeyManagementList : KeyListBase
     PrimaryKeyItem[] items = GetSelectedPrimaryKeyItems();
     if(items.Length == 0) return;
 
-    UserIdManagerForm form = new UserIdManagerForm(PGPSystem, items[0].PublicKey);
-    form.ShowDialog();
-    ReloadItem(items[0]);
+    ManageUserIds(items[0]);
+  }
+
+  protected void ManageUserIds(PrimaryKeyItem item)
+  {
+    if(item == null) throw new ArgumentNullException();
+    new UserIdManagerForm(PGPSystem, item.PublicKey).ShowDialog();
+    ReloadItem(item);
   }
 
   protected void MinimizeKeys()
@@ -909,13 +931,16 @@ public class KeyManagementList : KeyListBase
         UserImage image = attr as UserImage;
         if(image != null)
         {
-          new PhotoIdForm(image).ShowDialog();
+          ShowPhotoId(image);
           return;
         }
       }
     }
+  }
 
-    throw new InvalidOperationException("No photo ID is selected.");
+  protected void ShowPhotoId(UserImage image)
+  {
+    new PhotoIdForm(image).ShowDialog();
   }
 
   protected void ShowSignatures()
