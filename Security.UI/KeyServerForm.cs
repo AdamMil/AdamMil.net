@@ -63,11 +63,13 @@ public partial class KeyServerForm : Form
     }
   }
 
+  [Browsable(false)]
   public ComboBox.ObjectCollection KeyServers
   {
     get { return keyservers.Items; }
   }
 
+  [Browsable(false)]
   public Uri SelectedKeyServer
   {
     get { return keyServer; }

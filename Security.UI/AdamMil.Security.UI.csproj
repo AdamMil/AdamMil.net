@@ -82,6 +82,12 @@
     <Compile Include="KeyServerSearchForm.Designer.cs">
       <DependentUpon>KeyServerSearchForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="KeySigningForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="KeySigningForm.Designer.cs">
+      <DependentUpon>KeySigningForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="ListBase.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -171,6 +177,10 @@
     <EmbeddedResource Include="KeyServerSearchForm.resx">
       <SubType>Designer</SubType>
       <DependentUpon>KeyServerSearchForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="KeySigningForm.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>KeySigningForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="ListBase.resx">
       <SubType>Designer</SubType>

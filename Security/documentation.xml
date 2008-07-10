@@ -519,15 +519,25 @@
       </remarks>
     </SignAndEncrypt>
 
+    <SignAttribute>
+      <summary>Signs the given user ID or user attribute.</summary>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </SignAttribute>
+
+    <SignAttributes>
+      <summary>Signs the given user IDs or user attributes.</summary>
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
+    </SignAttributes>
+
     <SignKey>
       <summary>Signs the given key. This is equivalent to signing all user IDs on the key.</summary>
       <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </SignKey>
 
-    <SignUser>
-      <summary>Signs the given user ID or user attribute.</summary>
+    <SignKeys>
+      <summary>Signs the given keys. This is equivalent to signing all user IDs on the keys.</summary>
       <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
-    </SignUser>
+    </SignKeys>
 
     <UploadKeys>
       <summary>Uploads the given keys to a key server.</summary>

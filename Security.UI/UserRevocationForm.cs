@@ -17,6 +17,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using System.ComponentModel;
 using System.Windows.Forms;
 using AdamMil.Security.PGP;
 
@@ -30,11 +31,13 @@ public partial class UserRevocationForm : Form
     InitializeComponent();
   }
 
+  [Browsable(false)]
   public ListBox.ObjectCollection UserIdList
   {
     get { return ids.Items; }
   }
 
+  [Browsable(false)]
   public UserRevocationReason Reason
   {
     get

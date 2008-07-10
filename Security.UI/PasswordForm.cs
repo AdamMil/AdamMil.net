@@ -17,6 +17,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using System.ComponentModel;
 using System.Security;
 using System.Windows.Forms;
 
@@ -42,6 +43,7 @@ public partial class PasswordForm : Form
     set { chkRemember.Enabled = value; }
   }
 
+  [Browsable(false)]
   public bool RememberPassword
   {
     get { return chkRemember.Enabled && chkRemember.Checked; }

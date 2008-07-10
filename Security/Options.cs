@@ -53,40 +53,28 @@ public class PreferenceList<T> : System.Collections.ObjectModel.Collection<T> wh
 }
 #endregion
 
-#region TrustLevel
-/// <summary>Key trust indicates the extent to which the owner(s) of a key are trusted to validate the ownership
-/// of other people's keys.
-/// </summary>
-public enum TrustLevel
-{
-  /// <summary>You don't know how thoroughly the owner of this key validates others' keys.</summary>
-  Unknown,
-  /// <summary>You do not trust the owner of this key to do proper validation of others' keys.</summary>
-  Never,
-  /// <summary>You trust the owner of this key to do only marginal validation of others' keys.</summary>
-  Marginal,
-  /// <summary>You trust the owner of this key to do full validation of others' keys.</summary>
-  Full,
-  /// <summary>You ultimately trust the owner of this key, making them a new root in the web of trust. This should
-  /// normally be set only for keys you personally own.
-  /// </summary>
-  Ultimate
-}
-#endregion
-
-#region VerificationLevel
+#region CertificationLevel
 /// <summary>Indicates how thoroughly you have verified the ownership of a given key -- that is, what steps you have
 /// taken to prove that the key actually belongs to the person named on it.
 /// </summary>
-public enum VerificationLevel
+public enum CertificationLevel
 {
   /// <summary>You do not wish to provide an answer as to how thoroughly you've verified the ownership of the key.</summary>
-  Nondisclosed,
+  Undisclosed,
   /// <summary>You have not verified the ownership of the key.</summary>
   None,
-  /// <summary>You have performed casual verification of the key ownership.</summary>
+  /// <summary>You have performed casual verification of the key ownership. If you know the owner personally, you may
+  /// have received the key from him in person on a CD or USB key, or verified the key ID or fingerprint over the
+  /// phone. If you don't know the owner personally, then you may have verified the key fingerprint with the owner and
+  /// checked the key's user and photo IDs against the owner's government-issued photo ID.
+  /// </summary>
   Casual,
-  /// <summary>You have performed rigorous verification of the key ownership.</summary>
+  /// <summary>You have performed rigorous verification of the key ownership. For somebody you know personally, this
+  /// may be exchanging the keys in person, on a CD or USB key, and verifying the fingerprints in person. If you don't
+  /// know the owner personally, then you may have checked the key's user and photo IDs against a hard-to-forge
+  /// document such as a passport and verified, by exchange of email, that the email address on the key is controlled
+  /// by the same person.
+  /// </summary>
   Rigorous
 }
 #endregion
@@ -455,16 +443,17 @@ public class KeySigningOptions
   public KeySigningOptions() { }
 
   /// <summary>Initializes a new <see cref="KeySigningOptions"/> with the given values.</summary>
-  public KeySigningOptions(bool exportable)
+  public KeySigningOptions(CertificationLevel certLevel, bool exportable)
   {
-    Exportable  = exportable;
+    CertificationLevel = certLevel;
+    Exportable         = exportable;
   }
 
-  /// <summary>Initializes a new <see cref="KeySigningOptions"/> with the given values.</summary>
-  public KeySigningOptions(bool exportable, bool irrevocable)
+  /// <summary>Gets or sets how thoroughly you have verified the person named on the key is its actual owner.</summary>
+  public CertificationLevel CertificationLevel
   {
-    Exportable  = exportable;
-    Irrevocable = irrevocable;
+    get { return certLevel; }
+    set { certLevel = value; }
   }
 
   /// <summary>Gets or sets whether the signature will be exportable. You create an exportable signature only if you've
@@ -532,8 +521,9 @@ public class KeySigningOptions
   }
 
   string trustDomain;
-  TrustLevel trustLevel;
   int trustDepth = 1;
+  CertificationLevel certLevel;
+  TrustLevel trustLevel;
   bool exportable, irrevocable;
 }
 #endregion
@@ -814,6 +804,27 @@ public class SigningOptions
   readonly KeyCollection<PrimaryKey> signers = new KeyCollection<PrimaryKey>(KeyCapability.Sign);
   string hash = HashAlgorithm.Default;
   bool detached;
+}
+#endregion
+
+#region TrustLevel
+/// <summary>Key trust indicates the extent to which the owner(s) of a key are trusted to validate the ownership
+/// of other people's keys.
+/// </summary>
+public enum TrustLevel
+{
+  /// <summary>You don't know how thoroughly the owner of this key validates others' keys.</summary>
+  Unknown,
+  /// <summary>You do not trust the owner of this key to do proper validation of others' keys.</summary>
+  Never,
+  /// <summary>You trust the owner of this key to do only marginal validation of others' keys.</summary>
+  Marginal,
+  /// <summary>You trust the owner of this key to do full validation of others' keys.</summary>
+  Full,
+  /// <summary>You ultimately trust the owner of this key, making them a new root in the web of trust. This should
+  /// normally be set only for keys you personally own.
+  /// </summary>
+  Ultimate
 }
 #endregion
 

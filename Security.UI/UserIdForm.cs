@@ -17,6 +17,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using System.ComponentModel;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using AdamMil.Security.PGP;
@@ -32,30 +33,35 @@ public partial class UserIdForm : Form
     UpdateHelpLabel();
   }
 
+  [Browsable(false)]
   public string Comment
   {
     get { return txtComment.Text.Trim(); }
     set { txtComment.Text = value; }
   }
 
+  [Browsable(false)]
   public string Email
   {
     get { return txtEmail.Text.Trim(); }
     set { txtEmail.Text = value; }
   }
 
+  [Browsable(false)]
   public bool MakePrimary
   {
     get { return chkPrimary.Checked; }
     set { chkPrimary.Checked = value; }
   }
 
+  [Browsable(false)]
   public string RealName
   {
     get { return txtName.Text.Trim(); }
     set { txtName.Text = value; }
   }
 
+  [Browsable(false)]
   public UserPreferences Preferences
   {
     get { return null; } // TODO: implement user preferences

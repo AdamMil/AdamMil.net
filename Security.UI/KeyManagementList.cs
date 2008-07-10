@@ -282,7 +282,8 @@ public class KeyManagementList : KeyListBase
 
     KeyPair[] pairs = GetSelectedKeyPairs();
     int attributeCount = 0, keyCount = pairs.Length, photoCount = 0, secretCount = 0;
-    bool hasEnabled = false, hasDisabled = false, hasUnrevoked = false;
+    bool haveOwnedKeys = GetSecretKeyPairs().Length != 0;
+    bool hasEnabled = false, hasDisabled = false, hasUnrevoked = false, hasUnrevokedAndCurrent = false;
 
     foreach(KeyPair pair in pairs)
     {
@@ -294,7 +295,11 @@ public class KeyManagementList : KeyListBase
       if(pair.PublicKey.Disabled) hasDisabled = true;
       else hasEnabled = true;
 
-      if(!pair.PublicKey.Revoked) hasUnrevoked = true;
+      if(!pair.PublicKey.Revoked)
+      {
+        hasUnrevoked = true;
+        if(!pair.PublicKey.Expired) hasUnrevokedAndCurrent = true;
+      }
 
       if(pair.SecretKey != null) secretCount++;
     }
@@ -326,7 +331,8 @@ public class KeyManagementList : KeyListBase
 
       // key signing
       menu.Items.Add(new ToolStripMenuItem("Sign Keys...", null,
-                                           delegate(object sender, EventArgs e) { SignKey(); }));
+                                           delegate(object sender, EventArgs e) { SignKeys(); }));
+      menu.Items[menu.Items.Count-1].Enabled = haveOwnedKeys && hasUnrevokedAndCurrent;
       menu.Items.Add(new ToolStripMenuItem("Set Owner Trust...", null,
                                            delegate(object sender, EventArgs e) { SetOwnerTrust(); }));
       menu.Items.Add(new ToolStripSeparator());
@@ -388,6 +394,8 @@ public class KeyManagementList : KeyListBase
                                                        delegate(object sender, EventArgs e) { MinimizeKeys(); }));
       advanced.DropDownItems.Add(new ToolStripMenuItem("Export Keys...", null,
                                                        delegate(object sender, EventArgs e) { ExportKeys(); }));
+      advanced.DropDownItems.Add(new ToolStripMenuItem("Import Keys...", null,
+                                                       delegate(object sender, EventArgs e) { ImportKeys(); }));
       advanced.DropDownItems.Add(new ToolStripMenuItem("Sign User IDs...", null,
                                                        delegate(object sender, EventArgs e) { SignUserIds(); }));
       advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = attributeCount != 0;
@@ -559,6 +567,17 @@ public class KeyManagementList : KeyListBase
       item.ImageIndex = MinusImage;
       item.expanded   = true;
     }
+  }
+
+  protected KeyPair[] GetSecretKeyPairs()
+  {
+    List<KeyPair> pairs = new List<KeyPair>();
+    foreach(ListViewItem item in Items)
+    {
+      PrimaryKeyItem primaryItem = item as PrimaryKeyItem;
+      if(primaryItem != null && primaryItem.KeyPair.SecretKey != null) pairs.Add(primaryItem.KeyPair);
+    }
+    return pairs.ToArray();
   }
 
   protected virtual void RecreateItems()
@@ -955,12 +974,40 @@ public class KeyManagementList : KeyListBase
     form.ShowDialog();
   }
 
+  protected void SignKeys()
+  {
+    AssertPGPSystem();
+
+    PrimaryKeyItem[] items = Array.FindAll(GetSelectedPrimaryKeyItems(),
+      delegate(PrimaryKeyItem item) { return item.PublicKey.HasCapability(KeyCapability.Certify) &&
+                                      !item.PublicKey.Expired && !item.PublicKey.Revoked; });
+    if(items.Length == 0) return;
+
+    PrimaryKey[] keys = GetPublicKeys(items), myKeys = GetPublicKeys(GetSecretKeyPairs());
+
+    KeySigningForm form = new KeySigningForm();
+    foreach(PrimaryKey signedKey in keys) form.SignedKeys.Add(PGPUI.GetKeyName(signedKey));
+    foreach(PrimaryKey signingKey in myKeys) form.SigningKeys.Add(PGPUI.GetKeyName(signingKey));
+
+    if(form.ShowDialog() == DialogResult.OK)
+    {
+      try { PGPSystem.SignKeys(keys, myKeys[form.SelectedSigningKey], form.KeySigningOptions); }
+      catch(OperationCanceledException) { }
+      ReloadItems(items);
+    }
+  }
+
   private void AddDesignatedRevoker()
   {
     throw new NotImplementedException();
   }
 
   private void ExportKeys()
+  {
+    throw new NotImplementedException();
+  }
+
+  private void ImportKeys()
   {
     throw new NotImplementedException();
   }
@@ -976,11 +1023,6 @@ public class KeyManagementList : KeyListBase
   }
 
   private void RevokeKeys()
-  {
-    throw new NotImplementedException();
-  }
-
-  private void SignKey()
   {
     throw new NotImplementedException();
   }

@@ -1052,11 +1052,25 @@ public abstract class PGPSystem
   /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSignatures/*" />
   public abstract void RevokeSignatures(UserRevocationReason reason, params KeySignature[] signatures);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SignKey/*" />
-  public abstract void SignKey(PrimaryKey keyToSign, PrimaryKey signingKey, KeySigningOptions options);
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignAttribute/*"/>
+  public void SignAttribute(UserAttribute attribute, PrimaryKey signingKey, KeySigningOptions options)
+  {
+    if(attribute == null) throw new ArgumentNullException();
+    SignAttributes(new UserAttribute[] { attribute }, signingKey, options);
+  }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SignUser/*"/>
-  public abstract void SignKey(UserAttribute userId, PrimaryKey signingKey, KeySigningOptions options);
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignKey/*" />
+  public void SignKey(PrimaryKey keyToSign, PrimaryKey signingKey, KeySigningOptions options)
+  {
+    if(keyToSign == null) throw new ArgumentNullException();
+    SignKeys(new PrimaryKey[] { keyToSign }, signingKey, options);
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignAttributes/*"/>
+  public abstract void SignAttributes(UserAttribute[] attributes, PrimaryKey signingKey, KeySigningOptions options);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignKeys/*" />
+  public abstract void SignKeys(PrimaryKey[] keysToSign, PrimaryKey signingKey, KeySigningOptions options);
   #endregion
 
   #region Keyring queries

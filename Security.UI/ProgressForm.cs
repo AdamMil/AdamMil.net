@@ -17,6 +17,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using System.ComponentModel;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -53,6 +54,7 @@ public partial class ProgressForm : Form
       });
   }
 
+  [Browsable(false)]
   public Exception Exception
   {
     get { return exception; }

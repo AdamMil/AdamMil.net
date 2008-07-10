@@ -18,6 +18,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
@@ -40,6 +41,7 @@ public partial class NewPhotoIdForm : Form
     LoadImage(initialImage);
   }
 
+  [Browsable(false)]
   public Bitmap Bitmap
   {
     get { return newBitmap; }
@@ -86,6 +88,7 @@ public partial class NewPhotoIdForm : Form
                true);
     }
 
+    [Browsable(false)]
     public Bitmap Bitmap
     {
       get { return bitmap; }
@@ -96,12 +99,14 @@ public partial class NewPhotoIdForm : Form
       }
     }
 
+    [Browsable(false)]
     public RectangleF BitmapRect
     {
       get { return bitmapRect; }
       set { bitmapRect = value; }
     }
 
+    [Browsable(false)]
     public bool HasOverlay
     {
       get

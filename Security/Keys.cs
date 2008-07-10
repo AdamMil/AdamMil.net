@@ -647,7 +647,7 @@ public abstract class Key : ReadOnlyClass
   /// <include file="documentation.xml" path="/Security/Common/ToString/*"/>
   public override string ToString()
   {
-    return "0x" + (string.IsNullOrEmpty(KeyId) ? Fingerprint : KeyId);
+    return "0x" + KeyId;
   }
 
   string keyId, keyType, fingerprint;
@@ -820,6 +820,12 @@ public class PrimaryKey : Key, ISignableObject
   public override PrimaryKey GetPrimaryKey()
   {
     return this;
+  }
+
+  /// <summary>Returns true if the <see cref="TotalCapabilities"/> property contains the given capability flag.</summary>
+  public bool HasCapability(KeyCapability capability)
+  {
+    return (TotalCapabilities & capability) != 0;
   }
 
   /// <include file="documentation.xml" path="/Security/Common/ToString/*"/>
