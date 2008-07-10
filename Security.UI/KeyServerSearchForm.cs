@@ -171,8 +171,8 @@ public partial class KeyServerSearchForm : Form
         if(!result.Successful) failCount++;
       }
 
-      MessageBox.Show((results.Length - failCount).ToString() + " keys imported successfully." +
-                      (failCount == 0 ? null : " " + failCount.ToString() + " keys failed."), "Import results.",
+      MessageBox.Show((results.Length - failCount).ToString() + " key(s) imported successfully." +
+                      (failCount == 0 ? null : " " + failCount.ToString() + " key(s) failed."), "Import results.",
                       MessageBoxButtons.OK, failCount == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
     }
   }

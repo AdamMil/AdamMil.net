@@ -52,6 +52,7 @@ namespace AdamMil.Security.UI
       System.Windows.Forms.Label lblValidity;
       System.Windows.Forms.Label lblType;
       System.Windows.Forms.Label lblKeyId;
+      System.Windows.Forms.Label lblCapabilities;
       this.txtPrimaryId = new System.Windows.Forms.TextBox();
       this.txtKeyId = new System.Windows.Forms.TextBox();
       this.txtFingerprint = new System.Windows.Forms.TextBox();
@@ -59,12 +60,14 @@ namespace AdamMil.Security.UI
       this.txtKeyValidity = new System.Windows.Forms.TextBox();
       this.txtKeyType = new System.Windows.Forms.TextBox();
       this.keyList = new AdamMil.Security.UI.SimpleKeyList();
+      this.txtCapabilities = new System.Windows.Forms.TextBox();
       lblPrimaryUser = new System.Windows.Forms.Label();
       lblFingerprint = new System.Windows.Forms.Label();
       lblTrust = new System.Windows.Forms.Label();
       lblValidity = new System.Windows.Forms.Label();
       lblType = new System.Windows.Forms.Label();
       lblKeyId = new System.Windows.Forms.Label();
+      lblCapabilities = new System.Windows.Forms.Label();
       this.SuspendLayout();
       // 
       // lblPrimaryUser
@@ -78,7 +81,7 @@ namespace AdamMil.Security.UI
       // 
       // lblFingerprint
       // 
-      lblFingerprint.Location = new System.Drawing.Point(9, 138);
+      lblFingerprint.Location = new System.Drawing.Point(9, 166);
       lblFingerprint.Name = "lblFingerprint";
       lblFingerprint.Size = new System.Drawing.Size(104, 20);
       lblFingerprint.TabIndex = 10;
@@ -87,7 +90,7 @@ namespace AdamMil.Security.UI
       // 
       // lblTrust
       // 
-      lblTrust.Location = new System.Drawing.Point(9, 112);
+      lblTrust.Location = new System.Drawing.Point(9, 140);
       lblTrust.Name = "lblTrust";
       lblTrust.Size = new System.Drawing.Size(104, 20);
       lblTrust.TabIndex = 8;
@@ -96,7 +99,7 @@ namespace AdamMil.Security.UI
       // 
       // lblValidity
       // 
-      lblValidity.Location = new System.Drawing.Point(9, 86);
+      lblValidity.Location = new System.Drawing.Point(9, 114);
       lblValidity.Name = "lblValidity";
       lblValidity.Size = new System.Drawing.Size(104, 20);
       lblValidity.TabIndex = 6;
@@ -145,7 +148,7 @@ namespace AdamMil.Security.UI
       // 
       this.txtFingerprint.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-      this.txtFingerprint.Location = new System.Drawing.Point(117, 138);
+      this.txtFingerprint.Location = new System.Drawing.Point(117, 166);
       this.txtFingerprint.Name = "txtFingerprint";
       this.txtFingerprint.ReadOnly = true;
       this.txtFingerprint.Size = new System.Drawing.Size(396, 21);
@@ -155,7 +158,7 @@ namespace AdamMil.Security.UI
       // 
       this.txtOwnerTrust.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-      this.txtOwnerTrust.Location = new System.Drawing.Point(117, 112);
+      this.txtOwnerTrust.Location = new System.Drawing.Point(117, 140);
       this.txtOwnerTrust.Name = "txtOwnerTrust";
       this.txtOwnerTrust.ReadOnly = true;
       this.txtOwnerTrust.Size = new System.Drawing.Size(396, 21);
@@ -165,7 +168,7 @@ namespace AdamMil.Security.UI
       // 
       this.txtKeyValidity.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-      this.txtKeyValidity.Location = new System.Drawing.Point(117, 86);
+      this.txtKeyValidity.Location = new System.Drawing.Point(117, 114);
       this.txtKeyValidity.Name = "txtKeyValidity";
       this.txtKeyValidity.ReadOnly = true;
       this.txtKeyValidity.Size = new System.Drawing.Size(396, 21);
@@ -189,7 +192,7 @@ namespace AdamMil.Security.UI
             | System.Windows.Forms.AnchorStyles.Right)));
       this.keyList.Font = new System.Drawing.Font("Arial", 8F);
       this.keyList.FullRowSelect = true;
-      this.keyList.Location = new System.Drawing.Point(12, 165);
+      this.keyList.Location = new System.Drawing.Point(12, 193);
       this.keyList.MultiSelect = false;
       this.keyList.Name = "keyList";
       this.keyList.Size = new System.Drawing.Size(501, 130);
@@ -197,11 +200,32 @@ namespace AdamMil.Security.UI
       this.keyList.UseCompatibleStateImageBehavior = false;
       this.keyList.View = System.Windows.Forms.View.Details;
       // 
+      // txtCapabilities
+      // 
+      this.txtCapabilities.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+      this.txtCapabilities.Location = new System.Drawing.Point(117, 87);
+      this.txtCapabilities.Name = "txtCapabilities";
+      this.txtCapabilities.ReadOnly = true;
+      this.txtCapabilities.Size = new System.Drawing.Size(396, 21);
+      this.txtCapabilities.TabIndex = 14;
+      // 
+      // lblCapabilities
+      // 
+      lblCapabilities.Location = new System.Drawing.Point(9, 87);
+      lblCapabilities.Name = "lblCapabilities";
+      lblCapabilities.Size = new System.Drawing.Size(104, 20);
+      lblCapabilities.TabIndex = 13;
+      lblCapabilities.Text = "Capabilities";
+      lblCapabilities.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+      // 
       // KeyPropertiesForm
       // 
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-      this.ClientSize = new System.Drawing.Size(523, 307);
+      this.ClientSize = new System.Drawing.Size(523, 335);
+      this.Controls.Add(this.txtCapabilities);
+      this.Controls.Add(lblCapabilities);
       this.Controls.Add(this.keyList);
       this.Controls.Add(this.txtKeyType);
       this.Controls.Add(this.txtKeyValidity);
@@ -237,5 +261,6 @@ namespace AdamMil.Security.UI
     private System.Windows.Forms.TextBox txtKeyValidity;
     private System.Windows.Forms.TextBox txtKeyType;
     private SimpleKeyList keyList;
+    private System.Windows.Forms.TextBox txtCapabilities;
   }
 }

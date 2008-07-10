@@ -62,7 +62,6 @@ namespace AdamMil.Security.UI
       // 
       // picture
       // 
-      this.picture.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
       this.picture.Location = new System.Drawing.Point(12, 45);
       this.picture.Name = "picture";
       this.picture.Size = new System.Drawing.Size(328, 216);

@@ -60,6 +60,7 @@ public partial class UserIdManagerForm : Form
     foreach(UserId id in key.UserIds)
     {
       ListViewItem item = new ListViewItem(id.Name);
+      if(id.Revoked) item.Text += " (revoked)";
       item.ImageIndex = UserIdImage;
       item.Tag        = id;
       SetFont(item, id);
@@ -70,6 +71,7 @@ public partial class UserIdManagerForm : Form
     {
       bool isPhoto = attr is UserImage;
       ListViewItem item = new ListViewItem(isPhoto ? "Photo Id" : "Unknown user attribute");
+      if(attr.Revoked) item.Text += " (revoked)";
       item.ImageIndex = isPhoto ? PhotoIdImage : UnknownImage;
       item.Tag        = attr;
       SetFont(item, attr);
@@ -140,11 +142,51 @@ public partial class UserIdManagerForm : Form
     else if(attr.Primary) item.Font = new Font(Font, FontStyle.Bold);
   }
 
+  protected override void OnKeyDown(KeyEventArgs e)
+  {
+    base.OnKeyDown(e);
+
+    if(!e.Handled && e.KeyCode == Keys.Escape)
+    {
+      Close();
+      e.Handled = true;
+    }
+  }
+
   void btnAddPhotoId_Click(object sender, EventArgs e)
   {
-    NewPhotoIdForm form = new NewPhotoIdForm();
-    form.ShowDialog();
-    throw new NotImplementedException();
+    OpenFileDialog ofd = new OpenFileDialog();
+
+    ofd.Filter = "Image files (*.jpg;*.png;*.gif;*.bmp;*.tif;*.jpeg;*.tiff)|"+
+                 "*.jpg;*.png;*.gif;*.bmp;*.tif;*.jpeg;*.tiff|All files (*.*)|*.*";
+    ofd.SupportMultiDottedExtensions = true;
+    ofd.Title = "Select the image file for your photo ID";
+    if(ofd.ShowDialog() == DialogResult.OK)
+    {
+      NewPhotoIdForm form = new NewPhotoIdForm();
+
+      try { form.LoadImage(ofd.FileName); }
+      catch(Exception ex)
+      {
+        if(ex is System.IO.IOException || ex is System.ArgumentException)
+        {
+          MessageBox.Show("The selected file is not a valid image, or no longer exists.", "Not an image",
+                          MessageBoxButtons.OK, MessageBoxIcon.Error);
+          return;
+        }
+        else
+        {
+          throw ex;
+        }
+      }
+
+      if(form.ShowDialog() == DialogResult.OK)
+      {
+        try { pgp.AddPhoto(key, form.Bitmap, null); }
+        catch(OperationCanceledException) { return; }
+        ReloadKey();
+      }
+    }
   }
 
   void btnAddUserId_Click(object sender, EventArgs e)
@@ -177,7 +219,8 @@ public partial class UserIdManagerForm : Form
                          MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2)
           == DialogResult.Yes)
       {
-        pgp.DeleteAttributes(GetSelectedAttributes());
+        try { pgp.DeleteAttributes(GetSelectedAttributes()); }
+        catch(OperationCanceledException) { }
         ReloadKey();
       }
     }
@@ -193,7 +236,8 @@ public partial class UserIdManagerForm : Form
       foreach(ListViewItem item in userIds.SelectedItems) form.UserIdList.Add(item.Text);
       if(form.ShowDialog() == DialogResult.OK)
       {
-        pgp.RevokeAttributes(form.Reason, GetSelectedAttributes());
+        try { pgp.RevokeAttributes(form.Reason, GetSelectedAttributes()); }
+        catch(OperationCanceledException) { }
         ReloadKey();
       }
     }
@@ -203,7 +247,8 @@ public partial class UserIdManagerForm : Form
   {
     if(userIds.SelectedIndices.Count == 1)
     {
-      pgp.SetPreferences((UserAttribute)userIds.SelectedItems[0].Tag, new UserPreferences(true));
+      try { pgp.SetPreferences((UserAttribute)userIds.SelectedItems[0].Tag, new UserPreferences(true)); }
+      catch(OperationCanceledException) { }
       ReloadKey();
     }
   }

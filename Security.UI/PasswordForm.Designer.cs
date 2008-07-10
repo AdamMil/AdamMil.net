@@ -49,7 +49,7 @@ namespace AdamMil.Security.UI
       System.Windows.Forms.Button btnOK;
       System.Windows.Forms.Button btnCancel;
       this.lblDescription = new System.Windows.Forms.Label();
-      this.txtPassword = new System.Windows.Forms.TextBox();
+      this.txtPassword = new AdamMil.Security.UI.SecureTextBox();
       this.chkRemember = new System.Windows.Forms.CheckBox();
       btnOK = new System.Windows.Forms.Button();
       btnCancel = new System.Windows.Forms.Button();
@@ -91,8 +91,10 @@ namespace AdamMil.Security.UI
       // 
       this.txtPassword.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+      this.txtPassword.ImeMode = System.Windows.Forms.ImeMode.Disable;
       this.txtPassword.Location = new System.Drawing.Point(9, 39);
       this.txtPassword.Name = "txtPassword";
+      this.txtPassword.RestrictToLowAscii = true;
       this.txtPassword.Size = new System.Drawing.Size(367, 21);
       this.txtPassword.TabIndex = 1;
       this.txtPassword.UseSystemPasswordChar = true;
@@ -134,7 +136,7 @@ namespace AdamMil.Security.UI
     #endregion
 
     private System.Windows.Forms.Label lblDescription;
-    private System.Windows.Forms.TextBox txtPassword;
+    private SecureTextBox txtPassword;
     private System.Windows.Forms.CheckBox chkRemember;
   }
 }

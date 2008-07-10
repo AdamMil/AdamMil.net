@@ -164,6 +164,7 @@ namespace AdamMil.Security.UI
       this.Controls.Add(btnAddUserId);
       this.Controls.Add(this.lblDescription);
       this.Font = new System.Drawing.Font("Verdana", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+      this.KeyPreview = true;
       this.MaximizeBox = false;
       this.MinimizeBox = false;
       this.Name = "UserIdManagerForm";

@@ -57,6 +57,12 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ChangePasswordForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ChangePasswordForm.Designer.cs">
+      <DependentUpon>ChangePasswordForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Helpers.cs" />
     <Compile Include="KeyPropertiesForm.cs">
       <SubType>Form</SubType>
@@ -115,6 +121,9 @@
     <Compile Include="SearchResultsList.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="SecureTextBox.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="SignaturesForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -147,6 +156,10 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="ChangePasswordForm.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>ChangePasswordForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="KeyPropertiesForm.resx">
       <SubType>Designer</SubType>
       <DependentUpon>KeyPropertiesForm.cs</DependentUpon>
