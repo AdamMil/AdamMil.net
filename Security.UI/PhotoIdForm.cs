@@ -38,6 +38,11 @@ public partial class PhotoIdForm : Form
 
   public PhotoIdForm(UserImage photoId) : this()
   {
+    Initialize(photoId);
+  }
+
+  public void Initialize(UserImage photoId)
+  {
     if(photoId == null) throw new ArgumentNullException();
 
     Text = "Photo ID for " + photoId.PrimaryKey.PrimaryUserId.Name;

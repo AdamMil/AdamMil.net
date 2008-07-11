@@ -21,6 +21,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.IO;
+using System.Text;
 using System.Windows.Forms;
 using AdamMil.Security.PGP;
 
@@ -281,9 +282,10 @@ public class KeyManagementList : KeyListBase
     if(SelectedIndices.Count == 0) return null;
 
     KeyPair[] pairs = GetSelectedKeyPairs();
+    KeyPair[] myPairs = GetSecretKeyPairs();
     int attributeCount = 0, keyCount = pairs.Length, photoCount = 0, secretCount = 0;
-    bool haveOwnedKeys = GetSecretKeyPairs().Length != 0;
-    bool hasEnabled = false, hasDisabled = false, hasUnrevoked = false, hasUnrevokedAndCurrent = false;
+    bool haveOwnedKeys = myPairs.Length != 0, hasEnabled = false, hasDisabled = false, hasUnrevokedAndCurrent = false;
+    bool canRevoke = keyCount == 1 && pairs[0].SecretKey != null && !pairs[0].PublicKey.Revoked;
 
     foreach(KeyPair pair in pairs)
     {
@@ -295,11 +297,7 @@ public class KeyManagementList : KeyListBase
       if(pair.PublicKey.Disabled) hasDisabled = true;
       else hasEnabled = true;
 
-      if(!pair.PublicKey.Revoked)
-      {
-        hasUnrevoked = true;
-        if(!pair.PublicKey.Expired) hasUnrevokedAndCurrent = true;
-      }
+      if(!pair.PublicKey.Revoked && !pair.PublicKey.Expired) hasUnrevokedAndCurrent = true;
 
       if(pair.SecretKey != null) secretCount++;
     }
@@ -310,6 +308,23 @@ public class KeyManagementList : KeyListBase
     }
 
     if(keyCount == 0) return null;
+
+    // if we can't revoke because we own the key, perhaps we can revoke because we own a designated revoker key
+    if(!canRevoke && keyCount == 1 && !pairs[0].PublicKey.Revoked)
+    {
+      foreach(string designateRevoker in pairs[0].PublicKey.DesignatedRevokers)
+      {
+        foreach(KeyPair pair in myPairs)
+        {
+          if(string.Equals(pair.PublicKey.Fingerprint, designateRevoker, StringComparison.Ordinal))
+          {
+            canRevoke = true;
+            break;
+          }
+        }
+        if(canRevoke) break;
+      }
+    }
 
     ContextMenuStrip menu = new ContextMenuStrip();
 
@@ -340,14 +355,14 @@ public class KeyManagementList : KeyListBase
       // key management
       menu.Items.Add(new ToolStripMenuItem("Clean Keys", null,
                                            delegate(object sender, EventArgs e) { CleanKeys(); }));
-      menu.Items.Add(new ToolStripMenuItem("Revoke Keys...", null,
-                                           delegate(object sender, EventArgs e) { RevokeKeys(); }));
-      menu.Items[menu.Items.Count-1].Enabled = hasUnrevoked;
       menu.Items.Add(new ToolStripMenuItem("Delete Keys", null,
                                            delegate(object sender, EventArgs e) { DeleteKeys(); }));
       menu.Items.Add(new ToolStripMenuItem("Generate Revocation Certificate...", null,
                                            delegate(object sender, EventArgs e) { GenerateRevocationCertificate(); }));
-      menu.Items[menu.Items.Count-1].Enabled = keyCount == 1;
+      menu.Items[menu.Items.Count-1].Enabled = canRevoke;
+      menu.Items.Add(new ToolStripMenuItem("Revoke Key...", null,
+                                           delegate(object sender, EventArgs e) { RevokeKey(); }));
+      menu.Items[menu.Items.Count-1].Enabled = canRevoke;
       menu.Items.Add(new ToolStripSeparator());
     }
 
@@ -686,8 +701,7 @@ public class KeyManagementList : KeyListBase
 
     if(output.Length == 0) return;
 
-    output.Position = 0;
-    Clipboard.SetText(new StreamReader(output).ReadToEnd(), TextDataFormat.Text);
+    Clipboard.SetText(Encoding.ASCII.GetString(output.ToArray()));
   }
 
   protected void CleanKeys()
@@ -790,7 +804,7 @@ public class KeyManagementList : KeyListBase
     string defaultFilename, defaultSuffix = includeSecretKeys ? " pub-sec.txt" : " pub.txt";
     if(pairs.Length == 1)
     {
-      defaultFilename = MakeSafeFilename(PGPUI.GetKeyName(pairs[0].PublicKey)) + defaultSuffix;
+      defaultFilename = PGPUI.MakeSafeFilename(PGPUI.GetKeyName(pairs[0].PublicKey)) + defaultSuffix;
     }
     else
     {
@@ -815,6 +829,54 @@ public class KeyManagementList : KeyListBase
           PGPSystem.ExportPublicKeys(GetPublicKeys(pairs), file, ExportOptions.Default, output);
           if(includeSecretKeys) PGPSystem.ExportSecretKeys(GetSecretKeys(pairs), file, ExportOptions.Default, output);
         }
+      }
+    }
+  }
+
+  void GenerateRevocationCertificate()
+  {
+    AssertPGPSystem();
+    PrimaryKey[] keys = GetSelectedPublicKeys();
+    if(keys.Length == 0) return;
+
+    RevocationCertForm form = new RevocationCertForm(keys[0], GetPublicKeys(GetSecretKeyPairs()));
+    if(form.ShowDialog() == DialogResult.OK)
+    {
+      Stream output;
+      if(form.Filename == null) output = new MemoryStream();
+      else
+      {
+        try { output = new FileStream(form.Filename, FileMode.Create, FileAccess.Write); }
+        catch(Exception ex)
+        {
+          MessageBox.Show("The certificate file could not be opened. (The error was: " + ex.Message + ")",
+                          "Couldn't open the file", MessageBoxButtons.OK, MessageBoxIcon.Error);
+          return;
+        }
+      }
+
+      try
+      {
+        OutputOptions outputOptions = new OutputOptions(OutputFormat.ASCII);
+        if(form.RevokeDirectly)
+        {
+          PGPSystem.GenerateRevocationCertificate(keys[0], output, form.Reason, outputOptions);
+        }
+        else
+        {
+          PGPSystem.GenerateRevocationCertificate(keys[0], form.SelectedRevokingKey, output, form.Reason,
+                                                  outputOptions);
+        }
+
+        if(form.Filename == null)
+        {
+          Clipboard.SetText(Encoding.ASCII.GetString(((MemoryStream)output).ToArray()));
+        }
+      }
+      catch(OperationCanceledException) { }
+      finally
+      {
+        output.Close();
       }
     }
   }
@@ -853,15 +915,16 @@ public class KeyManagementList : KeyListBase
   {
     AssertPGPSystem();
 
-    PrimaryKey[] keys = GetSelectedPublicKeys();
-    if(keys.Length == 0) return;
+    PrimaryKeyItem[] items = GetSelectedPrimaryKeyItems();
+    if(items.Length == 0) return;
 
-    string selection = keys.Length == 1 ? PGPUI.GetKeyName(keys[0]) : "the selected keys";
+    string selection = items.Length == 1 ? PGPUI.GetKeyName(items[0].PublicKey) : "the selected keys";
 
     KeyServerForm form = new KeyServerForm();
     form.HelpText = "Refresh " + selection + " from which keyserver?";
     if(form.ShowDialog() == DialogResult.OK)
     {
+      PrimaryKey[] keys = GetPublicKeys(items);
       ProgressForm progress = new ProgressForm(
         "Refreshing Keys", "Refreshing " + selection + " from " + form.SelectedKeyServer.AbsoluteUri + "...",
         delegate { PGPSystem.RefreshKeysFromServer(new KeyDownloadOptions(form.SelectedKeyServer), keys); });
@@ -870,13 +933,34 @@ public class KeyManagementList : KeyListBase
       ImportFailedException failure = progress.Exception as ImportFailedException;
       if(failure != null && (failure.Reasons & FailureReason.KeyNotFound) != 0)
       {
-        MessageBox.Show(keys.Length == 1 ? "Key not found." : "Not all keys were found.", "Key(s) not found",
+        MessageBox.Show(items.Length == 1 ? "Key not found." : "Not all keys were found.", "Key(s) not found",
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
       }
       else
       {
         progress.ThrowException();
       }
+
+      ReloadItems(items);
+    }
+  }
+
+  protected void RevokeKey()
+  {
+    AssertPGPSystem();
+
+    PrimaryKeyItem[] items = GetSelectedPrimaryKeyItems();
+    if(items.Length == 0) return;
+
+    KeyRevocationForm form = new KeyRevocationForm(items[0].PublicKey);
+    if(form.ShowDialog() == DialogResult.OK)
+    {
+      try
+      {
+        PGPSystem.RevokeKeys(form.Reason, items[0].PublicKey);
+        ReloadItems(items);
+      }
+      catch(OperationCanceledException) { }
     }
   }
 
@@ -912,15 +996,14 @@ public class KeyManagementList : KeyListBase
 
     OwnerTrustForm form = new OwnerTrustForm();
 
-    // set the initial trust level to what all the keys agree on, or Unknown if they don't agree, and add the keys
+    // set the initial trust level to what all the keys agree on, or Unknown if they don't agree
     TrustLevel initialTrustLevel = keys[0].OwnerTrust;
     foreach(PrimaryKey key in keys)
     {
       if(key.OwnerTrust != initialTrustLevel) initialTrustLevel = TrustLevel.Unknown;
-      form.KeyList.Add(PGPUI.GetKeyName(key));
     }
 
-    form.TrustLevel = initialTrustLevel;
+    form.Initialize(initialTrustLevel, keys);
     if(form.ShowDialog() == DialogResult.OK)
     {
       PGPSystem.SetOwnerTrust(form.TrustLevel, keys);
@@ -969,9 +1052,7 @@ public class KeyManagementList : KeyListBase
     if(keys.Length == 0) return;
 
     PrimaryKey key = PGPSystem.RefreshKey(keys[0], ListOptions.VerifyAll);
-    SignaturesForm form = new SignaturesForm(key);
-    form.DescriptionText = "Signatures for " + PGPUI.GetKeyName(key);
-    form.ShowDialog();
+    if(key != null) new SignaturesForm(key).ShowDialog();
   }
 
   protected void SignKeys()
@@ -985,13 +1066,11 @@ public class KeyManagementList : KeyListBase
 
     PrimaryKey[] keys = GetPublicKeys(items), myKeys = GetPublicKeys(GetSecretKeyPairs());
 
-    KeySigningForm form = new KeySigningForm();
-    foreach(PrimaryKey signedKey in keys) form.SignedKeys.Add(PGPUI.GetKeyName(signedKey));
-    foreach(PrimaryKey signingKey in myKeys) form.SigningKeys.Add(PGPUI.GetKeyName(signingKey));
+    KeySigningForm form = new KeySigningForm(keys, myKeys);
 
     if(form.ShowDialog() == DialogResult.OK)
     {
-      try { PGPSystem.SignKeys(keys, myKeys[form.SelectedSigningKey], form.KeySigningOptions); }
+      try { PGPSystem.SignKeys(keys, form.SelectedSigningKey, form.KeySigningOptions); }
       catch(OperationCanceledException) { }
       ReloadItems(items);
     }
@@ -1013,16 +1092,6 @@ public class KeyManagementList : KeyListBase
   }
 
   private void SignUserIds()
-  {
-    throw new NotImplementedException();
-  }
-
-  private void GenerateRevocationCertificate()
-  {
-    throw new NotImplementedException();
-  }
-
-  private void RevokeKeys()
   {
     throw new NotImplementedException();
   }
@@ -1095,18 +1164,6 @@ public class KeyManagementList : KeyListBase
 
   PGPSystem pgp;
   bool displayUserIds=true, displaySubkeys;
-
-  static string MakeSafeFilename(string str)
-  {
-    char[] badChars = Path.GetInvalidFileNameChars();
-
-    System.Text.StringBuilder sb = new System.Text.StringBuilder(str.Length);
-    foreach(char c in str)
-    {
-      if(Array.IndexOf(badChars, c) == -1) sb.Append(c);
-    }
-    return sb.ToString();
-  }
 }
 
 } // namespace AdamMil.Security.UI

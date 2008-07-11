@@ -38,7 +38,7 @@ public partial class NewPhotoIdForm : Form
 
   public NewPhotoIdForm(string initialImage) : this()
   {
-    LoadImage(initialImage);
+    Initialize(initialImage);
   }
 
   [Browsable(false)]
@@ -47,7 +47,7 @@ public partial class NewPhotoIdForm : Form
     get { return newBitmap; }
   }
 
-  public void LoadImage(string initialImage)
+  public void Initialize(string initialImage)
   {
     if(initialImage == null) throw new ArgumentNullException();
 

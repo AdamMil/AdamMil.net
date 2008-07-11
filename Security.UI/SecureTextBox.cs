@@ -66,13 +66,12 @@ public class SecureTextBox : TextBox
     IntPtr bstr = IntPtr.Zero;
     try
     {
-      int groups = 0, uniqueChars = 0;
+      int uniqueChars = 0;
       bool hasLC=false, hasUC=false, hasNum=false, hasPunct=false;
 
       bstr = Marshal.SecureStringToBSTR(text);
       char* chars = (char*)bstr.ToPointer();
       int length = text.Length;
-      CharType lastType = CharType.Lowercase;
       bool* histo = stackalloc bool[97]; // 96 usable characters, plus one for "other" characters
 
       // loop through and categorize each character
@@ -88,22 +87,12 @@ public class SecureTextBox : TextBox
           case CharType.Punctuation: hasPunct = true; break;
         }
 
-        // keep track of the number of unique characters, so we can know that "aaaaaaaaaaaaaaaaaaaaaa" is weak
+        // keep track of the number of unique characters, so we can say that "aaaaaaaaaaaaaaaaaaaaaa" is weak
         int histoIndex = c >= 32 && c < 127 ? c-32 : 96;
         if(!histo[histoIndex])
         {
           histo[histoIndex] = true;
           uniqueChars++;
-        }
-
-        // don't consider changes from upper to lower case to start a new group, and don't consider spaces to
-        // interrupt a group
-        if(i == 0 || (type != lastType && c != ' ' &&
-                      (type != CharType.Lowercase && type != CharType.Uppercase ||
-                       lastType != CharType.Lowercase && lastType != CharType.Uppercase)))
-        {
-          groups++;
-          lastType = type;
         }
       }
 
@@ -134,10 +123,10 @@ public class SecureTextBox : TextBox
       // 72    900 years      90 years
       // 80    220,000 years  22,000 years
 
-      if(text.Length <= 4 || bits <= 52 || uniqueChars <= 3 || groups <= 1) return PasswordStrength.VeryWeak;
-      else if(text.Length <= 6 || bits <= 56 || uniqueChars <= 4 || groups <= 2) return PasswordStrength.Weak;
-      else if(text.Length <= 7 || bits <= 64 || uniqueChars <= 5 || groups <= 3) return PasswordStrength.Moderate;
-      else if(text.Length <= 11 || bits <= 72 || uniqueChars <= 9 || groups <= 4) return PasswordStrength.Strong;
+      if(text.Length <= 4 || bits <= 52 || uniqueChars <= 3) return PasswordStrength.VeryWeak;
+      else if(text.Length <= 6 || bits <= 56 || uniqueChars <= 4) return PasswordStrength.Weak;
+      else if(text.Length <= 7 || bits <= 64 || uniqueChars <= 5) return PasswordStrength.Moderate;
+      else if(text.Length <= 11 || bits <= 72 || uniqueChars <= 9) return PasswordStrength.Strong;
       else return PasswordStrength.VeryStrong;
     }
     finally

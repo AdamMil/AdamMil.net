@@ -59,7 +59,7 @@ namespace AdamMil.Security.UI
       // 
       btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnOK.DialogResult = System.Windows.Forms.DialogResult.OK;
-      btnOK.Location = new System.Drawing.Point(220, 87);
+      btnOK.Location = new System.Drawing.Point(246, 96);
       btnOK.Name = "btnOK";
       btnOK.Size = new System.Drawing.Size(75, 23);
       btnOK.TabIndex = 3;
@@ -70,7 +70,7 @@ namespace AdamMil.Security.UI
       // 
       btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-      btnCancel.Location = new System.Drawing.Point(301, 87);
+      btnCancel.Location = new System.Drawing.Point(327, 96);
       btnCancel.Name = "btnCancel";
       btnCancel.Size = new System.Drawing.Size(75, 23);
       btnCancel.TabIndex = 4;
@@ -79,31 +79,34 @@ namespace AdamMil.Security.UI
       // 
       // lblDescription
       // 
-      this.lblDescription.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      this.lblDescription.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
       this.lblDescription.Location = new System.Drawing.Point(6, 5);
       this.lblDescription.Name = "lblDescription";
-      this.lblDescription.Size = new System.Drawing.Size(370, 31);
+      this.lblDescription.Size = new System.Drawing.Size(396, 40);
       this.lblDescription.TabIndex = 0;
       this.lblDescription.Text = "Please enter your password.";
       // 
       // txtPassword
       // 
-      this.txtPassword.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      this.txtPassword.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
       this.txtPassword.ImeMode = System.Windows.Forms.ImeMode.Disable;
-      this.txtPassword.Location = new System.Drawing.Point(9, 39);
+      this.txtPassword.Location = new System.Drawing.Point(9, 48);
       this.txtPassword.Name = "txtPassword";
       this.txtPassword.RestrictToLowAscii = true;
-      this.txtPassword.Size = new System.Drawing.Size(367, 21);
+      this.txtPassword.Size = new System.Drawing.Size(393, 21);
       this.txtPassword.TabIndex = 1;
       this.txtPassword.UseSystemPasswordChar = true;
       // 
       // chkRemember
       // 
-      this.chkRemember.Location = new System.Drawing.Point(9, 64);
+      this.chkRemember.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+      this.chkRemember.Location = new System.Drawing.Point(9, 73);
       this.chkRemember.Name = "chkRemember";
-      this.chkRemember.Size = new System.Drawing.Size(367, 17);
+      this.chkRemember.Size = new System.Drawing.Size(393, 17);
       this.chkRemember.TabIndex = 2;
       this.chkRemember.Text = "Remember my password for this session";
       this.chkRemember.UseVisualStyleBackColor = true;
@@ -114,7 +117,7 @@ namespace AdamMil.Security.UI
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.CancelButton = btnCancel;
-      this.ClientSize = new System.Drawing.Size(383, 115);
+      this.ClientSize = new System.Drawing.Size(409, 124);
       this.Controls.Add(this.chkRemember);
       this.Controls.Add(btnCancel);
       this.Controls.Add(btnOK);

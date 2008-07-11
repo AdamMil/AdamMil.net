@@ -66,21 +66,7 @@ public abstract class PGPListBase : ListView
   protected virtual AttributeItem CreateAttributeItem(UserAttribute attr)
   {
     if(attr == null) throw new ArgumentNullException();
-
-    UserId userId = attr as UserId;
-    string text;
-
-    if(userId != null)
-    {
-      text = userId.Name;
-    }
-    else
-    {
-      text = "User attribute";
-      if(attr is UserImage) text += " (photo id)";
-    }
-
-    return new AttributeItem(attr, text);
+    return new AttributeItem(attr, PGPUI.GetAttributeName(attr));
   }
 
   protected override void OnFontChanged(EventArgs e)

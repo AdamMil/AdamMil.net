@@ -29,12 +29,6 @@ public partial class OwnerTrustForm : Form
   public OwnerTrustForm()
   {
     InitializeComponent();
-
-    rbDontKnow.Tag  = TrustLevel.Unknown;
-    rbDontTrust.Tag = TrustLevel.Never;
-    rbCasual.Tag    = TrustLevel.Marginal;
-    rbFull.Tag      = TrustLevel.Full;
-    rbUltimate.Tag  = TrustLevel.Ultimate;
   }
 
   [Browsable(false)]
@@ -48,32 +42,27 @@ public partial class OwnerTrustForm : Form
       else if(rbUltimate.Checked) return TrustLevel.Ultimate;
       else return TrustLevel.Unknown;
     }
-    set
+  }
+
+  public void Initialize(TrustLevel initialTrustLevel, PrimaryKey[] keysToTrust)
+  {
+    if(keysToTrust == null) throw new ArgumentNullException();
+    if(keysToTrust.Length == 0) throw new ArgumentException("No keys were given.");
+
+    trustedKeys.Items.Clear();
+    foreach(PrimaryKey key in keysToTrust) trustedKeys.Items.Add(new KeyItem(key));
+
+    RadioButton button;
+    switch(initialTrustLevel)
     {
-      RadioButton button;
-      switch(value)
-      {
-        case TrustLevel.Never: button = rbDontTrust; break;
-        case TrustLevel.Marginal: button = rbCasual; break;
-        case TrustLevel.Full: button = rbFull; break;
-        case TrustLevel.Ultimate: button = rbUltimate; break;
-        default: button = rbDontKnow; break;
-      }
-      button.Checked = true;
-      button.Focus();
+      case TrustLevel.Never: button = rbDontTrust; break;
+      case TrustLevel.Marginal: button = rbCasual; break;
+      case TrustLevel.Full: button = rbFull; break;
+      case TrustLevel.Ultimate: button = rbUltimate; break;
+      default: button = rbDontKnow; break;
     }
-  }
-
-  [Browsable(false)]
-  public ListBox.ObjectCollection KeyList
-  {
-    get { return trustedKeys.Items; }
-  }
-
-  protected override void OnShown(EventArgs e)
-  {
-    base.OnShown(e);
-    TrustLevel = TrustLevel; // invoke the setter to focus the radio button
+    button.Checked = true;
+    button.Focus();
   }
 }
 

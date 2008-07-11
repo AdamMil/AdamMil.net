@@ -59,13 +59,13 @@ namespace AdamMil.Security.UI
       // btnOK
       // 
       btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-      btnOK.DialogResult = System.Windows.Forms.DialogResult.OK;
       btnOK.Location = new System.Drawing.Point(152, 39);
       btnOK.Name = "btnOK";
       btnOK.Size = new System.Drawing.Size(87, 23);
       btnOK.TabIndex = 4;
       btnOK.Text = "OK";
       btnOK.UseVisualStyleBackColor = true;
+      btnOK.Click += new System.EventHandler(this.btnOK_Click);
       // 
       // btnCancel
       // 
@@ -77,7 +77,6 @@ namespace AdamMil.Security.UI
       btnCancel.TabIndex = 5;
       btnCancel.Text = "Cancel";
       btnCancel.UseVisualStyleBackColor = true;
-      btnCancel.Click += new System.EventHandler(this.btnCancel_Click);
       // 
       // lblKeyServer
       // 

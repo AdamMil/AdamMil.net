@@ -31,10 +31,9 @@ public partial class UserRevocationForm : Form
     InitializeComponent();
   }
 
-  [Browsable(false)]
-  public ListBox.ObjectCollection UserIdList
+  public UserRevocationForm(UserAttribute[] attrs) : this()
   {
-    get { return ids.Items; }
+    Initialize(attrs);
   }
 
   [Browsable(false)]
@@ -56,10 +55,13 @@ public partial class UserRevocationForm : Form
     }
   }
 
-  protected override void OnShown(EventArgs e)
+  public void Initialize(UserAttribute[] attrs)
   {
-    base.OnShown(e);
-    rbNoReason.Focus();
+    if(attrs == null) throw new ArgumentNullException();
+    if(attrs.Length == 0) throw new ArgumentException("No attributes were given.");
+
+    ids.Items.Clear();
+    foreach(UserAttribute attr in attrs) ids.Items.Add(PGPUI.GetAttributeName(attr));
   }
 }
 

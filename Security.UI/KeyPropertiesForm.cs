@@ -33,10 +33,10 @@ public partial class KeyPropertiesForm : Form
 
   public KeyPropertiesForm(KeyPair pair) : this()
   {
-    ShowKeyPair(pair);
+    Initialize(pair);
   }
 
-  public void ShowKeyPair(KeyPair pair)
+  public void Initialize(KeyPair pair)
   {
     if(pair == null) throw new ArgumentNullException();
 
@@ -53,7 +53,7 @@ public partial class KeyPropertiesForm : Form
     if(pair.PublicKey.HasCapability(KeyCapability.Sign)) capabilities.Add("sign");
     if(pair.PublicKey.HasCapability(KeyCapability.Certify)) capabilities.Add("certify");
     if(pair.PublicKey.HasCapability(KeyCapability.Authenticate)) capabilities.Add("authenticate");
-    txtCapabilities.Text = string.Join(", ", capabilities.ToArray());
+    txtCapabilities.Text = capabilities.Count == 0 ? "none" : string.Join(", ", capabilities.ToArray());
 
     keyList.Items.Clear();
     keyList.AddKey(pair.PublicKey);

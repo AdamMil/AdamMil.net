@@ -640,7 +640,8 @@ A2vQeoDMU0TXnBp+fHVF3auXU1grP/08nzekF470s8fPccga22t33zqdTRFKRKwK2yjONqPpfXIRrTsv
     results = gpg.ImportKeys(stream, keyring);
     foreach(ImportedKey result in results) Assert.IsTrue(result.Successful);
 
-    keys = gpg.GetPublicKeys(keyring);
+    // read several times in quick succession to try to expose deadlocks
+    for(int i=0; i<20; i++) keys = gpg.GetPublicKeys(keyring);
     Assert.AreEqual(7, keys.Length);
     gpg.DeleteKeys(keys, KeyDeletion.PublicAndSecret);
     this.keys = null; // force the next test to reimport keys
