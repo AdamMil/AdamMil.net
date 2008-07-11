@@ -4075,14 +4075,13 @@ public class ExeGPG : GPG
     AttributeMessage attrMsg = null;
     IAsyncResult attrRead = null;
     AsyncCallback attrCallback = null;
-    ManualResetEvent attrDone; // signaled when all attribute data has been read
+    ManualResetEvent attrDone = null; // signaled when all attribute data has been read
     byte[] attrBuffer;
     int totalAttrData = 0; // keep track of the amount of attribute data expected so we don't make the read block
     if(retrieveAttributes)
     {
       attrPipe       = new InheritablePipe();
       attrStream     = new FileStream(new SafeFileHandle(attrPipe.ServerHandle, false), FileAccess.Read);
-      attrDone       = new ManualResetEvent(false);
       attrTempFile   = Path.GetTempFileName();
       attrTempStream = new FileStream(attrTempFile, FileMode.Open, FileAccess.ReadWrite);
       attrBuffer     = new byte[4096];
@@ -4093,7 +4092,6 @@ public class ExeGPG : GPG
     else // otherwise, attributes are not being retrieved, so we don't need them
     {
       attrPipe      = null;
-      attrDone      = null;
       attrStream    = attrTempStream = null;
       attrTempFile  = null;
       attrBuffer    = null;
@@ -4116,22 +4114,25 @@ public class ExeGPG : GPG
         // block if we try to read the attribute stream in the main loop -- even if we use asynchronous IO
         attrCallback = delegate(IAsyncResult result)
         {
-          attrRead = null;
-
           int bytesRead = attrStream.EndRead(result);
           if(bytesRead == 0) // if we're at EOF, then we're completely done
           {
-            attrDone.Set();
+            attrRead = null;
           }
           else // otherwise, some data was read
           {
             attrTempStream.Write(attrBuffer, 0, bytesRead); // so write it to the temporary output stream
             lock(attrBuffer) // then enter a critical section because two threads will be trying to read/write
             {                // totalAttrData and attrRead
+              attrRead = null; // this can't be moved outside the critical section, or a deadlock could occur!
               totalAttrData -= bytesRead;
 
-              if(totalAttrData != 0 && attrRead == null) // if there's more data to read, and the main thread didn't
-              {                                          // issue a read command first, then continue reading
+              if(totalAttrData == 0)
+              {
+                if(attrDone != null) attrDone.Set(); // if the main thread is waiting, let it know that we're done
+              }
+              else if(totalAttrData != 0 && attrRead == null) // if there's more data to read, and the main thread
+              {                                               // didn't issue a read first, then continue reading
                 attrRead = attrStream.BeginRead(attrBuffer, 0, Math.Min(totalAttrData, attrBuffer.Length),
                                                 attrCallback, null);
               }
@@ -4281,10 +4282,13 @@ public class ExeGPG : GPG
 
       if(retrieveAttributes)
       {
-        attrPipe.CloseClient(); // GPG should be done writing now
-        if(attrRead != null) attrDone.WaitOne(); // wait for reading to finish
-        IOH.CopyStream(attrStream, attrTempStream); // then copy the rest synchronously
-        
+        // if the callback is reading, create an event that the callback will set when it's done with the current read
+        lock(attrBuffer)
+        {
+          if(attrRead != null) attrDone = new ManualResetEvent(false);
+        }
+        if(attrDone != null) attrDone.WaitOne(); // wait for the current read to finish
+
         // the attribute data is done being read, so now we can go back and replace all the dummy attributes
         attrTempStream.Position = 0;
         for(int i=initialKeyCount; i<keys.Count; i++)
@@ -4331,9 +4335,9 @@ public class ExeGPG : GPG
       cmd.Dispose();
       if(retrieveAttributes)
       {
+        if(attrDone != null) attrDone.Close();
         attrStream.Dispose();
         attrPipe.Dispose();
-        attrDone.Close();
         attrTempStream.Close();
         File.Delete(attrTempFile);
       }
@@ -4504,16 +4508,17 @@ public class ExeGPG : GPG
   /// </summary>
   bool SendKeyPassword(Command command, string passwordHint, NeedKeyPassphraseMessage msg, bool passwordRequired)
   {
-    string userIdHint = passwordHint + " [0x" + msg.KeyId;
+    string userIdHint = passwordHint + " (0x" + msg.KeyId;
     if(!string.Equals(msg.KeyId, msg.PrimaryKeyId, StringComparison.Ordinal))
     {
       userIdHint += " on primary key 0x" + msg.PrimaryKeyId;
     }
-    userIdHint += "]";
+    userIdHint += ")";
 
     SecureString password = GetKeyPassword(msg.KeyId, userIdHint);
     if(password == null)
     {
+      // TODO: FIXME: this exception should not be thrown from the async IO thread, but propogated to the main thread!
       if(passwordRequired) throw new OperationCanceledException("No password was given.");
       command.SendLine();
       return false;

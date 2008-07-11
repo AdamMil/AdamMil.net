@@ -338,7 +338,9 @@
     <GetKeyPassword>
       <summary>Gets the password for the secret key named in the given password hint.</summary>
       <param name="keyId">The ID of the key whose password is sought.</param>
-      <param name="userIdHint">A password hint to be displayed to the user, containing a user ID that owns the key.</param>
+      <param name="passwordHint">A password hint to be displayed to the user, containing the user ID that owns the key
+        and the key ID.
+      </param>
       <returns>Returns a new <see cref="SecureString"/> containing the password.</returns>
       <remarks>The password will be disposed after being used.</remarks>
     </GetKeyPassword>

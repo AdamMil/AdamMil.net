@@ -37,28 +37,24 @@ public partial class UserIdForm : Form
   public string Comment
   {
     get { return txtComment.Text.Trim(); }
-    set { txtComment.Text = value; }
   }
 
   [Browsable(false)]
   public string Email
   {
     get { return txtEmail.Text.Trim(); }
-    set { txtEmail.Text = value; }
   }
 
   [Browsable(false)]
   public bool MakePrimary
   {
     get { return chkPrimary.Checked; }
-    set { chkPrimary.Checked = value; }
   }
 
   [Browsable(false)]
   public string RealName
   {
     get { return txtName.Text.Trim(); }
-    set { txtName.Text = value; }
   }
 
   [Browsable(false)]

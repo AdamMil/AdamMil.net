@@ -59,7 +59,7 @@ public partial class UserIdManagerForm : Form
 
     foreach(UserId id in key.UserIds)
     {
-      ListViewItem item = new ListViewItem(id.Name);
+      AttributeItem item = new AttributeItem(id, PGPUI.GetAttributeName(id));
       if(id.Revoked) item.Text += " (revoked)";
       item.ImageIndex = UserIdImage;
       item.Tag        = id;
@@ -70,7 +70,7 @@ public partial class UserIdManagerForm : Form
     foreach(UserAttribute attr in key.Attributes)
     {
       bool isPhoto = attr is UserImage;
-      ListViewItem item = new ListViewItem(isPhoto ? "Photo Id" : "Unknown user attribute");
+      AttributeItem item = new AttributeItem(attr, PGPUI.GetAttributeName(attr));
       if(attr.Revoked) item.Text += " (revoked)";
       item.ImageIndex = isPhoto ? PhotoIdImage : UnknownImage;
       item.Tag        = attr;
@@ -107,7 +107,7 @@ public partial class UserIdManagerForm : Form
   UserAttribute[] GetSelectedAttributes()
   {
     UserAttribute[] attributes = new UserAttribute[userIds.SelectedItems.Count];
-    for(int i=0; i<attributes.Length; i++) attributes[i] = (UserAttribute)userIds.SelectedItems[i].Tag;
+    for(int i=0; i<attributes.Length; i++) attributes[i] = ((AttributeItem)userIds.SelectedItems[i]).Attribute;
     return attributes;
   }
 
@@ -132,7 +132,7 @@ public partial class UserIdManagerForm : Form
     }
   }
 
-  void SetFont(ListViewItem item, UserAttribute attr)
+  void SetFont(AttributeItem item, UserAttribute attr)
   {
     if(attr.Revoked)
     {
@@ -165,7 +165,7 @@ public partial class UserIdManagerForm : Form
     {
       NewPhotoIdForm form = new NewPhotoIdForm();
 
-      try { form.LoadImage(ofd.FileName); }
+      try { form.Initialize(ofd.FileName); }
       catch(Exception ex)
       {
         if(ex is System.IO.IOException || ex is System.ArgumentException)
@@ -232,11 +232,11 @@ public partial class UserIdManagerForm : Form
     {
       if(!EnsureNotAllUserIdsSelected("revoke")) return;
 
-      UserRevocationForm form = new UserRevocationForm();
-      foreach(ListViewItem item in userIds.SelectedItems) form.UserIdList.Add(item.Text);
+      UserAttribute[] attrs = GetSelectedAttributes();
+      UserRevocationForm form = new UserRevocationForm(attrs);
       if(form.ShowDialog() == DialogResult.OK)
       {
-        try { pgp.RevokeAttributes(form.Reason, GetSelectedAttributes()); }
+        try { pgp.RevokeAttributes(form.Reason, attrs); }
         catch(OperationCanceledException) { }
         ReloadKey();
       }

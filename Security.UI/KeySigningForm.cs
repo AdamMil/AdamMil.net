@@ -31,75 +31,49 @@ public partial class KeySigningForm : Form
     InitializeComponent();
   }
 
-  [Browsable(false)]
-  public CertificationLevel CertificationLevel
+  public KeySigningForm(PrimaryKey[] keysToSign, PrimaryKey[] signingKeys) : this()
   {
-    get
-    {
-      if(rbNone.Checked) return CertificationLevel.None;
-      else if(rbCasual.Checked) return CertificationLevel.Casual;
-      else if(rbRigorous.Checked) return CertificationLevel.Rigorous;
-      else return CertificationLevel.Undisclosed;
-    }
-    set
-    {
-      RadioButton button;
-      switch(value)
-      {
-        case CertificationLevel.None: button = rbNone; break;
-        case CertificationLevel.Casual: button = rbCasual; break;
-        case CertificationLevel.Rigorous: button = rbRigorous; break;
-        default: button = rbNoAnswer; break;
-      }
-
-      // if no verification was performed, mark the signature as local only
-      if(button == rbNoAnswer || button == rbNone) LocalOnly = true;
-
-      button.Checked = true;
-      button.Focus();
-    }
-  }
-
-  [Browsable(false)]
-  public bool LocalOnly
-  {
-    get { return chkLocal.Checked; }
-    set { chkLocal.Checked = value; }
+    Initialize(keysToSign, signingKeys);
   }
 
   [Browsable(false)]
   public KeySigningOptions KeySigningOptions
   {
-    get { return new KeySigningOptions(CertificationLevel, !LocalOnly); }
+    get 
+    {
+      CertificationLevel certLevel;
+      if(rbNone.Checked) certLevel = CertificationLevel.None;
+      else if(rbCasual.Checked) certLevel = CertificationLevel.Casual;
+      else if(rbRigorous.Checked) certLevel = CertificationLevel.Rigorous;
+      else certLevel = CertificationLevel.Undisclosed;
+
+      return new KeySigningOptions(certLevel, !chkLocal.Checked); 
+    }
   }
 
   [Browsable(false)]
-  public ListBox.ObjectCollection SignedKeys
+  public PrimaryKey SelectedSigningKey
   {
-    get { return signedKeys.Items; }
+    get { return ((KeyItem)signingKeys.SelectedItem).Value; }
   }
 
-  [Browsable(false)]
-  public ComboBox.ObjectCollection SigningKeys
+  public void Initialize(PrimaryKey[] keysToSign, PrimaryKey[] signingKeys)
   {
-    get { return signingKeys.Items; }
-  }
+    if(keysToSign == null || signingKeys == null) throw new ArgumentNullException();
+    if(keysToSign.Length == 0) throw new ArgumentException("No keys to sign were given.");
+    if(signingKeys.Length == 0) throw new ArgumentException("No signing keys were given.");
 
-  [Browsable(false)]
-  public int SelectedSigningKey
-  {
-    get { return signingKeys.SelectedIndex; }
-  }
+    this.signedKeys.Items.Clear();
+    this.signingKeys.Items.Clear();
+    foreach(PrimaryKey key in keysToSign) this.signedKeys.Items.Add(new KeyItem(key));
+    foreach(PrimaryKey key in signingKeys) this.signingKeys.Items.Add(new KeyItem(key));
 
-  protected override void OnShown(EventArgs e)
-  {
-    base.OnShown(e);
-    if(signingKeys.SelectedIndex == -1) signingKeys.SelectedIndex = 0;
+    this.signingKeys.SelectedIndex = 0;
   }
 
   void rbPoor_CheckedChanged(object sender, EventArgs e)
   {
-    if(((RadioButton)sender).Checked) LocalOnly = true;
+    if(((RadioButton)sender).Checked) chkLocal.Checked = true;
   }
 }
 

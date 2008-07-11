@@ -194,6 +194,7 @@ namespace AdamMil.Security.UI
       this.signedKeys.FormattingEnabled = true;
       this.signedKeys.Location = new System.Drawing.Point(9, 87);
       this.signedKeys.Name = "signedKeys";
+      this.signedKeys.SelectionMode = System.Windows.Forms.SelectionMode.None;
       this.signedKeys.Size = new System.Drawing.Size(557, 69);
       this.signedKeys.TabIndex = 2;
       // 
@@ -201,6 +202,7 @@ namespace AdamMil.Security.UI
       // 
       this.signingKeys.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+      this.signingKeys.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
       this.signingKeys.FormattingEnabled = true;
       this.signingKeys.Location = new System.Drawing.Point(9, 182);
       this.signingKeys.Name = "signingKeys";

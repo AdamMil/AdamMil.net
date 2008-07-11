@@ -730,7 +730,7 @@ public delegate SecureString CipherPasswordHandler();
 
 #region KeyPasswordHandler
 /// <include file="documentation.xml" path="/Security/PGPSystem/GetKeyPassword/*"/>
-public delegate SecureString KeyPasswordHandler(string keyId, string userIdHint);
+public delegate SecureString KeyPasswordHandler(string keyId, string passwordHint);
 #endregion
 
 #region PasswordInvalidHandler
@@ -1409,9 +1409,9 @@ public abstract class PGPSystem
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetKeyPassword/*"/>
-  protected virtual SecureString GetKeyPassword(string keyId, string userIdHint)
+  protected virtual SecureString GetKeyPassword(string keyId, string passwordHint)
   {
-    if(KeyPasswordNeeded != null) return KeyPasswordNeeded(keyId, userIdHint);
+    if(KeyPasswordNeeded != null) return KeyPasswordNeeded(keyId, passwordHint);
     else throw new UnhandledPasswordException();
   }
 

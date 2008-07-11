@@ -75,36 +75,28 @@ public partial class KeyServerForm : Form
     get { return keyServer; }
   }
 
-  protected override void OnClosing(CancelEventArgs e)
-  {
-    base.OnClosing(e);
-
-    if(!e.Cancel && !cancelled)
-    {
-      try { keyServer = new Uri(keyservers.Text, UriKind.Absolute); }
-      catch
-      {
-        MessageBox.Show(keyservers.Text + " is not a valid key server name.", "Invalid URI",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
-        e.Cancel = true;
-      }
-    }
-  }
-
   protected override void OnShown(EventArgs e)
   {
     base.OnShown(e);
     keyservers.Focus();
   }
 
-  void btnCancel_Click(object sender, EventArgs e)
+  void btnOK_Click(object sender, EventArgs e)
   {
-    cancelled = true;
+    try
+    {
+      keyServer = new Uri(keyservers.Text, UriKind.Absolute);
+      DialogResult = DialogResult.OK;
+    }
+    catch
+    {
+      MessageBox.Show(keyservers.Text + " is not a valid key server name.", "Invalid URI",
+                      MessageBoxButtons.OK, MessageBoxIcon.Error);
+    }
   }
 
   readonly int topSpace, bottomSpace, horizontalSpace;
   Uri keyServer;
-  bool cancelled;
 }
 
 } // namespace AdamMil.Security.UI

@@ -87,7 +87,7 @@ namespace AdamMil.Security.UI
       codeGroup.Size = new System.Drawing.Size(315, 68);
       codeGroup.TabIndex = 3;
       codeGroup.TabStop = false;
-      codeGroup.Text = "Reason for revocation";
+      codeGroup.Text = "What is the reason for the revocation?";
       // 
       // rbInvalid
       // 
@@ -97,7 +97,7 @@ namespace AdamMil.Security.UI
       this.rbInvalid.Name = "rbInvalid";
       this.rbInvalid.Size = new System.Drawing.Size(299, 17);
       this.rbInvalid.TabIndex = 5;
-      this.rbInvalid.Text = "The user ID is no longer valid.";
+      this.rbInvalid.Text = "The user IDs are no longer valid.";
       this.rbInvalid.UseVisualStyleBackColor = true;
       // 
       // rbNoReason

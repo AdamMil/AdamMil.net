@@ -65,7 +65,7 @@ namespace AdamMil.Security.UI
       // lblPass
       // 
       lblPass.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-      lblPass.Location = new System.Drawing.Point(1, 151);
+      lblPass.Location = new System.Drawing.Point(1, 123);
       lblPass.Name = "lblPass";
       lblPass.Size = new System.Drawing.Size(117, 19);
       lblPass.TabIndex = 1;
@@ -78,14 +78,14 @@ namespace AdamMil.Security.UI
             | System.Windows.Forms.AnchorStyles.Right)));
       lblHelp.Location = new System.Drawing.Point(7, 7);
       lblHelp.Name = "lblHelp";
-      lblHelp.Size = new System.Drawing.Size(669, 140);
+      lblHelp.Size = new System.Drawing.Size(669, 112);
       lblHelp.TabIndex = 0;
       lblHelp.Text = resources.GetString("lblHelp.Text");
       // 
       // label1
       // 
       label1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-      label1.Location = new System.Drawing.Point(1, 178);
+      label1.Location = new System.Drawing.Point(1, 150);
       label1.Name = "label1";
       label1.Size = new System.Drawing.Size(117, 19);
       label1.TabIndex = 4;
@@ -95,7 +95,7 @@ namespace AdamMil.Security.UI
       // btnOK
       // 
       btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-      btnOK.Location = new System.Drawing.Point(263, 206);
+      btnOK.Location = new System.Drawing.Point(263, 178);
       btnOK.Name = "btnOK";
       btnOK.Size = new System.Drawing.Size(75, 23);
       btnOK.TabIndex = 6;
@@ -107,7 +107,7 @@ namespace AdamMil.Security.UI
       // 
       btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-      btnCancel.Location = new System.Drawing.Point(344, 206);
+      btnCancel.Location = new System.Drawing.Point(344, 178);
       btnCancel.Name = "btnCancel";
       btnCancel.Size = new System.Drawing.Size(75, 23);
       btnCancel.TabIndex = 7;
@@ -117,7 +117,7 @@ namespace AdamMil.Security.UI
       // lblStrength
       // 
       this.lblStrength.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-      this.lblStrength.Location = new System.Drawing.Point(336, 151);
+      this.lblStrength.Location = new System.Drawing.Point(336, 123);
       this.lblStrength.Name = "lblStrength";
       this.lblStrength.Size = new System.Drawing.Size(330, 19);
       this.lblStrength.TabIndex = 3;
@@ -128,7 +128,7 @@ namespace AdamMil.Security.UI
       // 
       this.pass2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.pass2.ImeMode = System.Windows.Forms.ImeMode.Disable;
-      this.pass2.Location = new System.Drawing.Point(118, 177);
+      this.pass2.Location = new System.Drawing.Point(118, 149);
       this.pass2.Name = "pass2";
       this.pass2.RestrictToLowAscii = true;
       this.pass2.Size = new System.Drawing.Size(211, 21);
@@ -139,7 +139,7 @@ namespace AdamMil.Security.UI
       // 
       this.pass1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.pass1.ImeMode = System.Windows.Forms.ImeMode.Disable;
-      this.pass1.Location = new System.Drawing.Point(118, 150);
+      this.pass1.Location = new System.Drawing.Point(118, 122);
       this.pass1.Name = "pass1";
       this.pass1.RestrictToLowAscii = true;
       this.pass1.Size = new System.Drawing.Size(211, 21);
@@ -153,15 +153,15 @@ namespace AdamMil.Security.UI
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.CancelButton = btnCancel;
-      this.ClientSize = new System.Drawing.Size(683, 235);
+      this.ClientSize = new System.Drawing.Size(683, 207);
       this.Controls.Add(btnCancel);
       this.Controls.Add(btnOK);
       this.Controls.Add(this.lblStrength);
       this.Controls.Add(this.pass2);
       this.Controls.Add(label1);
       this.Controls.Add(this.pass1);
-      this.Controls.Add(lblHelp);
       this.Controls.Add(lblPass);
+      this.Controls.Add(lblHelp);
       this.Font = new System.Drawing.Font("Verdana", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
       this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
       this.MaximizeBox = false;

@@ -24,34 +24,37 @@ using AdamMil.Security.PGP;
 namespace AdamMil.Security.UI
 {
 
-public partial class SignaturesForm : Form
+public partial class KeyRevocationForm : Form
 {
-  public SignaturesForm()
+  public KeyRevocationForm()
   {
     InitializeComponent();
   }
 
-  public SignaturesForm(PrimaryKey publicKey) : this()
+  [Browsable(false)]
+  public KeyRevocationReason Reason
   {
-    Initialize(publicKey);
-  }
-
-  public void Initialize(PrimaryKey publicKey)
-  {
-    if(publicKey == null) throw new ArgumentNullException();
-    lblDescription.Text = "Signatures for " + PGPUI.GetKeyName(publicKey);
-    sigList.ShowSignatures(publicKey);
-  }
-
-  protected override void OnKeyDown(KeyEventArgs e)
-  {
-    base.OnKeyDown(e);
-
-    if(!e.Handled && e.KeyCode == Keys.Escape)
+    get
     {
-      Close();
-      e.Handled = true;
+      KeyRevocationCode code;
+      if(rbSuperceded.Checked) code = KeyRevocationCode.KeySuperceded;
+      else if(rbCompromised.Checked) code = KeyRevocationCode.KeyCompromised;
+      else if(rbRetired.Checked) code = KeyRevocationCode.KeyRetired;
+      else code = KeyRevocationCode.Unspecified;
+
+      return new KeyRevocationReason(code, txtExplanation.Text.Trim());
     }
+  }
+
+  public KeyRevocationForm(PrimaryKey key) : this()
+  {
+    Initialize(key);
+  }
+
+  public void Initialize(PrimaryKey key)
+  {
+    if(key == null) throw new ArgumentNullException();
+    lblKey.Text = "You are about to revoke this key:\n" + PGPUI.GetKeyName(key);
   }
 }
 
