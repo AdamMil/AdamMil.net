@@ -278,7 +278,7 @@ public class ExeGPG : GPG
 
     args += GetKeyringArgs(keyringKeys, true); // add all the keyrings to the command line
 
-    Command cmd = Execute(args, true, false, StreamHandling.Unprocessed);
+    Command cmd = Execute(args, StatusMessages.ReadInBackground, false);
     CommandState state = new CommandState(cmd);
     if(customAlgo) state.FailureReasons |= FailureReason.UnsupportedAlgorithm; // using a custom algo can cause failure
 
@@ -339,8 +339,7 @@ public class ExeGPG : GPG
   {
     if(ciphertext == null || destination == null) throw new ArgumentNullException();
 
-    Command cmd = Execute(GetVerificationArgs(options, true) + "-d", true, false, 
-                          StreamHandling.Unprocessed);
+    Command cmd = Execute(GetVerificationArgs(options, true) + "-d", StatusMessages.ReadInBackground, false);
     return DecryptVerifyCore(cmd, ciphertext, destination, options);
   }
 
@@ -408,8 +407,7 @@ public class ExeGPG : GPG
     if(source == null) throw new ArgumentNullException();
 
     CommandState state;
-    Command cmd = Execute(GetImportArgs(keyring, options) + "--import", true, false, 
-                          StreamHandling.ProcessText);
+    Command cmd = Execute(GetImportArgs(keyring, options) + "--import", StatusMessages.ReadInBackground, false);
     ImportedKey[] keys = ImportCore(cmd, source, out state);
     if(!cmd.SuccessfulExit) throw new ImportFailedException(state.FailureReasons);
     return keys;
@@ -482,50 +480,44 @@ public class ExeGPG : GPG
     string args = "--keyserver " + EscapeArg(keyServer.AbsoluteUri) + " --with-colons --fixed-list-mode --search-keys";
     foreach(string keyword in searchKeywords) args += " " + EscapeArg(keyword);
 
-    Command cmd = ExecuteForInteraction(args, StreamHandling.ProcessText);
+    Command cmd = Execute(args, StatusMessages.MixIntoStdout, true);
     CommandState state = new CommandState(cmd);
     using(cmd)
     {
-      cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
-      cmd.Start();
-
       List<PrimaryKey> keysFound = new List<PrimaryKey>();
       List<UserId> userIds = new List<UserId>();
 
-      // GPG sends incorrect line endings on Windows (actually, it sends CR CR LF as a line ending) which is
-      // causing the StreamReader to return many blank lines. so we'll instruct the reader to ignore blank lines...
-      MixedStreamReader reader = new MixedStreamReader(cmd.Process.StandardOutput, true);
+      cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
+
+      cmd.Start();
 
       while(true)
       {
-        string line = reader.ReadLine();
+        string line;
+        cmd.ReadLine(out line);
         if(line != null) LogLine(line);
 
         gotLine:
-        if(line == null) break;
+        if(line == null && cmd.StatusMessage == null) break;
 
-        if(reader.IsStatusMessage) // a status message was received
+        if(line == null)
         {
-          StatusMessage msg = cmd.ParseStatusMessage(line);
-          if(msg != null)
+          switch(cmd.StatusMessage.Type)
           {
-            switch(msg.Type)
-            {
-              case StatusMessageType.GetLine:
-                GetInputMessage m = (GetInputMessage)msg;
-                if(string.Equals(m.PromptId, "keysearch.prompt", StringComparison.Ordinal))
-                {
-                  // we're done with this chunk of the search, so we'll give the keys to the search handler.
-                  // we won't continue if we didn't find anything, even if the handler returns true
-                  bool shouldContinue = keysFound.Count != 0 && handler(keysFound.ToArray());
-                  cmd.SendLine(shouldContinue ? "N" : "Q");
-                  keysFound.Clear();
-                  break;
-                }
-                else goto default;
+            case StatusMessageType.GetLine:
+              GetInputMessage m = (GetInputMessage)cmd.StatusMessage;
+              if(string.Equals(m.PromptId, "keysearch.prompt", StringComparison.Ordinal))
+              {
+                // we're done with this chunk of the search, so we'll give the keys to the search handler.
+                // we won't continue if we didn't find anything, even if the handler returns true
+                bool shouldContinue = keysFound.Count != 0 && handler(keysFound.ToArray());
+                cmd.SendLine(shouldContinue ? "N" : "Q");
+                keysFound.Clear();
+                break;
+              }
+              else goto default;
 
-              default: DefaultStatusMessageHandler(msg, state); break;
-            }
+            default: DefaultStatusMessageHandler(cmd.StatusMessage, state); break;
           }
         }
         else if(line.StartsWith("pub:", StringComparison.Ordinal)) // a key description follows
@@ -540,10 +532,10 @@ public class ExeGPG : GPG
           {
             do
             {
-              line = reader.ReadLine();
-              if(!string.IsNullOrEmpty(line)) LogLine(line);
+              cmd.ReadLine(out line);
+              if(line != null) LogLine(line);
             }
-            while(line != null || (line[0] != '[' && line.StartsWith("pub:", StringComparison.Ordinal)));
+            while(line != null && !line.StartsWith("pub:", StringComparison.Ordinal));
             goto gotLine;
           }
 
@@ -551,7 +543,7 @@ public class ExeGPG : GPG
           if(fields.Length > 3 && !string.IsNullOrEmpty(fields[3])) key.Length = int.Parse(fields[3]);
           if(fields.Length > 4 && !string.IsNullOrEmpty(fields[4])) key.CreationTime = ParseTimestamp(fields[4]);
           if(fields.Length > 5 && !string.IsNullOrEmpty(fields[5])) key.ExpirationTime = ParseNullableTimestamp(fields[5]);
-          
+
           if(fields.Length > 6 && !string.IsNullOrEmpty(fields[6]))
           {
             foreach(char c in fields[6])
@@ -568,14 +560,12 @@ public class ExeGPG : GPG
           // now parse the user IDs
           while(true)
           {
-            line = reader.ReadLine();
-            if(line == null) break;
-            else
-            {
-              LogLine(line);
-              if(line[0] == '[' || line.StartsWith("pub:", StringComparison.Ordinal)) break;
-              if(!line.StartsWith("uid", StringComparison.Ordinal)) continue;
-            }
+            cmd.ReadLine(out line);
+            if(line == null) break; // if we hit a status message or EOF, break
+
+            LogLine(line);
+            if(line.StartsWith("pub:", StringComparison.Ordinal)) break;
+            else if(!line.StartsWith("uid", StringComparison.Ordinal)) continue;
 
             fields = line.Split(':');
             if(string.IsNullOrEmpty(fields[1])) continue;
@@ -780,7 +770,7 @@ public class ExeGPG : GPG
     else qualityArg = "1"; // we'll default to the Strong level
 
     Command cmd = Execute("--gen-random " + qualityArg + " " + count.ToString(CultureInfo.InvariantCulture), 
-                          false, true, StreamHandling.Unprocessed);
+                          StatusMessages.Ignore, true);
     using(cmd)
     {
       cmd.Start();
@@ -817,7 +807,7 @@ public class ExeGPG : GPG
     // human-readable form, with hex digits nicely formatted into blocks and lines. we'll feed it all the input and
     // then read the output.
     List<byte> hash = new List<byte>();
-    Command cmd = Execute("--print-md " + EscapeArg(hashAlgorithm), false, false, StreamHandling.Unprocessed);
+    Command cmd = Execute("--print-md " + EscapeArg(hashAlgorithm), StatusMessages.Ignore, false);
     using(cmd)
     {
       cmd.Start();
@@ -975,7 +965,7 @@ public class ExeGPG : GPG
     // if we're using DSA keys greater than 1024 bits, we need to enable DSA2 support
     if(primaryIsDSA && options.KeyLength > 1024 || subIsDSA && options.SubkeyLength > 1024) args += "--enable-dsa2 ";
 
-    Command cmd = Execute(args + "--batch --gen-key", true, false, StreamHandling.ProcessText);
+    Command cmd = Execute(args + "--batch --gen-key", StatusMessages.ReadInBackground, false);
     CommandState state = new CommandState(cmd);
     using(cmd)
     {
@@ -1060,7 +1050,7 @@ public class ExeGPG : GPG
     args += (deletion == KeyDeletion.Secret ? "--delete-secret-key " : "--delete-secret-and-public-key ") +
             GetFingerprintArgs(keys);
 
-    Command cmd = Execute(args, true, true, StreamHandling.ProcessText);
+    Command cmd = Execute(args, StatusMessages.ReadInBackground, true);
     CommandState state = new CommandState(cmd);
     using(cmd)
     {
@@ -1247,8 +1237,6 @@ public class ExeGPG : GPG
     this.exePath = info.FullName; // everything seems okay, so set the full exePath
   }
 
-  const string StatusMessageToken = "[GNUPG:]";
-
   /// <summary>Processes status messages from GPG.</summary>
   delegate void StatusMessageHandler(StatusMessage message);
 
@@ -1258,30 +1246,10 @@ public class ExeGPG : GPG
   /// <summary>Creates an edit command on demand to operate on the given key signatures.</summary>
   delegate EditCommand KeySignatureEditCommandCreator(KeySignature[] sigs);
 
-  #region StreamHandling
-  /// <summary>Determines how a process' stream will be handled.</summary>
-  enum StreamHandling
+  enum StatusMessages
   {
-    /// <summary>The stream will not be processed by the <see cref="Command"/> object.</summary>
-    Unprocessed,
-    /// <summary>The stream will be closed immediately.</summary>
-    Close,
-    /// <summary>The stream will be read as GPG status lines (%XX encoded UTF-8 text) and the lines will be processed
-    /// by the <see cref="Command"/>.
-    /// </summary>
-    ProcessStatus,
-    /// <summary>The stream will be read as UTF-8 text and the lines will be processed by the
-    /// <see cref="Command"/>.
-    /// </summary>
-    ProcessText,
-    /// <summary>The stream will be read as binary and the data will be thrown away. This simply prevents the client
-    /// process from blocking due to a full buffer.
-    /// </summary>
-    DumpBinary,
-    /// <summary>The stream has both output and GPG status lines.</summary>
-    Mixed
+    Ignore, MixIntoStdout, ReadInBackground
   }
-  #endregion
 
   #region CommandState
   /// <summary>Holds variables set by the default STDERR and status message handlers.</summary>
@@ -1309,15 +1277,14 @@ public class ExeGPG : GPG
   sealed class Command : System.Runtime.ConstrainedExecution.CriticalFinalizerObject, IDisposable
   {
     public Command(ExeGPG gpg, ProcessStartInfo psi, InheritablePipe commandPipe,
-                   bool closeStdInput, StreamHandling stdOut, StreamHandling stdError)
+                   StatusMessages statusHandling, bool closeStdInput)
     {
       if(gpg == null || psi == null) throw new ArgumentNullException();
-      this.gpg           = gpg;
-      this.psi           = psi;
-      this.commandPipe   = commandPipe;
-      this.closeStdInput = closeStdInput;
-      this.outHandling   = stdOut;
-      this.errorHandling = stdError;
+      this.gpg            = gpg;
+      this.psi            = psi;
+      this.commandPipe    = commandPipe;
+      this.statusHandling = statusHandling;
+      this.closeStdInput  = closeStdInput;
     }
 
     ~Command() { Dispose(true); }
@@ -1351,7 +1318,7 @@ public class ExeGPG : GPG
     /// <summary>Returns true if the process has exited and the remaining data has been read from all streams.</summary>
     public bool IsDone
     {
-      get { return outDone && errorDone && statusDone && process.HasExited; }
+      get { return statusDone && errorDone && process.HasExited; }
     }
 
     /// <summary>Gets the GPG process, or throws an exception if it has not been started yet.</summary>
@@ -1362,6 +1329,14 @@ public class ExeGPG : GPG
         if(process == null) throw new InvalidOperationException("The process has not started yet.");
         return process; 
       }
+    }
+
+    /// <summary>Gets the status message from the most recent line, or null if the most recent line didn't contain a
+    /// status message.
+    /// </summary>
+    public StatusMessage StatusMessage
+    {
+      get { return statusMessage; }
     }
 
     /// <summary>Returns true if GPG exited successfully (with a return code of 0 [success] or 1 [warning]).</summary>
@@ -1396,17 +1371,149 @@ public class ExeGPG : GPG
       }
     }
 
-    /// <summary>Parses a string containing a status line into a status message.</summary>
-    public StatusMessage ParseStatusMessage(string line)
+    /// <summary>Reads a line from STDOUT. The method will return true if a line was processed, but the line will be
+    /// null if it was a status message. (The status message can be handled using <see cref="StatusMessageReceived"/>
+    /// or by retrieving it from the <see cref="StatusMessage"/> property.) False will be returned if the end of input
+    /// is reached.
+    /// </summary>
+    public bool ReadLine(out string line)
     {
-      string[] chunks = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-      if(chunks.Length >= 2 && string.Equals(chunks[0], StatusMessageToken, StringComparison.Ordinal))
+      // if we don't have status messages mixed in, we can just let the StreamReader handle it
+      if(statusHandling != StatusMessages.MixIntoStdout)
       {
-        string[] arguments = new string[chunks.Length-2];
-        Array.Copy(chunks, 2, arguments, 0, arguments.Length);
-        return ParseStatusMessage(chunks[1], arguments);
+        line = process.StandardOutput.ReadLine();
+        return line != null;
       }
-      else return null;
+
+      bool tryAgain;
+
+      do
+      {
+        statusMessage = null;  // assume this line isn't a status message
+        tryAgain      = false; // and that it'll be something we want to return
+
+        // if we don't know where the next EOL is, we need to read some more data
+        while(nextOutEOL == -1)
+        {
+          if(outBytes == outBuffer.Length) // if we need to make more room in the buffer...
+          {
+            if(outStart != 0) // first try shifting the data over if we can
+            {
+              Array.Copy(outBuffer, outStart, outBuffer, 0, outBytes - outStart);
+              outBytes -= outStart;
+              outStart  = 0;
+            }
+            else // otherwise, enlarge the buffer
+            {
+              byte[] newBuffer = new byte[outBytes*2];
+              Array.Copy(outBuffer, newBuffer, outBytes);
+              outBuffer = newBuffer;
+            }
+          }
+
+          // now try reading some more data
+          int bytesRead = process.StandardOutput.BaseStream.Read(outBuffer, outBytes, outBuffer.Length - outBytes);
+
+          if(bytesRead == 0) // we hit the EOF
+          {
+            if(outBytes - outStart != 0) // there's a bit of data left in the buffer, so use it as the last line
+            {
+              nextOutEOL = outBytes;
+            }
+            else if(partialLineLength != 0) // the buffer is empty, but there's a partial line left over. use that.
+            {
+              line = Encoding.UTF8.GetString(partialLine, 0, partialLineLength);
+              partialLineLength = 0;
+              return true;
+            }
+            else // there's no data left anywhere, so return null
+            {
+              line = null;
+              return false;
+            }
+          }
+          else // we got new data in the buffer, so see if there's an EOL character in it
+          {
+            nextOutEOL = Array.IndexOf(outBuffer, (byte)'\n', outBytes, bytesRead);
+            outBytes += bytesRead;
+          }
+        }
+
+        // at this point, we've found the EOL. we'll peek behind it and see if it's a CRLF combination.
+        // we'll actually use a loop because sometimes GPG sends CR CR LF...
+        int lineEnd = nextOutEOL;
+        while(lineEnd != 0 && outBuffer[lineEnd-1] == '\r') lineEnd--;
+
+        int lineLength = lineEnd - outStart;
+
+        // now we know what data is in the next line. we need to search it for a "[GNUPG:] " token
+        int statusMsgIndex = lineLength < 9 ? -1 : Array.IndexOf(outBuffer, (byte)'[', outStart, lineLength - 8);
+
+        if(statusMsgIndex != -1)
+        {
+          if(outBuffer[statusMsgIndex+1] != (byte)'G' || outBuffer[statusMsgIndex+2] != (byte)'N' ||
+             outBuffer[statusMsgIndex+3] != (byte)'U' || outBuffer[statusMsgIndex+4] != (byte)'P' ||
+             outBuffer[statusMsgIndex+5] != (byte)'G' || outBuffer[statusMsgIndex+6] != (byte)':' ||
+             outBuffer[statusMsgIndex+7] != (byte)']' || outBuffer[statusMsgIndex+8] != (byte)' ')
+          {
+            statusMsgIndex = -1;
+          }
+        }
+
+        // if there's no status message in this line, then return the line as-is
+        if(statusMsgIndex == -1)
+        {
+          if(partialLineLength == 0) // there's no partial line from a previous call
+          {
+            line = Encoding.UTF8.GetString(outBuffer, outStart, lineLength);
+          }
+          else // if there's a partial line from a previous call, prepend it to the new line
+          {
+            byte[] newLine = new byte[lineLength + partialLineLength];
+            if(partialLineLength != 0) Array.Copy(partialLine, newLine, partialLineLength);
+            Array.Copy(outBuffer, outStart, newLine, partialLineLength, lineLength);
+            line = Encoding.UTF8.GetString(newLine);
+            partialLineLength = 0;
+          }
+        }
+        else // there's a status message in the line somewhere
+        {
+          if(statusMsgIndex != outStart) // it's embedded in the line
+          {
+            // append the non-status portion to the partial line
+            if(partialLine == null || partialLine.Length < partialLineLength + lineLength)
+            {
+              byte[] newPartialLine = new byte[partialLineLength + lineLength + 64];
+              if(partialLineLength != 0) Array.Copy(partialLine, newPartialLine, partialLineLength);
+              partialLine = newPartialLine;
+            }
+            Array.Copy(outBuffer, outStart, partialLine, partialLineLength, statusMsgIndex - outStart);
+            partialLineLength += statusMsgIndex - outStart;
+          }
+
+          lineLength = Decode(outBuffer, statusMsgIndex, lineEnd - statusMsgIndex);
+          // GPG sends status lines in UTF-8 which has been further encoded so that certain characters become %XX.
+          // decode the line and split it into arguments
+          string type;
+          string[] arguments;
+          SplitDecodedLine(outBuffer, statusMsgIndex, lineLength, out type, out arguments);
+
+          if(type != null) // if the line decoded properly, parse and handle the message
+          {
+            statusMessage = ParseStatusMessage(type, arguments);
+            if(statusMessage != null) OnStatusMessage(statusMessage);
+          }
+
+          tryAgain = statusMessage == null; // if the status message was not used, go to the next line
+          line = null; // no line is returned if a status message was handled
+        }
+
+        // search for the next EOL so we're ready for the next call
+        outStart   = nextOutEOL+1;
+        nextOutEOL = Array.IndexOf(outBuffer, (byte)'\n', outStart, outBytes - outStart);
+      } while(tryAgain);
+
+      return true;
     }
 
     /// <summary>Sends a blank line on the command stream.</summary>
@@ -1470,47 +1577,25 @@ public class ExeGPG : GPG
     {
       if(process != null) throw new InvalidOperationException("The process has already been started.");
 
-      if(gpg.LoggingEnabled) gpg.LogLine(psi.FileName + " " + psi.Arguments);
+      if(gpg.LoggingEnabled) gpg.LogLine(EscapeArg(psi.FileName) + " " + psi.Arguments);
 
       process = Process.Start(psi);
 
       if(closeStdInput) process.StandardInput.Close();
 
-      // if we have a command pipe, set up a stream to read-write it
+      // if we have a command pipe, set up a stream for it
       if(commandPipe != null)
       {
-        commandStream = new FileStream(new SafeFileHandle(commandPipe.ServerHandle, false), FileAccess.ReadWrite);
-        if(outHandling != StreamHandling.Mixed) // if the status messages aren't mixed into the STDOUT, then they'll
-        {                                       // be available on the command pipe, so start reading them
-          statusBuffer = new byte[4096];
-          OnStatusRead(null); // start reading on a background thread
-        }
-        else statusDone = true;
+        commandStream = new FileStream(new SafeFileHandle(commandPipe.ServerHandle, false),
+                          statusHandling == StatusMessages.ReadInBackground ? FileAccess.ReadWrite : FileAccess.Write);
       }
+
+      outBuffer = new byte[4096];
+      if(statusHandling == StatusMessages.ReadInBackground) OnStatusRead(null);
       else statusDone = true;
 
-      if(outHandling == StreamHandling.Close || outHandling == StreamHandling.Unprocessed ||
-         outHandling == StreamHandling.Mixed)
-      {
-        if(outHandling == StreamHandling.Close) process.StandardOutput.Close();
-        outDone = true;
-      }
-      else
-      {
-        outBuffer = new byte[4096];
-        OnStdOutRead(null); // start reading on a background thread
-      }
-
-      if(errorHandling == StreamHandling.Close || errorHandling == StreamHandling.Unprocessed)
-      {
-        if(errorHandling == StreamHandling.Close) process.StandardError.Close();
-        errorDone = true;
-      }
-      else
-      {
-        errorBuffer = new byte[4096];
-        OnStdErrorRead(null); // start reading on a background thread
-      }
+      errorBuffer = new byte[4096];
+      OnStdErrorRead(null); // start reading STDERR on a background thread
     }
 
     /// <summary>Waits for the process to exit and all data to be read.</summary>
@@ -1533,31 +1618,36 @@ public class ExeGPG : GPG
 
     delegate void LineProcessor(string line);
 
+    enum StreamHandling
+    {
+      ProcessText, ProcessStatus, DumpBinary
+    }
+
     void Dispose(bool finalizing)
     {
       if(!disposed)
       {
-        if(commandPipe != null) // if we have a command pipe, we want to close our end of it to tell GPG to exit ASAP.
-        {                       // this gives GPG a chance to exit more gracefully than if we just terminated it.
-          if(commandStream != null)
-          {
-            commandStream.Dispose();
-            commandStream = null;
-          }
+        if(commandStream != null)
+        {
+          commandStream.Dispose();
+          commandStream = null;
+        }
 
-          commandPipe.CloseServer(); // close the server side of the pipe
-          if(process != null) Exit(process); // then exit the process
+        if(commandPipe != null)
+        {
           commandPipe.Dispose(); // and destroy the pipe
           commandPipe = null;
         }
-        else if(process != null) Exit(process); // we don't have a status pipe, so just exit the process
 
-        // wipe the read buffers. it's unlikely that they contain sensitive data, but just in case...
+        if(process != null) Exit(process);
+
+        // wipe the read buffers. it's unlikely that they contains sensitive data, but just in case...
         ZeroBuffer(outBuffer);
         ZeroBuffer(errorBuffer);
-        ZeroBuffer(statusBuffer);
+        ZeroBuffer(partialLine);
+        statusMessage = null;
 
-        statusDone = outDone = errorDone = disposed = true; // mark all streams read so IsDone will return true
+        statusDone = errorDone = disposed = true; // mark reads complete so IsDone will return true
       }
     }
 
@@ -1633,21 +1723,15 @@ public class ExeGPG : GPG
     // warning 0420 is "reference to a volatile field will not be treated as volatile". we aren't worried about this
     // because the field is only written to by the callee, not read.
     #pragma warning disable 420
-    void OnStdOutRead(IAsyncResult result)
-    {
-      HandleStream(outHandling, process.StandardOutput.BaseStream, result, ref outBuffer, ref outBytes, ref outDone,
-                   OnStdOutLine, OnStdOutRead);
-    }
-
     void OnStdErrorRead(IAsyncResult result)
     {
-      HandleStream(errorHandling, process.StandardError.BaseStream, result, ref errorBuffer, ref errorBytes,
+      HandleStream(StreamHandling.ProcessText, process.StandardError.BaseStream, result, ref errorBuffer, ref errorBytes,
                    ref errorDone, OnStdErrorLine, OnStdErrorRead);
     }
 
     void OnStatusRead(IAsyncResult result)
     {
-      HandleStream(StreamHandling.ProcessStatus, commandStream, result, ref statusBuffer, ref statusBytes,
+      HandleStream(StreamHandling.ProcessStatus, commandStream, result, ref outBuffer, ref outBytes,
                    ref statusDone, null, OnStatusRead);
     }
     #pragma warning restore 420
@@ -1739,7 +1823,7 @@ public class ExeGPG : GPG
         // line and split it into arguments
         string type;
         string[] arguments;
-        SplitDecodedLine(binaryLine, Decode(binaryLine), out type, out arguments);
+        SplitDecodedLine(binaryLine, 0, Decode(binaryLine, 0, binaryLine.Length), out type, out arguments);
 
         if(type != null) // if the line decoded properly and has a message type, parse and handle the message
         {
@@ -1750,27 +1834,24 @@ public class ExeGPG : GPG
     }
 
     /// <summary>Splits a decoded ASCII line representing a status message into a message type and message arguments.</summary>
-    void SplitDecodedLine(byte[] line, int length, out string type, out string[] arguments)
+    void SplitDecodedLine(byte[] line, int index, int count, out string type, out string[] arguments)
     {
-      if(gpg.LoggingEnabled) gpg.LogLine(Encoding.ASCII.GetString(line, 0, length));
+      if(gpg.LoggingEnabled) gpg.LogLine(Encoding.ASCII.GetString(line, index, count));
 
       List<string> chunks = new List<string>();
       type      = null;
       arguments = null;
 
       // the chunks are whitespace-separated
-      for(int index=0; ; )
+      for(int end=index+count; ;)
       {
-        while(index < length && line[index] == (byte)' ') index++; // find the next non-whitespace character
+        while(index < end && line[index] == (byte)' ') index++; // find the next non-whitespace character
         int start = index;
-        while(index < length && line[index] != (byte)' ') index++; // find the next whitespace character after that
+        while(index < end && line[index] != (byte)' ') index++; // find the next whitespace character after that
 
-        if(start == length) break; // if we're at the end of the line, we're done
+        if(start == end) break; // if we're at the end of the line, we're done
 
         chunks.Add(Encoding.UTF8.GetString(line, start, index-start)); // grab the text between the two
-
-        // if this isn't a status line, don't waste time splitting the rest of it
-        if(chunks.Count == 1 && !string.Equals(chunks[0], StatusMessageToken, StringComparison.Ordinal)) break;
       }
 
       if(chunks.Count >= 2) // if there are enough chunks to make up a status line
@@ -1784,40 +1865,41 @@ public class ExeGPG : GPG
     Process process;
     InheritablePipe commandPipe;
     FileStream commandStream;
-    byte[] statusBuffer, outBuffer, errorBuffer;
+    byte[] errorBuffer, outBuffer, partialLine;
     ProcessStartInfo psi;
     ExeGPG gpg;
-    int statusBytes, outBytes, errorBytes;
-    StreamHandling outHandling, errorHandling;
-    volatile bool statusDone, outDone, errorDone;
+    StatusMessage statusMessage;
+    int errorBytes, outStart, outBytes, partialLineLength, nextOutEOL = -1;
+    StatusMessages statusHandling;
+    volatile bool errorDone, statusDone;
     bool closeStdInput, disposed;
 
     /// <summary>Decodes %XX-encoded values in ASCII text (represented as a byte array).</summary>
     /// <returns>Returns the new length of the text (the text is decoded in place, and can get shorter).</returns>
-    static int Decode(byte[] encoded)
+    static int Decode(byte[] encoded, int index, int count)
     {
-      int index = Array.IndexOf(encoded, (byte)'%'), offset = 0, newLength = encoded.Length;
+      index = Array.IndexOf(encoded, (byte)'%', index, count);
 
       if(index != -1)
       {
-        for(; index < newLength; index++)
+        for(int offset=0; index < count; index++)
         {
           byte c = encoded[index + offset];
-          if(c == (byte)'%' && index < newLength-2)
+          if(c == (byte)'%' && index < count-2)
           {
             char high = (char)encoded[index + offset+1], low = (char)encoded[index + offset+2];
             if(IsHexDigit(high) && IsHexDigit(low))
             {
               encoded[index] = (byte)GetHexValue(high, low); // convert the hex value to the new byte value
-              offset    += 2;
-              newLength -= 2;
+              offset += 2;
+              count  -= 2;
             }
           }
           else encoded[index] = encoded[index + offset];
         }
       }
 
-      return newLength;
+      return count;
     }
 
     /// <summary>Handles an asynchronous read completion by throwing away the data that was read.</summary>
@@ -1929,79 +2011,6 @@ public class ExeGPG : GPG
     }
 
     public readonly AttributeMessage Message;
-  }
-  #endregion
-
-  #region MixedStreamReader
-  /// <summary>This class reads a stream that has both text lines and status messages mixed together. It is needed
-  /// because sometimes GPG writes a status message in the middle of a text line, and we need to undo that.
-  /// </summary>
-  sealed class MixedStreamReader
-  {
-    public MixedStreamReader(StreamReader reader) : this(reader, false) { }
-
-    public MixedStreamReader(StreamReader reader, bool ignoreBlankLines)
-    {
-      if(reader == null) throw new ArgumentNullException();
-      this.reader = reader;
-      this.ignoreBlankLines = ignoreBlankLines;
-    }
-
-    /// <summary>Gets whether the last line read was a status message.</summary>
-    public bool IsStatusMessage
-    {
-      get { return isStatusMessage; }
-    }
-
-    /// <summary>Returns the next line from the stream. Lines with embedded status messages will be returned after the
-    /// status messages have been.
-    /// </summary>
-    public string ReadLine()
-    {
-      string line;
-      do
-      {
-        line = reader.ReadLine();
-
-        isStatusMessage = false;
-        if(line == null) // if we're at EOF...
-        {
-          if(partialLine != null) // but we have a partial line cached (this shouldn't really happen unless GPG aborts),
-          {                       // then return the partial line first
-            line = partialLine;
-            partialLine = null;
-          }
-        }
-        else // we're not an EOF
-        {
-          int statusStartIndex = line.IndexOf(StatusMessageToken, StringComparison.Ordinal); // look for a status message
-          if(statusStartIndex == -1) // there's no status message
-          {
-            if(partialLine != null) // if we have a partial line, prepend it to the current line
-            {
-              line = partialLine + line;
-              partialLine = null;
-            }
-          }
-          else // there's a status message somewhere
-          {
-            if(statusStartIndex != 0) // it's embedded in the line
-            {
-              partialLine += line.Substring(0, statusStartIndex); // add the non-status portion to the partial line
-              line = line.Substring(statusStartIndex); // and return the status message
-            }
-            isStatusMessage = true;
-          }
-        }
-      } while(ignoreBlankLines && line != null && line.Length == 0);
-
-      return line;
-    }
-
-    readonly StreamReader reader;
-    readonly bool ignoreBlankLines;
-    string partialLine;
-    bool isStatusMessage;
   }
   #endregion
 
@@ -3630,64 +3639,58 @@ public class ExeGPG : GPG
     EditKey originalKey = null, editKey = null;
     Queue<EditCommand> commands = new Queue<EditCommand>(initialCommands);
 
-    args += " --edit-key " + key.EffectiveId;
+    args += " --with-colons --fixed-list-mode --edit-key " + key.EffectiveId;
     if(addKeyring) args = GetKeyringArgs(key.Keyring, true) + args;
 
-    Command cmd = ExecuteForInteraction(args, StreamHandling.ProcessText);
+    Command cmd = Execute(args, StatusMessages.MixIntoStdout, true);
     CommandState state = new CommandState(cmd);
     try
     {
+      bool gotFreshList = false;
+
       cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
 
       cmd.Start();
-
-      MixedStreamReader reader = new MixedStreamReader(cmd.Process.StandardOutput);
-      bool gotFreshList = false;
 
       // the ExecuteForEdit() command coallesced the status lines into STDOUT, so we need to parse out the status
       // messages ourselves
       while(true)
       {
-        string line = reader.ReadLine();
-        LogLine(line);
+        string line;
+        cmd.ReadLine(out line);
+        if(line != null) LogLine(line);
+
         gotLine:
-        if(line == null) break;
+        if(line == null && cmd.StatusMessage == null) break;
 
-        if(reader.IsStatusMessage) // a status message was received
+        if(line == null) // it's a status message
         {
-          // acknowledgements of input are common. we don't need to bother parsing them
-          if(line.Equals("[GNUPG:] GOT_IT", StringComparison.Ordinal)) continue;
-
-          StatusMessage msg = cmd.ParseStatusMessage(line);
-          if(msg != null)
+          switch(cmd.StatusMessage.Type)
           {
-            switch(msg.Type)
+            case StatusMessageType.GetLine: case StatusMessageType.GetHidden: case StatusMessageType.GetBool:
             {
-              case StatusMessageType.GetLine: case StatusMessageType.GetHidden: case StatusMessageType.GetBool:
+              string promptId = ((GetInputMessage)cmd.StatusMessage).PromptId;
+              while(true) // input is needed, so process it
               {
-                string promptId = ((GetInputMessage)msg).PromptId;
-                while(true) // input is needed, so process it
+                // if the queue is empty, add a quit command
+                if(commands.Count == 0) commands.Enqueue(new QuitCommand(true));
+
+                if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal) &&
+                   !gotFreshList && commands.Peek().ExpectRelist)
                 {
-                  // if the queue is empty, add a quit command
-                  if(commands.Count == 0) commands.Enqueue(new QuitCommand(true));
-
-                  if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal) &&
-                     !gotFreshList && commands.Peek().ExpectRelist)
-                  {
-                    cmd.SendLine("list");
-                    break;
-                  }
-
-                  EditCommandResult result = commands.Peek().Process(commands, originalKey, editKey, state, promptId);
-                  gotFreshList = false;
-                  if(result == EditCommandResult.Next || result == EditCommandResult.Done) commands.Dequeue();
-                  if(result == EditCommandResult.Continue || result == EditCommandResult.Done) break;
+                  cmd.SendLine("list");
+                  break;
                 }
-                break;
-              }
 
-              default: DefaultStatusMessageHandler(msg, state); break;
+                EditCommandResult result = commands.Peek().Process(commands, originalKey, editKey, state, promptId);
+                gotFreshList = false;
+                if(result == EditCommandResult.Next || result == EditCommandResult.Done) commands.Dequeue();
+                if(result == EditCommandResult.Continue || result == EditCommandResult.Done) break;
+              }
+              break;
             }
+
+            default: DefaultStatusMessageHandler(cmd.StatusMessage, state); break;
           }
         }
         else if(line.StartsWith("pub:", StringComparison.Ordinal)) // a key listing is beginning
@@ -3730,11 +3733,12 @@ public class ExeGPG : GPG
               }
             }
 
-            line = reader.ReadLine();
-            LogLine(line);
-          } while(!string.IsNullOrEmpty(line) && line[0] != '['); // break out if the line is empty or a status line
+            cmd.ReadLine(out line);
+            if(line != null) LogLine(line);
+          } while(!string.IsNullOrEmpty(line)); // break out if the line is empty or a status message
 
           gotFreshList = true;
+
           // keep a copy of the original key state. this is useful to tell which user ID was initially primary, etc.
           if(originalKey == null) originalKey = editKey;
 
@@ -3831,25 +3835,22 @@ public class ExeGPG : GPG
 
   /// <summary>Creates a new <see cref="Command"/> object and returns it.</summary>
   /// <param name="args">Command-line arguments to pass to GPG.</param>
-  /// <param name="getStatusStream">If true, the status and command streams will be created. If false, they will be
-  /// unavailable.
-  /// </param>
+  /// <param name="statusMessageHandling">How status messages will be handled.</param>
   /// <param name="closeStdInput">If true, STDIN will be closed immediately after starting the process so that
   /// GPG will not block waiting for input from it.
   /// </param>
-  /// <param name="stdOutHandling">Determines how STDOUT will be handled.</param>
-  Command Execute(string args, bool getStatusStream, bool closeStdInput, StreamHandling stdOutHandling)
+  Command Execute(string args, StatusMessages statusMessageHandling, bool closeStdInput)
   {
     InheritablePipe commandPipe = null;
-    if(getStatusStream) // if the status stream is requested
+    if(statusMessageHandling != StatusMessages.Ignore) // if the status stream is requested...
     {
-      commandPipe = new InheritablePipe(); // create a two-way pipe
-      string fd = commandPipe.ClientHandle.ToInt64().ToString(CultureInfo.InvariantCulture);
-      // and use it for both the status-fd and the command-fd
-      args = "--exit-on-status-write-error --status-fd " + fd + " --command-fd " + fd + " " + args;
+      commandPipe = new InheritablePipe(); // create a pipe for the command-fd
+      string cmdFd = commandPipe.ClientHandle.ToInt64().ToString(CultureInfo.InvariantCulture);
+      string statusFd = statusMessageHandling == StatusMessages.MixIntoStdout ? "1" : cmdFd;
+      args = "--exit-on-status-write-error --status-fd " + statusFd + " --command-fd " + cmdFd + " " + args;
     }
     return new Command(this, GetProcessStartInfo(ExecutablePath, args), commandPipe,
-                       closeStdInput, stdOutHandling, StreamHandling.ProcessText);
+                       statusMessageHandling, closeStdInput);
   }
 
   /// <summary>Executes the given GPG executable with the given arguments.</summary>
@@ -3858,22 +3859,10 @@ public class ExeGPG : GPG
     return Process.Start(GetProcessStartInfo(exePath, args));
   }
 
-  /// <summary>Creates and returns a command with no STDIN, and with status messages mixed into STDOUT.</summary>
-  Command ExecuteForInteraction(string args, StreamHandling stdErrorHandling)
-  {
-    // we'll use the pipe for the command-fd, but we'll pipe the status messages to STDOUT
-    InheritablePipe commandPipe = new InheritablePipe(); // create a two-way pipe
-    string fd = commandPipe.ClientHandle.ToInt64().ToString(CultureInfo.InvariantCulture);
-    args = "--with-colons --fixed-list-mode --exit-on-status-write-error --status-fd 1 " +
-           "--command-fd " + fd + " " + args;
-    return new Command(this, GetProcessStartInfo(ExecutablePath, args), commandPipe,
-                       true, StreamHandling.Mixed, stdErrorHandling);
-  }
-
   /// <summary>Performs the main work of exporting keys.</summary>
   void ExportCore(string args, Stream destination)
   {
-    Command cmd = Execute(args, true, true, StreamHandling.Unprocessed);
+    Command cmd = Execute(args, StatusMessages.ReadInBackground, true);
     CommandState state = new CommandState(cmd);
     using(cmd)
     {
@@ -3978,7 +3967,7 @@ public class ExeGPG : GPG
     }
     args += key.Fingerprint;
 
-    Command cmd = Execute(args, true, true, StreamHandling.Unprocessed);
+    Command cmd = Execute(args, StatusMessages.ReadInBackground, true);
     CommandState state = new CommandState(cmd);
     using(cmd)
     {
@@ -4069,7 +4058,6 @@ public class ExeGPG : GPG
     
     // if attributes are being retrieved, create a new pipe and some syncronization primitives to help with the task
     InheritablePipe attrPipe;
-    MixedStreamReader reader = null;
     FileStream attrStream, attrTempStream;
     string attrTempFile;
     AttributeMessage attrMsg = null;
@@ -4086,8 +4074,7 @@ public class ExeGPG : GPG
       attrTempStream = new FileStream(attrTempFile, FileMode.Open, FileAccess.ReadWrite);
       attrBuffer     = new byte[4096];
 
-      args += "--attribute-fd " + attrPipe.ClientHandle.ToInt64().ToString(CultureInfo.InvariantCulture) +
-              " --status-fd 1 "; // we'll also mix the status stream into STDOUT so we can get the ATTRIBUTE messages
+      args += "--attribute-fd " + attrPipe.ClientHandle.ToInt64().ToString(CultureInfo.InvariantCulture) + " ";
     }
     else // otherwise, attributes are not being retrieved, so we don't need them
     {
@@ -4097,18 +4084,33 @@ public class ExeGPG : GPG
       attrBuffer    = null;
     }
 
-    Command cmd = Execute(args + searchArgs, false, true, StreamHandling.Unprocessed);
+    Command cmd = Execute(args + searchArgs, retrieveAttributes ? StatusMessages.MixIntoStdout : StatusMessages.Ignore,
+                          true);
     CommandState state = new CommandState(cmd);
     try
     {
       cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
 
-      cmd.Start();
-
       // if we're retrieving attributes, then there may be status messages mixed into STDOUT
       if(retrieveAttributes)
       {
-        reader = new MixedStreamReader(cmd.Process.StandardOutput);
+        cmd.StatusMessageReceived += delegate(StatusMessage msg)
+        {
+          if(msg.Type == StatusMessageType.Attribute)
+          {
+            attrMsg = (AttributeMessage)msg;
+            lock(attrBuffer) // enter a critical section because the IO thread will also be trying to modify
+            {                // totalAttrData and attrRead
+              totalAttrData += attrMsg.Length; // increase the total amount of expected attribute data
+
+              if(attrRead == null) // if we're not currently reading, we need to start
+              {
+                attrRead = attrStream.BeginRead(attrBuffer, 0, Math.Min(totalAttrData, attrBuffer.Length),
+                                                attrCallback, null);
+              }
+            }
+          }
+        };
 
         // create the callback for reading the attribute stream. we have to do this in the background because it could
         // block if we try to read the attribute stream in the main loop -- even if we use asynchronous IO
@@ -4141,6 +4143,8 @@ public class ExeGPG : GPG
         };
       }
 
+      cmd.Start();
+
       List<Subkey> subkeys = new List<Subkey>(); // holds the subkeys in the current primary key
       List<KeySignature> sigs = new List<KeySignature>(); // holds the signatures on the last key or user id
       List<UserAttribute> attributes = new List<UserAttribute>(); // holds user attributes on the key
@@ -4152,127 +4156,111 @@ public class ExeGPG : GPG
 
       while(true)
       {
-        string line = retrieveAttributes ? reader.ReadLine() : cmd.Process.StandardOutput.ReadLine();
-        if(line == null) break;
-
-        if(retrieveAttributes && reader.IsStatusMessage) // it's a status message
+        string line;
+        cmd.ReadLine(out line);
+        if(line == null)
         {
-          AttributeMessage msg = cmd.ParseStatusMessage(line) as AttributeMessage;
-          if(msg != null)
-          {
-            attrMsg = msg;
-            lock(attrBuffer) // enter a critical section because the IO thread will also be trying to modify
-            {                // totalAttrData and attrRead
-              totalAttrData += msg.Length; // increase the total amount of expected attribute data
-
-              if(attrRead == null) // if we're not currently reading, we need to start
-              {
-                attrRead = attrStream.BeginRead(attrBuffer, 0, Math.Min(totalAttrData, attrBuffer.Length),
-                                                attrCallback, null);
-              }
-            }
-          }
+          if(cmd.StatusMessage == null) break;
+          else continue;
         }
-        else
+
+        // each line is a bunch of stuff separated by colons. this is documented in gpg-src\doc\DETAILS
+        string[] fields = line.Split(':');
+        switch(fields[0])
         {
-          // each line is a bunch of stuff separated by colons. this is documented in gpg-src\doc\DETAILS
-          string[] fields = line.Split(':');
-          switch(fields[0])
+          case "sig": case "rev": // a signature or revocation signature
+            KeySignature sig = new KeySignature();
+            if(!string.IsNullOrEmpty(fields[1]))
+            {
+              switch(fields[1][0])
+              {
+                case '!': sig.Status = SignatureStatus.Valid; break;
+                case '-': sig.Status = SignatureStatus.Invalid; break;
+                case '%': sig.Status = SignatureStatus.Error; break;
+                case '?': sig.Status = SignatureStatus.Unverified; break;
+              }
+            }
+            if(!string.IsNullOrEmpty(fields[4])) sig.KeyId        = fields[4].ToUpperInvariant();
+            if(!string.IsNullOrEmpty(fields[5])) sig.CreationTime = GPG.ParseTimestamp(fields[5]);
+            if(!string.IsNullOrEmpty(fields[9])) sig.SignerName   = CUnescape(fields[9]);
+            if(fields[10] != null && fields[10].Length >= 2)
+            {
+              string type = fields[10];
+              sig.Type = (OpenPGPSignatureType)GetHexValue(type[0], type[1]);
+              sig.Exportable = type.Length >= 3 && type[2] == 'x';
+            }
+            if(fields.Length > 12 && !string.IsNullOrEmpty(fields[12]))
+            {
+              sig.KeyFingerprint = fields[12].ToUpperInvariant();
+            }
+            sigs.Add(sig);
+            break;
+
+          case "uid": // user id
           {
-            case "sig": case "rev": // a signature or revocation signature
-              KeySignature sig = new KeySignature();
-              if(!string.IsNullOrEmpty(fields[1]))
-              {
-                switch(fields[1][0])
-                {
-                  case '!': sig.Status = SignatureStatus.Valid; break;
-                  case '-': sig.Status = SignatureStatus.Invalid; break;
-                  case '%': sig.Status = SignatureStatus.Error; break;
-                  case '?': sig.Status = SignatureStatus.Unverified; break;
-                }
-              }
-              if(!string.IsNullOrEmpty(fields[4])) sig.KeyId        = fields[4].ToUpperInvariant();
-              if(!string.IsNullOrEmpty(fields[5])) sig.CreationTime = GPG.ParseTimestamp(fields[5]);
-              if(!string.IsNullOrEmpty(fields[9])) sig.SignerName   = CUnescape(fields[9]);
-              if(fields[10] != null && fields[10].Length >= 2)
-              {
-                string type = fields[10];
-                sig.Type = (OpenPGPSignatureType)GetHexValue(type[0], type[1]);
-                sig.Exportable = type.Length >= 3 && type[2] == 'x';
-              }
-              if(fields.Length > 12 && !string.IsNullOrEmpty(fields[12]))
-              {
-                sig.KeyFingerprint = fields[12].ToUpperInvariant();
-              }
-              sigs.Add(sig);
-              break;
-
-            case "uid": // user id
+            FinishAttribute(attributes, sigs, currentPrimary, currentSubkey, ref currentAttribute);
+            UserId userId = new UserId();
+            if(!string.IsNullOrEmpty(fields[1]))
             {
-              FinishAttribute(attributes, sigs, currentPrimary, currentSubkey, ref currentAttribute);
-              UserId userId = new UserId();
-              if(!string.IsNullOrEmpty(fields[1]))
-              {
-                char c = fields[1][0];
-                userId.CalculatedTrust = ParseTrustLevel(c);
-                userId.Revoked         = c == 'r';
-              }
-              if(!string.IsNullOrEmpty(fields[5])) userId.CreationTime    = ParseTimestamp(fields[5]);
-              if(!string.IsNullOrEmpty(fields[7])) userId.Id              = fields[7].ToUpperInvariant();
-              if(!string.IsNullOrEmpty(fields[9])) userId.Name            = CUnescape(fields[9]);
-              currentAttribute = userId;
-              break;
+              char c = fields[1][0];
+              userId.CalculatedTrust = ParseTrustLevel(c);
+              userId.Revoked         = c == 'r';
             }
-
-            case "pub": case "sec": // public and secret primary keys
-              FinishPrimaryKey(keys, subkeys, attributes, sigs, revokers,
-                               ref currentPrimary, ref currentSubkey, ref currentAttribute);
-              currentPrimary = new PrimaryKey();
-              currentPrimary.Keyring = keyring;
-              currentPrimary.Secret  = secretKeys;
-              ReadKeyData(currentPrimary, fields);
-              currentPrimary.Secret = fields[0][0] == 's'; // it's secret if the field was "sec"
-              break;
-
-            case "sub": case "ssb": // public and secret subkeys
-              FinishSubkey(subkeys, sigs, currentPrimary, ref currentSubkey, currentAttribute);
-              currentSubkey = new Subkey();
-              currentSubkey.Secret = secretKeys;
-              ReadKeyData(currentSubkey, fields);
-              currentSubkey.Secret = fields[0][1] == 's'; // it's secret if the field was "ssb"
-              break;
-
-            case "fpr": // key fingerprint
-              if(currentSubkey != null) currentSubkey.Fingerprint = fields[9].ToUpperInvariant();
-              else if(currentPrimary != null) currentPrimary.Fingerprint = fields[9].ToUpperInvariant();
-              break;
-
-            case "uat": // user attribute
-            {
-              FinishAttribute(attributes, sigs, currentPrimary, currentSubkey, ref currentAttribute);
-
-              if(retrieveAttributes && attrMsg != null)
-              {
-                currentAttribute = new DummyAttribute(attrMsg);
-                currentAttribute.Primary = attrMsg.IsPrimary;
-                currentAttribute.Revoked = attrMsg.IsRevoked;
-                if(!string.IsNullOrEmpty(fields[1])) currentAttribute.CalculatedTrust = ParseTrustLevel(fields[1][0]);
-                if(!string.IsNullOrEmpty(fields[5])) currentAttribute.CreationTime    = ParseTimestamp(fields[5]);
-                if(!string.IsNullOrEmpty(fields[7])) currentAttribute.Id              = fields[7].ToUpperInvariant();
-                attrMsg = null;
-              }
-              break;
-            }
-
-            case "rvk": // a designated revoker
-              revokers.Add(fields[9].ToUpperInvariant());
-              break;
-
-            case "crt": case "crs": // X.509 certificates (we just treat them as an end to the current key)
-              FinishPrimaryKey(keys, subkeys, attributes, sigs, revokers,
-                               ref currentPrimary, ref currentSubkey, ref currentAttribute);
-              break;
+            if(!string.IsNullOrEmpty(fields[5])) userId.CreationTime    = ParseTimestamp(fields[5]);
+            if(!string.IsNullOrEmpty(fields[7])) userId.Id              = fields[7].ToUpperInvariant();
+            if(!string.IsNullOrEmpty(fields[9])) userId.Name            = CUnescape(fields[9]);
+            currentAttribute = userId;
+            break;
           }
+
+          case "pub": case "sec": // public and secret primary keys
+            FinishPrimaryKey(keys, subkeys, attributes, sigs, revokers,
+                             ref currentPrimary, ref currentSubkey, ref currentAttribute);
+            currentPrimary = new PrimaryKey();
+            currentPrimary.Keyring = keyring;
+            currentPrimary.Secret  = secretKeys;
+            ReadKeyData(currentPrimary, fields);
+            currentPrimary.Secret = fields[0][0] == 's'; // it's secret if the field was "sec"
+            break;
+
+          case "sub": case "ssb": // public and secret subkeys
+            FinishSubkey(subkeys, sigs, currentPrimary, ref currentSubkey, currentAttribute);
+            currentSubkey = new Subkey();
+            currentSubkey.Secret = secretKeys;
+            ReadKeyData(currentSubkey, fields);
+            currentSubkey.Secret = fields[0][1] == 's'; // it's secret if the field was "ssb"
+            break;
+
+          case "fpr": // key fingerprint
+            if(currentSubkey != null) currentSubkey.Fingerprint = fields[9].ToUpperInvariant();
+            else if(currentPrimary != null) currentPrimary.Fingerprint = fields[9].ToUpperInvariant();
+            break;
+
+          case "uat": // user attribute
+          {
+            FinishAttribute(attributes, sigs, currentPrimary, currentSubkey, ref currentAttribute);
+
+            if(retrieveAttributes && attrMsg != null)
+            {
+              currentAttribute = new DummyAttribute(attrMsg);
+              currentAttribute.Primary = attrMsg.IsPrimary;
+              currentAttribute.Revoked = attrMsg.IsRevoked;
+              if(!string.IsNullOrEmpty(fields[1])) currentAttribute.CalculatedTrust = ParseTrustLevel(fields[1][0]);
+              if(!string.IsNullOrEmpty(fields[5])) currentAttribute.CreationTime    = ParseTimestamp(fields[5]);
+              if(!string.IsNullOrEmpty(fields[7])) currentAttribute.Id              = fields[7].ToUpperInvariant();
+              attrMsg = null;
+            }
+            break;
+          }
+
+          case "rvk": // a designated revoker
+            revokers.Add(fields[9].ToUpperInvariant());
+            break;
+
+          case "crt": case "crs": // X.509 certificates (we just treat them as an end to the current key)
+            FinishPrimaryKey(keys, subkeys, attributes, sigs, revokers,
+                             ref currentPrimary, ref currentSubkey, ref currentAttribute);
+            break;
         }
       }
 
@@ -4445,7 +4433,7 @@ public class ExeGPG : GPG
   ImportedKey[] KeyServerCore(string args, string name, bool isImport)
   {
     CommandState state;
-    Command cmd = Execute(args, true, true, StreamHandling.ProcessText);
+    Command cmd = Execute(args, StatusMessages.ReadInBackground, true);
     ImportedKey[] keys = ImportCore(cmd, null, out state);
 
     // during a keyring refresh, it's very likely that one of the keys won't be found on a keyserver, but we don't want
@@ -4536,8 +4524,8 @@ public class ExeGPG : GPG
     string args = GetVerificationArgs(options, false);
     // --verify takes either one or two arguments. we want the signed data to be sent on STDIN
     args += "--verify " + (signatureFile == null ? "-" : EscapeArg(signatureFile) + " -");
-    Command cmd = Execute(args, true, false, StreamHandling.DumpBinary);
-    return DecryptVerifyCore(cmd, signedData, null, null);
+    Command cmd = Execute(args, StatusMessages.ReadInBackground, false);
+    return DecryptVerifyCore(cmd, signedData, FileStream.Null, null);
   }
 
   /// <summary>Determines whether the string contains control characters.</summary>
@@ -4684,10 +4672,12 @@ public class ExeGPG : GPG
       else // there was one or more backslashes. we need to see if it ends (or will end) with a quote
       {
         // it ends with a quote, or will end with one after we wrap the argument with quotes
+        int bsCount = bsEnd - start;
         if(bsEnd == arg.Length && mustWrapWithQuotes || arg[bsEnd] == '"')
         {
-          escaped.Append('\\', (bsEnd-start) * 2); // double the number of backslashes
+          bsCount *= 2; // double the number of backslashes
         }
+        escaped.Append('\\', bsCount);
         start = bsEnd; // continue with the character after the backslashes
       }
     }
