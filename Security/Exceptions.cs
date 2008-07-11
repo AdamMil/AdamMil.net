@@ -54,6 +54,8 @@ public enum FailureReason
   NoKeyServer=0x400,
   /// <summary>The failure could have been caused by a bad key server URI.</summary>
   BadKeyServerUri=0x800,
+  /// <summary>The operation was canceled by the user.</summary>
+  OperationCanceled,
 }
 #endregion
 
@@ -106,6 +108,7 @@ public class PGPException : ApplicationException
     if((reasons & FailureReason.KeyNotFound) != 0) reasonString += " the key was not found.";
     if((reasons & FailureReason.NoKeyServer) != 0) reasonString += " no preferred key server known and no default key server given.";
     if((reasons & FailureReason.KeyNotFound) != 0) reasonString += " bad keyserver URI.";
+    if((reasons & FailureReason.OperationCanceled) != 0) reasonString += " the operation was canceled (no password entered).";
     return reasonString == null ? null : " Suspected reason(s):" + reasonString;
   }
 

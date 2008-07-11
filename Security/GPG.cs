@@ -1261,6 +1261,14 @@ public class ExeGPG : GPG
       this.Command = command;
     }
 
+    /// <summary>Gets whether the operation may have been canceled by the user. (The user clicked a cancel button or
+    /// something, but that's not necessarily the cause for failure, and the command may still have succeeded.)
+    /// </summary>
+    public bool Canceled
+    {
+      get { return (FailureReasons & FailureReason.OperationCanceled) != 0; }
+    }
+
     /// <summary>The command being executed.</summary>
     public readonly Command Command;
     /// <summary>The status message that informed us of the most recent password request.</summary>
@@ -2115,7 +2123,7 @@ public class ExeGPG : GPG
          state.PasswordMessage.Type == StatusMessageType.NeedKeyPassphrase)
       {
         if(!state.Command.GPG.SendKeyPassword(state.Command, state.PasswordHint,
-                                              (NeedKeyPassphraseMessage)state.PasswordMessage, false))
+                                              (NeedKeyPassphraseMessage)state.PasswordMessage))
         {
           throw new OperationCanceledException(); // abort if the password was not provided
         }
@@ -3435,7 +3443,7 @@ public class ExeGPG : GPG
         {
           if(state.PasswordMessage.Type == StatusMessageType.NeedKeyPassphrase)
           {
-            SendKeyPassword(cmd, state.PasswordHint, (NeedKeyPassphraseMessage)state.PasswordMessage, false);
+            SendKeyPassword(cmd, state.PasswordHint, (NeedKeyPassphraseMessage)state.PasswordMessage);
           }
           else
           {
@@ -3577,7 +3585,10 @@ public class ExeGPG : GPG
     if(string.Equals(promptId, "passphrase.enter", StringComparison.Ordinal) && state.PasswordMessage != null &&
        state.PasswordMessage.Type == StatusMessageType.NeedKeyPassphrase)
     {
-      SendKeyPassword(state.Command, state.PasswordHint, (NeedKeyPassphraseMessage)state.PasswordMessage, true);
+      if(!SendKeyPassword(state.Command, state.PasswordHint, (NeedKeyPassphraseMessage)state.PasswordMessage))
+      {
+        state.FailureReasons |= FailureReason.OperationCanceled;
+      }
     }
     else throw new NotImplementedException("Unhandled input request: " + promptId);
   }
@@ -3690,7 +3701,10 @@ public class ExeGPG : GPG
               break;
             }
 
-            default: DefaultStatusMessageHandler(cmd.StatusMessage, state); break;
+            default:
+              DefaultStatusMessageHandler(cmd.StatusMessage, state);
+              if(state.Canceled) throw new OperationCanceledException();
+              break;
           }
         }
         else if(line.StartsWith("pub:", StringComparison.Ordinal)) // a key listing is beginning
@@ -3987,7 +4001,8 @@ public class ExeGPG : GPG
         else if(!HandleRevokePrompt(cmd, promptId, reason, null, ref lines, ref lineIndex))
         {
           DefaultPromptHandler(promptId, state);
-        }
+          if(state.Canceled) cmd.Kill(); // if the user didn't give the password, kill GPG to prevent it from asking
+        }                                // again
       };
 
       cmd.Start();
@@ -3997,8 +4012,13 @@ public class ExeGPG : GPG
 
     if(!cmd.SuccessfulExit)
     {
-      throw new PGPException("Unable to generate revocation certificate for key " + key.ToString(),
-                             state.FailureReasons);
+      // if the user canceled
+      if(state.Canceled) throw new OperationCanceledException();
+      else
+      {
+        throw new PGPException("Unable to generate revocation certificate for key " + key.ToString(),
+                               state.FailureReasons);
+      }
     }
   }
 
@@ -4061,15 +4081,14 @@ public class ExeGPG : GPG
     FileStream attrStream, attrTempStream;
     string attrTempFile;
     AttributeMessage attrMsg = null;
-    IAsyncResult attrRead = null;
     AsyncCallback attrCallback = null;
-    ManualResetEvent attrDone = null; // signaled when all attribute data has been read
+    ManualResetEvent attrDone; // signaled when all attribute data has been read
     byte[] attrBuffer;
-    int totalAttrData = 0; // keep track of the amount of attribute data expected so we don't make the read block
     if(retrieveAttributes)
     {
       attrPipe       = new InheritablePipe();
       attrStream     = new FileStream(new SafeFileHandle(attrPipe.ServerHandle, false), FileAccess.Read);
+      attrDone       = new ManualResetEvent(false);
       attrTempFile   = Path.GetTempFileName();
       attrTempStream = new FileStream(attrTempFile, FileMode.Open, FileAccess.ReadWrite);
       attrBuffer     = new byte[4096];
@@ -4080,6 +4099,7 @@ public class ExeGPG : GPG
     {
       attrPipe      = null;
       attrStream    = attrTempStream = null;
+      attrDone      = null;
       attrTempFile  = null;
       attrBuffer    = null;
     }
@@ -4091,25 +4111,11 @@ public class ExeGPG : GPG
     {
       cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
 
-      // if we're retrieving attributes, then there may be status messages mixed into STDOUT
       if(retrieveAttributes)
       {
         cmd.StatusMessageReceived += delegate(StatusMessage msg)
         {
-          if(msg.Type == StatusMessageType.Attribute)
-          {
-            attrMsg = (AttributeMessage)msg;
-            lock(attrBuffer) // enter a critical section because the IO thread will also be trying to modify
-            {                // totalAttrData and attrRead
-              totalAttrData += attrMsg.Length; // increase the total amount of expected attribute data
-
-              if(attrRead == null) // if we're not currently reading, we need to start
-              {
-                attrRead = attrStream.BeginRead(attrBuffer, 0, Math.Min(totalAttrData, attrBuffer.Length),
-                                                attrCallback, null);
-              }
-            }
-          }
+          if(msg.Type == StatusMessageType.Attribute) attrMsg = (AttributeMessage)msg;
         };
 
         // create the callback for reading the attribute stream. we have to do this in the background because it could
@@ -4117,28 +4123,14 @@ public class ExeGPG : GPG
         attrCallback = delegate(IAsyncResult result)
         {
           int bytesRead = attrStream.EndRead(result);
-          if(bytesRead == 0) // if we're at EOF, then we're completely done
+          if(bytesRead == 0) // if we're at EOF, then we're done
           {
-            attrRead = null;
+            attrDone.Set();
           }
           else // otherwise, some data was read
           {
             attrTempStream.Write(attrBuffer, 0, bytesRead); // so write it to the temporary output stream
-            lock(attrBuffer) // then enter a critical section because two threads will be trying to read/write
-            {                // totalAttrData and attrRead
-              attrRead = null; // this can't be moved outside the critical section, or a deadlock could occur!
-              totalAttrData -= bytesRead;
-
-              if(totalAttrData == 0)
-              {
-                if(attrDone != null) attrDone.Set(); // if the main thread is waiting, let it know that we're done
-              }
-              else if(totalAttrData != 0 && attrRead == null) // if there's more data to read, and the main thread
-              {                                               // didn't issue a read first, then continue reading
-                attrRead = attrStream.BeginRead(attrBuffer, 0, Math.Min(totalAttrData, attrBuffer.Length),
-                                                attrCallback, null);
-              }
-            }
+            attrStream.BeginRead(attrBuffer, 0, attrBuffer.Length, attrCallback, null);
           }
         };
       }
@@ -4153,6 +4145,9 @@ public class ExeGPG : GPG
       PrimaryKey currentPrimary = null;
       Subkey currentSubkey = null;
       UserAttribute currentAttribute = null;
+
+      // if we're retrieving attributes, start reading the data in the background
+      if(retrieveAttributes) attrStream.BeginRead(attrBuffer, 0, attrBuffer.Length, attrCallback, null);
 
       while(true)
       {
@@ -4270,12 +4265,8 @@ public class ExeGPG : GPG
 
       if(retrieveAttributes)
       {
-        // if the callback is reading, create an event that the callback will set when it's done with the current read
-        lock(attrBuffer)
-        {
-          if(attrRead != null) attrDone = new ManualResetEvent(false);
-        }
-        if(attrDone != null) attrDone.WaitOne(); // wait for the current read to finish
+        attrPipe.CloseClient(); // GPG should be done writing data now, so close its end of the pipe
+        attrDone.WaitOne();     // wait for us to read all the data
 
         // the attribute data is done being read, so now we can go back and replace all the dummy attributes
         attrTempStream.Position = 0;
@@ -4323,7 +4314,7 @@ public class ExeGPG : GPG
       cmd.Dispose();
       if(retrieveAttributes)
       {
-        if(attrDone != null) attrDone.Close();
+        attrDone.Close();
         attrStream.Dispose();
         attrPipe.Dispose();
         attrTempStream.Close();
@@ -4494,7 +4485,7 @@ public class ExeGPG : GPG
   /// given and false if not, although if 'passwordRequired' is true, an exception will be throw if a password is not
   /// given.
   /// </summary>
-  bool SendKeyPassword(Command command, string passwordHint, NeedKeyPassphraseMessage msg, bool passwordRequired)
+  bool SendKeyPassword(Command command, string passwordHint, NeedKeyPassphraseMessage msg)
   {
     string userIdHint = passwordHint + " (0x" + msg.KeyId;
     if(!string.Equals(msg.KeyId, msg.PrimaryKeyId, StringComparison.Ordinal))
@@ -4506,8 +4497,6 @@ public class ExeGPG : GPG
     SecureString password = GetKeyPassword(msg.KeyId, userIdHint);
     if(password == null)
     {
-      // TODO: FIXME: this exception should not be thrown from the async IO thread, but propogated to the main thread!
-      if(passwordRequired) throw new OperationCanceledException("No password was given.");
       command.SendLine();
       return false;
     }
