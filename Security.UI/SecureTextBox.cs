@@ -126,7 +126,7 @@ public class SecureTextBox : TextBox
       if(text.Length <= 4 || bits <= 52 || uniqueChars <= 3) return PasswordStrength.VeryWeak;
       else if(text.Length <= 6 || bits <= 56 || uniqueChars <= 4) return PasswordStrength.Weak;
       else if(text.Length <= 7 || bits <= 64 || uniqueChars <= 5) return PasswordStrength.Moderate;
-      else if(text.Length <= 11 || bits <= 72 || uniqueChars <= 9) return PasswordStrength.Strong;
+      else if(text.Length <= 11 || bits < 80 || uniqueChars <= 9) return PasswordStrength.Strong;
       else return PasswordStrength.VeryStrong;
     }
     finally
@@ -152,8 +152,9 @@ public class SecureTextBox : TextBox
   {
     if(e.Modifiers != Keys.None)
     {
-      // for modified keys, only allow cursor movement and shifted characters
+      // for modified keys, only allow cursor movement, alt-keys, and shifted characters
       if(!(e.KeyCode == Keys.Left || e.KeyCode == Keys.Right || e.KeyCode == Keys.Home || e.KeyCode == Keys.End ||
+           e.Modifiers == Keys.Alt ||   
            (e.Modifiers == Keys.Shift &&
             e.KeyCode != Keys.Insert && e.KeyCode != Keys.Delete && e.KeyCode != Keys.Back)))
       {

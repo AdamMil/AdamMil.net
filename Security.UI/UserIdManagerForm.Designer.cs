@@ -50,6 +50,7 @@ namespace AdamMil.Security.UI
       System.Windows.Forms.Button btnAddUserId;
       System.Windows.Forms.Button btnAddPhotoId;
       System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(UserIdManagerForm));
+      System.Windows.Forms.ColumnHeader nameColumn;
       this.lblDescription = new System.Windows.Forms.Label();
       this.userIds = new System.Windows.Forms.ListView();
       this.imageList = new System.Windows.Forms.ImageList(this.components);
@@ -58,6 +59,7 @@ namespace AdamMil.Security.UI
       this.btnRevoke = new System.Windows.Forms.Button();
       btnAddUserId = new System.Windows.Forms.Button();
       btnAddPhotoId = new System.Windows.Forms.Button();
+      nameColumn = new System.Windows.Forms.ColumnHeader();
       this.SuspendLayout();
       // 
       // btnAddUserId
@@ -96,13 +98,17 @@ namespace AdamMil.Security.UI
       // 
       this.userIds.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+      this.userIds.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
+            nameColumn});
+      this.userIds.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
+      this.userIds.LabelWrap = false;
       this.userIds.Location = new System.Drawing.Point(8, 130);
       this.userIds.Name = "userIds";
       this.userIds.Size = new System.Drawing.Size(481, 95);
       this.userIds.SmallImageList = this.imageList;
       this.userIds.TabIndex = 1;
       this.userIds.UseCompatibleStateImageBehavior = false;
-      this.userIds.View = System.Windows.Forms.View.List;
+      this.userIds.View = System.Windows.Forms.View.Details;
       this.userIds.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.userIds_MouseDoubleClick);
       this.userIds.SelectedIndexChanged += new System.EventHandler(this.userIds_SelectedIndexChanged);
       this.userIds.KeyDown += new System.Windows.Forms.KeyEventHandler(this.userIds_KeyDown);
@@ -150,6 +156,10 @@ namespace AdamMil.Security.UI
       this.btnRevoke.Text = "&Revoke";
       this.btnRevoke.UseVisualStyleBackColor = true;
       this.btnRevoke.Click += new System.EventHandler(this.btnRevoke_Click);
+      // 
+      // nameColumn
+      // 
+      nameColumn.Width = 460;
       // 
       // UserIdManagerForm
       // 

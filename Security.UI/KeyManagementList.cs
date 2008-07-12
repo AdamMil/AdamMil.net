@@ -37,6 +37,21 @@ public class KeyManagementList : KeyListBase
 
   [Category("Appearance")]
   [DefaultValue(false)]
+  public bool DisplayRevokers
+  {
+    get { return displayRevokers; }
+    set
+    {
+      if(value != DisplayRevokers)
+      {
+        displayRevokers = value;
+        RecreateItems();
+      }
+    }
+  }
+
+  [Category("Appearance")]
+  [DefaultValue(false)]
   public bool DisplaySubkeys
   {
     get { return displaySubkeys; }
@@ -147,6 +162,21 @@ public class KeyManagementList : KeyListBase
       }
     }
 
+    if(DisplayRevokers)
+    {
+      foreach(string revoker in pair.PublicKey.DesignatedRevokers)
+      {
+        ListViewItem item = CreateDesignatedRevokerItem(revoker, pair.PublicKey);
+        if(item != null)
+        {
+          item.IndentCount = 1;
+          SetFont(item, pair.PublicKey.Revoked ? ItemStatus.Revoked
+                                               : pair.PublicKey.Expired ? ItemStatus.Expired : ItemStatus.Normal);
+          items.Add(item);
+        }
+      }
+    }
+
     Items.Add(items[0]);
 
     if(items.Count > 1)
@@ -182,7 +212,8 @@ public class KeyManagementList : KeyListBase
       else if(pb == b) return 1; // b is primary
       
       // the two items belong to the same primary, so sort them within the primary. put user IDs first, then user
-      // attributes, and finally subkeys. sort user IDs by name, attributes by creation date, and subkeys by key ID
+      // attributes, subkeys, and finally designated revokers. sort user IDs by name, attributes by creation date, and
+      // subkeys by key ID, and revokers by fingerprint
       AttributeItem aai = a as AttributeItem, bai = b as AttributeItem;
       if(aai != null)
       {
@@ -202,9 +233,17 @@ public class KeyManagementList : KeyListBase
       SubkeyItem ask = a as SubkeyItem, bsk = b as SubkeyItem;
       if(ask != null)
       {
-        return bsk == null ? -1 : string.Compare(ask.Subkey.ShortKeyId, bsk.Subkey.ShortKeyId);
+        return bsk == null ? -1 : string.Compare(ask.Subkey.ShortKeyId, bsk.Subkey.ShortKeyId,
+                                                 StringComparison.OrdinalIgnoreCase);
       }
       else if(bsk != null) return 1;
+
+      DesignatedRevokerItem adr = a as DesignatedRevokerItem, bdr = b as DesignatedRevokerItem;
+      if(adr != null)
+      {
+        return bdr == null ? -1 : string.Compare(adr.Fingerprint, bdr.Fingerprint, StringComparison.OrdinalIgnoreCase);
+      }
+      else if(bdr != null) return 1;
 
       // we don't know what kinds of items these are, so just compare them by hash code
       return a.GetHashCode() - b.GetHashCode();
@@ -393,9 +432,6 @@ public class KeyManagementList : KeyListBase
 
       // advanced options
       ToolStripMenuItem advanced = new ToolStripMenuItem("Advanced");
-      advanced.DropDownItems.Add(new ToolStripMenuItem("Add Designated Revoker...", null,
-                                                    delegate(object sender, EventArgs e) { AddDesignatedRevoker(); }));
-      advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = keyCount == 1 && secretCount != 0;
       advanced.DropDownItems.Add(new ToolStripMenuItem("Delete Secret Portion of Keys", null,
                                                     delegate(object sender, EventArgs e) { DeleteSecretKeys(); }));
       advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = secretCount != 0;
@@ -407,6 +443,9 @@ public class KeyManagementList : KeyListBase
       advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = hasDisabled;
       advanced.DropDownItems.Add(new ToolStripMenuItem("Minimize Keys", null,
                                                        delegate(object sender, EventArgs e) { MinimizeKeys(); }));
+      advanced.DropDownItems.Add(new ToolStripMenuItem("Make this Key a Designated Revoker...", null,
+                                                   delegate(object sender, EventArgs e) { MakeDesignatedRevoker(); }));
+      advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = keyCount == 1 && haveOwnedKeys;
       advanced.DropDownItems.Add(new ToolStripMenuItem("Export Keys...", null,
                                                        delegate(object sender, EventArgs e) { ExportKeys(); }));
       advanced.DropDownItems.Add(new ToolStripMenuItem("Import Keys...", null,
@@ -421,10 +460,15 @@ public class KeyManagementList : KeyListBase
     return menu;
   }
 
+  protected virtual DesignatedRevokerItem CreateDesignatedRevokerItem(string fingerprint, PrimaryKey key)
+  {
+    DesignatedRevokerItem item = new DesignatedRevokerItem(fingerprint, key, "Designated revoker");
+    item.SubItems.Add(fingerprint.Length > 8 ? fingerprint.Substring(fingerprint.Length - 8) : fingerprint);
+    return item;
+  }
+
   protected virtual PrimaryKeyItem CreatePrimaryKeyItem(PrimaryKey publicKey, PrimaryKey secretKey)
   {
-    if(publicKey == null) throw new ArgumentNullException();
-
     PrimaryKeyItem item = new PrimaryKeyItem(new KeyPair(publicKey, secretKey), publicKey.PrimaryUserId.Name);
     item.SubItems.Add(publicKey.ShortKeyId);
     item.SubItems.Add(secretKey == null ? "pub" : "pub/sec");
@@ -438,8 +482,8 @@ public class KeyManagementList : KeyListBase
   {
     if(key == null) throw new ArgumentNullException();
 
-    bool signing = (key.Capabilities & KeyCapability.Sign) != 0;
-    bool encryption = (key.Capabilities & KeyCapability.Encrypt) != 0;
+    bool signing = (key.Capabilities & KeyCapabilities.Sign) != 0;
+    bool encryption = (key.Capabilities & KeyCapabilities.Encrypt) != 0;
     
     string text = signing && encryption ? "Signing/encryption" :
                     signing ? "Signing" : encryption ? "Encryption" : "Other";
@@ -643,6 +687,21 @@ public class KeyManagementList : KeyListBase
     {
       if(newPublicKeys[i] != null) AddKeyPair(new KeyPair(newPublicKeys[i], newSecretKeys[i]), items[i].Expanded);
     }
+  }
+
+  protected void ReloadKey(PrimaryKey key)
+  {
+    foreach(ListViewItem item in Items)
+    {
+      PrimaryKeyItem primaryItem = item as PrimaryKeyItem;
+      if(primaryItem != null && primaryItem.PublicKey == key)
+      {
+        ReloadItem(primaryItem);
+        return;
+      }
+    }
+
+    throw new ArgumentException("The key was not found in the list.");
   }
 
   protected void RemoveItems(PrimaryKeyItem[] items)
@@ -881,6 +940,22 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  protected void MakeDesignatedRevoker()
+  {
+    AssertPGPSystem();
+
+    PrimaryKey[] keys = GetSelectedPublicKeys(), myKeys = GetPublicKeys(GetSecretKeyPairs());
+    if(keys.Length == 0 || myKeys.Length == 0) return;
+
+    MakeDesignatedRevokerForm form = new MakeDesignatedRevokerForm(keys[0], myKeys);
+    if(form.ShowDialog() == DialogResult.OK)
+    {
+      try { PGPSystem.AddDesignatedRevoker(form.SelectedKey, keys[0]); }
+      catch(OperationCanceledException) { }
+      ReloadKey(form.SelectedKey);
+    }
+  }
+
   protected void ManageUserIds()
   {
     AssertPGPSystem();
@@ -952,12 +1027,19 @@ public class KeyManagementList : KeyListBase
     PrimaryKeyItem[] items = GetSelectedPrimaryKeyItems();
     if(items.Length == 0) return;
 
-    KeyRevocationForm form = new KeyRevocationForm(items[0].PublicKey);
+    KeyRevocationForm form = new KeyRevocationForm(items[0].PublicKey, GetPublicKeys(GetSecretKeyPairs()));
     if(form.ShowDialog() == DialogResult.OK)
     {
       try
       {
-        PGPSystem.RevokeKeys(form.Reason, items[0].PublicKey);
+        if(form.RevokeDirectly)
+        {
+          PGPSystem.RevokeKeys(form.Reason, items[0].PublicKey);
+        }
+        else
+        {
+          PGPSystem.RevokeKeys(form.SelectedRevokingKey, form.Reason, items[0].PublicKey);
+        }
         ReloadItems(items);
       }
       catch(OperationCanceledException) { }
@@ -1060,7 +1142,7 @@ public class KeyManagementList : KeyListBase
     AssertPGPSystem();
 
     PrimaryKeyItem[] items = Array.FindAll(GetSelectedPrimaryKeyItems(),
-      delegate(PrimaryKeyItem item) { return item.PublicKey.HasCapability(KeyCapability.Certify) &&
+      delegate(PrimaryKeyItem item) { return item.PublicKey.HasCapability(KeyCapabilities.Certify) &&
                                       !item.PublicKey.Expired && !item.PublicKey.Revoked; });
     if(items.Length == 0) return;
 
@@ -1074,11 +1156,6 @@ public class KeyManagementList : KeyListBase
       catch(OperationCanceledException) { }
       ReloadItems(items);
     }
-  }
-
-  private void AddDesignatedRevoker()
-  {
-    throw new NotImplementedException();
   }
 
   private void ExportKeys()
@@ -1163,7 +1240,7 @@ public class KeyManagementList : KeyListBase
   }
 
   PGPSystem pgp;
-  bool displayUserIds=true, displaySubkeys;
+  bool displayUserIds=true, displaySubkeys, displayRevokers;
 }
 
 } // namespace AdamMil.Security.UI

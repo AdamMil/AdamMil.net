@@ -276,25 +276,29 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
   {
     EnsureImported();
     NewKeyOptions options = new NewKeyOptions();
-    options.KeyType    = PrimaryKeyType.RSA;
-    options.RealName   = "New Guy";
-    options.Email      = "email@foo.com";
-    options.Comment    = "Weird";
-    options.Expiration = new DateTime(2090, 8, 1, 0, 0, 0, DateTimeKind.Utc);
-    options.Password   = password;
-    options.Keyring    = keyring;
-    options.SubkeyType = SubkeyType.None;
+    options.KeyType          = KeyType.RSA;
+    options.RealName         = "New Guy";
+    options.Email            = "email@foo.com";
+    options.Comment          = "Weird";
+    options.KeyExpiration    = new DateTime(2090, 8, 1, 0, 0, 0, DateTimeKind.Utc);
+    options.Password         = password;
+    options.Keyring          = keyring;
+    options.SubkeyType       = KeyType.RSA;
+    options.SubkeyExpiration = new DateTime(2080, 4, 5, 0, 0, 0, DateTimeKind.Utc);
 
     // create and delete the key
     Assert.AreEqual(3, gpg.GetPublicKeys(keyring).Length);
     PrimaryKey key = gpg.CreateKey(options);
     Assert.IsNotNull(key);
-    Assert.AreEqual(PrimaryKeyType.RSA, key.KeyType);
+    Assert.AreEqual(KeyType.RSA, key.KeyType);
     Assert.AreEqual(1, key.UserIds.Count);
-    Assert.AreEqual(0, key.Subkeys.Count);
+    Assert.AreEqual(1, key.Subkeys.Count);
     Assert.AreEqual("New Guy (Weird) <email@foo.com>", key.UserIds[0].Name);
     Assert.IsTrue(key.ExpirationTime.HasValue);
-    Assert.AreEqual(options.Expiration, key.ExpirationTime.Value.Date);
+    Assert.AreEqual(options.KeyExpiration, key.ExpirationTime.Value.Date);
+    Assert.AreEqual(options.SubkeyExpiration, key.Subkeys[0].ExpirationTime.Value.Date);
+    Assert.AreEqual(KeyCapabilities.Authenticate | KeyCapabilities.Certify | KeyCapabilities.Sign, key.Capabilities);
+    Assert.AreEqual(KeyCapabilities.Encrypt, key.Subkeys[0].Capabilities);
     Assert.AreEqual(4, gpg.GetPublicKeys(keyring).Length);
     gpg.DeleteKey(key, KeyDeletion.PublicAndSecret);
   }
@@ -472,15 +476,19 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
 
     // add a new subkey to Encrypter's key
     DateTime expiration = new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-    gpg.AddSubkey(keys[Encrypter], SubkeyType.RSAEncryptOnly, 1500, expiration);
+    gpg.AddSubkey(keys[Encrypter], KeyType.RSA, KeyCapabilities.Encrypt, 1500, expiration);
+    gpg.AddSubkey(keys[Encrypter], KeyType.RSA, KeyCapabilities.Encrypt | KeyCapabilities.Authenticate, 0, null);
+
     keys[Encrypter] = gpg.RefreshKey(keys[Encrypter]);
-    Assert.AreEqual(2, keys[Encrypter].Subkeys.Count);
-    // GPG generates RSA rather than RSAEncryptOnly as per RFC-4880 section 13.5, and uses key capabilities instead
-    Assert.AreEqual(SubkeyType.RSA, keys[Encrypter].Subkeys[1].KeyType);
-    Assert.IsFalse((keys[Encrypter].Subkeys[1].Capabilities & KeyCapability.Sign) != 0);
+    Assert.AreEqual(3, keys[Encrypter].Subkeys.Count);
+    Assert.AreEqual(KeyType.RSA, keys[Encrypter].Subkeys[1].KeyType);
+    Assert.AreEqual(KeyCapabilities.Encrypt, keys[Encrypter].Subkeys[1].Capabilities);
     Assert.IsTrue(keys[Encrypter].Subkeys[1].Length >= 1500); // GPG may round the key size up
     Assert.IsTrue(keys[Encrypter].Subkeys[1].ExpirationTime.HasValue);
     Assert.AreEqual(expiration.Date, keys[Encrypter].Subkeys[1].ExpirationTime.Value.Date);
+    Assert.AreEqual(KeyType.RSA, keys[Encrypter].Subkeys[2].KeyType);
+    Assert.AreEqual(KeyCapabilities.Encrypt | KeyCapabilities.Authenticate, keys[Encrypter].Subkeys[2].Capabilities);
+    Assert.IsFalse(keys[Encrypter].Subkeys[2].ExpirationTime.HasValue);
 
     // change the expiration of the primary key and first subkey
     expiration = new DateTime(2101, 1, 1, 0, 0, 0, DateTimeKind.Utc);

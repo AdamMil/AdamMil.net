@@ -18,6 +18,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
+using System.Security;
+using System.Text.RegularExpressions;
 using AdamMil.Security.PGP;
 
 namespace AdamMil.Security.UI
@@ -63,6 +66,53 @@ public sealed class KeyItem : ListItem<PrimaryKey>
 
 public static class PGPUI
 {
+  public static bool ArePasswordsEqual(SecureTextBox pass1, SecureTextBox pass2)
+  {
+    bool passwordsMatch = true;
+
+    if(pass1.TextLength != pass2.TextLength)
+    {
+      passwordsMatch = false;
+    }
+    else
+    {
+      SecureString ss1 = null, ss2 = null;
+      IntPtr bstr1 = IntPtr.Zero, bstr2 = IntPtr.Zero;
+
+      try
+      {
+        ss1 = pass1.GetText();
+        ss2 = pass2.GetText();
+        bstr1 = Marshal.SecureStringToBSTR(ss1);
+        bstr2 = Marshal.SecureStringToBSTR(ss2);
+
+        unsafe
+        {
+          char* p1 = (char*)bstr1.ToPointer(), p2 = (char*)bstr2.ToPointer();
+
+          int length = ss1.Length;
+          for(int i=0; i<length; p1++, p2++, i++)
+          {
+            if(*p1 != *p2)
+            {
+              passwordsMatch = false;
+              break;
+            }
+          }
+        }
+      }
+      finally
+      {
+        Marshal.ZeroFreeBSTR(bstr1);
+        Marshal.ZeroFreeBSTR(bstr2);
+        ss1.Dispose();
+        ss2.Dispose();
+      }
+    }
+
+    return passwordsMatch;
+  }
+
   public static string GetAttributeName(UserAttribute attr)
   {
     UserId userId = attr as UserId;
@@ -87,6 +137,20 @@ public static class PGPUI
   {
     if(key == null) throw new ArgumentNullException();
     return key.Revoked ? "revoked" : key.Expired ? "expired" : PGPUI.GetTrustDescription(key.CalculatedTrust);
+  }
+
+  public static string GetPasswordStrengthDescription(PasswordStrength strength)
+  {
+    switch(strength)
+    {
+      case PasswordStrength.Blank: return "extremely weak!";
+      case PasswordStrength.VeryWeak: return "very weak!";
+      case PasswordStrength.Weak: return "weak!";
+      case PasswordStrength.Moderate: return "moderate";
+      case PasswordStrength.Strong: return "strong";
+      case PasswordStrength.VeryStrong: return "very strong";
+      default: throw new NotImplementedException("Unknown password strength.");
+    }
   }
 
   public static string GetSignatureDescription(OpenPGPSignatureType type)
@@ -136,6 +200,19 @@ public static class PGPUI
     }
   }
 
+  public static bool IsValidEmail(string email)
+  {
+    string[] parts = email.Split('@');
+    if(parts.Length != 2) return false;
+
+    string local = parts[0], domain = parts[1];
+
+    // if the local portion is quoted, strip off the quotes
+    if(local.Length > 2 && local[0] == '"' && local[local.Length-1] == '"') local = local.Substring(1, local.Length-2);
+
+    return emailLocalRe.IsMatch(local) && domainRe.IsMatch(domain);
+  }
+
   public static string MakeSafeFilename(string str)
   {
     char[] badChars = Path.GetInvalidFileNameChars();
@@ -147,6 +224,12 @@ public static class PGPUI
     }
     return sb.ToString();
   }
+
+  static readonly Regex emailLocalRe = new Regex(@"^[\w\d!#$%/?|^{}`~&'+=-]+(?:\.[\w\d!#$%/?|^{}`~&'+=-])*$",
+                                                 RegexOptions.ECMAScript);
+  // matches domain name or IP address in brackets
+  static readonly Regex domainRe = new Regex(@"^(?:[a-zA-Z\d]+(?:[\.\-][a-zA-Z\d]+)*|\[\d{1,3}(?:\.\d{1,3}){3}])$",
+                                             RegexOptions.ECMAScript);
 }
 
 } // namespace AdamMil.Security.UI

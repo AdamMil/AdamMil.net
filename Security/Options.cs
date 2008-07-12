@@ -194,8 +194,8 @@ public class EncryptionOptions
     get { return hiddenRecipients; }
   }
 
-  readonly KeyCollection<PrimaryKey> recipients = new KeyCollection<PrimaryKey>(KeyCapability.Encrypt);
-  readonly KeyCollection<PrimaryKey> hiddenRecipients = new KeyCollection<PrimaryKey>(KeyCapability.Encrypt);
+  readonly KeyCollection<PrimaryKey> recipients = new KeyCollection<PrimaryKey>(KeyCapabilities.Encrypt);
+  readonly KeyCollection<PrimaryKey> hiddenRecipients = new KeyCollection<PrimaryKey>(KeyCapabilities.Encrypt);
   SecureString password;
   string cipher = SymmetricCipher.Default;
   bool alwaysTrust, eyesOnly;
@@ -215,7 +215,7 @@ public enum ExportOptions
   ExcludeAttributes=2,
   /// <summary>Includes revoker information that was marked as sensitive.</summary>
   ExportSensitiveRevokerInfo=4,
-  /// <summary>When exporting secret keys, this option causes the secret portion of the master key to not be exported.
+  /// <summary>When exporting secret keys, this option causes the secret portion of the primary key to not be exported.
   /// Only the secret subkeys are exported. This is not OpenPGP compliant and currently only GPG is known to
   /// implement this option or be capable of importing keys created by this option.
   /// </summary>
@@ -567,8 +567,8 @@ public enum ListOptions
 /// <summary>Options that control how a new primary key should be created.</summary>
 public class NewKeyOptions
 {
-  /// <summary>Gets or sets the name of the master key type. This can be a member of <see cref="PrimaryKeyType"/>, or
-  /// another key type, but it's best to leave it at the default value of <see cref="PrimaryKeyType.Default"/>, which
+  /// <summary>Gets or sets the name of the primary key type. This can be a member of <see cref="PGP.KeyType"/>, or
+  /// another key type, but it's best to leave it at the default value of <see cref="PGP.KeyType.Default"/>, which
   /// specifies that a default key type will be used.
   /// </summary>
   public string KeyType
@@ -577,22 +577,52 @@ public class NewKeyOptions
     set { keyType = value; }
   }
 
-  /// <summary>Gets or sets the length of the master key, in bits. If set to zero, a default value will be used.</summary>
+  /// <summary>Gets or sets the length of the primary key, in bits. If set to zero, a default value will be used.</summary>
   public int KeyLength
   {
     get { return keyLength; }
     set { keyLength = value; }
   }
 
-  /// <summary>Gets or sets the name of the subkey type. This can be a member of <see cref="PGP.SubkeyType"/>, or
-  /// another key type, but it's best to leave it at the default value of <see cref="PGP.SubkeyType.Default"/>, which
-  /// specifies that a default key type will be used. If set to <see cref="PGP.SubkeyType.None"/>, no subkey will be
+  /// <summary>Gets or sets the capabilities of the primary key. OpenPGP requires that all primary keys be capable of
+  /// certification, so attempting to set this property to a value that is not equal to <see
+  /// cref="PGP.KeyCapabilities.Default"/> and does not include the <see cref="PGP.KeyCapabilities.Certify"/> and <see
+  /// cref="PGP.KeyCapabilities.Sign"/> flags (because certification requires the ability to sign) will cause an
+  /// exception to be thrown. Not all capabilites are supported by all key types.
+  /// </summary>
+  public KeyCapabilities KeyCapabilities
+  {
+    get { return keyCapabilities; }
+    set
+    {
+      if(value != 0 && (value & KeyCapabilities.Certify) == 0)
+      {
+        throw new ArgumentException("The OpenPGP standard requires that all primary keys support certification, so "+
+                                    "Certify and Sign flags must be passed.");
+      }
+      else if((value & (KeyCapabilities.Certify|KeyCapabilities.Sign)) == KeyCapabilities.Certify)
+      {
+        throw new ArgumentException("The Certify capability requires the Sign capability.");
+      }
+
+      keyCapabilities = value;
+    }
+  }
+
+  /// <summary>Gets or sets the expiration of the primary key. This must be a time in the future.</summary>
+  public DateTime? KeyExpiration
+  {
+    get { return keyExpiration; }
+    set { keyExpiration = value; }
+  }
+
+  /// <summary>Gets or sets the name of the subkey type. This can be a member of <see cref="PGP.KeyType"/>, or
+  /// another key type, but it's best to leave it at the default value of <see cref="PGP.KeyType.Default"/>, which
+  /// specifies that a default key type will be used. If set to <see cref="PGP.KeyType.None"/>, no subkey will be
   /// created.
   /// </summary>
-  /// <remarks>Multiple subkeys can be associated with a master key. If set to a value other than 
-  /// <see cref="PGP.SubkeyType.None"/>, this property causes a subkey to be created along with the master key. This
-  /// is convenient, but it can be useful to create the subkey separately, for instance to set a different expiration
-  /// date on the subkey.
+  /// <remarks>Multiple subkeys can be associated with a primary key. If set to a value other than 
+  /// <see cref="PGP.KeyType.None"/>, this property causes a subkey to be created along with the primary key.
   /// </remarks>
   public string SubkeyType
   {
@@ -607,11 +637,29 @@ public class NewKeyOptions
     set { subkeyLength = value; }
   }
 
-  /// <summary>Gets or sets the expiration of the master key and the subkey. This must be a time in the future.</summary>
-  public DateTime? Expiration
+  /// <summary>Gets or sets the expiration of the subkey. This must be a time in the future.</summary>
+  public DateTime? SubkeyExpiration
   {
-    get { return expiration; }
-    set { expiration = value; }
+    get { return subkeyExpiration; }
+    set { subkeyExpiration = value; }
+  }
+
+  /// <summary>Gets or sets the capabilities of the subkey. Passing the <see cref="PGP.KeyCapabilities.Certify"/> flag
+  /// will cause an exception to be thrown, because only the primary key can be used for certification. Not all
+  /// capabilites are supported by all subkey types.
+  /// </summary>
+  public KeyCapabilities SubkeyCapabilities
+  {
+    get { return subkeyCapabilities; }
+    set
+    {
+      if((value & KeyCapabilities.Certify) != 0)
+      {
+        throw new ArgumentException("The Certify capability is only allowed on the primary key.");
+      }
+
+      subkeyCapabilities = value;
+    }
   }
 
   /// <summary>Gets or sets the password used to encrypt the key. Because this password is often the weakest link in
@@ -634,7 +682,10 @@ public class NewKeyOptions
     get { return keyring; }
     set
     {
-      if(value.SecretFile == null) throw new ArgumentException("The keyring must both public and secret parts.");
+      if(value != null && value.SecretFile == null)
+      {
+        throw new ArgumentException("The keyring must have both public and secret parts.");
+      }
       keyring = value;
     }
   }
@@ -667,8 +718,9 @@ public class NewKeyOptions
   string realName, email, comment;
   Keyring keyring;
   int keyLength, subkeyLength;
-  DateTime? expiration;
-  string keyType = PrimaryKeyType.Default, subkeyType = PGP.SubkeyType.Default;
+  KeyCapabilities keyCapabilities = KeyCapabilities.Default, subkeyCapabilities = KeyCapabilities.Default;
+  DateTime? keyExpiration, subkeyExpiration;
+  string keyType = PGP.KeyType.Default, subkeyType = PGP.KeyType.Default;
 }
 #endregion
 
@@ -801,7 +853,7 @@ public class SigningOptions
     get { return signers; }
   }
 
-  readonly KeyCollection<PrimaryKey> signers = new KeyCollection<PrimaryKey>(KeyCapability.Sign);
+  readonly KeyCollection<PrimaryKey> signers = new KeyCollection<PrimaryKey>(KeyCapabilities.Sign);
   string hash = HashAlgorithm.Default;
   bool detached;
 }

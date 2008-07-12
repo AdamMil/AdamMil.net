@@ -252,8 +252,7 @@ public class AttributeItem : PGPListViewItem
 {
   public AttributeItem(UserAttribute attr) : this(attr, string.Empty) { }
 
-  public AttributeItem(UserAttribute attr, string text)
-    : base(text)
+  public AttributeItem(UserAttribute attr, string text) : base(text)
   {
     if(attr == null) throw new ArgumentNullException();
     this.attr = attr;
@@ -271,6 +270,35 @@ public class AttributeItem : PGPListViewItem
   }
 
   readonly UserAttribute attr;
+}
+#endregion
+
+#region DesignatedRevokerItem
+public class DesignatedRevokerItem : PGPListViewItem
+{
+  public DesignatedRevokerItem(string fingerprint, PrimaryKey publicKey)
+    : this(fingerprint, publicKey, string.Empty) { }
+
+  public DesignatedRevokerItem(string fingerprint, PrimaryKey publicKey, string text) : base(text)
+  {
+    if(fingerprint == null || publicKey == null) throw new ArgumentNullException();
+    if(string.IsNullOrEmpty(fingerprint)) throw new ArgumentException("The fingerprint is empty.");
+    this.fingerprint = fingerprint;
+    this.publicKey   = publicKey;
+  }
+
+  public string Fingerprint
+  {
+    get { return fingerprint; }
+  }
+
+  public override PrimaryKey PublicKey
+  {
+    get { return publicKey; }
+  }
+
+  readonly PrimaryKey publicKey;
+  readonly string fingerprint;
 }
 #endregion
 

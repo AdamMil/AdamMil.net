@@ -90,6 +90,28 @@ public static class HashAlgorithm
 }
 #endregion
 
+#region KeyType
+/// <summary>A static class containing common key types. Note that not all of these types may be supported by a given
+/// implementation, so it's recommended that <see cref="Default"/> be used whenever possible. If a specific algorithm
+/// is desired, use <see cref="PGPSystem.GetSupportedKeyTypes"/> to verify that it is supported.
+/// </summary>
+public static class KeyType
+{
+  /// <summary>The default key type will be used.</summary>
+  public static readonly string Default = null;
+  /// <summary>No key will be created.</summary>
+  public static readonly string None = "None";
+  /// <summary>The FIPS-186 Digital Signature Algorithm will be used, which is for signing only. Standard DSA keys can
+  /// be up to 1024 bits in length. Larger keys are supported by only a few clients.
+  /// </summary>
+  public static readonly string DSA = "DSA";
+  /// <summary>An ElGamal encryption key will be used.</summary>
+  public static readonly string ElGamal = "ELG";
+  /// <summary>The RSA algorithm will be used.</summary>
+  public static readonly string RSA = "RSA";
+}
+#endregion
+
 #region SymmetricCipher
 /// <summary>A static class containing commonly-supported symmetric ciphers. Note that not all of these types may be
 /// supported, so it's recommended that <see cref="Default"/> be used whenever possible. If a specific algorithm is
@@ -127,58 +149,6 @@ public static class SymmetricCipher
   /// algorithm, Rijndael, (though lower than <see cref="Serpent"/>). Its poor performance was its primary failing.
   /// </summary>  
   public static readonly string Twofish = "TWOFISH";
-}
-#endregion
-
-#region PrimaryKeyType
-/// <summary>A static class containing commonly-supported primary key types. Note that not all of these types may be
-/// supported, so it's recommended that <see cref="Default"/> be used whenever possible. If a specific algorithm is
-/// desired, use <see cref="PGPSystem.GetSupportedKeyTypes"/> to verify that it is supported.
-/// </summary>
-public static class PrimaryKeyType
-{
-  /// <summary>The default master key type will be used.</summary>
-  public static readonly string Default = null;
-  /// <summary>The FIPS-186 Digital Signature Algorithm will be used, which is for signing only. Standard DSA keys can
-  /// be up to 1024 bits in length. Larger keys are supported by only a few clients.
-  /// </summary>
-  public static readonly string DSA = "DSA";
-  /// <summary>The RSA algorithm will be used, creating a key that can both sign and encrypt. (Although it's better to
-  /// use a signature-only primary key and only use subkeys to encrypt.)
-  /// </summary>
-  public static readonly string RSA = "RSA";
-}
-#endregion
-
-#region SubkeyType
-/// <summary>A static class containing commonly-supported subkey types. Note that not all of these types may be
-/// supported, so it's recommended that <see cref="Default"/> be used whenever possible. If a specific algorithm is
-/// desired, use <see cref="PGPSystem.GetSupportedKeyTypes"/> to verify that it is supported.
-/// </summary>
-public static class SubkeyType
-{
-  /// <summary>The default subkey type will be used.</summary>
-  public static readonly string Default = null;
-  /// <summary>No subkey will be created.</summary>
-  public static readonly string None = "None";
-  /// <summary>The FIPS-186 Digital Signature Algorithm will be used, which is for signing only. Standard DSA keys can
-  /// be up to 1024 bits in length. Larger keys are supported by only a few clients.
-  /// </summary>
-  public static readonly string DSA = "DSA";
-  /// <summary>An ElGamal encryption-only key will be created.</summary>
-  public static readonly string ElGamalEncryptOnly = "ELG-E";
-  /// <summary>An ElGamal encryption key will be created. Despite the contrast with <see cref="ElGamalEncryptOnly"/>,
-  /// a subkey with this type can also be used only for encryption.
-  /// </summary>
-  public static readonly string ElGamal = "ELG";
-  /// <summary>The RSA algorithm will be used, creating a key that can both sign and encrypt. (Although it's better to
-  /// use a signature-only primary key to sign and an encryption-only subkey to encrypt.)
-  /// </summary>
-  public static readonly string RSA = "RSA";
-  /// <summary>The RSA algorithm will be used, creating a signing-only key.</summary>
-  public static readonly string RSASignOnly = "RSA-S";
-  /// <summary>The RSA algorithm will be used, creating an encryption-only key.</summary>
-  public static readonly string RSAEncryptOnly = "RSA-E";
 }
 #endregion
 
@@ -287,15 +257,15 @@ public enum OpenPGPImageType
 /// </summary>
 public enum OpenPGPKeyType
 {
-  /// <summary>An RSA key type, equivalent to <see cref="SubkeyType.RSA"/>.</summary>
+  /// <summary>An RSA key type, equivalent to <see cref="KeyType.RSA"/>.</summary>
   RSA=1,
-  /// <summary>An RSA encryption-only key type, corresponding to <see cref="SubkeyType.RSAEncryptOnly"/>.</summary>
+  /// <summary>An RSA encryption-only key type. This is deprecated.</summary>
   RSAEncryptOnly=2,
-  /// <summary>An RSA signing-only key type, corresponding to <see cref="SubkeyType.RSASignOnly"/>.</summary>
+  /// <summary>An RSA signing-only key type. This is deprecated.</summary>
   RSASignOnly=3,
-  /// <summary>An ElGamal encryption-only key type, corresponding to <see cref="SubkeyType.ElGamalEncryptOnly"/>.</summary>
+  /// <summary>An ElGamal encryption-only key type, corresponding to <see cref="KeyType.ElGamal"/>.</summary>
   ElGamalEncryptOnly=16,
-  /// <summary>A DSA signing key, corresponding to <see cref="SubkeyType.DSA"/>.</summary>
+  /// <summary>A DSA signing key, corresponding to <see cref="KeyType.DSA"/>.</summary>
   DSA=17,
   /// <summary>An elliptic curve key.</summary>
   EllipticCurve=18,
@@ -780,6 +750,9 @@ public abstract class PGPSystem
   public event KeyPasswordHandler KeyPasswordNeeded;
 
   #region Configuration
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetMaximumKeyLength/*"/>
+  public abstract int GetMaximumKeyLength(string keyType);
+
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedCiphers/*"/>
   public abstract string[] GetSupportedCiphers();
   
@@ -1312,7 +1285,8 @@ public abstract class PGPSystem
 
   #region Primary key management
   /// <include file="documentation.xml" path="/Security/PGPSystem/AddSubkey/*" />
-  public abstract void AddSubkey(PrimaryKey key, string keyType, int keyLength, DateTime? expiration);
+  public abstract void AddSubkey(PrimaryKey key, string keyType, KeyCapabilities capabilities, int keyLength,
+                                 DateTime? expiration);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/ChangeExpiration/*" />
   public abstract void ChangeExpiration(Key key, DateTime? expiration);

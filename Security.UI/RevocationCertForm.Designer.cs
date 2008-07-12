@@ -85,7 +85,7 @@ namespace AdamMil.Security.UI
             | System.Windows.Forms.AnchorStyles.Right)));
       lblHelp.Location = new System.Drawing.Point(8, 7);
       lblHelp.Name = "lblHelp";
-      lblHelp.Size = new System.Drawing.Size(382, 50);
+      lblHelp.Size = new System.Drawing.Size(442, 50);
       lblHelp.TabIndex = 0;
       lblHelp.Text = "A revocation certificate is a file that can be imported to revoke a key. You\'ll w" +
     "ant to keep the revocation certificate in a safe place, because anyone who gets " +
@@ -101,7 +101,7 @@ namespace AdamMil.Security.UI
       howBox.Controls.Add(this.rbDirect);
       howBox.Location = new System.Drawing.Point(8, 101);
       howBox.Name = "howBox";
-      howBox.Size = new System.Drawing.Size(382, 98);
+      howBox.Size = new System.Drawing.Size(442, 98);
       howBox.TabIndex = 2;
       howBox.TabStop = false;
       howBox.Text = "How should the revocation certificate be generated?";
@@ -110,11 +110,12 @@ namespace AdamMil.Security.UI
       // 
       this.revokingKeys.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+      this.revokingKeys.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
       this.revokingKeys.Enabled = false;
       this.revokingKeys.FormattingEnabled = true;
       this.revokingKeys.Location = new System.Drawing.Point(100, 66);
       this.revokingKeys.Name = "revokingKeys";
-      this.revokingKeys.Size = new System.Drawing.Size(272, 21);
+      this.revokingKeys.Size = new System.Drawing.Size(332, 21);
       this.revokingKeys.TabIndex = 3;
       // 
       // lblRevokingKey
@@ -132,7 +133,7 @@ namespace AdamMil.Security.UI
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbIndirect.Location = new System.Drawing.Point(9, 44);
       this.rbIndirect.Name = "rbIndirect";
-      this.rbIndirect.Size = new System.Drawing.Size(356, 17);
+      this.rbIndirect.Size = new System.Drawing.Size(416, 17);
       this.rbIndirect.TabIndex = 1;
       this.rbIndirect.TabStop = true;
       this.rbIndirect.Text = "Indirectly, because I am the key\'s designated revoker.";
@@ -145,7 +146,7 @@ namespace AdamMil.Security.UI
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbDirect.Location = new System.Drawing.Point(9, 21);
       this.rbDirect.Name = "rbDirect";
-      this.rbDirect.Size = new System.Drawing.Size(356, 17);
+      this.rbDirect.Size = new System.Drawing.Size(416, 17);
       this.rbDirect.TabIndex = 0;
       this.rbDirect.TabStop = true;
       this.rbDirect.Text = "Directly, because I own the key.";
@@ -161,7 +162,7 @@ namespace AdamMil.Security.UI
       whereBox.Controls.Add(this.rbClipboard);
       whereBox.Location = new System.Drawing.Point(8, 410);
       whereBox.Name = "whereBox";
-      whereBox.Size = new System.Drawing.Size(382, 100);
+      whereBox.Size = new System.Drawing.Size(442, 100);
       whereBox.TabIndex = 6;
       whereBox.TabStop = false;
       whereBox.Text = "Where should the revocation certificate be saved?";
@@ -169,7 +170,7 @@ namespace AdamMil.Security.UI
       // btnBrowse
       // 
       this.btnBrowse.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-      this.btnBrowse.Location = new System.Drawing.Point(305, 68);
+      this.btnBrowse.Location = new System.Drawing.Point(365, 68);
       this.btnBrowse.Name = "btnBrowse";
       this.btnBrowse.Size = new System.Drawing.Size(67, 21);
       this.btnBrowse.TabIndex = 3;
@@ -183,7 +184,7 @@ namespace AdamMil.Security.UI
             | System.Windows.Forms.AnchorStyles.Right)));
       this.txtFile.Location = new System.Drawing.Point(9, 68);
       this.txtFile.Name = "txtFile";
-      this.txtFile.Size = new System.Drawing.Size(290, 21);
+      this.txtFile.Size = new System.Drawing.Size(350, 21);
       this.txtFile.TabIndex = 2;
       // 
       // rbFile
@@ -193,7 +194,7 @@ namespace AdamMil.Security.UI
       this.rbFile.Checked = true;
       this.rbFile.Location = new System.Drawing.Point(9, 44);
       this.rbFile.Name = "rbFile";
-      this.rbFile.Size = new System.Drawing.Size(356, 17);
+      this.rbFile.Size = new System.Drawing.Size(416, 17);
       this.rbFile.TabIndex = 1;
       this.rbFile.TabStop = true;
       this.rbFile.Text = "Save it to a file:";
@@ -206,7 +207,7 @@ namespace AdamMil.Security.UI
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbClipboard.Location = new System.Drawing.Point(9, 21);
       this.rbClipboard.Name = "rbClipboard";
-      this.rbClipboard.Size = new System.Drawing.Size(356, 17);
+      this.rbClipboard.Size = new System.Drawing.Size(416, 17);
       this.rbClipboard.TabIndex = 0;
       this.rbClipboard.Text = "Save it on the clipboard.";
       this.rbClipboard.UseVisualStyleBackColor = true;
@@ -215,7 +216,7 @@ namespace AdamMil.Security.UI
       // 
       btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-      btnCancel.Location = new System.Drawing.Point(315, 516);
+      btnCancel.Location = new System.Drawing.Point(375, 516);
       btnCancel.Name = "btnCancel";
       btnCancel.Size = new System.Drawing.Size(75, 23);
       btnCancel.TabIndex = 8;
@@ -241,7 +242,7 @@ namespace AdamMil.Security.UI
       codeGroup.Controls.Add(this.rbNoReason);
       codeGroup.Location = new System.Drawing.Point(8, 205);
       codeGroup.Name = "codeGroup";
-      codeGroup.Size = new System.Drawing.Size(382, 112);
+      codeGroup.Size = new System.Drawing.Size(442, 112);
       codeGroup.TabIndex = 3;
       codeGroup.TabStop = false;
       codeGroup.Text = "What is the reason for the revocation?";
@@ -252,7 +253,7 @@ namespace AdamMil.Security.UI
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbRetired.Location = new System.Drawing.Point(7, 88);
       this.rbRetired.Name = "rbRetired";
-      this.rbRetired.Size = new System.Drawing.Size(366, 17);
+      this.rbRetired.Size = new System.Drawing.Size(426, 17);
       this.rbRetired.TabIndex = 3;
       this.rbRetired.Text = "The key is no longer used.";
       this.rbRetired.UseVisualStyleBackColor = true;
@@ -263,7 +264,7 @@ namespace AdamMil.Security.UI
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbCompromised.Location = new System.Drawing.Point(7, 65);
       this.rbCompromised.Name = "rbCompromised";
-      this.rbCompromised.Size = new System.Drawing.Size(366, 17);
+      this.rbCompromised.Size = new System.Drawing.Size(426, 17);
       this.rbCompromised.TabIndex = 2;
       this.rbCompromised.Text = "The key has been been compromised.";
       this.rbCompromised.UseVisualStyleBackColor = true;
@@ -274,7 +275,7 @@ namespace AdamMil.Security.UI
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbSuperceded.Location = new System.Drawing.Point(7, 42);
       this.rbSuperceded.Name = "rbSuperceded";
-      this.rbSuperceded.Size = new System.Drawing.Size(366, 17);
+      this.rbSuperceded.Size = new System.Drawing.Size(426, 17);
       this.rbSuperceded.TabIndex = 1;
       this.rbSuperceded.Text = "The key has been superceded by a new key.";
       this.rbSuperceded.UseVisualStyleBackColor = true;
@@ -286,7 +287,7 @@ namespace AdamMil.Security.UI
       this.rbNoReason.Checked = true;
       this.rbNoReason.Location = new System.Drawing.Point(7, 19);
       this.rbNoReason.Name = "rbNoReason";
-      this.rbNoReason.Size = new System.Drawing.Size(366, 17);
+      this.rbNoReason.Size = new System.Drawing.Size(426, 17);
       this.rbNoReason.TabIndex = 0;
       this.rbNoReason.TabStop = true;
       this.rbNoReason.Text = "No reason given.";
@@ -295,7 +296,7 @@ namespace AdamMil.Security.UI
       // btnOK
       // 
       this.btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-      this.btnOK.Location = new System.Drawing.Point(234, 516);
+      this.btnOK.Location = new System.Drawing.Point(294, 516);
       this.btnOK.Name = "btnOK";
       this.btnOK.Size = new System.Drawing.Size(75, 23);
       this.btnOK.TabIndex = 7;
@@ -309,7 +310,7 @@ namespace AdamMil.Security.UI
             | System.Windows.Forms.AnchorStyles.Right)));
       this.lblRevokedKey.Location = new System.Drawing.Point(8, 57);
       this.lblRevokedKey.Name = "lblRevokedKey";
-      this.lblRevokedKey.Size = new System.Drawing.Size(382, 41);
+      this.lblRevokedKey.Size = new System.Drawing.Size(442, 41);
       this.lblRevokedKey.TabIndex = 1;
       // 
       // txtExplanation
@@ -321,7 +322,7 @@ namespace AdamMil.Security.UI
       this.txtExplanation.MaxLength = 255;
       this.txtExplanation.Multiline = true;
       this.txtExplanation.Name = "txtExplanation";
-      this.txtExplanation.Size = new System.Drawing.Size(382, 66);
+      this.txtExplanation.Size = new System.Drawing.Size(442, 66);
       this.txtExplanation.TabIndex = 5;
       // 
       // RevocationCertForm
@@ -330,7 +331,7 @@ namespace AdamMil.Security.UI
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.CancelButton = btnCancel;
-      this.ClientSize = new System.Drawing.Size(398, 545);
+      this.ClientSize = new System.Drawing.Size(458, 545);
       this.Controls.Add(lblExplanation);
       this.Controls.Add(this.txtExplanation);
       this.Controls.Add(codeGroup);

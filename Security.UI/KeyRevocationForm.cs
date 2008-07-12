@@ -31,6 +31,11 @@ public partial class KeyRevocationForm : Form
     InitializeComponent();
   }
 
+  public KeyRevocationForm(PrimaryKey key, PrimaryKey[] ownedKeys) : this()
+  {
+    Initialize(key, ownedKeys);
+  }
+
   [Browsable(false)]
   public KeyRevocationReason Reason
   {
@@ -46,15 +51,51 @@ public partial class KeyRevocationForm : Form
     }
   }
 
-  public KeyRevocationForm(PrimaryKey key) : this()
+  [Browsable(false)]
+  public bool RevokeDirectly
   {
-    Initialize(key);
+    get { return rbDirect.Checked; }
   }
 
-  public void Initialize(PrimaryKey key)
+  [Browsable(false)]
+  public PrimaryKey SelectedRevokingKey
   {
-    if(key == null) throw new ArgumentNullException();
-    lblKey.Text = "You are about to revoke this key:\n" + PGPUI.GetKeyName(key);
+    get { return ((KeyItem)revokingKeys.SelectedItem).Value; }
+  }
+
+  public void Initialize(PrimaryKey keyToRevoke, PrimaryKey[] ownedKeys)
+  {
+    if(keyToRevoke == null || ownedKeys == null) throw new ArgumentNullException();
+
+    rbDirect.Enabled = Array.IndexOf(ownedKeys, keyToRevoke) != -1;
+
+    revokingKeys.Items.Clear();
+    foreach(PrimaryKey key in ownedKeys)
+    {
+      if(key == null) throw new ArgumentException("A key was null.");
+      if(keyToRevoke.DesignatedRevokers.Contains(key.Fingerprint))
+      {
+        revokingKeys.Items.Add(new KeyItem(key));
+      }
+    }
+
+    rbIndirect.Enabled = revokingKeys.Items.Count != 0;
+    if(revokingKeys.Items.Count != 0) revokingKeys.SelectedIndex = 0;
+
+    if(rbDirect.Enabled) rbDirect.Checked = true;
+    else if(rbIndirect.Enabled) rbIndirect.Checked = true;
+    else rbDirect.Checked = rbIndirect.Checked = false;
+
+    btnOK.Enabled = rbDirect.Enabled || rbIndirect.Enabled;
+
+    lblKey.Text = btnOK.Enabled
+      ? "You are about to revoke this key:\n" + PGPUI.GetKeyName(keyToRevoke)
+      : "You cannot revoke the key because you do not have its secret key or the secret key of a designated revoker.";
+  }
+
+  void rbIndirect_CheckedChanged(object sender, EventArgs e)
+  {
+    revokingKeys.Enabled = ((RadioButton)sender).Checked;
   }
 }
 

@@ -17,7 +17,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
-using System.Runtime.InteropServices;
 using System.Security;
 using System.Windows.Forms;
 
@@ -39,49 +38,7 @@ public partial class ChangePasswordForm : Form
 
   void btnOK_Click(object sender, EventArgs e)
   {
-    bool passwordsMatch = true;
-
-    if(pass1.TextLength != pass2.TextLength)
-    {
-      passwordsMatch = false;
-    }
-    else
-    {
-      SecureString ss1 = null, ss2 = null;
-      IntPtr bstr1 = IntPtr.Zero, bstr2 = IntPtr.Zero;
-
-      try
-      {
-        ss1 = pass1.GetText();
-        ss2 = pass2.GetText();
-        bstr1 = Marshal.SecureStringToBSTR(ss1);
-        bstr2 = Marshal.SecureStringToBSTR(ss2);
-
-        unsafe
-        {
-          char* p1 = (char*)bstr1.ToPointer(), p2 = (char*)bstr2.ToPointer();
-
-          int length = ss1.Length;
-          for(int i=0; i<length; p1++, p2++, i++)
-          {
-            if(*p1 != *p2)
-            {
-              passwordsMatch = false;
-              break;
-            }
-          }
-        }
-      }
-      finally
-      {
-        Marshal.ZeroFreeBSTR(bstr1);
-        Marshal.ZeroFreeBSTR(bstr2);
-        ss1.Dispose();
-        ss2.Dispose();
-      }
-    }
-
-    if(!passwordsMatch)
+    if(!PGPUI.ArePasswordsEqual(pass1, pass2))
     {
       MessageBox.Show("The passwords you have entered do not match.", "Password mismatch", MessageBoxButtons.OK,
                       MessageBoxIcon.Error);
@@ -117,19 +74,8 @@ public partial class ChangePasswordForm : Form
 
   void UpdatePasswordStrength()
   {
-    string strength;
-    switch(pass1.GetPasswordStrength())
-    {
-      case PasswordStrength.Blank: strength = "extremely weak!"; break;
-      case PasswordStrength.VeryWeak: strength = "very weak!"; break;
-      case PasswordStrength.Weak: strength = "weak!"; break;
-      case PasswordStrength.Moderate: strength = "moderate"; break;
-      case PasswordStrength.Strong: strength = "strong"; break;
-      case PasswordStrength.VeryStrong: strength = "very strong"; break;
-      default: throw new NotImplementedException("Unknown password strength.");
-    }
-
-    lblStrength.Text = "Estimated password strength: " + strength;
+    lblStrength.Text = "Estimated password strength: " +
+                       PGPUI.GetPasswordStrengthDescription(pass1.GetPasswordStrength());
   }
 }
 
