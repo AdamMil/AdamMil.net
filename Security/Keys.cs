@@ -399,16 +399,18 @@ public class UnknownUserAttribute : UserAttributeWithData
 #endregion
 
 #region Key types
-#region KeyCapability
+#region KeyCapabilities
 /// <summary>Describes the capabilities of a key, but not necessarily the capabilities to which it can currently be put
 /// to use by you. For instance, a key may be capable of encryption and signing, but if you don't have the private
 /// portion, you cannot utilize that capability. Or, the key may have been disabled.
 /// </summary>
 [Flags]
-public enum KeyCapability
+public enum KeyCapabilities
 {
   /// <summary>The key has no utility.</summary>
   None=0,
+  /// <summary>When creating a key, this specifies that the default key flags should be used.</summary>
+  Default=0,
   /// <summary>The key can be used to encrypt data.</summary>
   Encrypt=1,
   /// <summary>The key can be used to sign data.</summary>
@@ -416,7 +418,7 @@ public enum KeyCapability
   /// <summary>The key can be used to certify other keys.</summary>
   Certify=4,
   /// <summary>The key can be used to authenticate its owners.</summary>
-  Authenticate=8
+  Authenticate=8,
 }
 #endregion
 
@@ -440,7 +442,7 @@ public abstract class Key : ReadOnlyClass
   /// <summary>Gets or sets the capabilities of this key. This value represents the original capabilities of the key,
   /// not necessarily what a particular person will be able to do with it.
   /// </summary>
-  public KeyCapability Capabilities
+  public KeyCapabilities Capabilities
   {
     get { return capabilities; }
     set 
@@ -655,7 +657,7 @@ public abstract class Key : ReadOnlyClass
   DateTime? expirationTime;
   DateTime creationTime;
   int length;
-  KeyCapability capabilities;
+  KeyCapabilities capabilities;
   TrustLevel calculatedTrust;
   bool invalid, revoked, expired, secret;
 }
@@ -752,7 +754,7 @@ public class PrimaryKey : Key, ISignableObject
   }
 
   /// <summary>Gets or sets the combined capabilities of this primary key and its subkeys.</summary>
-  public KeyCapability TotalCapabilities
+  public KeyCapabilities TotalCapabilities
   {
     get { return totalCapabilities; }
     set
@@ -823,7 +825,7 @@ public class PrimaryKey : Key, ISignableObject
   }
 
   /// <summary>Returns true if the <see cref="TotalCapabilities"/> property contains the given capability flag.</summary>
-  public bool HasCapability(KeyCapability capability)
+  public bool HasCapability(KeyCapabilities capability)
   {
     return (TotalCapabilities & capability) != 0;
   }
@@ -848,7 +850,7 @@ public class PrimaryKey : Key, ISignableObject
 
   UserId primaryUserId;
   Keyring keyring;
-  KeyCapability totalCapabilities;
+  KeyCapabilities totalCapabilities;
   TrustLevel ownerTrust;
   bool disabled;
 }
@@ -910,7 +912,7 @@ public class KeyCollection<KeyType> : Collection<KeyType> where KeyType : Key
   public KeyCollection() { }
   
   /// <summary>Initializes a new <see cref="KeyCollection{T}"/> with the given set of required key capabilities.</summary>
-  public KeyCollection(KeyCapability requiredCapabilities)
+  public KeyCollection(KeyCapabilities requiredCapabilities)
   {
     this.requiredCapabilities = requiredCapabilities;
   }
@@ -935,7 +937,7 @@ public class KeyCollection<KeyType> : Collection<KeyType> where KeyType : Key
     if(key == null) throw new ArgumentNullException();
 
     PrimaryKey primaryKey = key as PrimaryKey;
-    KeyCapability capabilities = primaryKey != null ? primaryKey.TotalCapabilities : key.Capabilities;
+    KeyCapabilities capabilities = primaryKey != null ? primaryKey.TotalCapabilities : key.Capabilities;
 
     if((capabilities & requiredCapabilities) != requiredCapabilities)
     {
@@ -944,7 +946,7 @@ public class KeyCollection<KeyType> : Collection<KeyType> where KeyType : Key
     }
   }
 
-  KeyCapability requiredCapabilities;
+  KeyCapabilities requiredCapabilities;
 }
 #endregion
 

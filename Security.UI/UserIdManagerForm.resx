@@ -128,6 +128,9 @@
 
 You generally shouldn't create user IDs for different individuals on the same key because messages encrypted to a key can be decrypted by all of the key's users, even if you later delete their user ID. Let each individual create his own key.</value>
   </data>
+  <metadata name="nameColumn.GenerateMember" type="System.Boolean, mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
+    <value>False</value>
+  </metadata>
   <metadata name="imageList.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>17, 17</value>
   </metadata>

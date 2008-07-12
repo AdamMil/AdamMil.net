@@ -55,7 +55,7 @@ public enum FailureReason
   /// <summary>The failure could have been caused by a bad key server URI.</summary>
   BadKeyServerUri=0x800,
   /// <summary>The operation was canceled by the user.</summary>
-  OperationCanceled,
+  OperationCanceled=0x1000,
 }
 #endregion
 

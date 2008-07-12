@@ -91,12 +91,12 @@ public abstract class GPG : PGPSystem
   {
     switch((OpenPGPKeyType)int.Parse(str, CultureInfo.InvariantCulture))
     {
-      case OpenPGPKeyType.DSA: return PrimaryKeyType.DSA;
-      case OpenPGPKeyType.ElGamal: return SubkeyType.ElGamal;
-      case OpenPGPKeyType.ElGamalEncryptOnly: return SubkeyType.ElGamalEncryptOnly;
-      case OpenPGPKeyType.RSA: return PrimaryKeyType.RSA;
-      case OpenPGPKeyType.RSAEncryptOnly: return SubkeyType.RSAEncryptOnly;
-      case OpenPGPKeyType.RSASignOnly: return SubkeyType.RSASignOnly;
+      case OpenPGPKeyType.DSA:
+        return KeyType.DSA;
+      case OpenPGPKeyType.ElGamal: case OpenPGPKeyType.ElGamalEncryptOnly:
+        return KeyType.ElGamal;
+      case OpenPGPKeyType.RSA: case OpenPGPKeyType.RSAEncryptOnly: case OpenPGPKeyType.RSASignOnly:
+        return KeyType.RSA;
       default: return string.IsNullOrEmpty(str) ? null : str;
     }
   }
@@ -173,6 +173,20 @@ public class ExeGPG : GPG
   }
 
   #region Configuration
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetMaximumKeyLength/*"/>
+  public override int GetMaximumKeyLength(string keyType)
+  {
+    if(!string.Equals(keyType, "RSA-E", StringComparison.OrdinalIgnoreCase) &&
+       !string.Equals(keyType, "RSA-S", StringComparison.OrdinalIgnoreCase) &&
+       !string.Equals(keyType, "ELG-E", StringComparison.OrdinalIgnoreCase) &&
+       !string.Equals(keyType, "ELG", StringComparison.OrdinalIgnoreCase))
+    {
+      AssertSupported(keyType, keyTypes, "key type");
+    }
+
+    return string.Equals(keyType, "DSA", StringComparison.OrdinalIgnoreCase) ? 3072 : 4096;
+  }
+
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedCiphers/*"/>
   public override string[] GetSupportedCiphers()
   {
@@ -852,10 +866,12 @@ public class ExeGPG : GPG
 
   #region Primary key management
   /// <include file="documentation.xml" path="/Security/PGPSystem/AddSubkey/*" />
-  public override void AddSubkey(PrimaryKey key, string keyType, int keyLength, DateTime? expiration)
+  public override void AddSubkey(PrimaryKey key, string keyType, KeyCapabilities capabilities, int keyLength,
+                                 DateTime? expiration)
   {
     // if a custom length is specified, it might be long enough to require a DSA2 key, so add the option just in case
-    DoEdit(key, keyLength == 0 ? null : "--enable-dsa2", true, new AddSubkeyCommand(keyType, keyLength, expiration));
+    DoEdit(key, (keyLength == 0 ? null : "--enable-dsa2 ") + "--expert", true,
+           new AddSubkeyCommand(keyType, capabilities, keyLength, expiration));
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/ChangeExpiration/*" />
@@ -907,8 +923,8 @@ public class ExeGPG : GPG
     }
 
     bool primaryIsDSA = string.IsNullOrEmpty(options.KeyType) || // DSA is the default primary key type
-                        string.Equals(options.KeyType, PrimaryKeyType.DSA, StringComparison.OrdinalIgnoreCase);
-    bool primaryIsRSA = string.Equals(options.KeyType, PrimaryKeyType.RSA, StringComparison.OrdinalIgnoreCase);
+                        string.Equals(options.KeyType, KeyType.DSA, StringComparison.OrdinalIgnoreCase);
+    bool primaryIsRSA = string.Equals(options.KeyType, KeyType.RSA, StringComparison.OrdinalIgnoreCase);
 
     if(!primaryIsDSA && !primaryIsRSA)
     {
@@ -924,26 +940,26 @@ public class ExeGPG : GPG
         options.KeyLength.ToString(CultureInfo.InvariantCulture) + " is not supported.");
     }
 
-    bool subIsDSA = string.Equals(options.SubkeyType, SubkeyType.DSA, StringComparison.OrdinalIgnoreCase);
+    bool subIsDSA = string.Equals(options.SubkeyType, KeyType.DSA, StringComparison.OrdinalIgnoreCase);
     bool subIsELG = string.IsNullOrEmpty(options.SubkeyType) || // ElGamal is the default subkey type
-                    string.Equals(options.SubkeyType, SubkeyType.ElGamal, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(options.SubkeyType, SubkeyType.ElGamalEncryptOnly, StringComparison.OrdinalIgnoreCase);
-    bool subIsRSAS = string.Equals(options.SubkeyType, SubkeyType.RSAEncryptOnly, StringComparison.OrdinalIgnoreCase);
-    bool subIsRSAE = string.Equals(options.SubkeyType, SubkeyType.RSASignOnly, StringComparison.OrdinalIgnoreCase);
-    bool subIsNone = string.Equals(options.SubkeyType, SubkeyType.None, StringComparison.OrdinalIgnoreCase);
+                    string.Equals(options.SubkeyType, KeyType.ElGamal, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(options.SubkeyType, "ELG-E", StringComparison.OrdinalIgnoreCase);
+    bool subIsRSA  = string.Equals(options.SubkeyType, KeyType.RSA, StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(options.SubkeyType, "RSA-E", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(options.SubkeyType, "RSA-S", StringComparison.OrdinalIgnoreCase);
+    bool subIsNone = string.Equals(options.SubkeyType, KeyType.None, StringComparison.OrdinalIgnoreCase);
 
-    if(!subIsNone && !subIsDSA && !subIsELG && !subIsRSAS && !subIsRSAE)
+    if(!subIsNone && !subIsDSA && !subIsELG && !subIsRSA)
     {
-      if(string.Equals(options.SubkeyType, SubkeyType.RSA, StringComparison.OrdinalIgnoreCase))
-      {
-        throw new KeyCreationFailedException(FailureReason.UnsupportedAlgorithm, "Please specify an encryption-only "+
-                                             "or signing-only RSA key. Generic RSA subkeys are not allowed by GPG.");
-      }
-      else
-      {
-        throw new KeyCreationFailedException(FailureReason.UnsupportedAlgorithm,
-                                             "Subkey type "+options.SubkeyType+" is not supported.");
-      }
+      throw new KeyCreationFailedException(FailureReason.UnsupportedAlgorithm,
+                                           "Subkey type "+options.SubkeyType+" is not supported.");
+    }
+
+    KeyCapabilities primaryCapabilities = options.KeyCapabilities, subCapabilities = options.SubkeyCapabilities;
+
+    if(primaryCapabilities == KeyCapabilities.Default)
+    {
+      primaryCapabilities = KeyCapabilities.Certify | KeyCapabilities.Sign | KeyCapabilities.Authenticate;
     }
 
     if(!subIsNone) // if a subkey will be created
@@ -955,9 +971,15 @@ public class ExeGPG : GPG
         throw new KeyCreationFailedException(FailureReason.None, "Key length "+
           options.SubkeyLength.ToString(CultureInfo.InvariantCulture) + " is not supported.");
       }
+
+      if(subCapabilities == KeyCapabilities.Default)
+      {
+        subCapabilities = subIsDSA ? KeyCapabilities.Sign : KeyCapabilities.Encrypt;
+      }
     }
 
-    int expirationDays = GetExpirationDays(options.Expiration);
+    int keyExpirationDays = GetExpirationDays(options.KeyExpiration);
+    int subkeyExpirationDays = GetExpirationDays(options.SubkeyExpiration);
 
     // the options look good, so lets make the key
     string keyFingerprint = null, args = GetKeyringArgs(options.Keyring, true);
@@ -984,15 +1006,19 @@ public class ExeGPG : GPG
       cmd.Start();
 
       cmd.Process.StandardInput.WriteLine("Key-Type: " + (primaryIsDSA ? "DSA" : "RSA"));
+      
       if(options.KeyLength != 0)
       {
         cmd.Process.StandardInput.WriteLine("Key-Length: " + options.KeyLength.ToString(CultureInfo.InvariantCulture));
       }
 
+      cmd.Process.StandardInput.WriteLine("Key-Usage: " + GetKeyUsageString(primaryCapabilities));
+
       if(!subIsNone)
       {
-        cmd.Process.StandardInput.WriteLine("Subkey-Type: " +
-          (subIsDSA ? "DSA" : subIsELG ? "ELG-E" : subIsRSAE ? "RSA-E" : "RSA-S"));
+        cmd.Process.StandardInput.WriteLine("Subkey-Type: " + (subIsDSA ? "DSA" : subIsELG ? "ELG-E" : "RSA"));
+        cmd.Process.StandardInput.WriteLine("Subkey-Usage: " + GetKeyUsageString(subCapabilities));
+
         if(options.SubkeyLength != 0)
         {
           cmd.Process.StandardInput.WriteLine("Subkey-Length: " +
@@ -1025,10 +1051,12 @@ public class ExeGPG : GPG
         }
       }
 
-      if(options.Expiration.HasValue)
+      // GPG doesn't allow separate expiration dates for the primary key and subkey during key creation, so we'll
+      // just use the primary key's expiration date and set the subkey's date later
+      if(options.KeyExpiration.HasValue)
       {
         cmd.Process.StandardInput.WriteLine("Expire-Date: " + 
-                                            expirationDays.ToString(CultureInfo.InvariantCulture) + "d");
+                                            keyExpirationDays.ToString(CultureInfo.InvariantCulture) + "d");
       }
 
       cmd.Process.StandardInput.Close(); // close STDIN so GPG can start generating the key
@@ -1038,6 +1066,24 @@ public class ExeGPG : GPG
     PrimaryKey newKey = !cmd.SuccessfulExit || keyFingerprint == null ?
                           null : FindPublicKey(keyFingerprint, options.Keyring, ListOptions.Default);
     if(newKey == null) throw new KeyCreationFailedException(state.FailureReasons);
+
+    if(!subIsNone && keyExpirationDays != subkeyExpirationDays)
+    {
+      try
+      {
+        DoEdit(newKey, new SetDefaultPasswordCommand(options.Password),
+               new SelectSubkeyCommand(newKey.Subkeys[0].Fingerprint, true),
+               new ChangeExpirationCommand(options.SubkeyExpiration));
+        newKey = RefreshKey(newKey);
+        if(newKey == null) throw new KeyCreationFailedException("The key was created, but then disappeared suddenly.");
+      }
+      catch(Exception ex)
+      {
+        throw new KeyCreationFailedException("The key was created, but the subkey expiration date could not be set.",
+                                             ex);
+      }
+    }
+
     return newKey;
   }
 
@@ -1213,8 +1259,29 @@ public class ExeGPG : GPG
       if(match.Success)
       {
         string key = match.Groups[1].Value.ToLowerInvariant();
-        string[] list = commaSepRe.Split(match.Groups[2].Value);
-        if(string.Equals(key, "pubkey", StringComparison.Ordinal)) keyTypes = list;
+        string[] list = commaSepRe.Split(match.Groups[2].Value.ToUpperInvariant());
+        if(string.Equals(key, "pubkey", StringComparison.Ordinal))
+        {
+          // trim the key types, changing RSA-S and RSA-E into RSA, and ELG-E into ELG
+          List<string> trimmedKeyTypes = new List<string>();
+          for(int i=0; i<list.Length; i++)
+          {
+            if(string.Equals(list[i], "ELG-E", StringComparison.OrdinalIgnoreCase))
+            {
+              if(!trimmedKeyTypes.Contains("ELG")) trimmedKeyTypes.Add("ELG");
+            }
+            else if(string.Equals(list[i], "RSA-E", StringComparison.OrdinalIgnoreCase))
+            {
+              if(!trimmedKeyTypes.Contains("RSA")) trimmedKeyTypes.Add("RSA");
+            }
+            else if(string.Equals(list[i], "RSA-S", StringComparison.OrdinalIgnoreCase))
+            {
+              if(!trimmedKeyTypes.Contains("RSA")) trimmedKeyTypes.Add("RSA");
+            }
+            else trimmedKeyTypes.Add(list[i]);
+          }
+          keyTypes = trimmedKeyTypes.ToArray();
+        }
         else if(string.Equals(key, "cipher", StringComparison.Ordinal)) ciphers = list;
         else if(string.Equals(key, "hash", StringComparison.Ordinal)) hashes = list;
         else if(string.Equals(key, "compression", StringComparison.Ordinal)) compressions = list;
@@ -1271,6 +1338,8 @@ public class ExeGPG : GPG
 
     /// <summary>The command being executed.</summary>
     public readonly Command Command;
+    /// <summary>If not null, this password will be sent when a key password is requested.</summary>
+    public SecureString DefaultPassword;
     /// <summary>The status message that informed us of the most recent password request.</summary>
     public StatusMessage PasswordMessage;
     /// <summary>The hint for the next password to be requested.</summary>
@@ -2122,8 +2191,12 @@ public class ExeGPG : GPG
       if(string.Equals(promptId, "passphrase.enter", StringComparison.Ordinal) && state.PasswordMessage != null &&
          state.PasswordMessage.Type == StatusMessageType.NeedKeyPassphrase)
       {
-        if(!state.Command.GPG.SendKeyPassword(state.Command, state.PasswordHint,
-                                              (NeedKeyPassphraseMessage)state.PasswordMessage))
+        if(state.DefaultPassword != null)
+        {
+          state.Command.SendPassword(state.DefaultPassword, false);
+        }
+        else if(!state.Command.GPG.SendKeyPassword(state.Command, state.PasswordHint,
+                                                   (NeedKeyPassphraseMessage)state.PasswordMessage))
         {
           throw new OperationCanceledException(); // abort if the password was not provided
         }
@@ -2288,39 +2361,60 @@ public class ExeGPG : GPG
   sealed class AddSubkeyCommand : EditCommand
   {
     /// <param name="type">The subkey type.</param>
+    /// <param name="capabilities">The desired capabilities of the subkey.</param>
     /// <param name="length">The subkey length.</param>
     /// <param name="expiration">The subkey expiration, or null if it does not expire.</param>
-    public AddSubkeyCommand(string type, int length, DateTime? expiration)
+    public AddSubkeyCommand(string type, KeyCapabilities capabilities, int length, DateTime? expiration)
     {
-      // GPG only supports specific RSA subkey types, like RSA-E and RSA-S
-      if(string.Equals(type, SubkeyType.RSA, StringComparison.OrdinalIgnoreCase))
-      {
-        throw new KeyCreationFailedException(FailureReason.UnsupportedAlgorithm, "Please specify an encryption-only "+
-                                             "or signing-only RSA key. Generic RSA keys not allowed here.");
-      }
-
       this.type           = type;
-      this.length         = length;
       this.expiration     = expiration;
       this.expirationDays = GetExpirationDays(expiration);
 
-      this.isDSA  = string.Equals(type, SubkeyType.DSA, StringComparison.OrdinalIgnoreCase);
-      this.isELG  = type == null || string.Equals(type, SubkeyType.ElGamal, StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(type, SubkeyType.ElGamalEncryptOnly, StringComparison.OrdinalIgnoreCase);
-      this.isRSAE = string.Equals(type, SubkeyType.RSAEncryptOnly, StringComparison.OrdinalIgnoreCase);
-      this.isRSAS = string.Equals(type, SubkeyType.RSASignOnly, StringComparison.OrdinalIgnoreCase);
+      if((capabilities & KeyCapabilities.Certify) != 0)
+      {
+        throw new ArgumentException("The Certify capability is only allowed on the primary key.");
+      }
 
-      if(!isDSA && !isELG && !isRSAE && !isRSAS)
+      this.isDSA = string.Equals(type, KeyType.DSA, StringComparison.OrdinalIgnoreCase);
+      this.isELG = type == null || string.Equals(type, KeyType.ElGamal, StringComparison.OrdinalIgnoreCase);
+      this.isRSA = string.Equals(type, KeyType.RSA, StringComparison.OrdinalIgnoreCase);
+
+      if(!isDSA && !isELG && !isRSA)
       {
         throw new KeyCreationFailedException(FailureReason.UnsupportedAlgorithm, "Unsupported subkey type: " + type);
       }
 
-      int maxLength = isDSA ? 3072 : 4096;
-      if(length < 0 || length > maxLength)
+      if(capabilities == KeyCapabilities.Default)
       {
-        throw new KeyCreationFailedException(FailureReason.None, "Key length " +
-                                             length.ToString(CultureInfo.InvariantCulture) + " is not supported.");
+        capabilities = isDSA ? KeyCapabilities.Sign
+                             : isELG ? KeyCapabilities.Encrypt : KeyCapabilities.Sign | KeyCapabilities.Encrypt;
       }
+      else if(isDSA && (capabilities & KeyCapabilities.Encrypt) != 0)
+      {
+        throw new KeyCreationFailedException(FailureReason.None, "DSA keys cannot be used for encryption.");
+      }
+      else if(isELG && capabilities != KeyCapabilities.Encrypt)
+      {
+        throw new KeyCreationFailedException(FailureReason.None, "GPG only supports encryption-only ElGamal keys.");
+      }
+
+      if(length == 0)
+      {
+        length = isDSA ? 1024 : 2048;
+      }
+      else
+      {
+        int maxLength = isDSA ? 3072 : 4096;
+        if(length < 0 || length > maxLength)
+        {
+          throw new KeyCreationFailedException(FailureReason.None, "Key length " +
+                                               length.ToString(CultureInfo.InvariantCulture) + " is not supported.");
+        }
+      }
+
+      this.length        = length;
+      this.capabilities  = capabilities;
+      this.flagsToToggle = isELG ? 0 : (isDSA ? DefaultDSACaps : DefaultRSACaps) ^ capabilities;
     }
 
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
@@ -2339,10 +2433,13 @@ public class ExeGPG : GPG
       {
         if(!sentAlgo)
         {
-          if(isDSA) state.Command.SendLine("2");
+          if(isDSA) state.Command.SendLine(capabilities == KeyCapabilities.Sign ? "2" : "3");
           else if(isELG) state.Command.SendLine("4");
-          else if(isRSAS) state.Command.SendLine("5");
-          else state.Command.SendLine("6");
+          else
+          {
+            state.Command.SendLine(capabilities == KeyCapabilities.Sign ?
+                                     "5" : capabilities == KeyCapabilities.Encrypt ? "6" : "7");
+          }
           sentAlgo = true;
         }
         else // if GPG asks a second time, then it rejected the algorithm choice
@@ -2376,15 +2473,41 @@ public class ExeGPG : GPG
                                                " is not supported.");
         }
       }
+      else if(string.Equals(promptId, "keygen.flags", StringComparison.Ordinal))
+      {
+        if((flagsToToggle & KeyCapabilities.Authenticate) != 0)
+        {
+          state.Command.SendLine("A");
+          flagsToToggle &= ~KeyCapabilities.Authenticate;
+        }
+        else if((flagsToToggle & KeyCapabilities.Encrypt) != 0)
+        {
+          state.Command.SendLine("E");
+          flagsToToggle &= ~KeyCapabilities.Encrypt;
+        }
+        else if((flagsToToggle & KeyCapabilities.Sign) != 0)
+        {
+          state.Command.SendLine("S");
+          flagsToToggle &= ~KeyCapabilities.Sign;
+        }
+        else
+        {
+          state.Command.SendLine("Q");
+        }
+      }
       else return base.Process(commands, originalKey, key, state, promptId);
 
       return EditCommandResult.Continue;
     }
 
+    const KeyCapabilities DefaultRSACaps = KeyCapabilities.Sign | KeyCapabilities.Encrypt;
+    const KeyCapabilities DefaultDSACaps = KeyCapabilities.Sign;
+
     readonly string type;
     readonly DateTime? expiration;
     readonly int length, expirationDays;
-    readonly bool isDSA, isELG, isRSAE, isRSAS;
+    readonly bool isDSA, isELG, isRSA;
+    KeyCapabilities capabilities, flagsToToggle;
     bool sentCommand, sentAlgo, sentLength, sentExpiration;
   }
   #endregion
@@ -3189,6 +3312,25 @@ public class ExeGPG : GPG
   }
   #endregion
 
+  #region SetDefaultPasswordCommand
+  sealed class SetDefaultPasswordCommand : EditCommand
+  {
+    public SetDefaultPasswordCommand(SecureString password)
+    {
+      this.password = password;
+    }
+
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
+                                              CommandState state, string promptId)
+    {
+      state.DefaultPassword = password;
+      return EditCommandResult.Next;
+    }
+
+    readonly SecureString password;
+  }
+  #endregion
+
   #region SetPrefsCommand
   /// <summary>An edit command that enqueues other commands to set the selected user's preferences.</summary>
   sealed class SetPrefsCommand : EditCommand
@@ -3438,28 +3580,20 @@ public class ExeGPG : GPG
       cmd.InputNeeded += delegate(string promptId)
       {
         if(string.Equals(promptId, "passphrase.enter", StringComparison.Ordinal) && state.PasswordMessage != null &&
-           (state.PasswordMessage.Type == StatusMessageType.NeedKeyPassphrase ||
-            state.PasswordMessage.Type == StatusMessageType.NeedCipherPassphrase))
+           state.PasswordMessage.Type == StatusMessageType.NeedCipherPassphrase)
         {
-          if(state.PasswordMessage.Type == StatusMessageType.NeedKeyPassphrase)
+          // we'll first try sending the password from the options if we have it, but only once.
+          if(!triedPasswordInOptions &&
+             options != null && options.Password != null && options.Password.Length != 0)
           {
-            SendKeyPassword(cmd, state.PasswordHint, (NeedKeyPassphraseMessage)state.PasswordMessage);
+            triedPasswordInOptions = true;
+            cmd.SendPassword(options.Password, false);
           }
-          else
-          {
-            // we'll first try sending the password from the options if we have it, but only once.
-            if(!triedPasswordInOptions &&
-               options != null && options.Password != null && options.Password.Length != 0)
-            {
-              triedPasswordInOptions = true;
-              cmd.SendPassword(options.Password, false);
-            }
-            else // we either don't have a password in the options, or we already sent it (and it probably failed),
-            {    // so ask the user
-              SecureString password = GetDecryptionPassword();
-              if(password != null) cmd.SendPassword(password, true);
-              else cmd.SendLine();
-            }
+          else // we either don't have a password in the options, or we already sent it (and it probably failed),
+          {    // so ask the user
+            SecureString password = GetDecryptionPassword();
+            if(password != null) cmd.SendPassword(password, true);
+            else cmd.SendLine();
           }
         }
         else DefaultPromptHandler(promptId, state);
@@ -3585,7 +3719,11 @@ public class ExeGPG : GPG
     if(string.Equals(promptId, "passphrase.enter", StringComparison.Ordinal) && state.PasswordMessage != null &&
        state.PasswordMessage.Type == StatusMessageType.NeedKeyPassphrase)
     {
-      if(!SendKeyPassword(state.Command, state.PasswordHint, (NeedKeyPassphraseMessage)state.PasswordMessage))
+      if(state.DefaultPassword != null)
+      {
+        state.Command.SendPassword(state.DefaultPassword, false);
+      }
+      else if(!SendKeyPassword(state.Command, state.PasswordHint, (NeedKeyPassphraseMessage)state.PasswordMessage))
       {
         state.FailureReasons |= FailureReason.OperationCanceled;
       }
@@ -3608,8 +3746,15 @@ public class ExeGPG : GPG
       }
 
       case StatusMessageType.BadPassphrase:
-        OnInvalidPassword(((BadPassphraseMessage)msg).KeyId);
-        state.FailureReasons |= FailureReason.BadPassword;
+        if(state.DefaultPassword != null)
+        {
+          state.DefaultPassword = null;
+        }
+        else
+        {
+          OnInvalidPassword(((BadPassphraseMessage)msg).KeyId);
+          state.FailureReasons |= FailureReason.BadPassword;
+        }
         break;
 
       case StatusMessageType.NoPublicKey: state.FailureReasons |= FailureReason.MissingPublicKey; break;
@@ -4952,6 +5097,17 @@ public class ExeGPG : GPG
     return args;
   }
 
+  /// <summary>Given a set of key capabilities, returns the key usage string expected by GPG during key creation.</summary>
+  static string GetKeyUsageString(KeyCapabilities caps)
+  {
+    // don't check for the Certify flag because GPG doesn't allow us to use it anyway
+    List<string> capList = new List<string>();
+    if((caps & KeyCapabilities.Authenticate) != 0) capList.Add("auth");
+    if((caps & KeyCapabilities.Encrypt) != 0) capList.Add("encrypt");
+    if((caps & KeyCapabilities.Sign) != 0) capList.Add("sign");
+    return string.Join(" ", capList.ToArray());
+  }
+
   /// <summary>Creates GPG arguments to represent the given keyrings.</summary>
   static string GetKeyringArgs(IEnumerable<Keyring> keyrings, bool ignoreDefaultKeyring, bool wantSecretKeyrings)
   {
@@ -5354,19 +5510,19 @@ public class ExeGPG : GPG
 
     if(!string.IsNullOrEmpty(data[11]))
     {
-      KeyCapability totalCapabilities = 0;
+      KeyCapabilities totalCapabilities = 0;
       foreach(char c in data[11])
       {
         switch(c)
         {
-          case 'e': key.Capabilities |= KeyCapability.Encrypt; break;
-          case 's': key.Capabilities |= KeyCapability.Sign; break;
-          case 'c': key.Capabilities |= KeyCapability.Certify; break;
-          case 'a': key.Capabilities |= KeyCapability.Authenticate; break;
-          case 'E': totalCapabilities |= KeyCapability.Encrypt; break;
-          case 'S': totalCapabilities |= KeyCapability.Sign; break;
-          case 'C': totalCapabilities |= KeyCapability.Certify; break;
-          case 'A': totalCapabilities |= KeyCapability.Authenticate; break;
+          case 'e': key.Capabilities |= KeyCapabilities.Encrypt; break;
+          case 's': key.Capabilities |= KeyCapabilities.Sign; break;
+          case 'c': key.Capabilities |= KeyCapabilities.Certify; break;
+          case 'a': key.Capabilities |= KeyCapabilities.Authenticate; break;
+          case 'E': totalCapabilities |= KeyCapabilities.Encrypt; break;
+          case 'S': totalCapabilities |= KeyCapabilities.Sign; break;
+          case 'C': totalCapabilities |= KeyCapabilities.Certify; break;
+          case 'A': totalCapabilities |= KeyCapabilities.Authenticate; break;
           case 'D': if(key is PrimaryKey) ((PrimaryKey)key).Disabled = true; break;
         }
       }

@@ -345,6 +345,10 @@
       <remarks>The password will be disposed after being used.</remarks>
     </GetKeyPassword>
 
+    <GetMaximumKeyLength>
+      <summary>Given a supported key type, returns the maximum supported key length.</summary>
+    </GetMaximumKeyLength>
+
     <GetPublicKeys2>
       <summary>Gets all public keys in the default keyring and/or the list of keyring files.</summary>
       <param name="keyrings">

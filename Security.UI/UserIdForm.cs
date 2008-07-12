@@ -18,7 +18,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 using System;
 using System.ComponentModel;
-using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using AdamMil.Security.PGP;
 
@@ -86,7 +85,7 @@ public partial class UserIdForm : Form
     {
       MessageBox.Show("You must enter your name.", "Name required", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
-    else if(!string.IsNullOrEmpty(Email) && !IsValidEmail(Email))
+    else if(!string.IsNullOrEmpty(Email) && !PGPUI.IsValidEmail(Email))
     {
       MessageBox.Show(Email + " is not a valid email address.", "Invalid email",
                       MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -101,25 +100,6 @@ public partial class UserIdForm : Form
   {
     UpdateHelpLabel();
   }
-
-  static bool IsValidEmail(string email)
-  {
-    string[] parts = email.Split('@');
-    if(parts.Length != 2) return false;
-
-    string local = parts[0], domain = parts[1];
-    
-    // if the local portion is quoted, strip off the quotes
-    if(local.Length > 2 && local[0] == '"' && local[local.Length-1] == '"') local = local.Substring(1, local.Length-2);
-
-    return emailLocalRe.IsMatch(local) && domainRe.IsMatch(domain);
-  }
-
-  static readonly Regex emailLocalRe = new Regex(@"^[\w\d!#$%/?|^{}`~&'+=-]+(?:\.[\w\d!#$%/?|^{}`~&'+=-])*$",
-                                                 RegexOptions.ECMAScript);
-  // matches domain name or IP address in brackets
-  static readonly Regex domainRe = new Regex(@"^(?:[a-zA-Z\d]+(?:[\.\-][a-zA-Z\d]+)*|\[\d{1,3}(?:\.\d{1,3}){3}])$",
-                                             RegexOptions.ECMAScript);
 }
 
 } // namespace AdamMil.Security.UI

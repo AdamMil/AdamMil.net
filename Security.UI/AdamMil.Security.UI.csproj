@@ -63,6 +63,12 @@
     <Compile Include="ChangePasswordForm.Designer.cs">
       <DependentUpon>ChangePasswordForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="GenerateKeyForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="GenerateKeyForm.Designer.cs">
+      <DependentUpon>GenerateKeyForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Helpers.cs" />
     <Compile Include="KeyPropertiesForm.cs">
       <SubType>Form</SubType>
@@ -96,6 +102,12 @@
     </Compile>
     <Compile Include="ListBase.cs">
       <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="MakeDesignatedRevokerForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MakeDesignatedRevokerForm.Designer.cs">
+      <DependentUpon>MakeDesignatedRevokerForm.cs</DependentUpon>
     </Compile>
     <Compile Include="NewPhotoIdForm.cs">
       <SubType>Form</SubType>
@@ -178,6 +190,10 @@
       <SubType>Designer</SubType>
       <DependentUpon>ChangePasswordForm.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="GenerateKeyForm.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>GenerateKeyForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="KeyPropertiesForm.resx">
       <SubType>Designer</SubType>
       <DependentUpon>KeyPropertiesForm.cs</DependentUpon>
@@ -201,6 +217,10 @@
     <EmbeddedResource Include="ListBase.resx">
       <SubType>Designer</SubType>
       <DependentUpon>ListBase.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MakeDesignatedRevokerForm.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>MakeDesignatedRevokerForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="NewPhotoIdForm.resx">
       <SubType>Designer</SubType>
