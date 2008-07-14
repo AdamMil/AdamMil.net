@@ -1007,10 +1007,8 @@ public class ExeGPG : GPG
 
       cmd.Process.StandardInput.WriteLine("Key-Type: " + (primaryIsDSA ? "DSA" : "RSA"));
       
-      if(options.KeyLength != 0)
-      {
-        cmd.Process.StandardInput.WriteLine("Key-Length: " + options.KeyLength.ToString(CultureInfo.InvariantCulture));
-      }
+      int keyLength = options.KeyLength != 0 ? options.KeyLength : primaryIsDSA ? 1024 : 2048;
+      cmd.Process.StandardInput.WriteLine("Key-Length: " + keyLength.ToString(CultureInfo.InvariantCulture));
 
       cmd.Process.StandardInput.WriteLine("Key-Usage: " + GetKeyUsageString(primaryCapabilities));
 
@@ -1019,11 +1017,8 @@ public class ExeGPG : GPG
         cmd.Process.StandardInput.WriteLine("Subkey-Type: " + (subIsDSA ? "DSA" : subIsELG ? "ELG-E" : "RSA"));
         cmd.Process.StandardInput.WriteLine("Subkey-Usage: " + GetKeyUsageString(subCapabilities));
 
-        if(options.SubkeyLength != 0)
-        {
-          cmd.Process.StandardInput.WriteLine("Subkey-Length: " +
-                                              options.SubkeyLength.ToString(CultureInfo.InvariantCulture));
-        }
+        keyLength = options.SubkeyLength != 0 ? options.SubkeyLength : subIsDSA ? 1024 : 2048;
+        cmd.Process.StandardInput.WriteLine("Subkey-Length: " + keyLength.ToString(CultureInfo.InvariantCulture));
       }
 
       if(!string.IsNullOrEmpty(realName)) cmd.Process.StandardInput.WriteLine("Name-Real: " + realName);
@@ -5029,20 +5024,21 @@ public class ExeGPG : GPG
 
     if(options != ExportOptions.Default)
     {
-      args += "--export-options ";
+      args += "--export-options \"";
       if((options & ExportOptions.CleanKeys) != 0) args += "export-clean ";
       if((options & ExportOptions.ExcludeAttributes) != 0) args += "no-export-attributes ";
       if((options & ExportOptions.ExportLocalSignatures) != 0) args += "export-local-sigs ";
       if((options & ExportOptions.ExportSensitiveRevokerInfo) != 0) args += "export-sensitive-revkeys ";
       if((options & ExportOptions.MinimizeKeys) != 0) args += "export-minimize ";
       if((options & ExportOptions.ResetSubkeyPassword) != 0) args += "export-reset-subkey-passwd ";
+      args += "\" ";
     }
 
     if(addExportCommand)
     {
       if(exportSecretKeys)
       {
-        args += (options & ExportOptions.ClobberMasterSecretKey) != 0 ?
+        args += (options & ExportOptions.ClobberPrimarySecretKey) != 0 ?
                   "--export-secret-subkeys " : "--export-secret-keys ";
       }
       else args += "--export "; // exporting public keys
@@ -5087,11 +5083,12 @@ public class ExeGPG : GPG
 
     if(options != ImportOptions.Default)
     {
-      args += "--import-options ";
+      args += "--import-options \"";
       if((options & ImportOptions.CleanKeys) != 0) args += "import-clean ";
       if((options & ImportOptions.ImportLocalSignatures) != 0) args += "import-local-sigs ";
       if((options & ImportOptions.MergeOnly) != 0) args += "merge-only ";
       if((options & ImportOptions.MinimizeKeys) != 0) args += "import-minimize ";
+      args += "\" ";
     }
 
     return args;
@@ -5235,9 +5232,10 @@ public class ExeGPG : GPG
 
       if(options.HttpProxy != null || options.Timeout != 0)
       {
-        args += "--keyserver-options ";
-        if(options.HttpProxy != null) args += "http-proxy=" + EscapeArg(options.HttpProxy.AbsoluteUri) + " ";
-        if(options.Timeout != 0) args += "timeout=" + options.Timeout.ToString(CultureInfo.InvariantCulture) + " ";
+        string optStr = null;
+        if(options.HttpProxy != null) optStr += "http-proxy=" + options.HttpProxy.AbsoluteUri + " ";
+        if(options.Timeout != 0) optStr += "timeout=" + options.Timeout.ToString(CultureInfo.InvariantCulture) + " ";
+        args += "--keyserver-options " + EscapeArg(optStr) + " ";
       }
     }
     
@@ -5277,7 +5275,7 @@ public class ExeGPG : GPG
 
       if(options.KeyServer != null)
       {
-        args += "--keyserver "+EscapeArg(options.KeyServer.AbsoluteUri)+" --keyserver-options auto-key-retrieve ";
+        args += "--keyserver " + EscapeArg(options.KeyServer.AbsoluteUri) + " --keyserver-options auto-key-retrieve ";
         if(!options.AutoFetchKeys) args += "--auto-key-locate keyserver ";
       }
 
