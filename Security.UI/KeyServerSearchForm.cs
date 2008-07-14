@@ -172,7 +172,7 @@ public partial class KeyServerSearchForm : Form
       }
 
       MessageBox.Show((results.Length - failCount).ToString() + " key(s) imported successfully." +
-                      (failCount == 0 ? null : " " + failCount.ToString() + " key(s) failed."), "Import results.",
+                      (failCount == 0 ? null : "\n" + failCount.ToString() + " key(s) failed."), "Import results.",
                       MessageBoxButtons.OK, failCount == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
     }
   }

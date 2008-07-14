@@ -219,7 +219,7 @@ public enum ExportOptions
   /// Only the secret subkeys are exported. This is not OpenPGP compliant and currently only GPG is known to
   /// implement this option or be capable of importing keys created by this option.
   /// </summary>
-  ClobberMasterSecretKey=8,
+  ClobberPrimarySecretKey=8,
   /// <summary>When exporting secret subkeys, resets their passwords to empty.</summary>
   ResetSubkeyPassword=16,
   /// <summary>Does not export unusable signatures, and does not export any signatures for unusable user IDs.</summary>

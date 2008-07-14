@@ -318,8 +318,6 @@ public class KeyManagementList : KeyListBase
 
   protected virtual ContextMenuStrip CreateContextMenu()
   {
-    if(SelectedIndices.Count == 0) return null;
-
     KeyPair[] pairs = GetSelectedKeyPairs();
     KeyPair[] myPairs = GetSecretKeyPairs();
     int attributeCount = 0, keyCount = pairs.Length, photoCount = 0, secretCount = 0;
@@ -346,10 +344,8 @@ public class KeyManagementList : KeyListBase
       if(item is AttributeItem) attributeCount++;
     }
 
-    if(keyCount == 0) return null;
-
     // if we can't revoke because we own the key, perhaps we can revoke because we own a designated revoker key
-    if(!canRevoke && keyCount == 1 && !pairs[0].PublicKey.Revoked)
+    if(keyCount != 0 && !canRevoke && keyCount == 1 && !pairs[0].PublicKey.Revoked)
     {
       foreach(string designateRevoker in pairs[0].PublicKey.DesignatedRevokers)
       {
@@ -367,94 +363,102 @@ public class KeyManagementList : KeyListBase
 
     ContextMenuStrip menu = new ContextMenuStrip();
 
-    if(PGPSystem != null)
+    if(keyCount == 0)
     {
-      // exporting keys
-      menu.Items.Add(new ToolStripMenuItem("Copy Public Keys to Clipboard", null,
-                                           delegate(object sender, EventArgs e) { CopyPublicKeysToClipboard(); }));
-      menu.Items.Add(new ToolStripMenuItem("Export Keys to File...", null,
-                                           delegate(object sender, EventArgs e) { ExportKeysToFile(); }));
-      menu.Items.Add(new ToolStripSeparator());
-
-      // key server operations
-      menu.Items.Add(new ToolStripMenuItem("Send Public Keys to Key Server...", null,
-                                           delegate(object sender, EventArgs e) { SendKeysToKeyServer(); }));
-      menu.Items.Add(new ToolStripMenuItem("Refresh Public Keys from Key Server...", null,
-                                           delegate(object sender, EventArgs e) { RefreshKeysFromKeyServer(); }));
-      menu.Items.Add(new ToolStripSeparator());
-
-      // key signing
-      menu.Items.Add(new ToolStripMenuItem("Sign Keys...", null,
-                                           delegate(object sender, EventArgs e) { SignKeys(); }));
-      menu.Items[menu.Items.Count-1].Enabled = haveOwnedKeys && hasUnrevokedAndCurrent;
-      menu.Items.Add(new ToolStripMenuItem("Set Owner Trust...", null,
-                                           delegate(object sender, EventArgs e) { SetOwnerTrust(); }));
-      menu.Items.Add(new ToolStripSeparator());
-
-      // key management
-      menu.Items.Add(new ToolStripMenuItem("Clean Keys", null,
-                                           delegate(object sender, EventArgs e) { CleanKeys(); }));
-      menu.Items.Add(new ToolStripMenuItem("Delete Keys", null,
-                                           delegate(object sender, EventArgs e) { DeleteKeys(); }));
-      menu.Items.Add(new ToolStripMenuItem("Generate Revocation Certificate...", null,
-                                           delegate(object sender, EventArgs e) { GenerateRevocationCertificate(); }));
-      menu.Items[menu.Items.Count-1].Enabled = canRevoke;
-      menu.Items.Add(new ToolStripMenuItem("Revoke Key...", null,
-                                           delegate(object sender, EventArgs e) { RevokeKey(); }));
-      menu.Items[menu.Items.Count-1].Enabled = canRevoke;
-      menu.Items.Add(new ToolStripSeparator());
+      menu.Items.Add(new ToolStripMenuItem("Export Keys...", null,
+                                             delegate(object sender, EventArgs e) { ExportKeys(); }));
+      menu.Items.Add(new ToolStripMenuItem("Import Keys...", null,
+                                             delegate(object sender, EventArgs e) { ImportKeys(); }));
     }
-
-    // user management
-    if(PGPSystem != null)
+    else
     {
-      menu.Items.Add(new ToolStripMenuItem("Change Passphrase...", null,
-                                           delegate(object sender, EventArgs e) { ChangePassphrase(); }));
-      menu.Items[menu.Items.Count-1].Enabled = secretCount == 1;
-      menu.Items.Add(new ToolStripMenuItem("Manage User IDs...", null,
-                                           delegate(object sender, EventArgs e) { ManageUserIds(); }));
-      menu.Items[menu.Items.Count-1].Enabled = secretCount == 1;
-      menu.Items.Add(new ToolStripMenuItem("View Signatures...", null,
-                                           delegate(object sender, EventArgs e) { ShowSignatures(); }));
+      if(PGPSystem != null)
+      {
+        // importing and exporting keys
+        menu.Items.Add(new ToolStripMenuItem("Copy Public Keys to Clipboard", null,
+                                             delegate(object sender, EventArgs e) { CopyPublicKeysToClipboard(); }));
+        menu.Items.Add(new ToolStripMenuItem("Export Keys to File...", null,
+                                             delegate(object sender, EventArgs e) { ExportKeysToFile(); }));
+        menu.Items.Add(new ToolStripMenuItem("Import Keys...", null,
+                                             delegate(object sender, EventArgs e) { ImportKeys(); }));
+        menu.Items.Add(new ToolStripSeparator());
+
+        // key server operations
+        menu.Items.Add(new ToolStripMenuItem("Send Public Keys to Key Server...", null,
+                                             delegate(object sender, EventArgs e) { SendKeysToKeyServer(); }));
+        menu.Items.Add(new ToolStripMenuItem("Refresh Public Keys from Key Server...", null,
+                                             delegate(object sender, EventArgs e) { RefreshKeysFromKeyServer(); }));
+        menu.Items.Add(new ToolStripSeparator());
+
+        // key signing
+        menu.Items.Add(new ToolStripMenuItem("Sign Keys...", null,
+                                             delegate(object sender, EventArgs e) { SignKeys(); }));
+        menu.Items[menu.Items.Count-1].Enabled = haveOwnedKeys && hasUnrevokedAndCurrent;
+        menu.Items.Add(new ToolStripMenuItem("Set Owner Trust...", null,
+                                             delegate(object sender, EventArgs e) { SetOwnerTrust(); }));
+        menu.Items.Add(new ToolStripSeparator());
+
+        // key management
+        menu.Items.Add(new ToolStripMenuItem("Clean Keys", null,
+                                             delegate(object sender, EventArgs e) { CleanKeys(); }));
+        menu.Items.Add(new ToolStripMenuItem("Delete Keys", null,
+                                             delegate(object sender, EventArgs e) { DeleteKeys(); }));
+        menu.Items.Add(new ToolStripMenuItem("Generate Revocation Certificate...", null,
+                                             delegate(object sender, EventArgs e) { GenerateRevocationCertificate(); }));
+        menu.Items[menu.Items.Count-1].Enabled = canRevoke;
+        menu.Items.Add(new ToolStripMenuItem("Revoke Key...", null,
+                                             delegate(object sender, EventArgs e) { RevokeKey(); }));
+        menu.Items[menu.Items.Count-1].Enabled = canRevoke;
+        menu.Items.Add(new ToolStripSeparator());
+      }
+
+      // user management
+      if(PGPSystem != null)
+      {
+        menu.Items.Add(new ToolStripMenuItem("Change Passphrase...", null,
+                                             delegate(object sender, EventArgs e) { ChangePassphrase(); }));
+        menu.Items[menu.Items.Count-1].Enabled = secretCount == 1;
+        menu.Items.Add(new ToolStripMenuItem("Manage User IDs...", null,
+                                             delegate(object sender, EventArgs e) { ManageUserIds(); }));
+        menu.Items[menu.Items.Count-1].Enabled = secretCount == 1;
+        menu.Items.Add(new ToolStripMenuItem("View Signatures...", null,
+                                             delegate(object sender, EventArgs e) { ShowSignatures(); }));
+        menu.Items[menu.Items.Count-1].Enabled = keyCount == 1;
+      }
+
+      menu.Items.Add(new ToolStripMenuItem("View Photo ID...", null,
+                                           delegate(object sender, EventArgs e) { ShowPhotoId(); }));
+      menu.Items[menu.Items.Count-1].Enabled = photoCount == 1;
+      menu.Items.Add(new ToolStripMenuItem("View Key Properties...", null,
+                                           delegate(object sender, EventArgs e) { ShowKeyProperties(); }));
       menu.Items[menu.Items.Count-1].Enabled = keyCount == 1;
-    }
 
-    menu.Items.Add(new ToolStripMenuItem("View Photo ID...", null,
-                                         delegate(object sender, EventArgs e) { ShowPhotoId(); }));
-    menu.Items[menu.Items.Count-1].Enabled = photoCount == 1;
-    menu.Items.Add(new ToolStripMenuItem("View Key Properties...", null,
-                                         delegate(object sender, EventArgs e) { ShowKeyProperties(); }));
-    menu.Items[menu.Items.Count-1].Enabled = keyCount == 1;
+      if(PGPSystem != null)
+      {
+        menu.Items.Add(new ToolStripSeparator());
 
-    if(PGPSystem != null)
-    {
-      menu.Items.Add(new ToolStripSeparator());
+        // advanced options
+        ToolStripMenuItem advanced = new ToolStripMenuItem("Advanced");
+        advanced.DropDownItems.Add(new ToolStripMenuItem("Delete Secret Portion of Keys", null,
+                                                      delegate(object sender, EventArgs e) { DeleteSecretKeys(); }));
+        advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = secretCount != 0;
+        advanced.DropDownItems.Add(new ToolStripMenuItem("Disable Keys", null,
+                                                         delegate(object sender, EventArgs e) { DisableKeys(); }));
+        advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = hasEnabled;
+        advanced.DropDownItems.Add(new ToolStripMenuItem("Enable Keys", null,
+                                                         delegate(object sender, EventArgs e) { EnableKeys(); }));
+        advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = hasDisabled;
+        advanced.DropDownItems.Add(new ToolStripMenuItem("Minimize Keys", null,
+                                                         delegate(object sender, EventArgs e) { MinimizeKeys(); }));
+        advanced.DropDownItems.Add(new ToolStripMenuItem("Make this Key a Designated Revoker...", null,
+                                                     delegate(object sender, EventArgs e) { MakeDesignatedRevoker(); }));
+        advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = keyCount == 1 && haveOwnedKeys;
+        advanced.DropDownItems.Add(new ToolStripMenuItem("Export Keys...", null,
+                                                         delegate(object sender, EventArgs e) { ExportKeys(); }));
+        advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = attributeCount != 0;
 
-      // advanced options
-      ToolStripMenuItem advanced = new ToolStripMenuItem("Advanced");
-      advanced.DropDownItems.Add(new ToolStripMenuItem("Delete Secret Portion of Keys", null,
-                                                    delegate(object sender, EventArgs e) { DeleteSecretKeys(); }));
-      advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = secretCount != 0;
-      advanced.DropDownItems.Add(new ToolStripMenuItem("Disable Keys", null,
-                                                       delegate(object sender, EventArgs e) { DisableKeys(); }));
-      advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = hasEnabled;
-      advanced.DropDownItems.Add(new ToolStripMenuItem("Enable Keys", null,
-                                                       delegate(object sender, EventArgs e) { EnableKeys(); }));
-      advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = hasDisabled;
-      advanced.DropDownItems.Add(new ToolStripMenuItem("Minimize Keys", null,
-                                                       delegate(object sender, EventArgs e) { MinimizeKeys(); }));
-      advanced.DropDownItems.Add(new ToolStripMenuItem("Make this Key a Designated Revoker...", null,
-                                                   delegate(object sender, EventArgs e) { MakeDesignatedRevoker(); }));
-      advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = keyCount == 1 && haveOwnedKeys;
-      advanced.DropDownItems.Add(new ToolStripMenuItem("Export Keys...", null,
-                                                       delegate(object sender, EventArgs e) { ExportKeys(); }));
-      advanced.DropDownItems.Add(new ToolStripMenuItem("Import Keys...", null,
-                                                       delegate(object sender, EventArgs e) { ImportKeys(); }));
-      advanced.DropDownItems.Add(new ToolStripMenuItem("Sign User IDs...", null,
-                                                       delegate(object sender, EventArgs e) { SignUserIds(); }));
-      advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = attributeCount != 0;
-
-      menu.Items.Add(advanced);
+        menu.Items.Add(advanced);
+      }
     }
 
     return menu;
@@ -843,6 +847,27 @@ public class KeyManagementList : KeyListBase
     ReloadItems(items);
   }
 
+  protected void ExportKeys()
+  {
+    AssertPGPSystem();
+
+    PrimaryKey[] keys = GetSelectedPublicKeys();
+    ExportForm form = new ExportForm(keys);
+    if(form.ShowDialog() == DialogResult.OK)
+    {
+      Stream output = OpenOutputFile(form.Filename);
+      if(output == null) return;
+
+      try
+      {
+        if(form.ExportPublicKeys) PGPSystem.ExportPublicKeys(keys, output, form.ExportOptions, form.OutputOptions);
+        if(form.ExportSecretKeys) PGPSystem.ExportSecretKeys(keys, output, form.ExportOptions, form.OutputOptions);
+        FinishOutputFile(output);
+      }
+      finally { output.Close(); }
+    }
+  }
+
   protected void ExportKeysToFile()
   {
     AssertPGPSystem();
@@ -873,7 +898,7 @@ public class KeyManagementList : KeyListBase
     SaveFileDialog sfd = new SaveFileDialog();
     sfd.DefaultExt      = ".txt";
     sfd.FileName        = defaultFilename;
-    sfd.Filter          = "Text Files (*.txt)|*.txt|ASCII Files (*.asc)|*.asc|All Files (*.*)|*.*";
+    sfd.Filter          = "Text Files (*.txt)|*.txt|ASCII Files (*.asc)|*.asc|PGP Files (*.pgp)|*.pgp|All Files (*.*)|*.*";
     sfd.OverwritePrompt = true;
     sfd.Title           = "Export " + (includeSecretKeys ? "Secret and " : null) + "Public Keys";
     sfd.SupportMultiDottedExtensions = true;
@@ -901,18 +926,8 @@ public class KeyManagementList : KeyListBase
     RevocationCertForm form = new RevocationCertForm(keys[0], GetPublicKeys(GetSecretKeyPairs()));
     if(form.ShowDialog() == DialogResult.OK)
     {
-      Stream output;
-      if(form.Filename == null) output = new MemoryStream();
-      else
-      {
-        try { output = new FileStream(form.Filename, FileMode.Create, FileAccess.Write); }
-        catch(Exception ex)
-        {
-          MessageBox.Show("The certificate file could not be opened. (The error was: " + ex.Message + ")",
-                          "Couldn't open the file", MessageBoxButtons.OK, MessageBoxIcon.Error);
-          return;
-        }
-      }
+      Stream output = OpenOutputFile(form.Filename);
+      if(output == null) return;
 
       try
       {
@@ -927,16 +942,65 @@ public class KeyManagementList : KeyListBase
                                                   outputOptions);
         }
 
-        if(form.Filename == null)
-        {
-          Clipboard.SetText(Encoding.ASCII.GetString(((MemoryStream)output).ToArray()));
-        }
+        FinishOutputFile(output);
       }
       catch(OperationCanceledException) { }
-      finally
+      finally { output.Close(); }
+    }
+  }
+
+  protected void ImportKeys()
+  {
+    AssertPGPSystem();
+
+    ImportForm form = new ImportForm();
+    if(form.ShowDialog() == DialogResult.OK)
+    {
+      Stream input = null;
+      if(form.Filename == null)
       {
-        output.Close();
+        if(Clipboard.ContainsText(TextDataFormat.Text) || Clipboard.ContainsText(TextDataFormat.UnicodeText))
+        {
+          try { input = new MemoryStream(Encoding.ASCII.GetBytes(Clipboard.GetText()), false); }
+          catch { }
+        }
+
+        if(input == null)
+        {
+          MessageBox.Show("The clipboard does not seem to contain any text data.", "Clipboard has no text",
+                          MessageBoxButtons.OK, MessageBoxIcon.Error);
+          return;
+        }
       }
+      else
+      {
+        try { input = new FileStream(form.Filename, FileMode.Open, FileAccess.Read); }
+        catch(Exception ex)
+        {
+          MessageBox.Show("The input file could not be opened. (The error was: " + ex.Message + ")",
+                          "Couldn't open the file", MessageBoxButtons.OK, MessageBoxIcon.Error);
+          return;
+        }
+      }
+
+      ImportedKey[] results;
+      try { results = PGPSystem.ImportKeys(input, form.ImportOptions); }
+      catch(Exception ex)
+      {
+        MessageBox.Show("The import failed. (The error was: " + ex.Message + ")", "Import failed",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+        return;
+      }
+
+      int failCount = 0;
+      foreach(ImportedKey key in results)
+      {
+        if(!key.Successful) failCount++;
+      }
+
+      MessageBox.Show((results.Length - failCount).ToString() + " key(s) imported successfully." +
+                      (failCount == 0 ? null : "\n" + failCount.ToString() + " key(s) failed."), "Import results",
+                      MessageBoxButtons.OK, failCount == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
     }
   }
 
@@ -1157,21 +1221,6 @@ public class KeyManagementList : KeyListBase
       ReloadItems(items);
     }
   }
-
-  private void ExportKeys()
-  {
-    throw new NotImplementedException();
-  }
-
-  private void ImportKeys()
-  {
-    throw new NotImplementedException();
-  }
-
-  private void SignUserIds()
-  {
-    throw new NotImplementedException();
-  }
   #endregion
 
   protected static KeyPair[] GetKeyPairs(PrimaryKeyItem[] items)
@@ -1237,6 +1286,33 @@ public class KeyManagementList : KeyListBase
                                           expireHeader });
 
     base.ListViewItemSorter = new ItemCompareByName(this);
+  }
+
+  void FinishOutputFile(Stream stream)
+  {
+    if(stream is MemoryStream)
+    {
+      Clipboard.SetText(Encoding.ASCII.GetString(((MemoryStream)stream).ToArray()));
+    }
+  }
+
+  Stream OpenOutputFile(string filename)
+  {
+    Stream output;
+
+    if(filename == null) output = new MemoryStream();
+    else
+    {
+      try { output = new FileStream(filename, FileMode.Create, FileAccess.Write); }
+      catch(Exception ex)
+      {
+        MessageBox.Show("The output file could not be opened. (The error was: " + ex.Message + ")",
+                        "Couldn't open the file", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        output = null;
+      }
+    }
+
+    return output;
   }
 
   PGPSystem pgp;

@@ -104,7 +104,7 @@ namespace AdamMil.Security.UI
       howBox.Size = new System.Drawing.Size(442, 98);
       howBox.TabIndex = 2;
       howBox.TabStop = false;
-      howBox.Text = "How should the revocation certificate be generated?";
+      howBox.Text = "&How should the revocation certificate be generated?";
       // 
       // revokingKeys
       // 
@@ -165,7 +165,7 @@ namespace AdamMil.Security.UI
       whereBox.Size = new System.Drawing.Size(442, 100);
       whereBox.TabIndex = 6;
       whereBox.TabStop = false;
-      whereBox.Text = "Where should the revocation certificate be saved?";
+      whereBox.Text = "&Where should the revocation certificate be saved?";
       // 
       // btnBrowse
       // 
@@ -209,7 +209,7 @@ namespace AdamMil.Security.UI
       this.rbClipboard.Name = "rbClipboard";
       this.rbClipboard.Size = new System.Drawing.Size(416, 17);
       this.rbClipboard.TabIndex = 0;
-      this.rbClipboard.Text = "Save it on the clipboard.";
+      this.rbClipboard.Text = "Save it on the &clipboard.";
       this.rbClipboard.UseVisualStyleBackColor = true;
       // 
       // btnCancel
@@ -229,7 +229,7 @@ namespace AdamMil.Security.UI
       lblExplanation.Name = "lblExplanation";
       lblExplanation.Size = new System.Drawing.Size(376, 13);
       lblExplanation.TabIndex = 4;
-      lblExplanation.Text = "Short explanation (optional):";
+      lblExplanation.Text = "Short &explanation (optional):";
       lblExplanation.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
       // 
       // codeGroup
@@ -245,7 +245,7 @@ namespace AdamMil.Security.UI
       codeGroup.Size = new System.Drawing.Size(442, 112);
       codeGroup.TabIndex = 3;
       codeGroup.TabStop = false;
-      codeGroup.Text = "What is the reason for the revocation?";
+      codeGroup.Text = "What is the &reason for the revocation?";
       // 
       // rbRetired
       // 
