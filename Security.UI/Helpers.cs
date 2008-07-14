@@ -21,51 +21,73 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Text.RegularExpressions;
+using System.Windows.Forms;
 using AdamMil.Security.PGP;
 
 namespace AdamMil.Security.UI
 {
 
 #region ListItem
+/// <summary>Represents a list item with a value and the text to display for that value. The list item is meant to be
+/// used with list boxes and combo boxes.
+/// </summary>
+/// <typeparam name="ValueType">The type of the value.</typeparam>
 public class ListItem<ValueType>
 {
+  /// <summary>Initializes a new <see cref="ListItem{T}"/> with the given value and text.</summary>
   public ListItem(ValueType value, string text)
   {
     this.value = value;
     this.text  = text;
   }
 
+  /// <summary>Gets or sets the text to display for this item.</summary>
   public string Text
   {
     get { return text; }
     set { text = value; }
   }
 
+  /// <summary>Gets or sets the value associated with this item.</summary>
   public ValueType Value
   {
     get { return value; }
     set { this.value = value; }
   }
 
+  /// <summary>Returns the text to display for this item.</summary>
   public override string ToString()
   {
     return text;
   }
 
-  ValueType value;
   string text;
+  ValueType value;
 }
 #endregion
 
 #region KeyItem
+/// <summary>Represents a <see cref="ListItem{T}"/> that stores a <see cref="PrimaryKey"/> and displays the key ID and
+/// primary user ID as the item text.
+/// </summary>
 public sealed class KeyItem : ListItem<PrimaryKey>
 {
+  /// <summary>Initializes a new <see cref="KeyItem"/> with the given key.</summary>
   public KeyItem(PrimaryKey key) : base(key, PGPUI.GetKeyName(key)) { }
 }
 #endregion
 
+#region KeyEventHandler
+/// <summary>An event handler that related to a primary key.</summary>
+public delegate void KeyEventHandler(object sender, PrimaryKey key);
+#endregion
+
+/// <summary>This static class contains helpers for PGP UI applications.</summary>
 public static class PGPUI
 {
+  /// <summary>Given two <see cref="SecureTextBox"/> controls containing passwords, determines whether the passwords
+  /// in the two controls are equal, case-sensitively.
+  /// </summary>
   public static bool ArePasswordsEqual(SecureTextBox pass1, SecureTextBox pass2)
   {
     bool passwordsMatch = true;
@@ -113,12 +135,16 @@ public static class PGPUI
     return passwordsMatch;
   }
 
+  /// <summary>Given a <see cref="UserAttribute"/>, including those of type <see cref="UserId"/>, returns the text to
+  /// display as the name of the attribute.
+  /// </summary>
   public static string GetAttributeName(UserAttribute attr)
   {
     UserId userId = attr as UserId;
     return userId != null ? userId.Name : attr is UserImage ? "Photo ID" : "Unknown user attribute";
   }
 
+  /// <summary>Returns a list of strings containing the URIs of a set of commonly-used public key servers.</summary>
   public static string[] GetDefaultKeyServers()
   {
     return new string[]
@@ -127,18 +153,21 @@ public static class PGPUI
     };
   }
 
+  /// <summary>Given a <see cref="PrimaryKey"/>, returns a string that can be used to represent the key to a user.</summary>
   public static string GetKeyName(PrimaryKey key)
   {
     if(key == null) throw new ArgumentNullException();
     return key.PrimaryUserId.Name + " (0x" + key.ShortKeyId + ")";
   }
 
+  /// <summary>Given a <see cref="Key"/>, gets a string that describes the validity of a key.</summary>
   public static string GetKeyValidityDescription(Key key)
   {
     if(key == null) throw new ArgumentNullException();
     return key.Revoked ? "revoked" : key.Expired ? "expired" : PGPUI.GetTrustDescription(key.CalculatedTrust);
   }
 
+  /// <summary>Given a <see cref="PasswordStrength"/>, returns a description of the strength level.</summary>
   public static string GetPasswordStrengthDescription(PasswordStrength strength)
   {
     switch(strength)
@@ -153,6 +182,7 @@ public static class PGPUI
     }
   }
 
+  /// <summary>Given an <see cref="OpenPGPSignatureType"/>, returns a description of the signature.</summary>
   public static string GetSignatureDescription(OpenPGPSignatureType type)
   {
     switch(type)
@@ -188,6 +218,7 @@ public static class PGPUI
     }
   }
 
+  /// <summary>Given a <see cref="TrustLevel"/>, returns a description of the trust level.</summary>
   public static string GetTrustDescription(TrustLevel level)
   {
     switch(level)
@@ -196,10 +227,20 @@ public static class PGPUI
       case TrustLevel.Marginal: return "marginal";
       case TrustLevel.Never:    return "none";
       case TrustLevel.Ultimate: return "ultimate";
-      default:                  return "unknown";
+      case TrustLevel.Unknown:  return "unknown";
+      default: throw new NotImplementedException("Unknown trust level.");
     }
   }
 
+  /// <summary>Given a <see cref="KeyEventArgs"/>, determines whether the key press is one that should close simple
+  /// dialog.
+  /// </summary>
+  public static bool IsCloseKey(KeyEventArgs e)
+  {
+    return e.KeyCode == Keys.Escape && e.Modifiers == Keys.None || e.KeyCode == Keys.F4 && e.Modifiers == Keys.Alt;
+  }
+
+  /// <summary>Determines whether the given string contains a valid email address.</summary>
   public static bool IsValidEmail(string email)
   {
     string[] parts = email.Split('@');
@@ -213,6 +254,9 @@ public static class PGPUI
     return emailLocalRe.IsMatch(local) && domainRe.IsMatch(domain);
   }
 
+  /// <summary>Given a desired file name, changes the name by removing characters that are not supported by the
+  /// operating system.
+  /// </summary>
   public static string MakeSafeFilename(string str)
   {
     char[] badChars = Path.GetInvalidFileNameChars();
@@ -225,9 +269,66 @@ public static class PGPUI
     return sb.ToString();
   }
 
+  /// <summary>Given two <see cref="SecureTextBox"/> controls containing passwords, checks that the passwords match
+  /// and are sufficiently strong. Message boxes may be displayed to the user if any problems are found with the
+  /// passwords. True is returned if the passwords should be used, and false if not.
+  /// </summary>
+  public static bool ValidateAndCheckPasswords(SecureTextBox pass1, SecureTextBox pass2)
+  {
+    if(!PGPUI.ArePasswordsEqual(pass1, pass2))
+    {
+      MessageBox.Show("The passwords you have entered do not match.", "Password mismatch", MessageBoxButtons.OK,
+                      MessageBoxIcon.Error);
+      return false;
+    }
+    else if(pass1.TextLength == 0)
+    {
+      if(MessageBox.Show("You didn't enter a password! This is extremely insecure, as anybody can use your key. Are "+
+                         "you sure you don't want a password?", "Password is blank!", MessageBoxButtons.YesNo,
+                         MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) == DialogResult.No)
+      {
+        return false;
+      }
+    }
+    else if(pass1.GetPasswordStrength() < PasswordStrength.Moderate)
+    {
+      if(MessageBox.Show("You entered a weak password! This is not secure, as your password can be cracked in a "+
+                         "relatively short period of time, allowing somebody access to your key. Are you sure you "+
+                         "want a to use a weak password?", "Password is weak!", MessageBoxButtons.YesNo,
+                         MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) == DialogResult.No)
+      {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /// <summary>Given a name, optional email address, and optional comment, determines whether they constitute a valid
+  /// user ID. Message boxes may be displayed to the user if any problems are found with the user ID. True is returned
+  /// if the values should be used, and false if not.
+  /// </summary>
+  public static bool ValidateUserId(string realName, string email, string comment)
+  {
+    if(string.IsNullOrEmpty(realName))
+    {
+      MessageBox.Show("You must enter your name.", "Name required", MessageBoxButtons.OK, MessageBoxIcon.Error);
+      return false;
+    }
+    else if(!string.IsNullOrEmpty(email) && !PGPUI.IsValidEmail(email))
+    {
+      MessageBox.Show(email + " is not a valid email address.", "Invalid email",
+                      MessageBoxButtons.OK, MessageBoxIcon.Error);
+      return false;
+    }
+
+    return true;
+  }
+
+  /// <summary>Matches the local portion of an email (the portion before the @ sign).</summary>
   static readonly Regex emailLocalRe = new Regex(@"^[\w\d!#$%/?|^{}`~&'+=-]+(?:\.[\w\d!#$%/?|^{}`~&'+=-])*$",
                                                  RegexOptions.ECMAScript);
-  // matches domain name or IP address in brackets
+  /// <summary>Matches an email domain name (the portion of an email address after the @ sign).</summary>
   static readonly Regex domainRe = new Regex(@"^(?:[a-zA-Z\d]+(?:[\.\-][a-zA-Z\d]+)*|\[\d{1,3}(?:\.\d{1,3}){3}])$",
                                              RegexOptions.ECMAScript);
 }

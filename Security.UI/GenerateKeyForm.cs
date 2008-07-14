@@ -17,6 +17,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using System.ComponentModel;
 using System.Threading;
 using System.Windows.Forms;
 using AdamMil.Security.PGP;
@@ -24,20 +25,57 @@ using AdamMil.Security.PGP;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>This form helps the user generate a new key pair. It can be used as a modal dialog or a free-standing
+/// window.
+/// </summary>
 public partial class GenerateKeyForm : Form
 {
+  /// <summary>Creates a new <see cref="GenerateKeyForm"/>. You should later call <see cref="Initialize"/> to
+  /// initialize the form.
+  /// </summary>
   public GenerateKeyForm()
   {
     InitializeComponent();
   }
 
+  /// <summary>Initializes a new <see cref="GenerateKeyForm"/> with the <see cref="PGPSystem"/> that will be used to
+  /// generate the keys. The keys will be created in the default keyring.
+  /// </summary>
   public GenerateKeyForm(PGPSystem pgp) : this(pgp, null) { }
 
+  /// <summary>Initializes a new <see cref="GenerateKeyForm"/> with the <see cref="PGPSystem"/> that will be used to
+  /// generate the keys. The keys will be created in the given keyring, or the default keyring if it is null.
+  /// </summary>
   public GenerateKeyForm(PGPSystem pgp, Keyring keyring) : this()
   {
     Initialize(pgp, keyring);
   }
 
+  /// <summary>Raised when a key has been successfully generated.</summary>
+  public event KeyEventHandler KeyGenerated;
+
+  /// <summary>Gets whether key generation is currently in progress.</summary>
+  [Browsable(false)]
+  public bool InProgress
+  {
+    get { return thread != null; }
+  }
+
+  /// <summary>Cancels the key generation if it's currently in progress.</summary>
+  public void CancelKeyGeneration()
+  {
+    Thread thread = this.thread; // grab a local copy so it doesn't get pulled out from under us
+    if(thread != null)
+    {
+      try { thread.Abort(); }
+      catch { }
+      GenerationFinished();
+    }
+  }
+
+  /// <summary>Initializes the form with the <see cref="PGPSystem"/> that will be used to generate the keys. The keys
+  /// will be created in the given keyring, or the default keyring if it is null.
+  /// </summary>
   public void Initialize(PGPSystem pgp, Keyring keyring)
   {
     if(pgp == null) throw new ArgumentNullException();
@@ -70,12 +108,27 @@ public partial class GenerateKeyForm : Form
     keyExpiration.MaxDate = subkeyExpiration.MaxDate = new DateTime(2174, 2, 24, 0, 0, 0, DateTimeKind.Local);
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/OnClosing/*"/>
   protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
   {
     base.OnClosing(e);
-    if(!btnCancel.Enabled) e.Cancel = true;
+
+    if(!e.Cancel && InProgress)
+    {
+      if(MessageBox.Show("Key generation is currently in progress. Cancel it?", "Cancel key generation?",
+                       MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) ==
+           DialogResult.Yes)
+      {
+        CancelKeyGeneration();
+      }
+      else // don't close the form if the user wants to cancel the key generation
+      {
+        e.Cancel = true;
+      }
+    }
   }
 
+  /// <summary>Stores the key type and key capability flags associated with a list box item.</summary>
   sealed class KeyTypeAndCapability
   {
     public KeyTypeAndCapability(string type, KeyCapabilities caps)
@@ -114,15 +167,16 @@ public partial class GenerateKeyForm : Form
     btnCancel.Text = "&Close";
   }
 
-  void GenerationSucceeded()
+  void GenerationSucceeded(PrimaryKey newKey)
   {
     GenerationFinished();
-
+    if(KeyGenerated != null) KeyGenerated(this, newKey);
     MessageBox.Show("Key generation successful.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
   }
 
   void UpdateKeyLengths(ComboBox keyTypes, ComboBox keyLengths)
   {
+    // get the selected key length so we can restore it later
     int selectedKeyLength;
     if(keyLengths.Items.Count == 0) selectedKeyLength = 0;
     else if(keyLengths.SelectedIndex == -1) int.TryParse(keyLengths.Text, out selectedKeyLength);
@@ -130,25 +184,29 @@ public partial class GenerateKeyForm : Form
 
     keyLengths.Items.Clear();
 
+    // if the "None" key type is selected, then disable the key lengths dropdown
     string keyType = keyTypes.Items.Count == 0 ? null : ((KeyTypeItem)keyTypes.SelectedItem).Value.Type;
     if(keyType == null)
     {
       keyLengths.Enabled = false;
     }
-    else
+    else // otherwise, enable it and add suggested key lengths
     {
       keyLengths.Enabled = true;
 
+      // always add the default key length
       keyLengths.Items.Add(new ListItem<int>(0, "Default"));
       keyLengths.SelectedIndex = 0;
 
+      // then add key lengths in increments of 1024 bits, from the minimum to the maximum length
       int maxKeyLength = pgp.GetMaximumKeyLength(keyType);
       for(int i=1,length=1024; length <= maxKeyLength; i++,length += 1024)
       {
         keyLengths.Items.Add(new ListItem<int>(length, length.ToString()));
-        if(length == selectedKeyLength) keyLengths.SelectedIndex = i;
+        if(length == selectedKeyLength) keyLengths.SelectedIndex = i; // try to restore the selected key length
       }
 
+      // if the selected key length is greater than the new maximum, select the new maximum
       if(selectedKeyLength > maxKeyLength) keyLengths.SelectedIndex = keyLengths.Items.Count-1;
     }
   }
@@ -191,14 +249,14 @@ public partial class GenerateKeyForm : Form
     if(string.IsNullOrEmpty(realName))
     {
       lblUserId.Text = "Please enter your new user ID above.";
-      btnGenerate.Enabled = false;
+      btnGenerate.Enabled = false; // disallow key generation if no user ID is entered
     }
     else
     {
       lblUserId.Text = "Your user ID will be displayed as:\n" + realName +
                        (!string.IsNullOrEmpty(comment) ? " ("+comment+")" : null) +
                        (!string.IsNullOrEmpty(email) ? " <"+email+">" : null);
-      btnGenerate.Enabled = true;
+      btnGenerate.Enabled = true; // allow key generation only if a user ID is entered
     }
   }
 
@@ -215,6 +273,7 @@ public partial class GenerateKeyForm : Form
   void subkeyType_SelectedIndexChanged(object sender, EventArgs e)
   {
     UpdateKeyLengths(subkeyType, subkeyLength);
+    // if "None" was selected, disable the other subkey controls
     chkSubkeyNoExpiration.Enabled = subkeyLength.Enabled;
     subkeyExpiration.Enabled = chkSubkeyNoExpiration.Enabled && !chkSubkeyNoExpiration.Checked;
   }
@@ -237,14 +296,7 @@ public partial class GenerateKeyForm : Form
                          MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) ==
          DialogResult.Yes)
       {
-        // grab a local copy so it doesn't get pulled out from under us
-        Thread localThread = this.thread;
-        if(localThread != null)
-        {
-          try { localThread.Abort(); }
-          catch { }
-          GenerationFinished();
-        }
+        CancelKeyGeneration();
       }
     }
     else // it's a "Close" button
@@ -257,45 +309,9 @@ public partial class GenerateKeyForm : Form
   {
     string realName = txtName.Text.Trim(), email = txtEmail.Text.Trim(), comment = txtComment.Text.Trim();
 
-    if(string.IsNullOrEmpty(realName))
-    {
-      MessageBox.Show("You must enter your name.", "Name required", MessageBoxButtons.OK, MessageBoxIcon.Error);
-      return;
-    }
-    else if(!string.IsNullOrEmpty(email) && !PGPUI.IsValidEmail(email))
-    {
-      MessageBox.Show(email + " is not a valid email address.", "Invalid email",
-                      MessageBoxButtons.OK, MessageBoxIcon.Error);
-      return;
-    }
-
-    if(!PGPUI.ArePasswordsEqual(txtPass1, txtPass2))
-    {
-      MessageBox.Show("The passwords you have entered do not match.", "Password mismatch", MessageBoxButtons.OK,
-                      MessageBoxIcon.Error);
-      return;
-    }
-    else if(txtPass1.TextLength == 0)
-    {
-      if(MessageBox.Show("You didn't enter a password! This is extremely insecure, as anybody can use your key. Are "+
-                         "you sure you don't want a password?", "Password is blank!", MessageBoxButtons.YesNo,
-                         MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) == DialogResult.No)
-      {
-        return;
-      }
-    }
-    else if(txtPass1.GetPasswordStrength() < PasswordStrength.Moderate)
-    {
-      if(MessageBox.Show("You entered a weak password! This is not secure, as your password can be cracked in a "+
-                         "relatively short period of time, allowing somebody access to your key. Are you sure you "+
-                         "want a to use a weak password?", "Password is weak!", MessageBoxButtons.YesNo,
-                         MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) == DialogResult.No)
-      {
-        return;
-      }
-    }
-
-    if(!ValidateKeyLength(keyType, keyLength, "primary key") ||
+    if(!PGPUI.ValidateUserId(realName, email, comment) ||
+       !PGPUI.ValidateAndCheckPasswords(txtPass1, txtPass2) ||
+       !ValidateKeyLength(keyType, keyLength, "primary key") ||
        !ValidateKeyLength(subkeyType, subkeyLength, "subkey"))
     {
       return;
@@ -326,18 +342,20 @@ public partial class GenerateKeyForm : Form
       options.SubkeyType         = subType.Type;
     }
 
+    // disable the UI controls while key generation is ongoing
     btnGenerate.Enabled = grpPrimary.Enabled = grpPassword.Enabled = grpSubkey.Enabled =
       grpUser.Enabled = false;
-    btnCancel.Text = "&Cancel";
+    btnCancel.Text = "&Cancel"; // turn the "Close" button into a "Cancel" button
 
-    progressBar.Style = ProgressBarStyle.Marquee;
+    progressBar.Style = ProgressBarStyle.Marquee; // start up the "progress" bar
 
+    // and start generating the key
     thread = new Thread(delegate()
     {
       try
       {
-        pgp.CreateKey(options);
-        Invoke((ThreadStart)delegate { GenerationFinished(); });
+        PrimaryKey newKey = pgp.CreateKey(options);
+        Invoke((ThreadStart)delegate { GenerationSucceeded(newKey); });
       }
       catch(ThreadAbortException) { }
       catch(Exception ex) { Invoke((ThreadStart)delegate { GenerationFailed(ex); }); }
@@ -350,6 +368,7 @@ public partial class GenerateKeyForm : Form
   Keyring keyring;
   Thread thread;
 
+  /// <summary>Gets the selected key length, assuming it has already been validated.</summary>
   static int GetSelectedKeyLength(ComboBox keyLength)
   {
     if(keyLength.Items.Count == 0) return 0;

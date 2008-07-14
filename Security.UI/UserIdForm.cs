@@ -81,19 +81,7 @@ public partial class UserIdForm : Form
 
   void btnOK_Click(object sender, EventArgs e)
   {
-    if(string.IsNullOrEmpty(RealName))
-    {
-      MessageBox.Show("You must enter your name.", "Name required", MessageBoxButtons.OK, MessageBoxIcon.Error);
-    }
-    else if(!string.IsNullOrEmpty(Email) && !PGPUI.IsValidEmail(Email))
-    {
-      MessageBox.Show(Email + " is not a valid email address.", "Invalid email",
-                      MessageBoxButtons.OK, MessageBoxIcon.Error);
-    }
-    else
-    {
-      DialogResult = DialogResult.OK;
-    }
+    if(PGPUI.ValidateUserId(RealName, Email, Comment)) DialogResult = DialogResult.OK;
   }
 
   void txtEmail_TextChanged(object sender, EventArgs e)

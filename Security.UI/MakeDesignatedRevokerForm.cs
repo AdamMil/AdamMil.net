@@ -24,24 +24,38 @@ using AdamMil.Security.PGP;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>This form helps the user make a key a designated revoker for another key. The form does not actually make
+/// the designated revoker, but merely gathers the information needed to do so. The form is meant to be used as a modal
+/// dialog.
+/// </summary>
 public partial class MakeDesignatedRevokerForm : Form
 {
+  /// <summary>Creates a new <see cref="MakeDesignatedRevokerForm"/>. <see cref="Initialize"/> should be called to
+  /// initialize the form.
+  /// </summary>
   public MakeDesignatedRevokerForm()
   {
     InitializeComponent();
   }
 
+  /// <summary>Initializes a new <see cref="MakeDesignatedRevokerForm"/> with the given designated revoker key, and a
+  /// list of keys owned by the user that can be selected to be revocable by the revoker key.
+  /// </summary>
   public MakeDesignatedRevokerForm(PrimaryKey revokerKey, PrimaryKey[] ownedKeys) : this()
   {
     Initialize(revokerKey, ownedKeys);
   }
 
+  /// <summary>Gets the selected key that will have a designated revoker added to it.</summary>
   [Browsable(false)]
   public PrimaryKey SelectedKey
   {
     get { return ((KeyItem)this.ownedKeys.SelectedItem).Value; }
   }
 
+  /// <summary>Initializes this form with the given designated revoker key, and a list of keys owned by the user that
+  /// can be selected to be revocable by the revoker key.
+  /// </summary>
   public void Initialize(PrimaryKey revokerKey, PrimaryKey[] ownedKeys)
   {
     if(revokerKey == null || ownedKeys == null) throw new ArgumentNullException();

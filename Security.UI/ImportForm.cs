@@ -24,8 +24,12 @@ using AdamMil.Security.PGP;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>This form helps the user import keys. The form does not actually import the keys, but merely gathers the
+/// information required to do so. The form is meant to be displayed as a modal dialog.
+/// </summary>
 public partial class ImportForm : Form
 {
+  /// <summary>Initializes a new <see cref="ImportForm"/>.</summary>
   public ImportForm()
   {
     InitializeComponent();
@@ -36,12 +40,16 @@ public partial class ImportForm : Form
     options.Items.Add(new ListItem<ImportOptions>(ImportOptions.MinimizeKeys, "Minimize Imported Keys"));
   }
 
+  /// <summary>Gets the filename from which the keys should be read, or null if the keys should be read from the
+  /// clipboard.
+  /// </summary>
   [Browsable(false)]
   public string Filename
   {
     get { return rbFile.Checked ? txtFile.Text : null; }
   }
 
+  /// <summary>Gets the <see cref="PGP.ImportOptions"/> selected by the user.</summary>
   [Browsable(false)]
   public ImportOptions ImportOptions
   {
@@ -97,6 +105,7 @@ public partial class ImportForm : Form
 
   void btnImport_Click(object sender, EventArgs e)
   {
+    // do basic validation on the filename, including making sure that it exists
     bool badFilename = false;
 
     if(rbFile.Checked)
