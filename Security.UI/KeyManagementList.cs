@@ -81,7 +81,7 @@ public class KeyManagementList : KeyListBase
   }
 
   [Browsable(false)]
-  public PGPSystem PGPSystem
+  public PGPSystem PGP
   {
     get { return pgp; }
     set { pgp = value; }
@@ -92,12 +92,12 @@ public class KeyManagementList : KeyListBase
     AssertPGPSystem();
 
     Dictionary<string,PrimaryKey> secretKeys = new Dictionary<string,PrimaryKey>();
-    foreach(PrimaryKey secretKey in PGPSystem.GetSecretKeys(keyring))
+    foreach(PrimaryKey secretKey in PGP.GetSecretKeys(keyring))
     {
       secretKeys[secretKey.EffectiveId] = secretKey;
     }
 
-    PrimaryKey[] publicKeys = PGPSystem.GetPublicKeys(keyring, ListOptions.RetrieveAttributes);
+    PrimaryKey[] publicKeys = PGP.GetPublicKeys(keyring, ListOptions.RetrieveAttributes);
     KeyPair[] pairs = new KeyPair[publicKeys.Length];
     for(int i=0; i<pairs.Length; i++)
     {
@@ -304,7 +304,7 @@ public class KeyManagementList : KeyListBase
 
   protected void AssertPGPSystem()
   {
-    if(PGPSystem == null) throw new InvalidOperationException("No PGP system has been set.");
+    if(PGP == null) throw new InvalidOperationException("No PGP system has been set.");
   }
 
   protected override AttributeItem CreateAttributeItem(UserAttribute attr)
@@ -372,7 +372,7 @@ public class KeyManagementList : KeyListBase
     }
     else
     {
-      if(PGPSystem != null)
+      if(PGP != null)
       {
         // importing and exporting keys
         menu.Items.Add(new ToolStripMenuItem("Copy Public Keys to Clipboard", null,
@@ -413,7 +413,7 @@ public class KeyManagementList : KeyListBase
       }
 
       // user management
-      if(PGPSystem != null)
+      if(PGP != null)
       {
         menu.Items.Add(new ToolStripMenuItem("Change Passphrase...", null,
                                              delegate(object sender, EventArgs e) { ChangePassphrase(); }));
@@ -433,7 +433,7 @@ public class KeyManagementList : KeyListBase
                                            delegate(object sender, EventArgs e) { ShowKeyProperties(); }));
       menu.Items[menu.Items.Count-1].Enabled = keyCount == 1;
 
-      if(PGPSystem != null)
+      if(PGP != null)
       {
         menu.Items.Add(new ToolStripSeparator());
 
@@ -668,7 +668,7 @@ public class KeyManagementList : KeyListBase
 
     KeyPair[] pairs = GetKeyPairs(items);
 
-    PrimaryKey[] newPublicKeys = PGPSystem.RefreshKeys(GetPublicKeys(pairs), ListOptions.RetrieveAttributes);
+    PrimaryKey[] newPublicKeys = PGP.RefreshKeys(GetPublicKeys(pairs), ListOptions.RetrieveAttributes);
     
     List<PrimaryKey> oldSecretKeys = new List<PrimaryKey>();
     List<int> secretKeyIndices = new List<int>();
@@ -682,7 +682,7 @@ public class KeyManagementList : KeyListBase
       }
     }
 
-    PrimaryKey[] refreshedSecretKeys = PGPSystem.RefreshKeys(oldSecretKeys.ToArray());
+    PrimaryKey[] refreshedSecretKeys = PGP.RefreshKeys(oldSecretKeys.ToArray());
     PrimaryKey[] newSecretKeys = new PrimaryKey[newPublicKeys.Length];
     for(int i=0; i<refreshedSecretKeys.Length; i++) newSecretKeys[secretKeyIndices[i]] = refreshedSecretKeys[i];
 
@@ -747,7 +747,7 @@ public class KeyManagementList : KeyListBase
     ChangePasswordForm form = new ChangePasswordForm();
     if(form.ShowDialog() == DialogResult.OK)
     {
-      try { PGPSystem.ChangePassword(keys[0], form.GetPassword()); }
+      try { PGP.ChangePassword(keys[0], form.GetPassword()); }
       catch(OperationCanceledException) { }
     }
   }
@@ -760,7 +760,7 @@ public class KeyManagementList : KeyListBase
     if(keys.Length == 0) return;
 
     MemoryStream output = new MemoryStream();
-    PGPSystem.ExportPublicKeys(keys, output, ExportOptions.Default, new OutputOptions(OutputFormat.ASCII));
+    PGP.ExportPublicKeys(keys, output, ExportOptions.Default, new OutputOptions(OutputFormat.ASCII));
 
     if(output.Length == 0) return;
 
@@ -770,7 +770,7 @@ public class KeyManagementList : KeyListBase
   protected void CleanKeys()
   {
     AssertPGPSystem();
-    PGPSystem.CleanKeys(GetPublicKeys(GetSelectedPrimaryKeyItems()));
+    PGP.CleanKeys(GetPublicKeys(GetSelectedPrimaryKeyItems()));
   }
 
   protected void DeleteKeys()
@@ -819,7 +819,7 @@ public class KeyManagementList : KeyListBase
                        hasSecretKey ? MessageBoxIcon.Exclamation : MessageBoxIcon.Warning,
                        MessageBoxDefaultButton.Button2) == DialogResult.Yes)
     {
-      PGPSystem.DeleteKeys(GetPublicKeys(pairs), deletion);
+      PGP.DeleteKeys(GetPublicKeys(pairs), deletion);
       ReloadItems(GetSelectedPrimaryKeyItems());
     }
   }
@@ -834,7 +834,7 @@ public class KeyManagementList : KeyListBase
     AssertPGPSystem();
     PrimaryKeyItem[] items = Array.FindAll(GetSelectedPrimaryKeyItems(),
                                            delegate(PrimaryKeyItem item) { return !item.PublicKey.Disabled; });
-    PGPSystem.DisableKeys(GetPublicKeys(items));
+    PGP.DisableKeys(GetPublicKeys(items));
     ReloadItems(items);
   }
 
@@ -843,7 +843,7 @@ public class KeyManagementList : KeyListBase
     AssertPGPSystem();
     PrimaryKeyItem[] items = Array.FindAll(GetSelectedPrimaryKeyItems(),
                                            delegate(PrimaryKeyItem item) { return item.PublicKey.Disabled; });
-    PGPSystem.EnableKeys(GetPublicKeys(items));
+    PGP.EnableKeys(GetPublicKeys(items));
     ReloadItems(items);
   }
 
@@ -860,8 +860,8 @@ public class KeyManagementList : KeyListBase
 
       try
       {
-        if(form.ExportPublicKeys) PGPSystem.ExportPublicKeys(keys, output, form.ExportOptions, form.OutputOptions);
-        if(form.ExportSecretKeys) PGPSystem.ExportSecretKeys(keys, output, form.ExportOptions, form.OutputOptions);
+        if(form.ExportPublicKeys) PGP.ExportPublicKeys(keys, output, form.ExportOptions, form.OutputOptions);
+        if(form.ExportSecretKeys) PGP.ExportSecretKeys(keys, output, form.ExportOptions, form.OutputOptions);
         FinishOutputFile(output);
       }
       finally { output.Close(); }
@@ -910,8 +910,8 @@ public class KeyManagementList : KeyListBase
         if(pairs.Length != 0)
         {
           OutputOptions output = new OutputOptions(OutputFormat.ASCII);
-          PGPSystem.ExportPublicKeys(GetPublicKeys(pairs), file, ExportOptions.Default, output);
-          if(includeSecretKeys) PGPSystem.ExportSecretKeys(GetSecretKeys(pairs), file, ExportOptions.Default, output);
+          PGP.ExportPublicKeys(GetPublicKeys(pairs), file, ExportOptions.Default, output);
+          if(includeSecretKeys) PGP.ExportSecretKeys(GetSecretKeys(pairs), file, ExportOptions.Default, output);
         }
       }
     }
@@ -934,11 +934,11 @@ public class KeyManagementList : KeyListBase
         OutputOptions outputOptions = new OutputOptions(OutputFormat.ASCII);
         if(form.RevokeDirectly)
         {
-          PGPSystem.GenerateRevocationCertificate(keys[0], output, form.Reason, outputOptions);
+          PGP.GenerateRevocationCertificate(keys[0], output, form.Reason, outputOptions);
         }
         else
         {
-          PGPSystem.GenerateRevocationCertificate(keys[0], form.SelectedRevokingKey, output, form.Reason,
+          PGP.GenerateRevocationCertificate(keys[0], form.SelectedRevokingKey, output, form.Reason,
                                                   outputOptions);
         }
 
@@ -984,7 +984,7 @@ public class KeyManagementList : KeyListBase
       }
 
       ImportedKey[] results;
-      try { results = PGPSystem.ImportKeys(input, form.ImportOptions); }
+      try { results = PGP.ImportKeys(input, form.ImportOptions); }
       catch(Exception ex)
       {
         MessageBox.Show("The import failed. (The error was: " + ex.Message + ")", "Import failed",
@@ -1014,7 +1014,7 @@ public class KeyManagementList : KeyListBase
     MakeDesignatedRevokerForm form = new MakeDesignatedRevokerForm(keys[0], myKeys);
     if(form.ShowDialog() == DialogResult.OK)
     {
-      try { PGPSystem.AddDesignatedRevoker(form.SelectedKey, keys[0]); }
+      try { PGP.AddDesignatedRevoker(form.SelectedKey, keys[0]); }
       catch(OperationCanceledException) { }
       ReloadKey(form.SelectedKey);
     }
@@ -1033,7 +1033,7 @@ public class KeyManagementList : KeyListBase
   protected void ManageUserIds(PrimaryKeyItem item)
   {
     if(item == null) throw new ArgumentNullException();
-    new UserIdManagerForm(PGPSystem, item.PublicKey).ShowDialog();
+    new UserIdManagerForm(PGP, item.PublicKey).ShowDialog();
     ReloadItem(item);
   }
 
@@ -1046,7 +1046,7 @@ public class KeyManagementList : KeyListBase
                        MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) ==
        DialogResult.Yes)
     {
-      PGPSystem.MinimizeKeys(GetPublicKeys(GetSelectedPrimaryKeyItems()));
+      PGP.MinimizeKeys(GetPublicKeys(GetSelectedPrimaryKeyItems()));
     }
   }
 
@@ -1066,7 +1066,7 @@ public class KeyManagementList : KeyListBase
       PrimaryKey[] keys = GetPublicKeys(items);
       ProgressForm progress = new ProgressForm(
         "Refreshing Keys", "Refreshing " + selection + " from " + form.SelectedKeyServer.AbsoluteUri + "...",
-        delegate { PGPSystem.RefreshKeysFromServer(new KeyDownloadOptions(form.SelectedKeyServer), keys); });
+        delegate { PGP.RefreshKeysFromServer(new KeyDownloadOptions(form.SelectedKeyServer), keys); });
       progress.ShowDialog();
 
       ImportFailedException failure = progress.Exception as ImportFailedException;
@@ -1098,11 +1098,11 @@ public class KeyManagementList : KeyListBase
       {
         if(form.RevokeDirectly)
         {
-          PGPSystem.RevokeKeys(form.Reason, items[0].PublicKey);
+          PGP.RevokeKeys(form.Reason, items[0].PublicKey);
         }
         else
         {
-          PGPSystem.RevokeKeys(form.SelectedRevokingKey, form.Reason, items[0].PublicKey);
+          PGP.RevokeKeys(form.SelectedRevokingKey, form.Reason, items[0].PublicKey);
         }
         ReloadItems(items);
       }
@@ -1125,7 +1125,7 @@ public class KeyManagementList : KeyListBase
     {
       ProgressForm progress = new ProgressForm(
         "Uploading Keys", "Sending " + selection + " to " + form.SelectedKeyServer.AbsoluteUri + "...",
-        delegate { PGPSystem.UploadKeys(new KeyUploadOptions(form.SelectedKeyServer), keys); });
+        delegate { PGP.UploadKeys(new KeyUploadOptions(form.SelectedKeyServer), keys); });
       progress.ShowDialog();
       progress.ThrowException();
     }
@@ -1152,7 +1152,7 @@ public class KeyManagementList : KeyListBase
     form.Initialize(initialTrustLevel, keys);
     if(form.ShowDialog() == DialogResult.OK)
     {
-      PGPSystem.SetOwnerTrust(form.TrustLevel, keys);
+      PGP.SetOwnerTrust(form.TrustLevel, keys);
       ReloadItems(items);
     }
   }
@@ -1197,7 +1197,7 @@ public class KeyManagementList : KeyListBase
     PrimaryKey[] keys = GetSelectedPublicKeys();
     if(keys.Length == 0) return;
 
-    PrimaryKey key = PGPSystem.RefreshKey(keys[0], ListOptions.VerifyAll);
+    PrimaryKey key = PGP.RefreshKey(keys[0], ListOptions.VerifyAll);
     if(key != null) new SignaturesForm(key).ShowDialog();
   }
 
@@ -1216,7 +1216,7 @@ public class KeyManagementList : KeyListBase
 
     if(form.ShowDialog() == DialogResult.OK)
     {
-      try { PGPSystem.SignKeys(keys, form.SelectedSigningKey, form.KeySigningOptions); }
+      try { PGP.SignKeys(keys, form.SelectedSigningKey, form.KeySigningOptions); }
       catch(OperationCanceledException) { }
       ReloadItems(items);
     }

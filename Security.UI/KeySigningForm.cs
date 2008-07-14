@@ -24,18 +24,28 @@ using AdamMil.Security.PGP;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>This form helps the user sign a list of keys. The form does not actually sign the keys, but merely gathers
+/// the information needed to do so. The form is intended to be used as a modal dialog.
+/// </summary>
 public partial class KeySigningForm : Form
 {
+  /// <summary>Creates a new <see cref="KeySigningForm"/>. <see cref="Initialize"/> should be called to initialize the
+  /// form.
+  /// </summary>
   public KeySigningForm()
   {
     InitializeComponent();
   }
 
+  /// <summary>Initializes a new <see cref="KeySigningForm"/> with the list of keys to sign, and the list of keys owned
+  /// by the user that can be used for signing.
+  /// </summary>
   public KeySigningForm(PrimaryKey[] keysToSign, PrimaryKey[] signingKeys) : this()
   {
     Initialize(keysToSign, signingKeys);
   }
 
+  /// <summary>Gets the <see cref="PGP.KeySigningOptions"/> selected by the user.</summary>
   [Browsable(false)]
   public KeySigningOptions KeySigningOptions
   {
@@ -51,12 +61,16 @@ public partial class KeySigningForm : Form
     }
   }
 
+  /// <summary>Gets the signing key selected by the user.</summary>
   [Browsable(false)]
   public PrimaryKey SelectedSigningKey
   {
     get { return ((KeyItem)signingKeys.SelectedItem).Value; }
   }
 
+  /// <summary>Initializes this form with the givent list of keys to sign, and the list of the user's keys that can be
+  /// used for signing.
+  /// </summary>
   public void Initialize(PrimaryKey[] keysToSign, PrimaryKey[] signingKeys)
   {
     if(keysToSign == null || signingKeys == null) throw new ArgumentNullException();
@@ -73,6 +87,7 @@ public partial class KeySigningForm : Form
 
   void rbPoor_CheckedChanged(object sender, EventArgs e)
   {
+    // if a low level of certification was selected, automatically select the "local" signature checkbox
     if(((RadioButton)sender).Checked) chkLocal.Checked = true;
   }
 }

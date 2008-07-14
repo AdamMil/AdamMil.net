@@ -24,18 +24,24 @@ using AdamMil.Security.PGP;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>This form displays basic properties about a key pair.</summary>
 public partial class KeyPropertiesForm : Form
 {
+  /// <summary>Creates a new <see cref="KeyPropertiesForm"/>. You should call <see cref="Initialize"/> to initialize
+  /// the form.
+  /// </summary>
   public KeyPropertiesForm()
   {
     InitializeComponent();
   }
 
+  /// <summary>Initializes a new <see cref="KeyPropertiesForm"/> with the given key pair.</summary>
   public KeyPropertiesForm(KeyPair pair) : this()
   {
     Initialize(pair);
   }
 
+  /// <summary>Initializes this form with the given key pair.</summary>
   public void Initialize(KeyPair pair)
   {
     if(pair == null) throw new ArgumentNullException();
@@ -60,22 +66,24 @@ public partial class KeyPropertiesForm : Form
     foreach(Subkey subkey in pair.PublicKey.Subkeys) keyList.AddKey(subkey);
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/*"/>
   protected override void OnKeyDown(KeyEventArgs e)
   {
     base.OnKeyDown(e);
 
-    if(!e.Handled && e.KeyCode == Keys.Escape)
+    if(!e.Handled && PGPUI.IsCloseKey(e)) // let the form be closed by pressing escape
     {
       Close();
       e.Handled = true;
     }
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/OnShown/*"/>
   protected override void OnShown(EventArgs e)
   {
     base.OnShown(e);
-    txtPrimaryId.Focus();
-    txtPrimaryId.DeselectAll(); // focusing a text box selects the text. we don't want that
+    txtPrimaryId.Focus();       // put the cursor in the primary user ID box
+    txtPrimaryId.DeselectAll(); // but focusing a text box selects the text. we don't want that
   }
 }
 

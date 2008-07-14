@@ -24,18 +24,28 @@ using AdamMil.Security.PGP;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>This form helps the user revoke a key. The form does not actually revoke the key, but merely gathers the
+/// information needed to do so. The form is meant to be displayed as a modal dialog.
+/// </summary>
 public partial class KeyRevocationForm : Form
 {
+  /// <summary>Creates a new <see cref="KeyRevocationForm"/>. You should call <see cref="Initialize"/> to initialize
+  /// the form.
+  /// </summary>
   public KeyRevocationForm()
   {
     InitializeComponent();
   }
 
-  public KeyRevocationForm(PrimaryKey key, PrimaryKey[] ownedKeys) : this()
+  /// <summary>Initializes a new <see cref="KeyRevocationForm"/> with the given key to revoke and a list of keys for
+  /// which the user has the secret portion.
+  /// </summary>
+  public KeyRevocationForm(PrimaryKey keyToRevoke, PrimaryKey[] ownedKeys) : this()
   {
-    Initialize(key, ownedKeys);
+    Initialize(keyToRevoke, ownedKeys);
   }
 
+  /// <summary>Gets the <see cref="KeyRevocationReason"/> entered by the user.</summary>
   [Browsable(false)]
   public KeyRevocationReason Reason
   {
@@ -51,24 +61,36 @@ public partial class KeyRevocationForm : Form
     }
   }
 
+  /// <summary>Gets whether the key should be revoked directly. If true, the user is assumed to own the key and wants
+  /// to revoke it directly. If false, the user will be revoking the key as a designated revoker, using the
+  /// <see cref="SelectedRevokingKey"/>.
+  /// </summary>
   [Browsable(false)]
   public bool RevokeDirectly
   {
     get { return rbDirect.Checked; }
   }
 
+  /// <summary>Gets the designated revoking key that the user will use to perform the revocation. This value will be
+  /// null if the key is to be revoked directly.
+  /// </summary>
   [Browsable(false)]
   public PrimaryKey SelectedRevokingKey
   {
-    get { return ((KeyItem)revokingKeys.SelectedItem).Value; }
+    get { return rbDirect.Checked ? null : ((KeyItem)revokingKeys.SelectedItem).Value; }
   }
 
+  /// <summary>Initializes this form with the given key to revoke and a list of keys for which the user has the secret
+  /// portion.
+  /// </summary>
   public void Initialize(PrimaryKey keyToRevoke, PrimaryKey[] ownedKeys)
   {
     if(keyToRevoke == null || ownedKeys == null) throw new ArgumentNullException();
 
+    // the user can revoke the key directly if the key to revoke is one that he owns
     rbDirect.Enabled = Array.IndexOf(ownedKeys, keyToRevoke) != -1;
 
+    // of the keys the user owns, find the ones that are designated revokers of the key to revoke
     revokingKeys.Items.Clear();
     foreach(PrimaryKey key in ownedKeys)
     {
@@ -79,13 +101,16 @@ public partial class KeyRevocationForm : Form
       }
     }
 
+    // the user can revoke the key indirectly if he owns any designated revokers
     rbIndirect.Enabled = revokingKeys.Items.Count != 0;
-    if(revokingKeys.Items.Count != 0) revokingKeys.SelectedIndex = 0;
+    if(revokingKeys.Items.Count != 0) revokingKeys.SelectedIndex = 0; // and if he does, select the first one
 
+    // check the first revocation method that's available
     if(rbDirect.Enabled) rbDirect.Checked = true;
     else if(rbIndirect.Enabled) rbIndirect.Checked = true;
     else rbDirect.Checked = rbIndirect.Checked = false;
 
+    // the user can only revoke the key if he has some way to do so
     btnOK.Enabled = rbDirect.Enabled || rbIndirect.Enabled;
 
     lblKey.Text = btnOK.Enabled

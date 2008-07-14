@@ -23,14 +23,19 @@ using System.Windows.Forms;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>A form that helps a user choose a new password for their secret key. The form is meant to be shown as a
+/// modal dialog.
+/// </summary>
 public partial class ChangePasswordForm : Form
 {
+  /// <summary>Initializes a new <see cref="ChangePasswordForm"/>.</summary>
   public ChangePasswordForm()
   {
     InitializeComponent();
     UpdatePasswordStrength();
   }
 
+  /// <summary>Retrieves the password entered by the user.</summary>
   public SecureString GetPassword()
   {
     return pass1.GetText();
@@ -38,33 +43,7 @@ public partial class ChangePasswordForm : Form
 
   void btnOK_Click(object sender, EventArgs e)
   {
-    if(!PGPUI.ArePasswordsEqual(pass1, pass2))
-    {
-      MessageBox.Show("The passwords you have entered do not match.", "Password mismatch", MessageBoxButtons.OK,
-                      MessageBoxIcon.Error);
-      return;
-    }
-    else if(pass1.TextLength == 0)
-    {
-      if(MessageBox.Show("You didn't enter a password! This is extremely insecure, as anybody can use your key. Are "+
-                         "you sure you don't want a password?", "Password is blank!", MessageBoxButtons.YesNo,
-                         MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) == DialogResult.No)
-      {
-        return;
-      }
-    }
-    else if(pass1.GetPasswordStrength() < PasswordStrength.Moderate)
-    {
-      if(MessageBox.Show("You entered a weak password! This is not secure, as your password can be cracked in a "+
-                         "relatively short period of time, allowing somebody access to your key. Are you sure you "+
-                         "want a to use a weak password?", "Password is weak!", MessageBoxButtons.YesNo,
-                         MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) == DialogResult.No)
-      {
-        return;
-      }
-    }
-
-    DialogResult = DialogResult.OK;
+    if(PGPUI.ValidateAndCheckPasswords(pass1, pass2)) DialogResult = DialogResult.OK;
   }
 
   void pass1_TextChanged(object sender, EventArgs e)

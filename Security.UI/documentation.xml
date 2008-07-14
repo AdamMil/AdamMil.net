@@ -1,3 +1,28 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <UI>
+  <Common>
+    <OnClosing>
+      <summary>Called when the form is about to be closed.</summary>
+    </OnClosing>
+
+    <OnKeyDown>
+      <summary>Called when a key is depressed or repeated.</summary>
+    </OnKeyDown>
+
+    <OnMouseDown>
+      <summary>Called when a mouse button is depressed over the control.</summary>
+    </OnMouseDown>
+
+    <OnMouseMove>
+      <summary>Called when the mouse is moved over the control.</summary>
+    </OnMouseMove>
+
+    <OnMouseUp>
+      <summary>Called when a mouse button is released over the control.</summary>
+    </OnMouseUp>
+
+    <OnShown>
+      <summary>Called when the form has been shown.</summary>
+    </OnShown>
+  </Common>
 </UI>

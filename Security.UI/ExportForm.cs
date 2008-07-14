@@ -24,8 +24,14 @@ using AdamMil.Security.PGP;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>This form helps the user export keys. The form does not actually export the keys, but merely gathers the
+/// information needed to do so. It is meant to be shown as a modal dialog.
+/// </summary>
 public partial class ExportForm : Form
 {
+  /// <summary>Creates a new <see cref="ExportForm"/>. You should later call <see cref="Initialize"/> to initialize
+  /// the form.
+  /// </summary>
   public ExportForm()
   {
     InitializeComponent();
@@ -42,11 +48,13 @@ public partial class ExportForm : Form
     options.Items.Add(new ListItem<ExportOptions>(ExportOptions.ResetSubkeyPassword, "Reset Secret Subkey Passwords"));
   }
 
+  /// <summary>Initializes a new <see cref="ExportForm"/> with the given list of keys to export.</summary>
   public ExportForm(PrimaryKey[] keys) : this()
   {
     Initialize(keys);
   }
 
+  /// <summary>Gets the <see cref="PGP.ExportOptions"/> selected by the user.</summary>
   [Browsable(false)]
   public ExportOptions ExportOptions
   {
@@ -65,24 +73,30 @@ public partial class ExportForm : Form
     }
   }
 
+  /// <summary>Gets whether public keys are to be exported.</summary>
   [Browsable(false)]
   public bool ExportPublicKeys
   {
     get { return options.GetItemChecked(0); }
   }
 
+  /// <summary>Gets whether secret keys are to be exported.</summary>
   [Browsable(false)]
   public bool ExportSecretKeys
   {
     get { return options.GetItemChecked(1); }
   }
 
+  /// <summary>Gets the name of the file into which the keys should be saved, or null if they should be saved to the
+  /// clipboard.
+  /// </summary>
   [Browsable(false)]
   public string Filename
   {
     get { return rbFile.Checked ? txtFile.Text : null; }
   }
 
+  /// <summary>Gets the <see cref="PGP.OutputOptions"/> selected by the user.</summary>
   [Browsable(false)]
   public OutputOptions OutputOptions
   {
@@ -93,6 +107,9 @@ public partial class ExportForm : Form
     }
   }
   
+  /// <summary>Initializes the form with the given list of keys to export. If the list is null or empty, it is assumed
+  /// that all relevant keys will be exported.
+  /// </summary>
   public void Initialize(PrimaryKey[] keys)
   {
     keyList.Items.Clear();
@@ -170,11 +187,13 @@ public partial class ExportForm : Form
 
   void options_SelectedIndexChanged(object sender, EventArgs e)
   {
+    // don't allow the export if neither "Export Public Keys" nor "Export Secret Keys" are checked
     btnExport.Enabled = options.GetItemChecked(0) || options.GetItemChecked(1);
   }
 
   void btnExport_Click(object sender, EventArgs e)
   {
+    // do some basic validation of the output filename
     bool badFilename = false;
 
     if(rbFile.Checked)

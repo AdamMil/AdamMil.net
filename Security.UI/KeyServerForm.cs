@@ -26,8 +26,12 @@ using System.Windows.Forms;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>This form presents a dialog that allows the user to select a key server. The user can choose from a
+/// predefined list or type in his own. It is meant to be used as a modal dialog.
+/// </summary>
 public partial class KeyServerForm : Form
 {
+  /// <summary>Initializes a new <see cref="KeyServerForm"/>.</summary>
   public KeyServerForm()
   {
     InitializeComponent();
@@ -41,6 +45,9 @@ public partial class KeyServerForm : Form
     horizontalSpace = lblHelp.Left;
   }
 
+  /// <summary>Gets or sets the help text displayed in the form. The text should tell the user why he needs to choose
+  /// a key server.
+  /// </summary>
   public string HelpText
   {
     get { return lblHelp.Text; }
@@ -63,18 +70,26 @@ public partial class KeyServerForm : Form
     }
   }
 
+  /// <summary>Gets a collection of strings containing key server URIs that the user can choose from.</summary>
   [Browsable(false)]
   public ComboBox.ObjectCollection KeyServers
   {
     get { return keyservers.Items; }
   }
 
+  /// <summary>Gets or sets the key server URI selected by the user.</summary>
   [Browsable(false)]
   public Uri SelectedKeyServer
   {
     get { return keyServer; }
+    set
+    {
+      keyServer = value;
+      keyservers.Text = value == null ? string.Empty : value.AbsoluteUri;
+    }
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/OnClosing/*"/>
   protected override void OnShown(EventArgs e)
   {
     base.OnShown(e);
