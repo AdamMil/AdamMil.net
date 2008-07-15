@@ -24,20 +24,62 @@ using System.Windows.Forms;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>This form executes a long-running operation in a background thread, and provides the user a way to cancel
+/// it. The form automatically closes itself when the operation is complete. The form is meant to be used as a modal
+/// dialog, and the <see cref="DialogResult"/> will be <see cref="DialogResult.OK"/> if the operation completed
+/// successfully, <see cref="DialogResult.Cancel"/> if the user canceled it, or <see cref="DialogResult.Abort"/> if the
+/// operation failed.
+/// </summary>
 public partial class ProgressForm : Form
 {
-  ProgressForm()
+  /// <summary>Creates a new <see cref="ProgressForm"/>. You must call <see cref="Initialize"/> to initialize the form.</summary>
+  public ProgressForm()
   {
     InitializeComponent();
   }
 
+  /// <summary>Initializes a new <see cref="ProgressForm"/> with the form caption, a description of the operation, and
+  /// a <see cref="ThreadStart"/> delegate that represents the operation to perform.
+  /// </summary>
   public ProgressForm(string caption, string description, ThreadStart operation)
+  {
+    Initialize(caption, description, operation);
+  }
+
+  /// <summary>Gets the exception that occurred during the operation, if any.</summary>
+  [Browsable(false)]
+  public Exception Exception
+  {
+    get { return exception; }
+  }
+
+  /// <summary>Gets whether the operation is still in progress.</summary>
+  [Browsable(false)]
+  public bool InProgress
+  {
+    get { return thread != null; }
+  }
+
+  /// <summary>Cancels the operation, if it's still in progress.</summary>
+  public void Cancel()
+  {
+    if(InProgress)
+    {
+      thread.Abort();
+      thread = null;
+    }
+  }
+
+  /// <summary>Initializes this form with the form caption, a description of the operation, and a
+  /// <see cref="ThreadStart"/> delegate that represents the operation to perform.
+  /// </summary>
+  public void Initialize(string caption, string description, ThreadStart operation)
   {
     if(operation == null) throw new ArgumentNullException();
     InitializeComponent();
 
-    Text = caption;
-    lblDescription.Text = description;
+    if(!string.IsNullOrEmpty(caption)) Text = caption;
+    if(!string.IsNullOrEmpty(description)) lblDescription.Text = description;
 
     thread = new Thread(delegate()
       {
@@ -47,39 +89,74 @@ public partial class ProgressForm : Form
           DialogResult = DialogResult.OK;
         }
         catch(Exception ex)
-        { 
-          exception = ex;
-          DialogResult = DialogResult.Abort;
+        {
+          if(ex is ThreadAbortException || ex is OperationCanceledException)
+          {
+            if(!(ex is ThreadAbortException)) exception = ex;
+            DialogResult = DialogResult.Cancel;
+          }
+          else
+          {
+            exception = ex;
+            DialogResult = DialogResult.Abort;
+          }
         }
       });
   }
 
-  [Browsable(false)]
-  public Exception Exception
-  {
-    get { return exception; }
-  }
-
+  /// <summary>Throws the exception that occurred during the operation, if any.</summary>
   public void ThrowException()
   {
     if(exception != null) throw exception;
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/OnClosing/*"/>
+  protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+  {
+    base.OnClosing(e);
+
+    if(!e.Cancel && InProgress && DialogResult == DialogResult.None)
+    {
+      e.Cancel = true; // we'll always cancel, and let the background thread set the DialogResult property to close
+                       // the form
+      if(MessageBox.Show("The operation has not yet completed. Cancel it?", "Cancel operation?",
+                         MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) ==
+           DialogResult.Yes)
+      {
+        CancelFromUI();
+      }
+    }
+  }
+
+  /// <include file="documentation.xml" path="/UI/Common/OnClosed/*"/>
+  protected override void OnClosed(EventArgs e)
+  {
+    base.OnClosed(e);
+    thread = null;
+  }
+
+  /// <include file="documentation.xml" path="/UI/Common/OnLoad/*"/>
   protected override void OnLoad(EventArgs e)
   {
     base.OnLoad(e);
     thread.Start();
   }
 
-  protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+  /// <summary>Cancels from the user interface, disabling the cancel button so it can't be clicked again.</summary>
+  void CancelFromUI()
   {
-    base.OnClosing(e);
-    if(!e.Cancel && !thread.Join(1000)) thread.Abort();
+    btnCancel.Enabled = false;
+
+    if(InProgress && !thread.Join(1000)) // give the operation an extra second, because we're bastards...
+    {
+      thread.Abort();
+      thread = null;
+    }
   }
 
   void btnCancel_Click(object sender, EventArgs e)
   {
-    btnCancel.Enabled = false;
+    CancelFromUI();
   }
 
   Exception exception;

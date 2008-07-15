@@ -24,24 +24,38 @@ using AdamMil.Security.PGP;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>This form helps the user generate a key revocation certificate. The form does not actually generate the
+/// certificate, but merely gathers the information needed to do so. It is meant to be displayed as a modal dialog.
+/// </summary>
 public partial class RevocationCertForm : Form
 {
+  /// <summary>Creates a new <see cref="RevocationCertForm"/>. You will need to call <see cref="Initialize"/> to
+  /// initialize the form.
+  /// </summary>
   public RevocationCertForm()
   {
     InitializeComponent();
   }
 
+  /// <summary>Initializes a new <see cref="RevocationCertForm"/> with the key for which the revocation certificate
+  /// will be generated, and a list of keys for which the user has the secret key, which could possibly serve as
+  /// designated revokers.
+  /// </summary>
   public RevocationCertForm(PrimaryKey keyToRevoke, PrimaryKey[] ownedKeys) : this()
   {
     Initialize(keyToRevoke, ownedKeys);
   }
 
+  /// <summary>Gets the name of the file into which the revocation certificate should be saved, or null if it should
+  /// be saved onto the clipboard.
+  /// </summary>
   [Browsable(false)]
   public string Filename
   {
     get { return rbFile.Checked ? txtFile.Text : null; }
   }
 
+  /// <summary>Gets the <see cref="KeyRevocationReason"/> entered by the user.</summary>
   [Browsable(false)]
   public KeyRevocationReason Reason
   {
@@ -57,18 +71,28 @@ public partial class RevocationCertForm : Form
     }
   }
 
+  /// <summary>Gets whether the revocation certificate should be generated directly. If true, the user is assumed to
+  /// own the key and wants to generate the certificate directly. If false, the user will be generating the certificate
+  /// as a designated revoker, using the <see cref="SelectedRevokingKey"/>.
+  /// </summary>
   [Browsable(false)]
   public bool RevokeDirectly
   {
     get { return rbDirect.Checked; }
   }
 
+  /// <summary>Gets the designated revoking key that the user will use to perform the revocation. This value will be
+  /// null if the key is to be revoked directly.
+  /// </summary>
   [Browsable(false)]
   public PrimaryKey SelectedRevokingKey
   {
     get { return ((KeyItem)revokingKeys.SelectedItem).Value; }
   }
 
+  /// <summary>Initializes this form with the key for which the revocation certificate will be generated, and a list of
+  /// keys for which the user has the secret key, which could possibly serve as designated revokers.
+  /// </summary>
   public void Initialize(PrimaryKey keyToRevoke, PrimaryKey[] ownedKeys)
   {
     if(keyToRevoke == null || ownedKeys == null) throw new ArgumentNullException();
@@ -117,6 +141,7 @@ public partial class RevocationCertForm : Form
 
   void btnOK_Click(object sender, EventArgs e)
   {
+    // do some basic validation of the filename
     bool badFilename = false;
 
     if(rbFile.Checked)

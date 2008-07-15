@@ -1,13 +1,45 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <UI>
   <Common>
+    <Dispose>
+      <summary>Disposes the object.</summary>
+    </Dispose>
+
+    <Equals>
+      <summary>Determines whether this object is equal to the given object.</summary>
+    </Equals>
+
+    <GetHashCode>
+      <summary>Calculates a hash code for this object.</summary>  
+    </GetHashCode>
+    
     <OnClosing>
       <summary>Called when the form is about to be closed.</summary>
     </OnClosing>
 
+    <OnClosed>
+      <summary>Called after the form has been closed.</summary>
+    </OnClosed>
+
+    <OnFontChanged>
+      <summary>Called when a control's <see cref="Control.Font"/> property has changed.</summary>
+    </OnFontChanged>
+
+    <OnForeColorChanged>
+      <summary>Called when a control's <see cref="Control.ForeColor"/> property has changed.</summary>
+    </OnForeColorChanged>
+
     <OnKeyDown>
       <summary>Called when a key is depressed or repeated.</summary>
     </OnKeyDown>
+
+    <OnKeyPress>
+      <summary>Called when an input key is pressed, forming an input character.</summary>
+    </OnKeyPress>
+    
+    <OnLoad>
+      <summary>Called before the form is displayed.</summary>
+    </OnLoad>
 
     <OnMouseDown>
       <summary>Called when a mouse button is depressed over the control.</summary>
@@ -21,8 +53,107 @@
       <summary>Called when a mouse button is released over the control.</summary>
     </OnMouseUp>
 
+    <OnNotifyMessage>
+      <summary>Notifies the control of messages from the windowing system.</summary>  
+    </OnNotifyMessage>
+    
     <OnShown>
       <summary>Called when the form has been shown.</summary>
     </OnShown>
+
+    <OnSizeChanged>
+      <summary>Called when the size of the form has changed.</summary>
+    </OnSizeChanged>
   </Common>
+
+  <Helpers>
+    <GetPasswordStrength>
+      <summary>Returns an estimate of the password strength.</summary>
+      <param name="password">The password to evaluate.</param>
+      <param name="assumeHumanInput">
+        If true, the password will be assumed to have been entered by a human. Since
+        humans don't choose from among the available characters and symbols with a uniform distribution, the number of
+        possibilities per character will be adjusted downward, reflecting the fact that password crackers will try the
+        most likely possibilities first.
+      </param>
+      <remarks>
+        This method only returns an estimate of the password strength, assuming a brute force character-based
+        attack. If the user uses a password that contains publically available information like his wife's birthday, it
+        will be possible to guess the password in much less time than is required for a brute force search. Similarly, if
+        the user uses a passphrase consisting of simple, common words, it may be brute forced easily.
+        <para>The given password will not be disposed by this method.</para>
+      </remarks>
+    </GetPasswordStrength>
+  </Helpers>
+
+  <ListBase>
+    <ActivateItem>
+      <summary>Called to activate a list, for instance when the user double-clicks on it.</summary>
+    </ActivateItem>
+    
+    <ClearCachedFonts>
+      <summary>
+        Called when any <see cref="System.Drawing.Font"/> objects that have been cached by the list need to be
+        discarded, for instance when the list's <see cref="Control.Font"/> or <see cref="Control.ForeColor"/>
+        properties have changed.
+      </summary>
+    </ClearCachedFonts>
+
+    <CreateAttributeItem>
+      <summary>Creates an <see cref="AttributeItem"/> to represent the given <see cref="UserAttribute"/>.</summary>
+    </CreateAttributeItem>
+
+    <CreateContextMenu>
+      <summary>Creates a context menu to display for the list and/or the currently-selected items.</summary>
+    </CreateContextMenu>
+
+    <CreateDesignatedRevokerItem>
+      <summary>Creates a <see cref="DesignatedRevokerItem"/> to represent the given designated revoker fingerprint, and
+        the key it is allowed to revoke.
+      </summary>
+    </CreateDesignatedRevokerItem>
+    
+    <CreateFont>
+      <summary>Returns a font and color to display an item with the given status.</summary>
+      <param name="type">An <see cref="ItemStatus"/> representing the status of the item.</param>
+      <param name="font">Receives the <see cref="Font"/> that should be used to display an item with the given status.</param>
+      <param name="color">
+        Receives the <see cref="Color"/> of the text that should be used to display an item with the
+        given status.
+      </param>
+    </CreateFont>
+    
+    <CreateKeyItem>
+      <summary>
+        Creates a new <see cref="PGPListViewItem"/> (either a <see cref="PrimaryKeyItem"/> or
+        <see cref="SubkeyItem"/>) to represent the given key.
+      </summary>
+    </CreateKeyItem>
+
+    <CreatePrimaryKeyItem>
+      <summary>Creates a new <see cref="PrimaryKeyItem"/> to represent the given primary key.</summary>
+    </CreatePrimaryKeyItem>
+    
+    <CreateSignatureItem>
+      <summary>Creates a <see cref="KeySignatureItem"/> to represent the given signature.</summary>
+    </CreateSignatureItem>
+
+    <CreateSubkeyItem>
+      <summary>Creates a new <see cref="SubkeyItem"/> to represent the given subkey.</summary>
+    </CreateSubkeyItem>
+
+    <RecreateItems>
+      <summary>Recreates the items in the list, after the criteria used to display them have changed.</summary>
+    </RecreateItems>
+    
+    <SetAttributeItemFont>
+      <summary>Sets the font of an <see cref="AttributeItem"/>, based on the <see cref="UserAttribute"/> it represents.</summary>
+    </SetAttributeItemFont>
+
+    <SetKeySignatureItemFont>
+      <summary>
+        Sets the font of a <see cref="KeySignatureItem"/>, based on the <see cref="KeySignature"/> it represents.
+      </summary>
+    </SetKeySignatureItemFont>
+  </ListBase>
 </UI>

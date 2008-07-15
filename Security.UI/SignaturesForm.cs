@@ -24,30 +24,37 @@ using AdamMil.Security.PGP;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>This form displays signatures on a key.</summary>
 public partial class SignaturesForm : Form
 {
+  /// <summary>Creates a new <see cref="SignaturesForm"/>. You must call <see cref="Initialize"/> to initialize the
+  /// form.
+  /// </summary>
   public SignaturesForm()
   {
     InitializeComponent();
   }
 
+  /// <summary>Initializes a new <see cref="SignaturesForm"/> with the public key whose signatures will be displayed.</summary>
   public SignaturesForm(PrimaryKey publicKey) : this()
   {
     Initialize(publicKey);
   }
 
+  /// <summary>Initializes this form with the public key whose signatures will be displayed.</summary>
   public void Initialize(PrimaryKey publicKey)
   {
     if(publicKey == null) throw new ArgumentNullException();
     lblDescription.Text = "Signatures for " + PGPUI.GetKeyName(publicKey);
-    sigList.ShowSignatures(publicKey);
+    sigList.Initialize(publicKey);
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/*"/>
   protected override void OnKeyDown(KeyEventArgs e)
   {
     base.OnKeyDown(e);
 
-    if(!e.Handled && e.KeyCode == Keys.Escape)
+    if(!e.Handled && PGPUI.IsCloseKey(e))
     {
       Close();
       e.Handled = true;

@@ -49,8 +49,8 @@ namespace AdamMil.Security.UI
       this.components = new System.ComponentModel.Container();
       System.Windows.Forms.Button btnAddUserId;
       System.Windows.Forms.Button btnAddPhotoId;
-      System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(UserIdManagerForm));
       System.Windows.Forms.ColumnHeader nameColumn;
+      System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(UserIdManagerForm));
       this.lblDescription = new System.Windows.Forms.Label();
       this.userIds = new System.Windows.Forms.ListView();
       this.imageList = new System.Windows.Forms.ImageList(this.components);
@@ -83,6 +83,10 @@ namespace AdamMil.Security.UI
       btnAddPhotoId.Text = "Add &Photo ID";
       btnAddPhotoId.UseVisualStyleBackColor = true;
       btnAddPhotoId.Click += new System.EventHandler(this.btnAddPhotoId_Click);
+      // 
+      // nameColumn
+      // 
+      nameColumn.Width = 460;
       // 
       // lblDescription
       // 
@@ -157,10 +161,6 @@ namespace AdamMil.Security.UI
       this.btnRevoke.UseVisualStyleBackColor = true;
       this.btnRevoke.Click += new System.EventHandler(this.btnRevoke_Click);
       // 
-      // nameColumn
-      // 
-      nameColumn.Width = 460;
-      // 
       // UserIdManagerForm
       // 
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
@@ -177,6 +177,7 @@ namespace AdamMil.Security.UI
       this.KeyPreview = true;
       this.MaximizeBox = false;
       this.MinimizeBox = false;
+      this.MinimumSize = new System.Drawing.Size(505, 289);
       this.Name = "UserIdManagerForm";
       this.ShowIcon = false;
       this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;

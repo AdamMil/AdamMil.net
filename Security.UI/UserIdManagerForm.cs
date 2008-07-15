@@ -24,75 +24,85 @@ using AdamMil.Security.PGP;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>This form helps the user manage his user IDs.</summary>
 public partial class UserIdManagerForm : Form
 {
-  UserIdManagerForm()
+  /// <summary>Creates a new <see cref="UserIdManagerForm"/>. You must call <see cref="Initialize"/> to initialize the
+  /// form before displaying it.
+  /// </summary>
+  public UserIdManagerForm()
   {
     InitializeComponent();
   }
 
+  /// <summary>Initializes a new <see cref="UserIdManagerForm"/> with the <see cref="PGPSystem"/> that will be used to
+  /// edit the key, and the key to edit.
+  /// </summary>
   public UserIdManagerForm(PGPSystem pgp, PrimaryKey key) : this()
+  {
+    Initialize(pgp, key);
+  }
+
+  /// <summary>Initializes this form with the <see cref="PGPSystem"/> that will be used to edit the key, and the key to
+  /// edit.
+  /// </summary>
+  public void Initialize(PGPSystem pgp, PrimaryKey key)
   {
     if(pgp == null || key == null) throw new ArgumentNullException();
     this.pgp = pgp;
     this.key = key;
+    if(Visible) ReloadKey();
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/*"/>
+  protected override void OnKeyDown(KeyEventArgs e)
+  {
+    base.OnKeyDown(e);
+
+    if(!e.Handled && PGPUI.IsCloseKey(e))
+    {
+      Close();
+      e.Handled = true;
+    }
+  }
+
+  /// <include file="documentation.xml" path="/UI/Common/OnShown/*"/>
   protected override void OnShown(EventArgs e)
   {
     base.OnShown(e);
     ReloadKey(); // for some reason, if we do this earlier, then the ListView won't render the fonts
   }              // correctly until the form is redrawn...
 
-  const int UserIdImage=0, PhotoIdImage=1, UnknownImage=2;
+  /// <summary>The index of the icon within the image list.</summary>
+  const int UserIdIcon=0, PhotoIdIcon=1, UnknownIcon=2;
 
-  void ActivateUserId(ListViewItem item)
+  /// <summary>Called when the given list item is activated by the user, either with the keyboard or mouse.</summary>
+  void ActivateUserId(AttributeItem item)
   {
     // activating a photo ID will display it
-    UserImage image = item.Tag as UserImage;
+    UserImage image = item.Attribute as UserImage;
     if(image != null) new PhotoIdForm(image).ShowDialog();
   }
 
-  void AddUserIds()
-  {
-    userIds.Items.Clear();
-
-    foreach(UserId id in key.UserIds)
-    {
-      AttributeItem item = new AttributeItem(id, PGPUI.GetAttributeName(id));
-      if(id.Revoked) item.Text += " (revoked)";
-      item.ImageIndex = UserIdImage;
-      item.Tag        = id;
-      SetFont(item, id);
-      userIds.Items.Add(item);
-    }
-
-    foreach(UserAttribute attr in key.Attributes)
-    {
-      bool isPhoto = attr is UserImage;
-      AttributeItem item = new AttributeItem(attr, PGPUI.GetAttributeName(attr));
-      if(attr.Revoked) item.Text += " (revoked)";
-      item.ImageIndex = isPhoto ? PhotoIdImage : UnknownImage;
-      item.Tag        = attr;
-      SetFont(item, attr);
-      userIds.Items.Add(item);
-    }
-  }
-
+  /// <summary>Checks whether all of the <see cref="UserId"/> attributes are selected. If so, a message is displayed
+  /// to the user informing him that he can't perform the operation (such as delete) on all of the user IDs, because
+  /// he must leave at least one. Returns true if at least one user ID is not selected.
+  /// </summary>
+  /// <param name="op">The name of the operation performed on the user IDs, such as "delete" or "revoke".</param>
   bool EnsureNotAllUserIdsSelected(string op)
   {
-    // first check if all user IDs are selected. if so, give an error because you can't delete all user IDs.
+    // check if all user IDs are selected. if so, give an error because you can't delete or revoke all user IDs.
     bool hasUnselectedUserId = false;
-    foreach(ListViewItem item in userIds.Items)
+    foreach(AttributeItem item in userIds.Items)
     {
-      if(!item.Selected && item.Tag is UserId)
+      if(!item.Selected && item.Attribute is UserId)
       {
         hasUnselectedUserId = true;
         break;
       }
     }
 
-    // show an error if the user tries to delete all the user IDs
+    // show an error if the user tries to delete or revoke all the user IDs
     if(!hasUnselectedUserId)
     {
       bool onlyOne = userIds.SelectedItems.Count == 1;
@@ -104,6 +114,7 @@ public partial class UserIdManagerForm : Form
     return hasUnselectedUserId;
   }
 
+  /// <summary>Gets the <see cref="UserAttribute"/> objects selected by the user.</summary>
   UserAttribute[] GetSelectedAttributes()
   {
     UserAttribute[] attributes = new UserAttribute[userIds.SelectedItems.Count];
@@ -111,6 +122,7 @@ public partial class UserIdManagerForm : Form
     return attributes;
   }
 
+  /// <summary>Reloads the key and redisplays its attributes and user IDs.</summary>
   void ReloadKey()
   {
     if(key != null)
@@ -127,30 +139,41 @@ public partial class UserIdManagerForm : Form
       }
       else
       {
-        AddUserIds();
+        userIds.Items.Clear();
+
+        foreach(UserId id in key.UserIds)
+        {
+          AttributeItem item = new AttributeItem(id, PGPUI.GetAttributeName(id));
+          if(id.Revoked) item.Text += " (revoked)";
+          item.ImageIndex = UserIdIcon;
+          SetFont(item);
+          userIds.Items.Add(item);
+        }
+
+        foreach(UserAttribute attr in key.Attributes)
+        {
+          bool isPhoto = attr is UserImage;
+          AttributeItem item = new AttributeItem(attr, PGPUI.GetAttributeName(attr));
+          if(attr.Revoked) item.Text += " (revoked)";
+          item.ImageIndex = isPhoto ? PhotoIdIcon : UnknownIcon;
+          SetFont(item);
+          userIds.Items.Add(item);
+        }
       }
     }
   }
 
-  void SetFont(AttributeItem item, UserAttribute attr)
+  /// <summary>Sets the font of an <see cref="AttributeItem"/>, based on the properties of the
+  /// <see cref="UserAttribute"/> it represents.
+  /// </summary>
+  void SetFont(AttributeItem item)
   {
-    if(attr.Revoked)
+    if(item.Attribute.Revoked)
     {
       item.Font = new Font(Font, FontStyle.Italic);
       item.ForeColor = SystemColors.GrayText;
     }
-    else if(attr.Primary) item.Font = new Font(Font, FontStyle.Bold);
-  }
-
-  protected override void OnKeyDown(KeyEventArgs e)
-  {
-    base.OnKeyDown(e);
-
-    if(!e.Handled && e.KeyCode == Keys.Escape)
-    {
-      Close();
-      e.Handled = true;
-    }
+    else if(item.Attribute.Primary) item.Font = new Font(Font, FontStyle.Bold);
   }
 
   void btnAddPhotoId_Click(object sender, EventArgs e)
@@ -159,8 +182,8 @@ public partial class UserIdManagerForm : Form
 
     ofd.Filter = "Image files (*.jpg;*.png;*.gif;*.bmp;*.tif;*.jpeg;*.tiff)|"+
                  "*.jpg;*.png;*.gif;*.bmp;*.tif;*.jpeg;*.tiff|All files (*.*)|*.*";
+    ofd.Title  = "Select the image file for your photo ID";
     ofd.SupportMultiDottedExtensions = true;
-    ofd.Title = "Select the image file for your photo ID";
     if(ofd.ShowDialog() == DialogResult.OK)
     {
       NewPhotoIdForm form = new NewPhotoIdForm();
@@ -182,9 +205,12 @@ public partial class UserIdManagerForm : Form
 
       if(form.ShowDialog() == DialogResult.OK)
       {
-        try { pgp.AddPhoto(key, form.Bitmap, null); }
-        catch(OperationCanceledException) { return; }
-        ReloadKey();
+        try
+        {
+          pgp.AddPhoto(key, form.Bitmap, null);
+          ReloadKey();
+        }
+        catch(OperationCanceledException) { }
       }
     }
   }
@@ -192,11 +218,14 @@ public partial class UserIdManagerForm : Form
   void btnAddUserId_Click(object sender, EventArgs e)
   {
     UserIdForm form = new UserIdForm();
-
     if(form.ShowDialog() == DialogResult.OK)
     {
-      pgp.AddUserId(key, form.RealName, form.Email, form.Comment, form.Preferences);
-      ReloadKey();
+      try 
+      {
+        pgp.AddUserId(key, form.RealName, form.Email, form.Comment, form.Preferences);
+        ReloadKey();
+      }
+      catch(OperationCanceledException) { }
     }
   }
 
@@ -206,6 +235,7 @@ public partial class UserIdManagerForm : Form
     {
       if(!EnsureNotAllUserIdsSelected("delete")) return;
 
+      // inform the user that deleting published user IDs is pointless, and get confirmation
       bool onlyOne = userIds.SelectedItems.Count == 1;
       string deleting = onlyOne ? "\""+userIds.SelectedItems[0].Text+"\"" : "multiple user IDs";
       string userId = (onlyOne ? "this user ID" : "these user IDs");
@@ -236,9 +266,12 @@ public partial class UserIdManagerForm : Form
       UserRevocationForm form = new UserRevocationForm(attrs);
       if(form.ShowDialog() == DialogResult.OK)
       {
-        try { pgp.RevokeAttributes(form.Reason, attrs); }
+        try
+        {
+          pgp.RevokeAttributes(form.Reason, attrs);
+          ReloadKey();
+        }
         catch(OperationCanceledException) { }
-        ReloadKey();
       }
     }
   }
@@ -247,9 +280,12 @@ public partial class UserIdManagerForm : Form
   {
     if(userIds.SelectedIndices.Count == 1)
     {
-      try { pgp.SetPreferences((UserAttribute)userIds.SelectedItems[0].Tag, new UserPreferences(true)); }
+      try 
+      {
+        pgp.SetPreferences(((AttributeItem)userIds.SelectedItems[0]).Attribute, new UserPreferences(true));
+        ReloadKey();
+      }
       catch(OperationCanceledException) { }
-      ReloadKey();
     }
   }
 
@@ -257,12 +293,13 @@ public partial class UserIdManagerForm : Form
   {
     if(!e.Handled)
     {
+      // Enter activates the selected item
       if(e.Modifiers == Keys.None && e.KeyCode == Keys.Enter && userIds.SelectedIndices.Count == 1)
       {
-        ActivateUserId(userIds.SelectedItems[0]);
+        ActivateUserId((AttributeItem)userIds.SelectedItems[0]);
         e.Handled = true;
       }
-      else if(e.Modifiers == Keys.Control && e.KeyCode == Keys.A)
+      else if(e.Modifiers == Keys.Control && e.KeyCode == Keys.A) // Ctrl-A selects all items
       {
         foreach(ListViewItem item in userIds.Items) item.Selected = true;
         e.Handled = true;
@@ -272,20 +309,21 @@ public partial class UserIdManagerForm : Form
 
   void userIds_MouseDoubleClick(object sender, MouseEventArgs e)
   {
-    if(e.Button == MouseButtons.Left)
+    if(e.Button == MouseButtons.Left) // double-clicking an item selects it
     {
       ListViewItem selectedItem = userIds.GetItemAt(e.X, e.Y);
-      if(selectedItem != null) ActivateUserId(selectedItem);
+      if(selectedItem != null) ActivateUserId((AttributeItem)selectedItem);
     }
   }
 
   void userIds_SelectedIndexChanged(object sender, EventArgs e)
   {
     btnDelete.Enabled = btnRevoke.Enabled = userIds.SelectedIndices.Count != 0;
-    btnSetPrimary.Enabled = userIds.SelectedItems.Count == 1 && !((UserAttribute)userIds.SelectedItems[0].Tag).Primary;
+    btnSetPrimary.Enabled = userIds.SelectedItems.Count == 1 &&
+                            !((AttributeItem)userIds.SelectedItems[0]).Attribute.Primary;
   }
 
-  readonly PGPSystem pgp;
+  PGPSystem pgp;
   PrimaryKey key;
 }
 

@@ -24,18 +24,26 @@ using AdamMil.Security.PGP;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>This form helps the user revoke one or more user attributes. The form does not actually perform the
+/// revocation, but merely gathers the information needed to do so. The form is meant to be used as a modal dialog.
+/// </summary>
 public partial class UserRevocationForm : Form
 {
+  /// <summary>Creates a new <see cref="UserRevocationForm"/>. You must call <see cref="Initialize"/> to initialize
+  /// the form.
+  /// </summary>
   public UserRevocationForm()
   {
     InitializeComponent();
   }
 
+  /// <summary>Initializes a new <see cref="UserRevocationForm"/> with the list of attributes to be revoked.</summary>
   public UserRevocationForm(UserAttribute[] attrs) : this()
   {
     Initialize(attrs);
   }
 
+  /// <summary>Gets the <see cref="UserRevocationReason"/> entered by the user.</summary>
   [Browsable(false)]
   public UserRevocationReason Reason
   {
@@ -55,6 +63,7 @@ public partial class UserRevocationForm : Form
     }
   }
 
+  /// <summary>Initializes this form with the list of attributes to be revoked.</summary>
   public void Initialize(UserAttribute[] attrs)
   {
     if(attrs == null) throw new ArgumentNullException();

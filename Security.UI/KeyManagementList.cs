@@ -28,15 +28,21 @@ using AdamMil.Security.PGP;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>A complex list that displays and manages a user's keys.</summary>
 public class KeyManagementList : KeyListBase
 {
+  /// <summary>Initializes a new <see cref="KeyManagementList"/>.</summary>
   public KeyManagementList()
   {
     InitializeControl();
   }
 
+  /// <summary>Gets or sets whether the display the <see cref="PrimaryKey.DesignatedRevokers">designated revokers</see>
+  /// of a key. The default is false.
+  /// </summary>
   [Category("Appearance")]
   [DefaultValue(false)]
+  [Description("Determines whether the designated revokers of a key will be displayed.")]
   public bool DisplayRevokers
   {
     get { return displayRevokers; }
@@ -50,8 +56,12 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  /// <summary>Gets or sets whether the display the <see cref="PrimaryKey.Subkeys">subkeys</see> of a key. The default
+  /// is false.
+  /// </summary>
   [Category("Appearance")]
   [DefaultValue(false)]
+  [Description("Determines whether the subkeys of a key will be displayed.")]
   public bool DisplaySubkeys
   {
     get { return displaySubkeys; }
@@ -65,8 +75,10 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  /// <summary>Gets or sets whether the display the user IDs and user attributes of a key. The default is true.</summary>
   [Category("Appearance")]
   [DefaultValue(true)]
+  [Description("Determines whether the user IDs and user attributes of a key will be displayed.")]
   public bool DisplayUserIds
   {
     get { return displayUserIds; }
@@ -80,6 +92,9 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  /// <summary>Gets or sets the <see cref="PGPSystem"/> that will be used to manage the keys displayed. This can be set
+  /// to null if the list will only be used to display keys, and not to manage them.
+  /// </summary>
   [Browsable(false)]
   public PGPSystem PGP
   {
@@ -87,42 +102,23 @@ public class KeyManagementList : KeyListBase
     set { pgp = value; }
   }
 
-  public void ShowKeyring(Keyring keyring)
-  {
-    AssertPGPSystem();
-
-    Dictionary<string,PrimaryKey> secretKeys = new Dictionary<string,PrimaryKey>();
-    foreach(PrimaryKey secretKey in PGP.GetSecretKeys(keyring))
-    {
-      secretKeys[secretKey.EffectiveId] = secretKey;
-    }
-
-    PrimaryKey[] publicKeys = PGP.GetPublicKeys(keyring, ListOptions.RetrieveAttributes);
-    KeyPair[] pairs = new KeyPair[publicKeys.Length];
-    for(int i=0; i<pairs.Length; i++)
-    {
-      PrimaryKey secretKey;
-      secretKeys.TryGetValue(publicKeys[i].EffectiveId, out secretKey);
-      pairs[i] = new KeyPair(publicKeys[i], secretKey);
-    }
-
-    Items.Clear();
-    foreach(KeyPair pair in pairs) AddKeyPair(pair);
-  }
-
+  /// <summary>Adds a <see cref="KeyPair"/> to the list of items displayed.</summary>
   public void AddKeyPair(KeyPair pair)
   {
     AddKeyPair(pair, false);
   }
 
+  /// <summary>Adds a <see cref="KeyPair"/> to the list of items displayed, optionally expanding it to show any
+  /// subitems it may have.
+  /// </summary>
   public void AddKeyPair(KeyPair pair, bool expanded)
   {
     if(pair == null) throw new ArgumentNullException();
 
-    List<ListViewItem> items = new List<ListViewItem>();
+    PrimaryKeyItem primaryItem = CreatePrimaryKeyItem(pair);
+    if(primaryItem == null) return;
 
-    PrimaryKeyItem primaryItem = CreatePrimaryKeyItem(pair.PublicKey, pair.SecretKey);
-    if(primaryItem == null) throw new ApplicationException("CreatePrimaryKeyItem returned null.");
+    List<ListViewItem> items = new List<ListViewItem>();
     SetFont(primaryItem, GetItemStatus(pair.PublicKey) | (pair.SecretKey == null ? 0 : ItemStatus.Owned));
     items.Add(primaryItem);
 
@@ -132,8 +128,8 @@ public class KeyManagementList : KeyListBase
                                                             pair.PublicKey.Attributes.Count);
       foreach(UserId id in pair.PublicKey.UserIds)
       {
-        if(id != pair.PublicKey.PrimaryUserId) userIds.Add(id); // the public key item itself counts as the primary user ID
-      }
+        if(id != pair.PublicKey.PrimaryUserId) userIds.Add(id); // we don't show the primary user ID as a separate item
+      }                                                         // it's represented by the primary key itself
       userIds.AddRange(pair.PublicKey.Attributes);
 
       foreach(UserAttribute attr in userIds)
@@ -189,15 +185,44 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  /// <summary>Clears the list and displays the keys from the given keyring, or the default keyring if it is null. The
+  /// <see cref="PGP"/> property must have been set before this method can be called.
+  /// </summary>
+  public void ShowKeyring(Keyring keyring)
+  {
+    AssertPGPSystem();
+
+    Dictionary<string,PrimaryKey> secretKeys = new Dictionary<string,PrimaryKey>();
+    foreach(PrimaryKey secretKey in PGP.GetSecretKeys(keyring))
+    {
+      secretKeys[secretKey.EffectiveId] = secretKey;
+    }
+
+    PrimaryKey[] publicKeys = PGP.GetPublicKeys(keyring, ListOptions.RetrieveAttributes);
+
+    Items.Clear();
+    for(int i=0; i<publicKeys.Length; i++)
+    {
+      PrimaryKey secretKey;
+      secretKeys.TryGetValue(publicKeys[i].EffectiveId, out secretKey);
+      AddKeyPair(new KeyPair(publicKeys[i], secretKey));
+    }
+
+    this.keyring = keyring;
+  }
+
   #region ItemComparerBase
+  /// <summary>Provides a base class for comparers that sort the items in a <see cref="KeyManagementList"/>.</summary>
   protected abstract class ItemComparerBase : System.Collections.IComparer, IComparer<PGPListViewItem>
   {
+    /// <summary>Initializes a new <see cref="ItemComparerBase"/> with the list whose items are being compared.</summary>
     protected ItemComparerBase(KeyManagementList list)
     {
       if(list == null) throw new ArgumentNullException();
       this.list = list;
     }
 
+    /// <summary>Compares the two list items given.</summary>
     public int Compare(PGPListViewItem a, PGPListViewItem b)
     {
       if(a == b) return 0;
@@ -249,13 +274,16 @@ public class KeyManagementList : KeyListBase
       return a.GetHashCode() - b.GetHashCode();
     }
 
+    /// <summary>Gets the <see cref="KeyManagementList"/> passed to the constructor.</summary>
     protected KeyManagementList List
     {
       get { return list; }
     }
 
+    /// <summary>Compares two <see cref="PrimaryKeyItem"/> objects.</summary>
     protected abstract int Compare(PrimaryKeyItem a, PrimaryKeyItem b);
 
+    /// <summary>Compares two list items.</summary>
     int System.Collections.IComparer.Compare(object a, object b)
     {
       if(a == b) return 0;
@@ -269,10 +297,13 @@ public class KeyManagementList : KeyListBase
   #endregion
 
   #region ItemCompareByName
-  protected class ItemCompareByName : ItemComparerBase
+  /// <summary>An item comparer that sorts primary keys by name.</summary>
+  protected class ItemComparerByName : ItemComparerBase
   {
-    public ItemCompareByName(KeyManagementList list) : base(list) { }
+    /// <summary>Initializes a new <see cref="ItemComparerByName"/> with the list whose items are being compared.</summary>
+    public ItemComparerByName(KeyManagementList list) : base(list) { }
 
+    /// <summary>Compares two <see cref="PrimaryKeyItem"/> objects by the names of their primary user IDs.</summary>
     protected override int Compare(PrimaryKeyItem a, PrimaryKeyItem b)
     {
       return string.Compare(a.PublicKey.PrimaryUserId.Name, b.PublicKey.PrimaryUserId.Name,
@@ -281,6 +312,7 @@ public class KeyManagementList : KeyListBase
   }
   #endregion
 
+  /// <include file="documentation.xml" path="/UI/ListBase/ActivateItem/*"/>
   protected virtual void ActivateItem(ListViewItem item)
   {
     AttributeItem attrItem = item as AttributeItem;
@@ -290,7 +322,7 @@ public class KeyManagementList : KeyListBase
       {
         ShowPhotoId((UserImage)attrItem.Attribute);
       }
-      else // activating another attribute goes to the management form
+      else // activating any other attribute goes to the management form
       {
         ManageUserIds(GetPrimaryItem(item));
       }
@@ -302,11 +334,13 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  /// <summary>Throws an exception if the <see cref="PGP"/> property hasn't been set.</summary>
   protected void AssertPGPSystem()
   {
     if(PGP == null) throw new InvalidOperationException("No PGP system has been set.");
   }
 
+  /// <include file="documentation.xml" path="/UI/ListBase/CreateAttributeItem/*"/>
   protected override AttributeItem CreateAttributeItem(UserAttribute attr)
   {
     AttributeItem item = base.CreateAttributeItem(attr);
@@ -316,6 +350,7 @@ public class KeyManagementList : KeyListBase
     return item;
   }
 
+  /// <include file="documentation.xml" path="/UI/ListBase/CreateContextMenu/*"/>
   protected virtual ContextMenuStrip CreateContextMenu()
   {
     KeyPair[] pairs = GetSelectedKeyPairs();
@@ -324,6 +359,7 @@ public class KeyManagementList : KeyListBase
     bool haveOwnedKeys = myPairs.Length != 0, hasEnabled = false, hasDisabled = false, hasUnrevokedAndCurrent = false;
     bool canRevoke = keyCount == 1 && pairs[0].SecretKey != null && !pairs[0].PublicKey.Revoked;
 
+    // count the number of photo IDs and secret keys, and determine whether any keys are disabled, enabled, or usable
     foreach(KeyPair pair in pairs)
     {
       foreach(UserAttribute attr in pair.PublicKey.Attributes)
@@ -339,10 +375,13 @@ public class KeyManagementList : KeyListBase
       if(pair.SecretKey != null) secretCount++;
     }
 
+    // count the number of selected user attributes
     foreach(ListViewItem item in SelectedItems)
     {
       if(item is AttributeItem) attributeCount++;
     }
+
+    if(keyCount == 0 && PGP == null) return null;
 
     // if we can't revoke because we own the key, perhaps we can revoke because we own a designated revoker key
     if(keyCount != 0 && !canRevoke && keyCount == 1 && !pairs[0].PublicKey.Revoked)
@@ -363,7 +402,7 @@ public class KeyManagementList : KeyListBase
 
     ContextMenuStrip menu = new ContextMenuStrip();
 
-    if(keyCount == 0)
+    if(keyCount == 0) // if nothing is selected, display commands that operate on the entire list
     {
       menu.Items.Add(new ToolStripMenuItem("Export Keys...", null,
                                              delegate(object sender, EventArgs e) { ExportKeys(); }));
@@ -376,7 +415,7 @@ public class KeyManagementList : KeyListBase
       {
         // importing and exporting keys
         menu.Items.Add(new ToolStripMenuItem("Copy Public Keys to Clipboard", null,
-                                             delegate(object sender, EventArgs e) { CopyPublicKeysToClipboard(); }));
+                                             delegate(object sender, EventArgs e) { ExportPublicKeysToClipboard(); }));
         menu.Items.Add(new ToolStripMenuItem("Export Keys to File...", null,
                                              delegate(object sender, EventArgs e) { ExportKeysToFile(); }));
         menu.Items.Add(new ToolStripMenuItem("Import Keys...", null,
@@ -464,6 +503,7 @@ public class KeyManagementList : KeyListBase
     return menu;
   }
 
+  /// <include file="documentation.xml" path="/UI/ListBase/CreateDesignatedRevokerItem/*"/>
   protected virtual DesignatedRevokerItem CreateDesignatedRevokerItem(string fingerprint, PrimaryKey key)
   {
     DesignatedRevokerItem item = new DesignatedRevokerItem(fingerprint, key, "Designated revoker");
@@ -471,17 +511,20 @@ public class KeyManagementList : KeyListBase
     return item;
   }
 
-  protected virtual PrimaryKeyItem CreatePrimaryKeyItem(PrimaryKey publicKey, PrimaryKey secretKey)
+  /// <include file="documentation.xml" path="/UI/ListBase/CreatePrimaryKeyItem/*"/>
+  protected virtual PrimaryKeyItem CreatePrimaryKeyItem(KeyPair pair)
   {
-    PrimaryKeyItem item = new PrimaryKeyItem(new KeyPair(publicKey, secretKey), publicKey.PrimaryUserId.Name);
-    item.SubItems.Add(publicKey.ShortKeyId);
-    item.SubItems.Add(secretKey == null ? "pub" : "pub/sec");
-    item.SubItems.Add(PGPUI.GetKeyValidityDescription(publicKey));
-    item.SubItems.Add(PGPUI.GetTrustDescription(publicKey.OwnerTrust));
-    item.SubItems.Add(publicKey.ExpirationTime.HasValue ? publicKey.ExpirationTime.Value.ToShortDateString() : "n/a");
+    PrimaryKeyItem item = new PrimaryKeyItem(pair, pair.PublicKey.PrimaryUserId.Name);
+    item.SubItems.Add(pair.PublicKey.ShortKeyId);
+    item.SubItems.Add(pair.SecretKey == null ? "pub" : "pub/sec");
+    item.SubItems.Add(PGPUI.GetKeyValidityDescription(pair.PublicKey));
+    item.SubItems.Add(PGPUI.GetTrustDescription(pair.PublicKey.OwnerTrust));
+    item.SubItems.Add(pair.PublicKey.ExpirationTime.HasValue ?
+                        pair.PublicKey.ExpirationTime.Value.ToShortDateString() : "n/a");
     return item;
   }
 
+  /// <include file="documentation.xml" path="/UI/ListBase/CreateSubkeyItem/*"/>
   protected virtual SubkeyItem CreateSubkeyItem(Subkey key)
   {
     if(key == null) throw new ArgumentNullException();
@@ -501,17 +544,25 @@ public class KeyManagementList : KeyListBase
     return item;
   }
 
+  /// <summary>Given a <see cref="ListViewItem"/>, returns the <see cref="PrimaryKeyItem"/> associated with it, or null
+  /// if there is no associated item.
+  /// </summary>
   protected PrimaryKeyItem GetPrimaryItem(ListViewItem item)
   {
     PGPListViewItem pgpItem = item as PGPListViewItem;
     return pgpItem == null ? null : GetPrimaryItem(pgpItem);
   }
 
+  /// <summary>Given a <see cref="PGPListViewItem"/>, returns the <see cref="PrimaryKeyItem"/> associated with it.</summary>
   protected PrimaryKeyItem GetPrimaryItem(PGPListViewItem pgpItem)
   {
+    PrimaryKeyItem primaryItem = pgpItem as PrimaryKeyItem;
+    if(primaryItem != null) return primaryItem;
+
     return (PrimaryKeyItem)Items[pgpItem.PublicKey.EffectiveId];
   }
 
+  /// <summary>Gets the key pairs associated with all the selected items.</summary>
   protected KeyPair[] GetSelectedKeyPairs()
   {
     PrimaryKeyItem[] items = GetSelectedPrimaryKeyItems();
@@ -520,6 +571,7 @@ public class KeyManagementList : KeyListBase
     return pairs;
   }
 
+  /// <summary>Gets the primary key items associated with the selected items.</summary>
   protected PrimaryKeyItem[] GetSelectedPrimaryKeyItems()
   {
     List<PrimaryKeyItem> selectedItems = new List<PrimaryKeyItem>();
@@ -531,16 +583,13 @@ public class KeyManagementList : KeyListBase
     return selectedItems.ToArray();
   }
 
+  /// <summary>Gets the public keys associated with the selected items.</summary>
   protected PrimaryKey[] GetSelectedPublicKeys()
   {
     return GetPublicKeys(GetSelectedKeyPairs());
   }
 
-  protected PrimaryKey[] GetSelectedSecretKeys()
-  {
-    return GetSecretKeys(GetSelectedKeyPairs());
-  }
-
+  /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/*"/>
   protected override void OnKeyDown(KeyEventArgs e)
   {
     base.OnKeyDown(e);
@@ -573,6 +622,7 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/OnMouseClick/*"/>
   protected override void OnMouseClick(MouseEventArgs e)
   {
     base.OnMouseClick(e);
@@ -590,6 +640,7 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/OnMouseDoubleClick/*"/>
   protected override void OnMouseDoubleClick(MouseEventArgs e)
   {
     base.OnMouseDoubleClick(e);
@@ -601,6 +652,7 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  /// <summary>Collapses the given <see cref="PrimaryKeyItem"/>, hiding its related items.</summary>
   protected void CollapseItem(PrimaryKeyItem item)
   {
     if(item == null) throw new ArgumentNullException();
@@ -612,6 +664,7 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  /// <summary>Expands the given <see cref="PrimaryKeyItem"/>, showing its related items.</summary>
   protected void ExpandItem(PrimaryKeyItem item)
   {
     if(item == null) throw new ArgumentNullException();
@@ -632,6 +685,7 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  /// <summary>Gets all of the key pairs in the list that have a secret key.</summary>
   protected KeyPair[] GetSecretKeyPairs()
   {
     List<KeyPair> pairs = new List<KeyPair>();
@@ -643,7 +697,8 @@ public class KeyManagementList : KeyListBase
     return pairs.ToArray();
   }
 
-  protected virtual void RecreateItems()
+  /// <include file="documentation.xml" path="/UI/ListBase/RecreateItems/*"/>
+  protected override void RecreateItems()
   {
     List<PrimaryKeyItem> primaryKeyItems = new List<PrimaryKeyItem>();
 
@@ -657,23 +712,22 @@ public class KeyManagementList : KeyListBase
     foreach(PrimaryKeyItem item in primaryKeyItems) AddKeyPair(item.KeyPair, item.Expanded);
   }
 
-  protected void ReloadItem(PrimaryKeyItem item)
-  {
-    ReloadItems(new PrimaryKeyItem[] { item });
-  }
-
-  protected void ReloadItems(PrimaryKeyItem[] items)
+  /// <summary>Reloads the given list of <see cref="PrimaryKeyItem"/> from the PGP system.</summary>
+  protected void ReloadItems(params PrimaryKeyItem[] items)
   {
     AssertPGPSystem();
 
-    KeyPair[] pairs = GetKeyPairs(items);
+    KeyPair[] pairs = GetKeyPairs(items); // get the key pairs associated with the items
 
+    // and refresh the public keys
     PrimaryKey[] newPublicKeys = PGP.RefreshKeys(GetPublicKeys(pairs), ListOptions.RetrieveAttributes);
     
+    // refreshing the secret keys is a bit more complicated. since not every key pair has a secret key, we need to keep
+    // track of where each secret key was found
     List<PrimaryKey> oldSecretKeys = new List<PrimaryKey>();
     List<int> secretKeyIndices = new List<int>();
 
-    for(int i=0; i<pairs.Length; i++)
+    for(int i=0; i<pairs.Length; i++) // make a list of the secret keys that exist
     {
       if(pairs[i].SecretKey != null)
       {
@@ -682,10 +736,14 @@ public class KeyManagementList : KeyListBase
       }
     }
 
+    // then refresh those secret keys
     PrimaryKey[] refreshedSecretKeys = PGP.RefreshKeys(oldSecretKeys.ToArray());
+
+    // and create an array of the original length, and put the secret keys back in the right places
     PrimaryKey[] newSecretKeys = new PrimaryKey[newPublicKeys.Length];
     for(int i=0; i<refreshedSecretKeys.Length; i++) newSecretKeys[secretKeyIndices[i]] = refreshedSecretKeys[i];
 
+    // then remove the items, and recreate the ones that still exist
     RemoveItems(items);
     for(int i=0; i<newPublicKeys.Length; i++)
     {
@@ -693,14 +751,15 @@ public class KeyManagementList : KeyListBase
     }
   }
 
-  protected void ReloadKey(PrimaryKey key)
+  /// <summary>Reloads the <see cref="PrimaryKeyItem"/> that represents the given public key.</summary>
+  protected void ReloadKey(PrimaryKey publicKey)
   {
     foreach(ListViewItem item in Items)
     {
       PrimaryKeyItem primaryItem = item as PrimaryKeyItem;
-      if(primaryItem != null && primaryItem.PublicKey == key)
+      if(primaryItem != null && primaryItem.PublicKey == publicKey)
       {
-        ReloadItem(primaryItem);
+        ReloadItems(primaryItem);
         return;
       }
     }
@@ -708,28 +767,32 @@ public class KeyManagementList : KeyListBase
     throw new ArgumentException("The key was not found in the list.");
   }
 
-  protected void RemoveItems(PrimaryKeyItem[] items)
+  /// <summary>Removes the given items and their subitems from the list.</summary>
+  protected void RemoveItems(params PrimaryKeyItem[] items)
   {
     foreach(PrimaryKeyItem item in items)
     {
-      if(item.Expanded)
-      {
-        for(int i=0; i<item.relatedItems.Length; i++) Items.RemoveAt(item.Index+1);
-      }
+      CollapseItem(item);
       Items.RemoveAt(item.Index);
     }
   }
 
+  /// <summary>Selects the given list view item, optionally deselecting all others first.</summary>
   protected void Select(ListViewItem item, bool deselectOthers)
   {
     if(item == null) throw new ArgumentNullException();
 
-    if(deselectOthers) SelectedIndices.Clear();
-    else if(SelectedIndices.Contains(item.Index)) return;
-    SelectedIndices.Add(item.Index);
-    item.Focused = true;
+    if(deselectOthers && (SelectedIndices.Count > 1 || SelectedIndices.Count == 1 && !item.Selected))
+    {
+      SelectedIndices.Clear();
+    }
+
+    if(!item.Selected) item.Selected = true;
+
+    item.Focused = true; // move the keyboard focus to the item, too
   }
 
+  /// <summary>Expands the given item if it's collapsed, or collapses it if it's expanded.</summary>
   protected void ToggleItemExpansion(PrimaryKeyItem item)
   {
     if(item == null) throw new ArgumentNullException();
@@ -738,6 +801,7 @@ public class KeyManagementList : KeyListBase
   }
 
   #region Commands
+  /// <summary>Changes the passphrase for the first selected key, if a key is selected.</summary>
   protected void ChangePassphrase()
   {
     AssertPGPSystem();
@@ -752,32 +816,20 @@ public class KeyManagementList : KeyListBase
     }
   }
 
-  protected void CopyPublicKeysToClipboard()
-  {
-    AssertPGPSystem();
-
-    PrimaryKey[] keys = GetSelectedPublicKeys();
-    if(keys.Length == 0) return;
-
-    MemoryStream output = new MemoryStream();
-    PGP.ExportPublicKeys(keys, output, ExportOptions.Default, new OutputOptions(OutputFormat.ASCII));
-
-    if(output.Length == 0) return;
-
-    Clipboard.SetText(Encoding.ASCII.GetString(output.ToArray()));
-  }
-
+  /// <summary>Cleans the selected public keys.</summary>
   protected void CleanKeys()
   {
     AssertPGPSystem();
     PGP.CleanKeys(GetPublicKeys(GetSelectedPrimaryKeyItems()));
   }
 
+  /// <summary>Deletes the public and secret portions of the selected keys.</summary>
   protected void DeleteKeys()
   {
     DeleteKeys(KeyDeletion.PublicAndSecret);
   }
 
+  /// <summary>Deletes the given portions of the selected keys.</summary>
   protected void DeleteKeys(KeyDeletion deletion)
   {
     AssertPGPSystem();
@@ -824,11 +876,13 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  /// <summary>Deletes the secret portion of the selected keys.</summary>
   protected void DeleteSecretKeys()
   {
     DeleteKeys(KeyDeletion.Secret);
   }
 
+  /// <summary>Disables the selected keys.</summary>
   protected void DisableKeys()
   {
     AssertPGPSystem();
@@ -838,6 +892,7 @@ public class KeyManagementList : KeyListBase
     ReloadItems(items);
   }
 
+  /// <summary>Enables the selected keys.</summary>
   protected void EnableKeys()
   {
     AssertPGPSystem();
@@ -847,6 +902,7 @@ public class KeyManagementList : KeyListBase
     ReloadItems(items);
   }
 
+  /// <summary>Exports the selected keys to the destination of the user's choice.</summary>
   protected void ExportKeys()
   {
     AssertPGPSystem();
@@ -868,6 +924,7 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  /// <summary>Exports the selected keys to a file, using the default export options.</summary>
   protected void ExportKeysToFile()
   {
     AssertPGPSystem();
@@ -879,14 +936,18 @@ public class KeyManagementList : KeyListBase
     ExportKeysToFile(result == DialogResult.Yes);
   }
 
+  /// <summary>Exports the selected keys to a file, optionally including the secret keys, using the default export
+  /// options.
+  /// </summary>
   protected void ExportKeysToFile(bool includeSecretKeys)
   {
     AssertPGPSystem();
 
     KeyPair[] pairs = GetSelectedKeyPairs();
+    if(pairs.Length == 0) return;
 
     string defaultFilename, defaultSuffix = includeSecretKeys ? " pub-sec.txt" : " pub.txt";
-    if(pairs.Length == 1)
+    if(pairs.Length == 1) // if only one key is selected, include its name in the filename
     {
       defaultFilename = PGPUI.MakeSafeFilename(PGPUI.GetKeyName(pairs[0].PublicKey)) + defaultSuffix;
     }
@@ -896,11 +957,10 @@ public class KeyManagementList : KeyListBase
     }
 
     SaveFileDialog sfd = new SaveFileDialog();
-    sfd.DefaultExt      = ".txt";
-    sfd.FileName        = defaultFilename;
-    sfd.Filter          = "Text Files (*.txt)|*.txt|ASCII Files (*.asc)|*.asc|PGP Files (*.pgp)|*.pgp|All Files (*.*)|*.*";
-    sfd.OverwritePrompt = true;
-    sfd.Title           = "Export " + (includeSecretKeys ? "Secret and " : null) + "Public Keys";
+    sfd.DefaultExt = ".txt";
+    sfd.FileName   = defaultFilename;
+    sfd.Filter     = "Text Files (*.txt)|*.txt|ASCII Files (*.asc)|*.asc|PGP Files (*.pgp)|*.pgp|All Files (*.*)|*.*";
+    sfd.Title      = "Export " + (includeSecretKeys ? "Secret and " : null) + "Public Keys";
     sfd.SupportMultiDottedExtensions = true;
 
     if(sfd.ShowDialog() == DialogResult.OK)
@@ -917,9 +977,27 @@ public class KeyManagementList : KeyListBase
     }
   }
 
-  void GenerateRevocationCertificate()
+  /// <summary>Exports the selected public keys to the clipboard, using the default export options.</summary>
+  protected void ExportPublicKeysToClipboard()
   {
     AssertPGPSystem();
+
+    PrimaryKey[] keys = GetSelectedPublicKeys();
+    if(keys.Length == 0) return;
+
+    MemoryStream output = new MemoryStream();
+    PGP.ExportPublicKeys(keys, output, ExportOptions.Default, new OutputOptions(OutputFormat.ASCII));
+
+    if(output.Length == 0) return;
+
+    Clipboard.SetText(Encoding.ASCII.GetString(output.ToArray()));
+  }
+
+  /// <summary>Generates a revocation certificate for the first selected key, if any are selected.</summary>
+  protected void GenerateRevocationCertificate()
+  {
+    AssertPGPSystem();
+
     PrimaryKey[] keys = GetSelectedPublicKeys();
     if(keys.Length == 0) return;
 
@@ -932,16 +1010,8 @@ public class KeyManagementList : KeyListBase
       try
       {
         OutputOptions outputOptions = new OutputOptions(OutputFormat.ASCII);
-        if(form.RevokeDirectly)
-        {
-          PGP.GenerateRevocationCertificate(keys[0], output, form.Reason, outputOptions);
-        }
-        else
-        {
-          PGP.GenerateRevocationCertificate(keys[0], form.SelectedRevokingKey, output, form.Reason,
-                                                  outputOptions);
-        }
-
+        if(form.RevokeDirectly) PGP.GenerateRevocationCertificate(keys[0], output, form.Reason, outputOptions);
+        else PGP.GenerateRevocationCertificate(keys[0], form.SelectedRevokingKey, output, form.Reason, outputOptions);
         FinishOutputFile(output);
       }
       catch(OperationCanceledException) { }
@@ -949,6 +1019,9 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  /// <summary>Imports keys into the keyring given to <see cref="ShowKeyring"/>, or the default keyring if that method
+  /// was not called.
+  /// </summary>
   protected void ImportKeys()
   {
     AssertPGPSystem();
@@ -984,7 +1057,7 @@ public class KeyManagementList : KeyListBase
       }
 
       ImportedKey[] results;
-      try { results = PGP.ImportKeys(input, form.ImportOptions); }
+      try { results = PGP.ImportKeys(input, keyring, form.ImportOptions); }
       catch(Exception ex)
       {
         MessageBox.Show("The import failed. (The error was: " + ex.Message + ")", "Import failed",
@@ -992,18 +1065,11 @@ public class KeyManagementList : KeyListBase
         return;
       }
 
-      int failCount = 0;
-      foreach(ImportedKey key in results)
-      {
-        if(!key.Successful) failCount++;
-      }
-
-      MessageBox.Show((results.Length - failCount).ToString() + " key(s) imported successfully." +
-                      (failCount == 0 ? null : "\n" + failCount.ToString() + " key(s) failed."), "Import results",
-                      MessageBoxButtons.OK, failCount == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+      PGPUI.ShowImportResults(results);
     }
   }
 
+  /// <summary>Makes the selected key a designated revoker for one of the keys owned by the user.</summary>
   protected void MakeDesignatedRevoker()
   {
     AssertPGPSystem();
@@ -1020,6 +1086,7 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  /// <summary>Opens the user ID manager for the first selected key, if any are selected.</summary>
   protected void ManageUserIds()
   {
     AssertPGPSystem();
@@ -1030,26 +1097,33 @@ public class KeyManagementList : KeyListBase
     ManageUserIds(items[0]);
   }
 
+  /// <summary>Opens the user ID manager for the given item.</summary>
   protected void ManageUserIds(PrimaryKeyItem item)
   {
     if(item == null) throw new ArgumentNullException();
     new UserIdManagerForm(PGP, item.PublicKey).ShowDialog();
-    ReloadItem(item);
+    ReloadItems(item);
   }
 
+  /// <summary>Minimizes the selected keys, if any are selected.</summary>
   protected void MinimizeKeys()
   {
     AssertPGPSystem();
+
+    PrimaryKeyItem[] items = GetSelectedPrimaryKeyItems();
+    if(items.Length == 0) return;
 
     if(MessageBox.Show("Minimizing a key removes all signatures (except the self-signature) on each user ID in the "+
                        "key. You may have to sign the key again. Do you want to minimize the keys?", "Minimize keys?",
                        MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) ==
        DialogResult.Yes)
     {
-      PGP.MinimizeKeys(GetPublicKeys(GetSelectedPrimaryKeyItems()));
+      PGP.MinimizeKeys(GetPublicKeys(items));
+      ReloadItems(items);
     }
   }
 
+  /// <summary>Refreshes the selected keys from a public key server, if any are selected.</summary>
   protected void RefreshKeysFromKeyServer()
   {
     AssertPGPSystem();
@@ -1067,23 +1141,27 @@ public class KeyManagementList : KeyListBase
       ProgressForm progress = new ProgressForm(
         "Refreshing Keys", "Refreshing " + selection + " from " + form.SelectedKeyServer.AbsoluteUri + "...",
         delegate { PGP.RefreshKeysFromServer(new KeyDownloadOptions(form.SelectedKeyServer), keys); });
-      progress.ShowDialog();
 
-      ImportFailedException failure = progress.Exception as ImportFailedException;
-      if(failure != null && (failure.Reasons & FailureReason.KeyNotFound) != 0)
-      {
-        MessageBox.Show(items.Length == 1 ? "Key not found." : "Not all keys were found.", "Key(s) not found",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-      }
-      else
-      {
-        progress.ThrowException();
-      }
-
+      DialogResult result = progress.ShowDialog();
       ReloadItems(items);
+
+      if(result == DialogResult.Abort)
+      {
+        ImportFailedException failure = progress.Exception as ImportFailedException;
+        if(failure != null && (failure.Reasons & FailureReason.KeyNotFound) != 0)
+        {
+          MessageBox.Show(items.Length == 1 ? "Key not found." : "Not all keys were found.", "Key(s) not found",
+                          MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+        else
+        {
+          progress.ThrowException();
+        }
+      }
     }
   }
 
+  /// <summary>Refreshes the first of the selected keys, if any keys are selected.</summary>
   protected void RevokeKey()
   {
     AssertPGPSystem();
@@ -1096,20 +1174,15 @@ public class KeyManagementList : KeyListBase
     {
       try
       {
-        if(form.RevokeDirectly)
-        {
-          PGP.RevokeKeys(form.Reason, items[0].PublicKey);
-        }
-        else
-        {
-          PGP.RevokeKeys(form.SelectedRevokingKey, form.Reason, items[0].PublicKey);
-        }
-        ReloadItems(items);
+        if(form.RevokeDirectly) PGP.RevokeKeys(form.Reason, items[0].PublicKey);
+        else PGP.RevokeKeys(form.SelectedRevokingKey, form.Reason, items[0].PublicKey);
+        ReloadItems(items[0]);
       }
       catch(OperationCanceledException) { }
     }
   }
 
+  /// <summary>Sends the selected public keys to a key server, if any keys are selected.</summary>
   protected void SendKeysToKeyServer()
   {
     AssertPGPSystem();
@@ -1131,6 +1204,7 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  /// <summary>Sets the owner trust of the selected keys, if any keys are selected.</summary>
   protected void SetOwnerTrust()
   {
     AssertPGPSystem();
@@ -1139,17 +1213,7 @@ public class KeyManagementList : KeyListBase
     if(items.Length == 0) return;
 
     PrimaryKey[] keys = GetPublicKeys(items);
-
-    OwnerTrustForm form = new OwnerTrustForm();
-
-    // set the initial trust level to what all the keys agree on, or Unknown if they don't agree
-    TrustLevel initialTrustLevel = keys[0].OwnerTrust;
-    foreach(PrimaryKey key in keys)
-    {
-      if(key.OwnerTrust != initialTrustLevel) initialTrustLevel = TrustLevel.Unknown;
-    }
-
-    form.Initialize(initialTrustLevel, keys);
+    OwnerTrustForm form = new OwnerTrustForm(keys);
     if(form.ShowDialog() == DialogResult.OK)
     {
       PGP.SetOwnerTrust(form.TrustLevel, keys);
@@ -1157,6 +1221,7 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  /// <summary>Shows the key properties of the first selected key, if any keys are selected.</summary>
   protected void ShowKeyProperties()
   {
     PrimaryKeyItem[] items = GetSelectedPrimaryKeyItems();
@@ -1164,12 +1229,14 @@ public class KeyManagementList : KeyListBase
     ShowKeyProperties(items[0]);
   }
 
+  /// <summary>Shows the key properties of the given item.</summary>
   protected void ShowKeyProperties(PrimaryKeyItem item)
   {
     if(item == null) throw new ArgumentNullException();
     new KeyPropertiesForm(item.KeyPair).ShowDialog();
   }
 
+  /// <summary>Shows the photo ID of the first selected key, if any keys are selected.</summary>
   protected void ShowPhotoId()
   {
     foreach(PrimaryKey key in GetSelectedPublicKeys())
@@ -1186,11 +1253,13 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  /// <summary>Shows the given photo ID.</summary>
   protected void ShowPhotoId(UserImage image)
   {
     new PhotoIdForm(image).ShowDialog();
   }
 
+  /// <summary>Shows the signatures of the first selected key, if any keys are selected.</summary>
   protected void ShowSignatures()
   {
     AssertPGPSystem();
@@ -1199,8 +1268,10 @@ public class KeyManagementList : KeyListBase
 
     PrimaryKey key = PGP.RefreshKey(keys[0], ListOptions.VerifyAll);
     if(key != null) new SignaturesForm(key).ShowDialog();
+    else RemoveItems(GetSelectedPrimaryKeyItems()[0]); // if the key no longer exists, remove it from the list
   }
 
+  /// <summary>Signs the selected keys, if any keys are selected.</summary>
   protected void SignKeys()
   {
     AssertPGPSystem();
@@ -1223,6 +1294,7 @@ public class KeyManagementList : KeyListBase
   }
   #endregion
 
+  /// <summary>Given an array of <see cref="PrimaryKeyItem"/>, returns the corresponding key pairs.</summary>
   protected static KeyPair[] GetKeyPairs(PrimaryKeyItem[] items)
   {
     KeyPair[] pairs = new KeyPair[items.Length];
@@ -1230,6 +1302,7 @@ public class KeyManagementList : KeyListBase
     return pairs;
   }
 
+  /// <summary>Given an array of <see cref="KeyPair"/>, returns the corresponding public keys.</summary>
   protected static PrimaryKey[] GetPublicKeys(KeyPair[] pairs)
   {
     PrimaryKey[] keys = new PrimaryKey[pairs.Length];
@@ -1237,6 +1310,7 @@ public class KeyManagementList : KeyListBase
     return keys;
   }
 
+  /// <summary>Given an array of <see cref="PrimaryKeyItem"/>, returns the corresponding public keys.</summary>
   protected static PrimaryKey[] GetPublicKeys(PrimaryKeyItem[] items)
   {
     PrimaryKey[] keys = new PrimaryKey[items.Length];
@@ -1244,6 +1318,7 @@ public class KeyManagementList : KeyListBase
     return keys;
   }
 
+  /// <summary>Given an array of <see cref="KeyPair"/>, returns the secret keys of the key pairs that have them.</summary>
   protected static PrimaryKey[] GetSecretKeys(KeyPair[] pairs)
   {
     List<PrimaryKey> keys = new List<PrimaryKey>();
@@ -1285,9 +1360,12 @@ public class KeyManagementList : KeyListBase
     Columns.AddRange(new ColumnHeader[] { userIdHeader, keyIdHeader, keyTypeHeader, validityHeader, trustHeader,
                                           expireHeader });
 
-    base.ListViewItemSorter = new ItemCompareByName(this);
+    base.ListViewItemSorter = new ItemComparerByName(this);
   }
 
+  /// <summary>Finishes an output file opened with <see cref="OpenOutputFile"/>. This must be called before the file is
+  /// closed or disposed.
+  /// </summary>
   void FinishOutputFile(Stream stream)
   {
     if(stream is MemoryStream)
@@ -1296,6 +1374,11 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  /// <summary>Opens an output file that writes to the named file, or to the clipboard if the file name is null.
+  /// <see cref="FinishOutputFile"/> must be called on the returned stream before it is closed. The returned stream
+  /// will be null if the file could not be opened, in which case a message will have already been displayed to the
+  /// user.
+  /// </summary>
   Stream OpenOutputFile(string filename)
   {
     Stream output;
@@ -1316,6 +1399,7 @@ public class KeyManagementList : KeyListBase
   }
 
   PGPSystem pgp;
+  Keyring keyring;
   bool displayUserIds=true, displaySubkeys, displayRevokers;
 }
 

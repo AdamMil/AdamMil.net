@@ -24,13 +24,28 @@ using AdamMil.Security.PGP;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>This form helps the user to choose an owner trust level for a set of keys. It is intended to be used as
+/// a modal dialog.
+/// </summary>
 public partial class OwnerTrustForm : Form
 {
+  /// <summary>Creates a new <see cref="OwnerTrustForm"/>. You must call <see cref="Initialize"/> to initialize the
+  /// form.
+  /// </summary>
   public OwnerTrustForm()
   {
     InitializeComponent();
   }
 
+  /// <summary>Initializes a new <see cref="OwnerTrustForm"/>, with the list of keys that will have their trust value
+  /// edited.
+  /// </summary>
+  public OwnerTrustForm(PrimaryKey[] keysToTrust) : this()
+  {
+    Initialize(keysToTrust);
+  }
+
+  /// <summary>Gets the <see cref="PGP.TrustLevel"/> selected by the user.</summary>
   [Browsable(false)]
   public TrustLevel TrustLevel
   {
@@ -44,13 +59,21 @@ public partial class OwnerTrustForm : Form
     }
   }
 
-  public void Initialize(TrustLevel initialTrustLevel, PrimaryKey[] keysToTrust)
+  /// <summary>Initializes this form with the list of keys that will have their trust value edited.</summary>
+  public void Initialize(PrimaryKey[] keysToTrust)
   {
     if(keysToTrust == null) throw new ArgumentNullException();
     if(keysToTrust.Length == 0) throw new ArgumentException("No keys were given.");
 
     trustedKeys.Items.Clear();
-    foreach(PrimaryKey key in keysToTrust) trustedKeys.Items.Add(new KeyItem(key));
+
+    // set the initial trust level to what all the keys agree on, or Unknown if they don't agree, and add the keys
+    TrustLevel initialTrustLevel = keysToTrust[0].OwnerTrust;
+    foreach(PrimaryKey key in keysToTrust)
+    {
+      if(key.OwnerTrust != initialTrustLevel) initialTrustLevel = TrustLevel.Unknown;
+      trustedKeys.Items.Add(new KeyItem(key));
+    }
 
     RadioButton button;
     switch(initialTrustLevel)
@@ -62,6 +85,20 @@ public partial class OwnerTrustForm : Form
       default: button = rbDontKnow; break;
     }
     button.Checked = true;
+  }
+
+  /// <include file="documentation.xml" path="/UI/Common/OnShown/*"/>
+  protected override void OnShown(EventArgs e)
+  {
+    base.OnShown(e);
+
+    // focus the selected trust level button when the form is shown, so it can be changed easily
+    RadioButton button;
+    if(rbDontTrust.Checked) button = rbDontTrust;
+    else if(rbCasual.Checked) button = rbCasual;
+    else if(rbFull.Checked) button = rbFull;
+    else if(rbUltimate.Checked) button = rbUltimate;
+    else button = rbDontKnow;
     button.Focus();
   }
 }

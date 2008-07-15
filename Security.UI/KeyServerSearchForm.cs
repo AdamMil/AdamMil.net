@@ -214,16 +214,7 @@ public partial class KeyServerSearchForm : Form
     if(results != null)
     {
       if(ImportCompleted != null) ImportCompleted(this, EventArgs.Empty);
-
-      int failCount = 0;
-      foreach(ImportedKey result in results)
-      {
-        if(!result.Successful) failCount++;
-      }
-
-      MessageBox.Show((results.Length - failCount).ToString() + " key(s) imported successfully." +
-                      (failCount == 0 ? null : "\n" + failCount.ToString() + " key(s) failed."), "Import results.",
-                      MessageBoxButtons.OK, failCount == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+      PGPUI.ShowImportResults(results);
     }
   }
 

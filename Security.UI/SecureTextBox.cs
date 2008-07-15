@@ -26,19 +26,21 @@ using System.Windows.Forms;
 namespace AdamMil.Security.UI
 {
 
-public enum PasswordStrength
-{
-  Blank, VeryWeak, Weak, Moderate, Strong, VeryStrong
-}
-
+/// <summary>Implements a relatively secure text box, that stores the entered text into a <see cref="SecureString"/>
+/// rather than a regular string.
+/// </summary>
 public class SecureTextBox : TextBox
 {
+  /// <summary>Initializes a new <see cref="SecureTextBox"/>.</summary>
   public SecureTextBox()
   {
     ImeMode               = ImeMode.Disable;
     UseSystemPasswordChar = true;
   }
 
+  /// <summary>Gets or sets whether the text will be limited to low ASCII characters (from ASCII code 32 to 126). The
+  /// default value is false.
+  /// </summary>
   [Category("Behavior")]
   [DefaultValue(false)]
   public bool RestrictToLowAscii
@@ -47,6 +49,9 @@ public class SecureTextBox : TextBox
     set { restrictToAscii = value; }
   }
   
+  /// <summary>Gets a dummy string, not the text entered by the user. This property only exists because it exists on
+  /// the base class. Attempting to set this property will cause an exception to be thrown.
+  /// </summary>
   [Browsable(false)]
   public override string Text
   {
@@ -54,109 +59,60 @@ public class SecureTextBox : TextBox
     set { throw new NotSupportedException(); }
   }
 
+  /// <summary>Returns an estimate of the text strength, assuming it's a password entered by a human.</summary>
+  /// <seealso cref="PGPUI.GetPasswordStrength"/>
   public PasswordStrength GetPasswordStrength()
   {
     return GetPasswordStrength(true);
   }
 
-  public unsafe PasswordStrength GetPasswordStrength(bool assumeHumanInput)
+  /// <include file="documentation.xml" path="/UI/Helpers/GetPasswordStrength/*[@name != 'password']"/>
+  public PasswordStrength GetPasswordStrength(bool assumeHumanInput)
   {
-    if(text.Length == 0) return PasswordStrength.Blank;
-
-    IntPtr bstr = IntPtr.Zero;
-    try
-    {
-      int uniqueChars = 0;
-      bool hasLC=false, hasUC=false, hasNum=false, hasPunct=false;
-
-      bstr = Marshal.SecureStringToBSTR(text);
-      char* chars = (char*)bstr.ToPointer();
-      int length = text.Length;
-      bool* histo = stackalloc bool[97]; // 96 usable characters, plus one for "other" characters
-
-      // loop through and categorize each character
-      for(int i=0; i<length; i++)
-      {
-        char c = chars[i];
-        CharType type = GetCharType(c);
-        switch(type)
-        {
-          case CharType.Lowercase: hasLC = true; break;
-          case CharType.Uppercase: hasUC = true; break;
-          case CharType.Number: hasNum = true; break;
-          case CharType.Punctuation: hasPunct = true; break;
-        }
-
-        // keep track of the number of unique characters, so we can say that "aaaaaaaaaaaaaaaaaaaaaa" is weak
-        int histoIndex = c >= 32 && c < 127 ? c-32 : 96;
-        if(!histo[histoIndex])
-        {
-          histo[histoIndex] = true;
-          uniqueChars++;
-        }
-      }
-
-      // free the password now that we've got the info we need
-      Marshal.ZeroFreeBSTR(bstr);
-      bstr = IntPtr.Zero;
-
-      // clear the histogram from memory
-      for(int i=0; i<97; i++) histo[i] = false;
-
-      // calculate the number of possibilities per character. humans don't randomly choose from all possible
-      // characters, so password crackers know to try the most common characters first
-      int possibilitiesPerChar = 0;
-      if(hasLC) possibilitiesPerChar += assumeHumanInput ? 19 : 26; // there are about 7 letters unlikely to be used
-      if(hasUC) possibilitiesPerChar += assumeHumanInput ? 19 : 26;
-      if(hasNum) possibilitiesPerChar += assumeHumanInput ? 9 : 10; // humans don't choose numbers randomly
-      if(hasPunct) possibilitiesPerChar += assumeHumanInput ? 20 : 34; // humans don't choose from all 34 punct chars
-      int bits = (int)Math.Truncate(Math.Log(Math.Pow(possibilitiesPerChar, text.Length), 2));
-
-      // this code (written 2008) assumes:
-      // BITS  Crack Time     Crack Time on Special Hardware (assumed 10x speedup)
-      // ----  -------------- ----------------------------------------------------
-      // 40    Instant        Instant
-      // 52    8 hours        45 minutes
-      // 56    5 days         12 hours
-      // 60    80 days        10 days
-      // 64    3.5 years      4 months
-      // 72    900 years      90 years
-      // 80    220,000 years  22,000 years
-
-      if(text.Length <= 4 || bits <= 52 || uniqueChars <= 3) return PasswordStrength.VeryWeak;
-      else if(text.Length <= 6 || bits <= 56 || uniqueChars <= 4) return PasswordStrength.Weak;
-      else if(text.Length <= 7 || bits <= 64 || uniqueChars <= 5) return PasswordStrength.Moderate;
-      else if(text.Length <= 11 || bits < 80 || uniqueChars <= 9) return PasswordStrength.Strong;
-      else return PasswordStrength.VeryStrong;
-    }
-    finally
-    {
-      if(bstr != IntPtr.Zero) Marshal.ZeroFreeBSTR(bstr);
-    }
+    return PGPUI.GetPasswordStrength(text, assumeHumanInput);
   }
 
+  /// <summary>Returns a copy of the <see cref="SecureString"/> in which the text is stored. The copy return should be
+  /// disposed when you are done with it.
+  /// </summary>
   public SecureString GetText()
   {
     return text.Copy();
   }
 
+  /// <summary>Sets the text to a copy of the given <see cref="SecureString"/>.</summary>
   public void SetText(SecureString text)
   {
     if(text == null) throw new ArgumentException();
     this.text = text.Copy();
     base.Text = new string('*', text.Length);
-    SelectionStart = SelectionLength = 0;
+    SelectionLength = 0;
+    SelectionStart  = text.Length;
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/Dispose/*"/>
+  protected override void Dispose(bool disposing)
+  {
+    base.Dispose(disposing);
+    text.Dispose();
+  }
+
+  /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/*"/>
   protected override void OnKeyDown(KeyEventArgs e)
   {
     if(e.Modifiers != Keys.None)
     {
+      if(e.KeyCode == Keys.A && e.Modifiers == Keys.Control) // Ctrl-A selects all text
+      {
+        SelectAll();
+        e.Handled = e.SuppressKeyPress = true;
+        return;
+      }
       // for modified keys, only allow cursor movement, alt-keys, and shifted characters
-      if(!(e.KeyCode == Keys.Left || e.KeyCode == Keys.Right || e.KeyCode == Keys.Home || e.KeyCode == Keys.End ||
-           e.Modifiers == Keys.Alt ||   
-           (e.Modifiers == Keys.Shift &&
-            e.KeyCode != Keys.Insert && e.KeyCode != Keys.Delete && e.KeyCode != Keys.Back)))
+      else if(!(e.KeyCode == Keys.Left || e.KeyCode == Keys.Right || e.KeyCode == Keys.Home || e.KeyCode == Keys.End ||
+                e.Modifiers == Keys.Alt ||   
+                (e.Modifiers == Keys.Shift &&
+                 e.KeyCode != Keys.Insert && e.KeyCode != Keys.Delete && e.KeyCode != Keys.Back)))
       {
         e.Handled = e.SuppressKeyPress = true;
         return;
@@ -176,6 +132,7 @@ public class SecureTextBox : TextBox
     base.OnKeyDown(e);
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/OnKeyPress/*"/>
   protected override void OnKeyPress(KeyPressEventArgs e)
   {
     if(IsCharRestricted(e.KeyChar)) // don't allow restricted characters
@@ -195,16 +152,13 @@ public class SecureTextBox : TextBox
     base.OnKeyPress(e);
   }
 
-  enum CharType
-  {
-    Lowercase, Uppercase, Number, Punctuation
-  }
-
+  /// <summary>Removes all characters in the selection.</summary>
   void DeleteSelection()
   {
     for(int i=0; i<SelectionLength; i++) text.RemoveAt(SelectionStart);
   }
 
+  /// <summary>Determines whether the character is outside the allowable range of low ASCII characters.</summary>
   bool IsCharRestricted(char c)
   {
     return RestrictToLowAscii && (c < 32 || c >= 127);
@@ -212,14 +166,6 @@ public class SecureTextBox : TextBox
 
   SecureString text = new SecureString();
   bool restrictToAscii;
-
-  static CharType GetCharType(char c)
-  {
-    if(char.IsLower(c)) return CharType.Lowercase;
-    else if(char.IsUpper(c)) return CharType.Uppercase;
-    else if(char.IsDigit(c)) return CharType.Number;
-    else return CharType.Punctuation;
-  }
 }
 
 } // namespace AdamMil.Security.UI

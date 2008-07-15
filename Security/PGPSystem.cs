@@ -98,14 +98,14 @@ public static class HashAlgorithm
 public static class KeyType
 {
   /// <summary>The default key type will be used.</summary>
-  public static readonly string Default = null;
+  public const string Default = null;
   /// <summary>No key will be created.</summary>
   public static readonly string None = "None";
   /// <summary>The FIPS-186 Digital Signature Algorithm will be used, which is for signing only. Standard DSA keys can
   /// be up to 1024 bits in length. Larger keys are supported by only a few clients.
   /// </summary>
   public static readonly string DSA = "DSA";
-  /// <summary>An ElGamal encryption key will be used.</summary>
+  /// <summary>An ElGamal key will be used.</summary>
   public static readonly string ElGamal = "ELG";
   /// <summary>The RSA algorithm will be used.</summary>
   public static readonly string RSA = "RSA";
@@ -750,6 +750,12 @@ public abstract class PGPSystem
   public event KeyPasswordHandler KeyPasswordNeeded;
 
   #region Configuration
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetDefaultPrimaryKeyType/*"/>
+  public abstract string GetDefaultPrimaryKeyType();
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetDefaultSubkeyType/*"/>
+  public abstract string GetDefaultSubkeyType();
+
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetMaximumKeyLength/*"/>
   public abstract int GetMaximumKeyLength(string keyType);
 
