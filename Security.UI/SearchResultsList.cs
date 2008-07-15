@@ -27,13 +27,16 @@ using AdamMil.Security.PGP;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>A list that contains results from a key server search.</summary>
 public class SearchResultsList : PGPListBase
 {
+  /// <summary>Initializes a new <see cref="SearchResultsList"/>.</summary>
   public SearchResultsList()
   {
     InitializeControl();
   }
 
+  /// <summary>Adds a chunk of results from the search process to the form.</summary>
   public void AddResults(PrimaryKey[] publicKeys)
   {
     if(publicKeys == null) throw new ArgumentNullException();
@@ -42,7 +45,7 @@ public class SearchResultsList : PGPListBase
     {
       if(key == null) throw new ArgumentException("A key was null.");
 
-      ListViewItem item = CreateResultItem(key);
+      PrimaryKeyItem item = CreateResultItem(key);
       if(item != null)
       {
         item.Tag = key;
@@ -51,23 +54,28 @@ public class SearchResultsList : PGPListBase
     }
   }
 
+  /// <summary>Gets the list of keys selected by the user.</summary>
   public PrimaryKey[] GetSelectedKeys()
   {
     PrimaryKey[] keys = new PrimaryKey[CheckedItems.Count];
-    for(int i=0; i<keys.Length; i++) keys[i] = (PrimaryKey)CheckedItems[i].Tag;
+    for(int i=0; i<keys.Length; i++) keys[i] = ((PrimaryKeyItem)CheckedItems[i]).PublicKey;
     return keys;
   }
 
+  /// <summary>Gets the list of <see cref="Key.EffectiveId">key IDs</see> selected by the user.</summary>
   public string[] GetSelectedIds()
   {
     string[] keys = new string[CheckedItems.Count];
-    for(int i=0; i<keys.Length; i++) keys[i] = ((PrimaryKey)CheckedItems[i].Tag).EffectiveId;
+    for(int i=0; i<keys.Length; i++) keys[i] = ((PrimaryKeyItem)CheckedItems[i]).PublicKey.EffectiveId;
     return keys;
   }
 
-  protected virtual ListViewItem CreateResultItem(PrimaryKey key)
+  /// <summary>Creates a <see cref="PrimaryKeyItem"/> to represent the <see cref="PrimaryKey"/> from the search
+  /// result.
+  /// </summary>
+  protected virtual PrimaryKeyItem CreateResultItem(PrimaryKey key)
   {
-    ListViewItem item = new ListViewItem(PGPUI.GetKeyName(key));
+    PrimaryKeyItem item = new PrimaryKeyItem(key, PGPUI.GetKeyName(key));
     item.SubItems.Add(key.CreationTime.ToShortDateString());
     item.SubItems.Add(key.ShortKeyId);
     item.SubItems.Add(key.Revoked ? "Revoked" : key.Expired ? "Expired" : "Valid");
@@ -75,6 +83,7 @@ public class SearchResultsList : PGPListBase
     return item;
   }
 
+  /// <summary>Initializes the control and adds the initial columns.</summary>
   void InitializeControl()
   {
     base.CheckBoxes = true;

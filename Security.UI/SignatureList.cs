@@ -27,14 +27,25 @@ using AdamMil.Security.PGP;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>Displays a list of signatures on a key's user IDs.</summary>
 public class SignatureList : PGPListBase
 {
+  /// <summary>Creates a new <see cref="SignatureList"/>. You should call <see cref="Initialize"/> to initialize the
+  /// list.
+  /// </summary>
   public SignatureList()
   {
     InitializeControl();
   }
 
-  public void ShowSignatures(PrimaryKey publicKey)
+  /// <summary>Initializes a new <see cref="SignatureList"/> given the key whose signatures will be displayed.</summary>
+  public SignatureList(PrimaryKey publicKey) : this()
+  {
+    Initialize(publicKey);
+  }
+
+  /// <summary>Initializes this list given the key whose signatures will be displayed.</summary>
+  public void Initialize(PrimaryKey publicKey)
   {
     if(publicKey == null) throw new ArgumentNullException();
 
@@ -45,7 +56,7 @@ public class SignatureList : PGPListBase
       AttributeItem item = CreateAttributeItem(userId);
       if(item != null)
       {
-        SetFont(item, userId);
+        SetFont(item);
         Items.Add(item);
         AddSignatures(userId.Signatures);
       }
@@ -56,18 +67,20 @@ public class SignatureList : PGPListBase
       AttributeItem item = CreateAttributeItem(attr);
       if(item != null)
       {
-        SetFont(item, attr);
+        SetFont(item);
         Items.Add(item);
         AddSignatures(attr.Signatures);
       }
     }
   }
 
+  /// <include file="documentation.xml" path="/UI/ListBase/ClearCachedFonts/*"/>
   protected override void ClearCachedFonts()
   {
     userIdFont = revokedIdFont = null;
   }
 
+  /// <include file="documentation.xml" path="/UI/ListBase/CreateAttributeItem/*"/>
   protected override AttributeItem CreateAttributeItem(UserAttribute attr)
   {
     AttributeItem item = base.CreateAttributeItem(attr);
@@ -75,6 +88,7 @@ public class SignatureList : PGPListBase
     return item;
   }
 
+  /// <include file="documentation.xml" path="/UI/ListBase/CreateSignatureItem/*"/>
   protected virtual KeySignatureItem CreateSignatureItem(KeySignature sig)
   {
     if(sig == null) throw new ArgumentNullException();
@@ -96,9 +110,16 @@ public class SignatureList : PGPListBase
     return item;
   }
 
-  protected virtual void SetFont(ListViewItem item, UserAttribute attr)
+  /// <include file="documentation.xml" path="/UI/ListBase/RecreateItems/*"/>
+  protected override void RecreateItems()
   {
-    if(attr.Revoked)
+    if(Items.Count != 0) Initialize(((AttributeItem)Items[0]).PublicKey);
+  }
+
+  /// <include file="documentation.xml" path="/UI/ListBase/SetAttributeItemFont/*"/>
+  protected virtual void SetFont(AttributeItem item)
+  {
+    if(item.Attribute.Revoked)
     {
       if(revokedIdFont == null) revokedIdFont = new Font(Font, FontStyle.Italic | FontStyle.Bold);
       item.Font      = revokedIdFont;
@@ -111,40 +132,52 @@ public class SignatureList : PGPListBase
     }
   }
 
-  protected virtual void SetFont(ListViewItem item, KeySignature sig)
+  /// <include file="documentation.xml" path="/UI/ListBase/SetKeySignatureItemFont/*"/>
+  protected virtual void SetFont(KeySignatureItem item)
   {
-    if(sig.IsInvalid)
+    if(item.Signature.IsInvalid) // if the signature failed verification, it may indicate a security problem
     {
-      item.ForeColor = Color.FromArgb(255, 96, 0);
+      item.ForeColor = Color.FromArgb(255, 96, 0); // so make it colorful
     }
-    else if(sig.Revocation && !sig.SelfSignature) // if the signature says this key is NOT owned by the real user
-    {
+    else if(item.Signature.Revocation && !item.Signature.SelfSignature) // if the signature says this key is NOT owned
+    {                                                                   // by the real user
       // we want to make it striking, but if the signature is of unknown validity, it shouldn't be too striking
-      item.ForeColor = sig.IsValid ? Color.Red : Color.FromArgb(255, 96, 96);
+      item.ForeColor = item.Signature.IsValid ? Color.Red : Color.FromArgb(255, 96, 96);
     }
-    else if(!sig.IsValid)
+    else if(!item.Signature.IsValid) // if the signature could not be verified, then gray it out
     {
       item.ForeColor = SystemColors.GrayText;
     }
   }
 
+  /// <summary>Adds the given signatures to the list.</summary>
   void AddSignatures(IEnumerable<KeySignature> sigs)
   {
-    KeySignatureItem item = null;
+    bool hadItem = false;
     foreach(KeySignature sig in sigs)
     {
-      item = CreateSignatureItem(sig);
+      KeySignatureItem item = CreateSignatureItem(sig);
       if(item != null)
       {
-        SetFont(item, sig);
+        SetFont(item);
         item.ImageIndex  = IndentImage;
         item.IndentCount = 1;
         Items.Add(item);
+        hadItem = true;
       }
     }
 
-    // change the last item's image to the corner
-    if(item != null) item.ImageIndex = CornerImage;
+    if(hadItem) // change the last item's image to the corner, if we added an item
+    {
+      Items[Items.Count-1].ImageIndex = CornerImage;
+    }
+    else // otherwise, add an item that says there are no signatures
+    {
+      ListViewItem item = new ListViewItem("No signatures");
+      item.ImageIndex  = CornerImage;
+      item.IndentCount = 1;
+      Items.Add(item);
+    }
   }
 
   void InitializeControl()

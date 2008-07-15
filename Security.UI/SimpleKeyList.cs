@@ -17,28 +17,36 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using System.Collections.Generic;
 using System.Windows.Forms;
 using AdamMil.Security.PGP;
 
 namespace AdamMil.Security.UI
 {
 
+/// <summary>A simple list of keys. You can derive a new class from this one to change the way the items are displayed.</summary>
 public class SimpleKeyList : KeyListBase
 {
+  /// <summary>Initializes a new <see cref="SimpleKeyList"/>.</summary>
   public SimpleKeyList()
   {
     InitializeControl();
   }
-
+  
+  /// <summary>Adds a key to the list.</summary>
   public void AddKey(Key key)
   {
     if(key == null) throw new ArgumentNullException();
 
-    ListViewItem item = CreateKeyItem(key);
-    SetFont(item, GetItemStatus(key));
-    Items.Add(item);
+    PGPListViewItem item = CreateKeyItem(key);
+    if(item != null)
+    {
+      SetFont(item, GetItemStatus(key));
+      Items.Add(item);
+    }
   }
 
+  /// <include file="documentation.xml" path="/UI/ListBase/CreateKeyItem/*"/>
   protected virtual PGPListViewItem CreateKeyItem(Key key)
   {
     PrimaryKey primaryKey = key as PrimaryKey;
@@ -53,6 +61,20 @@ public class SimpleKeyList : KeyListBase
     item.SubItems.Add(key.ExpirationTime.HasValue ? key.ExpirationTime.Value.ToShortDateString() : "n/a");
     item.SubItems.Add(PGPUI.GetKeyValidityDescription(key));
     return item;
+  }
+
+  /// <include file="documentation.xml" path="/UI/ListBase/RecreateItems/*"/>
+  protected override void RecreateItems()
+  {
+    List<Key> keys = new List<Key>(Items.Count);
+    foreach(ListViewItem item in Items)
+    {
+      PrimaryKeyItem primaryItem = item as PrimaryKeyItem;
+      keys.Add(primaryItem != null ? (Key)primaryItem.PublicKey : ((SubkeyItem)item).Subkey);
+    }
+
+    Items.Clear();
+    foreach(Key key in keys) AddKey(key);
   }
 
   void InitializeControl()

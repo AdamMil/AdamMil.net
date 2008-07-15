@@ -24,44 +24,52 @@ using AdamMil.Security.PGP;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>This form helps the user enter a new user ID.</summary>
 public partial class UserIdForm : Form
 {
+  /// <summary>Initializes a new <see cref="UserIdForm"/>.</summary>
   public UserIdForm()
   {
     InitializeComponent();
     UpdateHelpLabel();
   }
 
+  /// <summary>Gets the optional user ID comment entered by the user.</summary>
   [Browsable(false)]
   public string Comment
   {
     get { return txtComment.Text.Trim(); }
   }
 
+  /// <summary>Gets the optional email address entered by the user.</summary>
   [Browsable(false)]
   public string Email
   {
     get { return txtEmail.Text.Trim(); }
   }
 
+  /// <summary>Gets whether the user ID should be made the key's primary user ID.</summary>
   [Browsable(false)]
   public bool MakePrimary
   {
     get { return chkPrimary.Checked; }
   }
 
+  /// <summary>Gets the name entered by the user.</summary>
   [Browsable(false)]
   public string RealName
   {
     get { return txtName.Text.Trim(); }
   }
 
+  /// <summary>Gets the <see cref="UserPreferences"/> entered by the user, or null to use the default preferences.</summary>
   [Browsable(false)]
   public UserPreferences Preferences
   {
     get { return null; } // TODO: implement user preferences
   }
 
+  /// <summary>Updates the label that shows the user what his user ID will look like.</summary>
   void UpdateHelpLabel()
   {
     string realName = RealName;
@@ -84,7 +92,7 @@ public partial class UserIdForm : Form
     if(PGPUI.ValidateUserId(RealName, Email, Comment)) DialogResult = DialogResult.OK;
   }
 
-  void txtEmail_TextChanged(object sender, EventArgs e)
+  void txtUserId_TextChanged(object sender, EventArgs e)
   {
     UpdateHelpLabel();
   }

@@ -315,10 +315,12 @@ namespace AdamMil.Security.UI
       this.grpPrimary.Size = new System.Drawing.Size(344, 100);
       this.grpPrimary.TabIndex = 15;
       this.grpPrimary.TabStop = false;
-      this.grpPrimary.Text = "&Primary key type (used for signing)";
+      this.grpPrimary.Text = "&Primary key type (typically signing-only)";
       // 
       // chkKeyNoExpiration
       // 
+      this.chkKeyNoExpiration.Checked = true;
+      this.chkKeyNoExpiration.CheckState = System.Windows.Forms.CheckState.Checked;
       this.chkKeyNoExpiration.Location = new System.Drawing.Point(220, 72);
       this.chkKeyNoExpiration.Name = "chkKeyNoExpiration";
       this.chkKeyNoExpiration.Size = new System.Drawing.Size(117, 17);
@@ -329,6 +331,7 @@ namespace AdamMil.Security.UI
       // 
       // keyExpiration
       // 
+      this.keyExpiration.Enabled = false;
       this.keyExpiration.Format = System.Windows.Forms.DateTimePickerFormat.Short;
       this.keyExpiration.Location = new System.Drawing.Point(92, 69);
       this.keyExpiration.Name = "keyExpiration";
@@ -367,7 +370,7 @@ namespace AdamMil.Security.UI
       this.grpSubkey.Size = new System.Drawing.Size(344, 100);
       this.grpSubkey.TabIndex = 16;
       this.grpSubkey.TabStop = false;
-      this.grpSubkey.Text = "&Subkey type (typically used for encryption)";
+      this.grpSubkey.Text = "&Subkey type (typically encryption-only)";
       // 
       // chkSubkeyNoExpiration
       // 

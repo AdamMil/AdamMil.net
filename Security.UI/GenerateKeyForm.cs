@@ -87,29 +87,59 @@ public partial class GenerateKeyForm : Form
     KeyCapabilities signOnly = KeyCapabilities.Sign;
     KeyCapabilities encryptOnly = KeyCapabilities.Encrypt;
     KeyCapabilities signAndEncrypt = signOnly | encryptOnly;
+
+    bool supportsDSA = false, supportsELG = false, supportsRSA = false;
+    foreach(string type in pgp.GetSupportedKeyTypes())
+    {
+      if(!supportsDSA && string.Equals(type, KeyType.DSA, StringComparison.OrdinalIgnoreCase))
+      {
+        supportsDSA = true;
+      }
+      else if(!supportsELG && string.Equals(type, KeyType.ElGamal, StringComparison.OrdinalIgnoreCase))
+      {
+        supportsELG = true;
+      }
+      else if(!supportsRSA && string.Equals(type, KeyType.RSA, StringComparison.OrdinalIgnoreCase))
+      {
+        supportsRSA = true;
+      }
+    }
+
     keyType.Items.Clear();
-    keyType.Items.Add(new KeyTypeItem(KeyType.DSA, signOnly | KeyCapabilities.Certify, "DSA (signing only)"));
-    keyType.Items.Add(new KeyTypeItem(KeyType.RSA, signOnly | KeyCapabilities.Certify, "RSA (signing only)"));
-    keyType.Items.Add(new KeyTypeItem(KeyType.RSA, signAndEncrypt | KeyCapabilities.Certify, "RSA (sign and encrypt)"));
+    keyType.Items.Add(new KeyTypeItem(KeyType.Default, signOnly | KeyCapabilities.Certify, "Default (signing only)"));
+    if(supportsDSA)
+    {
+      keyType.Items.Add(new KeyTypeItem(KeyType.DSA, signOnly | KeyCapabilities.Certify, "DSA (signing only)"));
+    }
+    if(supportsRSA)
+    {
+      keyType.Items.Add(new KeyTypeItem(KeyType.RSA, signOnly | KeyCapabilities.Certify, "RSA (signing only)"));
+      keyType.Items.Add(new KeyTypeItem(KeyType.RSA, signAndEncrypt | KeyCapabilities.Certify, "RSA (sign and encrypt)"));
+    }
     keyType.SelectedIndex = 0;
 
     subkeyType.Items.Clear();
-    subkeyType.Items.Add(new KeyTypeItem(null, 0, "None"));
-    subkeyType.Items.Add(new KeyTypeItem(KeyType.ElGamal, encryptOnly, "El Gamal (encryption only)"));
-    subkeyType.Items.Add(new KeyTypeItem(KeyType.RSA, encryptOnly, "RSA (encryption only)"));
-    subkeyType.Items.Add(new KeyTypeItem(KeyType.DSA, signOnly, "DSA (signing only)"));
-    subkeyType.Items.Add(new KeyTypeItem(KeyType.RSA, signOnly, "RSA (signing only)"));
-    subkeyType.Items.Add(new KeyTypeItem(KeyType.RSA, signAndEncrypt, "RSA (sign and encrypt)"));
+    subkeyType.Items.Add(new KeyTypeItem(KeyType.None, 0, "None"));
+    keyType.Items.Add(new KeyTypeItem(KeyType.Default, encryptOnly, "Default (encryption only)"));
+    if(supportsELG) subkeyType.Items.Add(new KeyTypeItem(KeyType.ElGamal, encryptOnly, "El Gamal (encryption only)"));
+    if(supportsRSA) subkeyType.Items.Add(new KeyTypeItem(KeyType.RSA, encryptOnly, "RSA (encryption only)"));
+    if(supportsDSA) subkeyType.Items.Add(new KeyTypeItem(KeyType.DSA, signOnly, "DSA (signing only)"));
+    if(supportsRSA)
+    {
+      subkeyType.Items.Add(new KeyTypeItem(KeyType.RSA, signOnly, "RSA (signing only)"));
+      subkeyType.Items.Add(new KeyTypeItem(KeyType.RSA, signAndEncrypt, "RSA (sign and encrypt)"));
+    }
     subkeyType.SelectedIndex = 1;
 
     // OpenPGP currently supports a maximum expiration date of February 25, 2174. we'll use the 24th to avoid
     // local <-> UTC conversion problems
-    keyExpiration.MinDate = subkeyExpiration.MinDate = DateTime.Now.Date.AddDays(1);
-    keyExpiration.MaxDate = subkeyExpiration.MaxDate = new DateTime(2174, 2, 24, 0, 0, 0, DateTimeKind.Local);
+    keyExpiration.MinDate  = subkeyExpiration.MinDate = DateTime.Now.Date.AddDays(1);
+    keyExpiration.MaxDate  = subkeyExpiration.MaxDate = new DateTime(2174, 2, 24, 0, 0, 0, DateTimeKind.Local);
+    subkeyExpiration.Value = DateTime.UtcNow.Date.AddYears(5); // by default, the subkey expires in 5 years
   }
 
   /// <include file="documentation.xml" path="/UI/Common/OnClosing/*"/>
-  protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+  protected override void OnClosing(CancelEventArgs e)
   {
     base.OnClosing(e);
 
@@ -184,14 +214,18 @@ public partial class GenerateKeyForm : Form
 
     keyLengths.Items.Clear();
 
-    // if the "None" key type is selected, then disable the key lengths dropdown
-    string keyType = keyTypes.Items.Count == 0 ? null : ((KeyTypeItem)keyTypes.SelectedItem).Value.Type;
-    if(keyType == null)
-    {
+    string keyType = ((KeyTypeItem)keyTypes.SelectedItem).Value.Type;
+    if(string.Equals(keyType, KeyType.None, StringComparison.OrdinalIgnoreCase)) // if the "None" key type is selected,
+    {                                                                            // then disable the key lengths box
       keyLengths.Enabled = false;
     }
     else // otherwise, enable it and add suggested key lengths
     {
+      if(keyType == KeyType.Default) // if it's the default key type, get the real one
+      {
+        keyType = keyTypes == this.keyType ? pgp.GetDefaultPrimaryKeyType() : pgp.GetDefaultSubkeyType();
+      }
+
       keyLengths.Enabled = true;
 
       // always add the default key length

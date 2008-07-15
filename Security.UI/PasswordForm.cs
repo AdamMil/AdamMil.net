@@ -24,38 +24,52 @@ using System.Windows.Forms;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>This form prompts the suer to enter a password.</summary>
 public partial class PasswordForm : Form
 {
+  /// <summary>Initializes a new <see cref="PasswordForm"/>.</summary>
   public PasswordForm()
   {
     InitializeComponent();
   }
 
+  /// <summary>Gets or sets the description of the password that the user needs to enter.</summary>
   public string DescriptionText
   {
     get { return lblDescription.Text; }
     set { lblDescription.Text = value; }
   }
 
+  /// <summary>Gets or sets whether the "Remember my password" checkbox is enabled. The default is true.</summary>
   public bool EnableRememberPassword
   {
     get { return chkRemember.Enabled; }
     set { chkRemember.Enabled = value; }
   }
 
+  /// <summary>Gets or sets whether the "Remember by password" checkbox is checked.</summary>
   [Browsable(false)]
   public bool RememberPassword
   {
     get { return chkRemember.Enabled && chkRemember.Checked; }
+    set
+    {
+      if(!chkRemember.Enabled) throw new InvalidOperationException("EnableRememberPassword is currently false.");
+      chkRemember.Checked = value; 
+    }
   }
 
+  /// <summary>Gets or sets the text of the "Remember my password" checkbox, in case you want to change it to something
+  /// like "Remember my password for 5 minutes". The default is "Remember my password for this session".
+  /// </summary>
   public string RememberText
   {
     get { return chkRemember.Text; }
     set { chkRemember.Text = value; }
   }
 
-  public unsafe SecureString GetPassword()
+  /// <summary>Gets the password entered by the user.</summary>
+  public SecureString GetPassword()
   {
     return txtPassword.GetText();
   }

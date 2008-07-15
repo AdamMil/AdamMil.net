@@ -71,7 +71,7 @@ namespace AdamMil.Security.UI
       this.txtComment.Name = "txtComment";
       this.txtComment.Size = new System.Drawing.Size(240, 21);
       this.txtComment.TabIndex = 5;
-      this.txtComment.TextChanged += new System.EventHandler(this.txtEmail_TextChanged);
+      this.txtComment.TextChanged += new System.EventHandler(this.txtUserId_TextChanged);
       // 
       // txtEmail
       // 
@@ -81,7 +81,7 @@ namespace AdamMil.Security.UI
       this.txtEmail.Name = "txtEmail";
       this.txtEmail.Size = new System.Drawing.Size(240, 21);
       this.txtEmail.TabIndex = 3;
-      this.txtEmail.TextChanged += new System.EventHandler(this.txtEmail_TextChanged);
+      this.txtEmail.TextChanged += new System.EventHandler(this.txtUserId_TextChanged);
       // 
       // txtName
       // 
@@ -91,7 +91,7 @@ namespace AdamMil.Security.UI
       this.txtName.Name = "txtName";
       this.txtName.Size = new System.Drawing.Size(240, 21);
       this.txtName.TabIndex = 1;
-      this.txtName.TextChanged += new System.EventHandler(this.txtEmail_TextChanged);
+      this.txtName.TextChanged += new System.EventHandler(this.txtUserId_TextChanged);
       // 
       // lblKeyId
       // 

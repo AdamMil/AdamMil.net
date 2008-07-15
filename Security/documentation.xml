@@ -306,6 +306,14 @@
       </summary>
     </GenerateRevocationCertificateD>
 
+    <GetDefaultPrimaryKeyType>
+      <summary>Returns the type of key that will be created by default.</summary>
+    </GetDefaultPrimaryKeyType>
+
+    <GetDefaultSubkeyType>
+      <summary>Returns the type of subkey that will be created by default.</summary>
+    </GetDefaultSubkeyType>
+
     <GetPreferences>
       <summary>Returns the preferences for the given user id or attribute.</summary>
     </GetPreferences>

@@ -29,11 +29,13 @@ namespace AdamMil.Security.UI
 
 #region PGPListBase
 // NOTE: this has to be the first class in the file in order for the resources to be compiled correctly
+/// <summary>A base class for various lists of PGP items.</summary>
 public abstract class PGPListBase : ListView
 {
+  /// <summary>Initializes a new <see cref="PGPListBase"/>.</summary>
   public PGPListBase()
   {
-    // add flags for less flicker
+    // add flags to help reduce flicker
     this.SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
     this.SetStyle(ControlStyles.EnableNotifyMessage, true);
 
@@ -54,76 +56,111 @@ public abstract class PGPListBase : ListView
     base.View               = View.Details;
   }
 
-  protected const int MinusImage=0, PlusImage=1, IndentImage=2, CornerImage=3;
+  /// <summary>The index of the "minus" image, which represents an item that can be collapsed.</summary>
+  protected const int MinusImage  = 0;
+  /// <summary>The index of the "plus" image, which represents an item that can be expanded.</summary>
+  protected const int PlusImage   = 1;
+  /// <summary>The index of the "indent" image, which shows the indentation of a subitem, for subitems except the last.</summary>
+  protected const int IndentImage = 2;
+  /// <summary>The index of the "indent" image, which shows the indentation of the last subitem.</summary>
+  protected const int CornerImage = 3;
 
+  /// <summary>Gets the image list containing the tree images (<see cref="MinusImage"/>, <see cref="PlusImage"/>,
+  /// <see cref="IndentImage"/>, and <see cref="CornerImage"/>).
+  /// </summary>
   protected ImageList TreeImageList
   {
     get { return treeImageList; }
   }
 
+  /// <include file="documentation.xml" path="/UI/ListBase/ClearCachedFonts/*"/>
   protected virtual void ClearCachedFonts() { }
 
+  /// <include file="documentation.xml" path="/UI/ListBase/CreateAttributeItem/*"/>
   protected virtual AttributeItem CreateAttributeItem(UserAttribute attr)
   {
     if(attr == null) throw new ArgumentNullException();
     return new AttributeItem(attr, PGPUI.GetAttributeName(attr));
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/OnFontChanged/*"/>
   protected override void OnFontChanged(EventArgs e)
   {
     base.OnFontChanged(e);
     ClearCachedFonts();
+    RecreateItems();
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/OnForeColorChanged/*"/>
   protected override void OnForeColorChanged(EventArgs e)
   {
     base.OnForeColorChanged(e);
     ClearCachedFonts();
+    RecreateItems();
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/OnNotifyMessage/*"/>
   protected override void OnNotifyMessage(Message m)
   {
     // filter out the WM_ERASEBKGND message to prevent flicker
     if(m.Msg != 0x14) base.OnNotifyMessage(m);
   }
 
+  /// <include file="documentation.xml" path="/UI/ListBase/RecreateItems/*"/>
+  protected virtual void RecreateItems() { }
+
   readonly ImageList treeImageList;
 }
 #endregion
 
 #region KeyListBase
+/// <summary>A base class for lists that display PGP keys.</summary>
 public abstract class KeyListBase : PGPListBase
 {
+  /// <summary>Represents the status of an item.</summary>
   [Flags]
   protected enum ItemStatus
   {
-    Normal=0, Revoked=1, Disabled=2, Expired=3, TypeMask=3,
+    /// <summary>The item is in a normal state (not expired, revoked, etc).</summary>
+    Normal=0,
+    /// <summary>The item has been revoked.</summary>
+    Revoked=1,
+    /// <summary>The item has been disabled.</summary>
+    Disabled=2,
+    /// <summary>The item has expired.</summary>
+    Expired=3,
+    /// <summary>A mask that can be applied to a <see cref="ItemStatus"/> value to determine its basic status
+    /// (<see cref="Normal"/>, <see cref="Revoked"/>, <see cref="Disabled"/>, or <see cref="Expired"/>).
+    /// </summary>
+    BasicStatusMask=3,
+    /// <summary>A flag that indicates that the item is owned by the current user.</summary>
     Owned=4,
   }
 
+  /// <include file="documentation.xml" path="/UI/ListBase/ClearCachedFonts/*"/>
   protected override void ClearCachedFonts()
   {
     Array.Clear(fonts, 0, fonts.Length);
   }
 
+  /// <include file="documentation.xml" path="/UI/ListBase/CreateFont/*"/>
   protected virtual void CreateFont(ItemStatus type, out Font font, out Color color)
   {
-    ItemStatus basicType = type & ItemStatus.TypeMask;
-
-    color = basicType == ItemStatus.Normal ? ForeColor : SystemColors.GrayText;
+    ItemStatus basicStatus = type & ItemStatus.BasicStatusMask;
 
     FontStyle style = FontStyle.Regular;
-    switch(type & ItemStatus.TypeMask)
+    switch(basicStatus)
     {
       case ItemStatus.Expired: style = FontStyle.Italic; break;
       case ItemStatus.Revoked: style = FontStyle.Italic | FontStyle.Strikeout; break;
     }
-
     if((type & ItemStatus.Owned) != 0) style |= FontStyle.Bold;
 
-    font = new Font(Font, style);
+    font  = style == FontStyle.Regular ? Font : new Font(Font, style);
+    color = basicStatus == ItemStatus.Normal ? ForeColor : SystemColors.GrayText;
   }
 
+  /// <summary>Gets the <see cref="ItemStatus"/> value representing the status of a <see cref="Key"/>.</summary>
   protected ItemStatus GetItemStatus(Key key)
   {
     if(key == null) throw new ArgumentNullException();
@@ -133,6 +170,7 @@ public abstract class KeyListBase : PGPListBase
            ItemStatus.Normal;
   }
 
+  /// <summary>Gets the <see cref="ItemStatus"/> value representing the status of a <see cref="UserAttribute"/>.</summary>
   protected ItemStatus GetItemStatus(UserAttribute attr)
   {
     if(attr == null) throw new ArgumentNullException();
@@ -142,6 +180,7 @@ public abstract class KeyListBase : PGPListBase
            ItemStatus.Normal;
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/*"/>
   protected override void OnKeyDown(KeyEventArgs e)
   {
     base.OnKeyDown(e);
@@ -153,6 +192,7 @@ public abstract class KeyListBase : PGPListBase
     }
   }
 
+  /// <summary>Given a <see cref="ListViewItem"/>, sets its font based on the given <see cref="ItemStatus"/>.</summary>
   protected void SetFont(ListViewItem item, ItemStatus type)
   {
     Font font = fonts[(int)type];
@@ -172,74 +212,16 @@ public abstract class KeyListBase : PGPListBase
 }
 #endregion
 
-#region KeyPair
-public sealed class KeyPair
-{
-  public KeyPair(PrimaryKey publicKey, PrimaryKey secretKey)
-  {
-    if(publicKey == null) throw new ArgumentNullException();
-    if(publicKey.Secret) throw new ArgumentException("The public key is supposed to be public, but is secret.");
-    if(secretKey != null && !secretKey.Secret)
-    {
-      throw new ArgumentException("The public key is supposed to be secret, but is public.");
-    }
-    if(secretKey != null && !string.Equals(publicKey.EffectiveId, secretKey.EffectiveId, StringComparison.Ordinal))
-    {
-      throw new ArgumentException("The effective IDs of the public and secret keys do not match.");
-    }
-
-    this.publicKey = publicKey;
-    this.secretKey = secretKey;
-  }
-
-  public PrimaryKey PublicKey
-  {
-    get { return publicKey; }
-  }
-
-  public PrimaryKey SecretKey
-  {
-    get { return secretKey; }
-  }
-
-  public override bool Equals(object obj)
-  {
-    return Equals(obj as KeyPair);
-  }
-
-  public bool Equals(KeyPair other)
-  {
-    return this == other;
-  }
-
-  public override int GetHashCode()
-  {
-    string id = publicKey.EffectiveId;
-    return id == null ? 0 : id.GetHashCode();
-  }
-
-  public static bool operator==(KeyPair a, KeyPair b)
-  {
-    if((object)a == (object)b) return true; // cast to object to prevent stack overflow with ==
-    else if((object)a == null || (object)b == null) return false;
-    else return a.PublicKey == b.PublicKey && a.SecretKey == b.SecretKey;
-  }
-
-  public static bool operator!=(KeyPair a, KeyPair b)
-  {
-    return !(a == b);
-  }
-
-  readonly PrimaryKey publicKey, secretKey;
-}
-#endregion
-
 #region PGPListViewItem
+/// <summary>Provides a base class for all list view items that represent PGP objects.</summary>
 public abstract class PGPListViewItem : ListViewItem
 {
+  /// <summary>Initializes a new <see cref="PGPListViewItem"/>.</summary>
   protected PGPListViewItem() { }
+  /// <summary>Initializes a new <see cref="PGPListViewItem"/> with the given text.</summary>
   protected PGPListViewItem(string text) : base(text) { }
 
+  /// <summary>Gets the <see cref="PrimaryKey"/> that is associated with the PGP item represented by this list item.</summary>
   public abstract PrimaryKey PublicKey
   {
     get;
@@ -248,10 +230,13 @@ public abstract class PGPListViewItem : ListViewItem
 #endregion
 
 #region AttributeItem
+/// <summary>A <see cref="PGPListViewItem"/> that represents a <see cref="UserAttribute"/>.</summary>
 public class AttributeItem : PGPListViewItem
 {
+  /// <summary>Initializes a new <see cref="AttributeItem"/>.</summary>
   public AttributeItem(UserAttribute attr) : this(attr, string.Empty) { }
 
+  /// <summary>Initializes a new <see cref="AttributeItem"/> with the given text.</summary>
   public AttributeItem(UserAttribute attr, string text) : base(text)
   {
     if(attr == null) throw new ArgumentNullException();
@@ -259,11 +244,13 @@ public class AttributeItem : PGPListViewItem
     this.Name = attr.Id == null ? null : attr.Id;
   }
 
+  /// <summary>Gets the <see cref="UserAttribute"/> that this list item represents.</summary>
   public UserAttribute Attribute
   {
     get { return attr; }
   }
 
+  /// <summary>Gets the <see cref="PrimaryKey"/> that owns the <see cref="Attribute"/>.</summary>
   public override PrimaryKey PublicKey
   {
     get { return attr.PrimaryKey; }
@@ -274,11 +261,18 @@ public class AttributeItem : PGPListViewItem
 #endregion
 
 #region DesignatedRevokerItem
+/// <summary>A <see cref="PGPListViewItem"/> that represents a designated revoker of a key.</summary>
 public class DesignatedRevokerItem : PGPListViewItem
 {
+  /// <summary>Initializes a new <see cref="DesignatedRevokerItem"/> with the fingerprint of the designated revoker key
+  /// and the <see cref="PrimaryKey"/> that it is allowed to revoke.
+  /// </summary>
   public DesignatedRevokerItem(string fingerprint, PrimaryKey publicKey)
     : this(fingerprint, publicKey, string.Empty) { }
 
+  /// <summary>Initializes a new <see cref="DesignatedRevokerItem"/> with the fingerprint of the designated revoker
+  /// key, and the <see cref="PrimaryKey"/> that it is allowed to revoke, and the text of the item.
+  /// </summary>
   public DesignatedRevokerItem(string fingerprint, PrimaryKey publicKey, string text) : base(text)
   {
     if(fingerprint == null || publicKey == null) throw new ArgumentNullException();
@@ -287,11 +281,13 @@ public class DesignatedRevokerItem : PGPListViewItem
     this.publicKey   = publicKey;
   }
 
+  /// <summary>Gets the fingerprint of the designated revoker key.</summary>
   public string Fingerprint
   {
     get { return fingerprint; }
   }
 
+  /// <summary>Gets the <see cref="PrimaryKey"/> that the designated revoker is allowed to revoke.</summary>
   public override PrimaryKey PublicKey
   {
     get { return publicKey; }
@@ -303,21 +299,28 @@ public class DesignatedRevokerItem : PGPListViewItem
 #endregion
 
 #region KeySignatureItem
+/// <summary>A <see cref="PGPListViewItem"/> that represents a <see cref="KeySignature"/>.</summary>
 public class KeySignatureItem : PGPListViewItem
 {
-  public KeySignatureItem(KeySignature sig) : this(sig, string.Empty) { }
+  /// <summary>Initializes a new <see cref="KeySignatureItem"/> with the <see cref="KeySignature"/> that it represents.</summary>
+  public KeySignatureItem(KeySignature sig) : this(sig, null) { }
 
+  /// <summary>Initializes a new <see cref="KeySignatureItem"/> with the <see cref="KeySignature"/> that it represents,
+  /// and the text of the item.
+  /// </summary>
   public KeySignatureItem(KeySignature sig, string text) : base(text)
   {
     if(sig == null) throw new ArgumentNullException();
     this.sig = sig;
   }
 
+  /// <summary>Gets the <see cref="PrimaryKey"/> that is signed by the signature.</summary>
   public override PrimaryKey PublicKey
   {
     get { return sig.Object.PrimaryKey; }
   }
 
+  /// <summary>Gets the <see cref="KeySignature"/> that this list item represents.</summary>
   public KeySignature Signature
   {
     get { return sig; }
@@ -328,12 +331,23 @@ public class KeySignatureItem : PGPListViewItem
 #endregion
 
 #region PrimaryKeyItem
+/// <summary>A <see cref="PGPListViewItem"/> that represents a <see cref="KeyPair"/>.</summary>
 public class PrimaryKeyItem : PGPListViewItem
 {
+  /// <summary>Initializes a new <see cref="PrimaryKeyItem"/> with the public portion of the key pair it represents.</summary>
   public PrimaryKeyItem(PrimaryKey publicKey) : this(new KeyPair(publicKey, null), null) { }
 
+  /// <summary>Initializes a new <see cref="PrimaryKeyItem"/> with the public portion of the key pair it represents,
+  /// and the text of the item.
+  /// </summary>
+  public PrimaryKeyItem(PrimaryKey publicKey, string text) : this(new KeyPair(publicKey, null), text) { }
+
+  /// <summary>Initializes a new <see cref="PrimaryKeyItem"/> with the <see cref="KeyPair"/> it represents.</summary>
   public PrimaryKeyItem(KeyPair keyPair) : this(keyPair, null) { }
 
+  /// <summary>Initializes a new <see cref="PrimaryKeyItem"/> with the <see cref="KeyPair"/> it represents, and the
+  /// text of the item.
+  /// </summary>
   public PrimaryKeyItem(KeyPair keyPair, string text) : base(text)
   {
     if(keyPair == null) throw new ArgumentNullException();
@@ -341,47 +355,60 @@ public class PrimaryKeyItem : PGPListViewItem
     this.Name    = keyPair.PublicKey.EffectiveId;
   }
 
+  /// <summary>Gets whether the <see cref="PrimaryKeyItem"/> is expanded to show its related items.</summary>
   public bool Expanded
   {
     get { return expanded; }
   }
 
+  /// <summary>Gets whether the <see cref="PrimaryKeyItem"/> has related items.</summary>
   public bool HasRelatedItems
   {
     get { return relatedItems != null; }
   }
 
+  /// <summary>Gets the <see cref="KeyPair"/> represented by this list item.</summary>
   public KeyPair KeyPair
   {
     get { return keyPair; }
   }
 
+  /// <summary>Gets the public key of the <see cref="KeyPair"/> represented by this list item.</summary>
   public override PrimaryKey PublicKey
   {
     get { return KeyPair.PublicKey; }
   }
 
+  /// <summary>Gets the secret key of the <see cref="KeyPair"/> represented by this list item, or null if the secret
+  /// key is not available.
+  /// </summary>
   public PrimaryKey SecretKey
   {
     get { return KeyPair.SecretKey; }
   }
 
+  /// <summary>Gets an array of list items that are related to this <see cref="PrimaryKeyItem"/>.</summary>
   public ListViewItem[] GetRelatedItems()
   {
     return relatedItems == null ? new ListViewItem[0] : (ListViewItem[])relatedItems.Clone();
   }
 
+  readonly KeyPair keyPair;
   internal ListViewItem[] relatedItems;
   internal bool expanded;
-  readonly KeyPair keyPair;
 }
 #endregion
 
 #region SubkeyItem
+/// <summary>A <see cref="PGPListViewItem"/> that represents a <see cref="PGP.Subkey"/>.</summary>
 public class SubkeyItem : PGPListViewItem
 {
+  /// <summary>Initializes a new <see cref="SubkeyItem"/> with the <see cref="PGP.Subkey"/> that it represents.</summary>
   public SubkeyItem(Subkey subkey) : this(subkey, string.Empty) { }
 
+  /// <summary>Initializes a new <see cref="SubkeyItem"/> with the <see cref="PGP.Subkey"/> that it represents, and the
+  /// text of the item.
+  /// </summary>
   public SubkeyItem(Subkey subkey, string text) : base(text)
   {
     if(subkey == null) throw new ArgumentNullException();
@@ -389,11 +416,13 @@ public class SubkeyItem : PGPListViewItem
     this.Name   = subkey.EffectiveId;
   }
 
+  /// <summary>Gets the <see cref="PrimaryKey"/> that owns the associated subkey.</summary>
   public override PrimaryKey PublicKey
   {
     get { return subkey.PrimaryKey; }
   }
 
+  /// <summary>Gets the <see cref="PGP.Subkey"/> represented by this list item.</summary>
   public Subkey Subkey
   {
     get { return subkey; }

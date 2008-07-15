@@ -163,8 +163,8 @@ public class ExeGPG : GPG
   /// unless signature verification is enabled and signature caching is disabled, due to "various technical reasons".
   /// Checking the signatures and disabling the cache causes a significant performance hit, however, so by default it
   /// is not done. If this property is set to true, the cache will be disabled and signature verification will be
-  /// enabled on all key retrievals, allowing GPG to return the key signature fingerprint. Note that even with this
-  /// property set to true, the fingerprint still won't be set if the key signature failed verification.
+  /// enabled on all signature retrievals, allowing GPG to return the key signature fingerprint. Note that even with
+  /// this property set to true, the fingerprint still won't be set if the key signature failed verification.
   /// </summary>
   public bool RetrieveKeySignatureFingerprints
   {
@@ -173,6 +173,18 @@ public class ExeGPG : GPG
   }
 
   #region Configuration
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetDefaultPrimaryKeyType/*"/>
+  public override string GetDefaultPrimaryKeyType()
+  {
+    return KeyType.DSA;
+  }
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetDefaultSubkeyType/*"/>
+  public override string GetDefaultSubkeyType()
+  {
+    return KeyType.ElGamal;
+  }
+
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetMaximumKeyLength/*"/>
   public override int GetMaximumKeyLength(string keyType)
   {

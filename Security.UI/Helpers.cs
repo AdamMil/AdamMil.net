@@ -77,9 +77,121 @@ public sealed class KeyItem : ListItem<PrimaryKey>
 }
 #endregion
 
+#region KeyPair
+/// <summary>Represents a public and secret key pair.</summary>
+public sealed class KeyPair
+{
+  /// <summary>Initializes a new <see cref="KeyPair"/> with the given public and secret keys. The public key must be
+  /// supplied, but the secret key can be null.
+  /// </summary>
+  public KeyPair(PrimaryKey publicKey, PrimaryKey secretKey)
+  {
+    if(publicKey == null) throw new ArgumentNullException();
+    if(publicKey.Secret) throw new ArgumentException("The public key is supposed to be public, but is secret.");
+    if(secretKey != null && !secretKey.Secret)
+    {
+      throw new ArgumentException("The secret key is supposed to be secret, but is public.");
+    }
+    if(secretKey != null && !string.Equals(publicKey.EffectiveId, secretKey.EffectiveId, StringComparison.Ordinal))
+    {
+      throw new ArgumentException("The effective IDs of the public and secret keys do not match.");
+    }
+
+    this.publicKey = publicKey;
+    this.secretKey = secretKey;
+  }
+
+  /// <summary>Gets the public key in the key pair.</summary>
+  public PrimaryKey PublicKey
+  {
+    get { return publicKey; }
+  }
+
+  /// <summary>Gets the secret key in the key pair, or null if the secret key is not available.</summary>
+  public PrimaryKey SecretKey
+  {
+    get { return secretKey; }
+  }
+
+  /// <include file="documentation.xml" path="/UI/Common/Equals/*"/>
+  /// <remarks>Two key pairs are equal if they have identical key objects.</remarks>
+  public override bool Equals(object obj)
+  {
+    return Equals(obj as KeyPair);
+  }
+
+  /// <include file="documentation.xml" path="/UI/Common/Equals/*"/>
+  /// <remarks>Two key pairs are equal if they have identical key objects.</remarks>
+  public bool Equals(KeyPair other)
+  {
+    return this == other;
+  }
+
+  /// <include file="documentation.xml" path="/UI/Common/GetHashCode/*"/>
+  public override int GetHashCode()
+  {
+    string id = publicKey.EffectiveId;
+    return id == null ? 0 : id.GetHashCode();
+  }
+
+  /// <summary>Determines whether the two key pairs are equal. Two key pairs are equal if they have identical key
+  /// objects.
+  /// </summary>
+  public static bool operator==(KeyPair a, KeyPair b)
+  {
+    if((object)a == (object)b) return true; // cast to object to prevent stack overflow with ==
+    else if((object)a == null || (object)b == null) return false;
+    else return a.PublicKey == b.PublicKey && a.SecretKey == b.SecretKey;
+  }
+
+  /// <summary>Determines whether the two key pairs are not equal.</summary>
+  /// <remarks>Two key pairs are equal if they have identical key objects.</remarks>
+  public static bool operator!=(KeyPair a, KeyPair b)
+  {
+    return !(a == b);
+  }
+
+  readonly PrimaryKey publicKey, secretKey;
+}
+#endregion
+
 #region KeyEventHandler
 /// <summary>An event handler that related to a primary key.</summary>
 public delegate void KeyEventHandler(object sender, PrimaryKey key);
+#endregion
+
+#region PasswordStrength
+/// <summary>Represents the estimated strength of a password.</summary>
+/// <remarks>This is only an estimate of the password strength, assuming a brute force character-based attack. If the
+/// user uses a password that contains publically available information like his wife's birthday, it will be possible
+/// to guess the password in much less time than is required for a brute force search. Similarly, if the user uses a
+/// passphrase consisting of simple, common words, it may be brute forced easily.
+/// </remarks>
+public enum PasswordStrength
+{
+  /// <summary>The password is blank.</summary>
+  Blank,
+  /// <summary>The password is very weak (less than 5 characters in length, less than 3 unique characters, or less
+  /// than 53 bits of estimated search space).
+  /// </summary>
+  VeryWeak,
+  /// <summary>The password is weak (less than 7 characters in length, less than 5 unique characters, or less than 57
+  /// bits of estimated search space).
+  /// </summary>
+  Weak,
+  /// <summary>The password is not too weak, but not strong (less than 8 characters in length, less than 6 unique
+  /// characters, or less than 65 bits of estimated search space).
+  /// </summary>
+  Moderate,
+  /// <summary>The password is strong (less than 12 characters in length, less than 10 unique characters, or less than
+  /// 80 bits of estimated search space).
+  /// </summary>
+  Strong,
+  /// <summary>The password is very strong (at least 12 characters in length, with at least 10 unique characters, and
+  /// at least 80 bits of estimated search space).
+  /// </summary>
+  VeryStrong
+}
 #endregion
 
 /// <summary>This static class contains helpers for PGP UI applications.</summary>
@@ -165,6 +277,83 @@ public static class PGPUI
   {
     if(key == null) throw new ArgumentNullException();
     return key.Revoked ? "revoked" : key.Expired ? "expired" : PGPUI.GetTrustDescription(key.CalculatedTrust);
+  }
+
+  /// <include file="documentation.xml" path="/UI/Helpers/GetPasswordStrength/*"/>
+  public unsafe static PasswordStrength GetPasswordStrength(SecureString password, bool assumeHumanInput)
+  {
+    if(password.Length == 0) return PasswordStrength.Blank;
+
+    IntPtr bstr = IntPtr.Zero;
+    try
+    {
+      int uniqueChars = 0;
+      bool hasLC=false, hasUC=false, hasNum=false, hasPunct=false;
+
+      bstr = Marshal.SecureStringToBSTR(password);
+      char* chars = (char*)bstr.ToPointer();
+      int length = password.Length;
+      bool* histo = stackalloc bool[97]; // 96 usable characters, plus one for "other" characters
+
+      // loop through and categorize each character
+      for(int i=0; i<length; i++)
+      {
+        char c = chars[i];
+        CharType type = GetCharType(c);
+        switch(type)
+        {
+          case CharType.Lowercase: hasLC = true; break;
+          case CharType.Uppercase: hasUC = true; break;
+          case CharType.Number: hasNum = true; break;
+          case CharType.Punctuation: hasPunct = true; break;
+        }
+
+        // keep track of the number of unique characters, so we can say that "aaaaaaaaaaaaaaaaaaaaaa" is weak
+        int histoIndex = c >= 32 && c < 127 ? c-32 : 96;
+        if(!histo[histoIndex])
+        {
+          histo[histoIndex] = true;
+          uniqueChars++;
+        }
+      }
+
+      // free the password now that we've got the info we need
+      Marshal.ZeroFreeBSTR(bstr);
+      bstr = IntPtr.Zero;
+
+      // clear the histogram from memory
+      for(int i=0; i<97; i++) histo[i] = false;
+
+      // calculate the number of possibilities per character. humans don't randomly choose from all possible
+      // characters, so password crackers know to try the most common characters first
+      int possibilitiesPerChar = 0;
+      if(hasLC) possibilitiesPerChar += assumeHumanInput ? 19 : 26; // there are about 7 letters unlikely to be used
+      if(hasUC) possibilitiesPerChar += assumeHumanInput ? 19 : 26;
+      if(hasNum) possibilitiesPerChar += assumeHumanInput ? 9 : 10; // humans don't choose numbers randomly
+      if(hasPunct) possibilitiesPerChar += assumeHumanInput ? 20 : 34; // humans don't choose from all 34 punct chars
+      int bits = (int)Math.Truncate(Math.Log(Math.Pow(possibilitiesPerChar, password.Length), 2));
+
+      // this code (written 2008) assumes:
+      // BITS  Crack Time     Crack Time on Special Hardware (assumed 10x speedup)
+      // ----  -------------- ----------------------------------------------------
+      // 40    Instant        Instant
+      // 52    8 hours        45 minutes
+      // 56    5 days         12 hours
+      // 60    80 days        10 days
+      // 64    3.5 years      4 monthsq
+      // 72    900 years      90 years
+      // 80    220,000 years  22,000 years
+
+      if(password.Length <= 4 || bits <= 52 || uniqueChars <= 3) return PasswordStrength.VeryWeak;
+      else if(password.Length <= 6 || bits <= 56 || uniqueChars <= 4) return PasswordStrength.Weak;
+      else if(password.Length <= 7 || bits <= 64 || uniqueChars <= 5) return PasswordStrength.Moderate;
+      else if(password.Length <= 11 || bits < 80 || uniqueChars <= 9) return PasswordStrength.Strong;
+      else return PasswordStrength.VeryStrong;
+    }
+    finally
+    {
+      if(bstr != IntPtr.Zero) Marshal.ZeroFreeBSTR(bstr);
+    }
   }
 
   /// <summary>Given a <see cref="PasswordStrength"/>, returns a description of the strength level.</summary>
@@ -269,6 +458,20 @@ public static class PGPUI
     return sb.ToString();
   }
 
+  /// <summary>Displays the result of an import operation to the user.</summary>
+  public static void ShowImportResults(ImportedKey[] results)
+  {
+    int failCount = 0;
+    foreach(ImportedKey key in results)
+    {
+      if(!key.Successful) failCount++;
+    }
+
+    MessageBox.Show((results.Length - failCount).ToString() + " key(s) imported successfully." +
+                      (failCount == 0 ? null : "\n" + failCount.ToString() + " key(s) failed."), "Import results",
+                    MessageBoxButtons.OK, failCount == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+  }
+
   /// <summary>Given two <see cref="SecureTextBox"/> controls containing passwords, checks that the passwords match
   /// and are sufficiently strong. Message boxes may be displayed to the user if any problems are found with the
   /// passwords. True is returned if the passwords should be used, and false if not.
@@ -323,6 +526,20 @@ public static class PGPUI
     }
 
     return true;
+  }
+
+  enum CharType
+  {
+    Lowercase, Uppercase, Number, Punctuation, Space
+  }
+
+  static CharType GetCharType(char c)
+  {
+    if(char.IsLower(c)) return CharType.Lowercase;
+    else if(char.IsUpper(c)) return CharType.Uppercase;
+    else if(char.IsDigit(c)) return CharType.Number;
+    else if(char.IsWhiteSpace(c)) return CharType.Space;
+    else return CharType.Punctuation;
   }
 
   /// <summary>Matches the local portion of an email (the portion before the @ sign).</summary>

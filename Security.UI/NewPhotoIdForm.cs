@@ -31,9 +31,7 @@ namespace AdamMil.Security.UI
 /// <summary>This form helps a user create a new photo ID by allowing them to easily crop and resize a photo.</summary>
 public partial class NewPhotoIdForm : Form
 {
-  /// <summary>Creates a new <see cref="NewPhotoIdForm"/>. You must call <see cref="Initialize"/> to initialize the
-  /// form.
-  /// </summary>
+  /// <summary>Creates a new <see cref="NewPhotoIdForm"/>. You must call <c>Initialize</c> to initialize the form.</summary>
   public NewPhotoIdForm()
   {
     InitializeComponent();

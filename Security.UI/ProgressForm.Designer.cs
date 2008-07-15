@@ -69,7 +69,6 @@ namespace AdamMil.Security.UI
       // 
       // btnCancel
       // 
-      this.btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
       this.btnCancel.Location = new System.Drawing.Point(180, 86);
       this.btnCancel.Name = "btnCancel";
       this.btnCancel.Size = new System.Drawing.Size(87, 23);
@@ -82,7 +81,6 @@ namespace AdamMil.Security.UI
       // 
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-      this.CancelButton = this.btnCancel;
       this.ClientSize = new System.Drawing.Size(447, 114);
       this.Controls.Add(this.btnCancel);
       this.Controls.Add(progressBar);
@@ -94,6 +92,7 @@ namespace AdamMil.Security.UI
       this.Name = "ProgressForm";
       this.ShowIcon = false;
       this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
+      this.Text = "Operation in Progress";
       this.ResumeLayout(false);
 
     }

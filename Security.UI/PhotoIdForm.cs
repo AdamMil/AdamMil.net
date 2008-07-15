@@ -24,9 +24,11 @@ using AdamMil.Security.PGP;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>Displays a user's photo ID.</summary>
 public partial class PhotoIdForm : Form
 {
-  PhotoIdForm()
+  /// <summary>Creates a new <see cref="PhotoIdForm"/>. You must call <see cref="Initialize"/> to initialize the form.</summary>
+  public PhotoIdForm()
   {
     InitializeComponent();
 
@@ -36,11 +38,13 @@ public partial class PhotoIdForm : Form
     horizontalSpace = picture.Left;
   }
 
+  /// <summary>Initializes a new <see cref="PhotoIdForm"/> with the given <see cref="UserImage"/>.</summary>
   public PhotoIdForm(UserImage photoId) : this()
   {
     Initialize(photoId);
   }
 
+  /// <summary>Initializes this form with the given <see cref="UserImage"/>.</summary>
   public void Initialize(UserImage photoId)
   {
     if(photoId == null) throw new ArgumentNullException();
@@ -54,6 +58,7 @@ public partial class PhotoIdForm : Form
     Height = Math.Min(picture.Image.Height + 2, 384) + topSpace + bottomSpace;
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/*"/>
   protected override void OnKeyDown(KeyEventArgs e)
   {
     base.OnKeyDown(e);
@@ -65,24 +70,25 @@ public partial class PhotoIdForm : Form
     }
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/OnSizeChanged/*"/>
   protected override void OnSizeChanged(EventArgs e)
   {
     base.OnSizeChanged(e);
 
-    if(picture.Image != null)
+    if(picture.Image != null) // if we have a picture to display, we should resize it
     {
-      // calculate the maximum control size, and image size (plus a couple pixels for the border)
+      // calculate the maximum control size
       Size maxCtlSize = new Size(Width - horizontalSpace*2, Height - topSpace - bottomSpace);
-      Size imageSize  = new Size(picture.Image.Width + 2, picture.Image.Height + 2);
+      Size imageSize  = new Size(picture.Image.Width, picture.Image.Height);
 
-      // if the image is larger than the picture box, it needs to be shrunk to fit.
+      // if the image is larger than the maximum control size, it needs to be shrunk to fit.
       if(imageSize.Width > maxCtlSize.Width || imageSize.Height > maxCtlSize.Height)
       {
         picture.SizeMode = PictureBoxSizeMode.Zoom;
         picture.Size     = new Size(Math.Min(imageSize.Width, maxCtlSize.Width),
                                     Math.Min(imageSize.Height, maxCtlSize.Height));
       }
-      else // the image is not bigger than the picture box, so just center it in the picture box
+      else // the image is not bigger, so just center it in the picture box
       {
         picture.SizeMode = PictureBoxSizeMode.CenterImage;
         picture.Size     = imageSize;
