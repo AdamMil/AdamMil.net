@@ -253,7 +253,7 @@ public partial class GenerateKeyForm : Form
 
   bool ValidateKeyLength(ComboBox keyType, ComboBox keyLength, string keyName)
   {
-    if(keyLength.SelectedIndex == -1)
+    if(keyLength.Enabled && keyLength.SelectedIndex == -1)
     {
       int customLength;
       if(!int.TryParse(keyLength.Text, out customLength) || customLength < 0)
@@ -405,7 +405,7 @@ public partial class GenerateKeyForm : Form
   /// <summary>Gets the selected key length, assuming it has already been validated.</summary>
   static int GetSelectedKeyLength(ComboBox keyLength)
   {
-    if(keyLength.Items.Count == 0) return 0;
+    if(!keyLength.Enabled || keyLength.Items.Count == 0) return 0;
     else if(keyLength.SelectedIndex == -1) return int.Parse(keyLength.Text);
     else return ((ListItem<int>)keyLength.SelectedItem).Value;
   }

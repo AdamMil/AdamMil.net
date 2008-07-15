@@ -29,9 +29,7 @@ namespace AdamMil.Security.UI
 /// </summary>
 public partial class KeyRevocationForm : Form
 {
-  /// <summary>Creates a new <see cref="KeyRevocationForm"/>. You should call <see cref="Initialize"/> to initialize
-  /// the form.
-  /// </summary>
+  /// <summary>Creates a new <see cref="KeyRevocationForm"/>. You should call <c>Initialize</c> to initialize the form.</summary>
   public KeyRevocationForm()
   {
     InitializeComponent();
@@ -43,6 +41,12 @@ public partial class KeyRevocationForm : Form
   public KeyRevocationForm(PrimaryKey keyToRevoke, PrimaryKey[] ownedKeys) : this()
   {
     Initialize(keyToRevoke, ownedKeys);
+  }
+
+  /// <summary>Initializes a new <see cref="KeyRevocationForm"/> with the subkeys to revoke.</summary>
+  public KeyRevocationForm(Subkey[] subkeys) : this()
+  {
+    Initialize(subkeys);
   }
 
   /// <summary>Gets the <see cref="KeyRevocationReason"/> entered by the user.</summary>
@@ -80,6 +84,20 @@ public partial class KeyRevocationForm : Form
     get { return rbDirect.Checked ? null : ((KeyItem)revokingKeys.SelectedItem).Value; }
   }
 
+  /// <summary>Initializes this form with the subkeys to revoke.</summary>
+  public void Initialize(Subkey[] subkeys)
+  {
+    if(subkeys == null) throw new ArgumentNullException();
+
+    keyList.Items.Clear();
+    foreach(Subkey key in subkeys) keyList.Items.Add(PGPUI.GetKeyName(key));
+
+    btnOK.Enabled = rbDirect.Enabled = subkeys.Length != 0;
+    if(rbDirect.Enabled) rbDirect.Checked = true;
+
+    rbIndirect.Enabled = revokingKeys.Enabled = false;
+  }
+
   /// <summary>Initializes this form with the given key to revoke and a list of keys for which the user has the secret
   /// portion.
   /// </summary>
@@ -113,9 +131,13 @@ public partial class KeyRevocationForm : Form
     // the user can only revoke the key if he has some way to do so
     btnOK.Enabled = rbDirect.Enabled || rbIndirect.Enabled;
 
-    lblKey.Text = btnOK.Enabled
-      ? "You are about to revoke this key:\n" + PGPUI.GetKeyName(keyToRevoke)
-      : "You cannot revoke the key because you do not have its secret key or the secret key of a designated revoker.";
+    keyList.Items.Add(new KeyItem(keyToRevoke));
+
+    if(!btnOK.Enabled)
+    {
+      lblDescription.Text = "You cannot revoke the key because you do not have its secret key or the "+
+                            "secret key of a designated revoker.";
+    }
   }
 
   void rbIndirect_CheckedChanged(object sender, EventArgs e)

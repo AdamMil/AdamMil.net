@@ -46,12 +46,12 @@ namespace AdamMil.Security.UI
     /// </summary>
     private void InitializeComponent()
     {
-      System.Windows.Forms.Label lblDescription;
       System.Windows.Forms.Label lblExplanation;
       System.Windows.Forms.GroupBox codeGroup;
       System.Windows.Forms.Button btnCancel;
       System.Windows.Forms.GroupBox howBox;
       System.Windows.Forms.Label lblRevokingKey;
+      System.Windows.Forms.Label lblKey;
       this.rbRetired = new System.Windows.Forms.RadioButton();
       this.rbCompromised = new System.Windows.Forms.RadioButton();
       this.rbSuperceded = new System.Windows.Forms.RadioButton();
@@ -59,36 +59,28 @@ namespace AdamMil.Security.UI
       this.revokingKeys = new System.Windows.Forms.ComboBox();
       this.rbIndirect = new System.Windows.Forms.RadioButton();
       this.rbDirect = new System.Windows.Forms.RadioButton();
-      this.lblKey = new System.Windows.Forms.Label();
+      this.lblDescription = new System.Windows.Forms.Label();
       this.txtExplanation = new System.Windows.Forms.TextBox();
       this.btnOK = new System.Windows.Forms.Button();
-      lblDescription = new System.Windows.Forms.Label();
+      this.keyList = new System.Windows.Forms.ListBox();
       lblExplanation = new System.Windows.Forms.Label();
       codeGroup = new System.Windows.Forms.GroupBox();
       btnCancel = new System.Windows.Forms.Button();
       howBox = new System.Windows.Forms.GroupBox();
       lblRevokingKey = new System.Windows.Forms.Label();
+      lblKey = new System.Windows.Forms.Label();
       codeGroup.SuspendLayout();
       howBox.SuspendLayout();
       this.SuspendLayout();
       // 
-      // lblDescription
-      // 
-      lblDescription.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-      lblDescription.Location = new System.Drawing.Point(7, 5);
-      lblDescription.Name = "lblDescription";
-      lblDescription.Size = new System.Drawing.Size(444, 49);
-      lblDescription.TabIndex = 0;
-      lblDescription.Text = "Revoking a key makes it unusable. If the key was compromised, or no revocation re" +
-    "ason is given, signatures made by the key will be considered untrustworthy.";
-      // 
       // lblExplanation
       // 
-      lblExplanation.Location = new System.Drawing.Point(5, 322);
+      lblExplanation.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+      lblExplanation.Location = new System.Drawing.Point(5, 370);
       lblExplanation.Name = "lblExplanation";
-      lblExplanation.Size = new System.Drawing.Size(286, 13);
-      lblExplanation.TabIndex = 3;
+      lblExplanation.Size = new System.Drawing.Size(446, 13);
+      lblExplanation.TabIndex = 5;
       lblExplanation.Text = "Short explanation (optional):";
       lblExplanation.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
       // 
@@ -100,10 +92,10 @@ namespace AdamMil.Security.UI
       codeGroup.Controls.Add(this.rbCompromised);
       codeGroup.Controls.Add(this.rbSuperceded);
       codeGroup.Controls.Add(this.rbNoReason);
-      codeGroup.Location = new System.Drawing.Point(8, 205);
+      codeGroup.Location = new System.Drawing.Point(8, 253);
       codeGroup.Name = "codeGroup";
       codeGroup.Size = new System.Drawing.Size(441, 112);
-      codeGroup.TabIndex = 2;
+      codeGroup.TabIndex = 4;
       codeGroup.TabStop = false;
       codeGroup.Text = "What is the reason for the revocation?";
       // 
@@ -157,10 +149,10 @@ namespace AdamMil.Security.UI
       // 
       btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-      btnCancel.Location = new System.Drawing.Point(374, 411);
+      btnCancel.Location = new System.Drawing.Point(374, 459);
       btnCancel.Name = "btnCancel";
       btnCancel.Size = new System.Drawing.Size(75, 23);
-      btnCancel.TabIndex = 6;
+      btnCancel.TabIndex = 8;
       btnCancel.Text = "&Cancel";
       btnCancel.UseVisualStyleBackColor = true;
       // 
@@ -172,10 +164,10 @@ namespace AdamMil.Security.UI
       howBox.Controls.Add(lblRevokingKey);
       howBox.Controls.Add(this.rbIndirect);
       howBox.Controls.Add(this.rbDirect);
-      howBox.Location = new System.Drawing.Point(8, 101);
+      howBox.Location = new System.Drawing.Point(8, 149);
       howBox.Name = "howBox";
       howBox.Size = new System.Drawing.Size(443, 98);
-      howBox.TabIndex = 7;
+      howBox.TabIndex = 3;
       howBox.TabStop = false;
       howBox.Text = "How should the key be revoked?";
       // 
@@ -227,35 +219,58 @@ namespace AdamMil.Security.UI
       // 
       // lblKey
       // 
-      this.lblKey.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      lblKey.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-      this.lblKey.Location = new System.Drawing.Point(7, 54);
-      this.lblKey.Name = "lblKey";
-      this.lblKey.Size = new System.Drawing.Size(444, 44);
-      this.lblKey.TabIndex = 1;
-      this.lblKey.Text = "You are about to revoke the key:";
+      lblKey.Location = new System.Drawing.Point(7, 54);
+      lblKey.Name = "lblKey";
+      lblKey.Size = new System.Drawing.Size(444, 16);
+      lblKey.TabIndex = 1;
+      lblKey.Text = "You are about to revoke these keys:";
+      lblKey.TextAlign = System.Drawing.ContentAlignment.BottomLeft;
+      // 
+      // lblDescription
+      // 
+      this.lblDescription.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+      this.lblDescription.Location = new System.Drawing.Point(7, 5);
+      this.lblDescription.Name = "lblDescription";
+      this.lblDescription.Size = new System.Drawing.Size(444, 49);
+      this.lblDescription.TabIndex = 0;
+      this.lblDescription.Text = "Revoking a key makes it unusable. If the key was compromised, or no revocation re" +
+    "ason is given, signatures made by the key will be considered untrustworthy.";
       // 
       // txtExplanation
       // 
       this.txtExplanation.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-      this.txtExplanation.Location = new System.Drawing.Point(8, 338);
+      this.txtExplanation.Location = new System.Drawing.Point(8, 386);
       this.txtExplanation.MaxLength = 255;
       this.txtExplanation.Multiline = true;
       this.txtExplanation.Name = "txtExplanation";
-      this.txtExplanation.Size = new System.Drawing.Size(441, 66);
-      this.txtExplanation.TabIndex = 4;
+      this.txtExplanation.Size = new System.Drawing.Size(442, 66);
+      this.txtExplanation.TabIndex = 6;
       // 
       // btnOK
       // 
       this.btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       this.btnOK.DialogResult = System.Windows.Forms.DialogResult.OK;
-      this.btnOK.Location = new System.Drawing.Point(293, 411);
+      this.btnOK.Location = new System.Drawing.Point(293, 459);
       this.btnOK.Name = "btnOK";
       this.btnOK.Size = new System.Drawing.Size(75, 23);
-      this.btnOK.TabIndex = 5;
+      this.btnOK.TabIndex = 7;
       this.btnOK.Text = "&Revoke";
       this.btnOK.UseVisualStyleBackColor = true;
+      // 
+      // keyList
+      // 
+      this.keyList.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+      this.keyList.FormattingEnabled = true;
+      this.keyList.Location = new System.Drawing.Point(8, 74);
+      this.keyList.Name = "keyList";
+      this.keyList.SelectionMode = System.Windows.Forms.SelectionMode.None;
+      this.keyList.Size = new System.Drawing.Size(442, 69);
+      this.keyList.TabIndex = 2;
       // 
       // KeyRevocationForm
       // 
@@ -263,21 +278,23 @@ namespace AdamMil.Security.UI
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.CancelButton = btnCancel;
-      this.ClientSize = new System.Drawing.Size(458, 440);
+      this.ClientSize = new System.Drawing.Size(458, 488);
+      this.Controls.Add(this.keyList);
       this.Controls.Add(howBox);
       this.Controls.Add(this.btnOK);
       this.Controls.Add(btnCancel);
       this.Controls.Add(lblExplanation);
       this.Controls.Add(this.txtExplanation);
       this.Controls.Add(codeGroup);
-      this.Controls.Add(this.lblKey);
-      this.Controls.Add(lblDescription);
+      this.Controls.Add(lblKey);
+      this.Controls.Add(this.lblDescription);
       this.Font = new System.Drawing.Font("Verdana", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
       this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
       this.MaximizeBox = false;
       this.MinimizeBox = false;
       this.Name = "KeyRevocationForm";
       this.ShowIcon = false;
+      this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
       this.Text = "Key Revocation";
       codeGroup.ResumeLayout(false);
       howBox.ResumeLayout(false);
@@ -288,7 +305,6 @@ namespace AdamMil.Security.UI
 
     #endregion
 
-    private System.Windows.Forms.Label lblKey;
     private System.Windows.Forms.TextBox txtExplanation;
     private System.Windows.Forms.RadioButton rbRetired;
     private System.Windows.Forms.RadioButton rbCompromised;
@@ -298,5 +314,7 @@ namespace AdamMil.Security.UI
     private System.Windows.Forms.ComboBox revokingKeys;
     private System.Windows.Forms.RadioButton rbIndirect;
     private System.Windows.Forms.RadioButton rbDirect;
+    private System.Windows.Forms.ListBox keyList;
+    private System.Windows.Forms.Label lblDescription;
   }
 }

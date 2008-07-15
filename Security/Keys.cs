@@ -824,10 +824,10 @@ public class PrimaryKey : Key, ISignableObject
     return this;
   }
 
-  /// <summary>Returns true if the <see cref="TotalCapabilities"/> property contains the given capability flag.</summary>
-  public bool HasCapability(KeyCapabilities capability)
+  /// <summary>Returns true if the <see cref="TotalCapabilities"/> property contains the given capability flags.</summary>
+  public bool HasCapabilities(KeyCapabilities capability)
   {
-    return (TotalCapabilities & capability) != 0;
+    return (TotalCapabilities & capability) == capability;
   }
 
   /// <include file="documentation.xml" path="/Security/Common/ToString/*"/>
@@ -889,6 +889,12 @@ public class Subkey : Key, ISignableObject
   public override PrimaryKey GetPrimaryKey()
   {
     return primaryKey;
+  }
+
+  /// <summary>Returns true if the <see cref="Capabilities"/> property contains the given capability flags.</summary>
+  public bool HasCapabilities(KeyCapabilities capability)
+  {
+    return (Capabilities & capability) == capability;
   }
 
   /// <include file="documentation.xml" path="/Security/Common/ToString/*"/>

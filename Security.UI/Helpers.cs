@@ -272,6 +272,21 @@ public static class PGPUI
     return key.PrimaryUserId.Name + " (0x" + key.ShortKeyId + ")";
   }
 
+  /// <summary>Given a <see cref="Subkey"/>, returns a string that can be used to represent the key to a user.</summary>
+  public static string GetKeyName(Subkey key)
+  {
+    if(key == null) throw new ArgumentNullException();
+
+    bool signing = key.HasCapabilities(KeyCapabilities.Sign);
+    bool encryption = key.HasCapabilities(KeyCapabilities.Encrypt);
+    string type = signing && encryption ? " signing/encryption" :
+                  encryption            ? " encryption" :
+                  signing               ? " signing" : null;
+
+    return key.Length.ToString() + "-bit " + key.KeyType + type + " key, created on " +
+           key.CreationTime.ToShortDateString();
+  }
+
   /// <summary>Given a <see cref="Key"/>, gets a string that describes the validity of a key.</summary>
   public static string GetKeyValidityDescription(Key key)
   {

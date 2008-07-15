@@ -59,7 +59,15 @@ public class SimpleKeyList : KeyListBase
     item.SubItems.Add(key.Length.ToString());
     item.SubItems.Add(key.CreationTime.ToShortDateString());
     item.SubItems.Add(key.ExpirationTime.HasValue ? key.ExpirationTime.Value.ToShortDateString() : "n/a");
-    item.SubItems.Add(PGPUI.GetKeyValidityDescription(key));
+
+    char[] capChars = new char[4];
+    int caps = 0;
+    if((key.Capabilities & KeyCapabilities.Authenticate) != 0) capChars[caps++] = 'A';
+    if((key.Capabilities & KeyCapabilities.Certify) != 0) capChars[caps++] = 'C';
+    if((key.Capabilities & KeyCapabilities.Encrypt) != 0) capChars[caps++] = 'E';
+    if((key.Capabilities & KeyCapabilities.Sign) != 0) capChars[caps++] = 'S';
+    item.SubItems.Add(caps == 0 ? "none" : new string(capChars, 0, caps));
+
     return item;
   }
 
@@ -79,7 +87,7 @@ public class SimpleKeyList : KeyListBase
 
   void InitializeControl()
   {
-    ColumnHeader keyHeader, keyIdHeader, algorithmHeader, sizeHeader, createdHeader, expireHeader, validityHeader;
+    ColumnHeader keyHeader, keyIdHeader, algorithmHeader, sizeHeader, createdHeader, expireHeader, capsHeader;
 
     base.SmallImageList = null;
 
@@ -107,12 +115,12 @@ public class SimpleKeyList : KeyListBase
     expireHeader.Text = "Expiration";
     expireHeader.Width = 75;
 
-    validityHeader = new ColumnHeader();
-    validityHeader.Text = "Validity";
-    validityHeader.Width = 70;
+    capsHeader = new ColumnHeader();
+    capsHeader.Text = "Capabilities";
+    capsHeader.Width = 70;
 
     Columns.AddRange(new ColumnHeader[] { keyHeader, keyIdHeader, algorithmHeader, sizeHeader, createdHeader,
-                                          expireHeader, validityHeader });
+                                          expireHeader, capsHeader });
   }
 }
 
