@@ -327,10 +327,20 @@ public class KeyManagementList : KeyListBase
         ManageUserIds(GetPrimaryItem(item));
       }
     }
-    else // otherwise, show the key properties
+    else
     {
       PrimaryKeyItem primaryItem = GetPrimaryItem(item);
-      if(primaryItem != null) ShowKeyProperties(primaryItem);
+      if(primaryItem != null)
+      {
+        if(item is SubkeyItem) // activating a subkey goes to the management form
+        {
+          ManageSubkeys(primaryItem);
+        }
+        else // otherwise, show the key properties
+        {
+          ShowKeyProperties(primaryItem);
+        }
+      }
     }
   }
 
@@ -492,6 +502,9 @@ public class KeyManagementList : KeyListBase
         advanced.DropDownItems.Add(new ToolStripMenuItem("Make this Key a Designated Revoker...", null,
                                                      delegate(object sender, EventArgs e) { MakeDesignatedRevoker(); }));
         advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = keyCount == 1 && haveOwnedKeys;
+        advanced.DropDownItems.Add(new ToolStripMenuItem("Manage Subkeys...", null,
+                                                         delegate(object sender, EventArgs e) { ManageSubkeys(); }));
+        advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = secretCount == 1;
         advanced.DropDownItems.Add(new ToolStripMenuItem("Export Keys...", null,
                                                          delegate(object sender, EventArgs e) { ExportKeys(); }));
         advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = attributeCount != 0;
@@ -529,8 +542,8 @@ public class KeyManagementList : KeyListBase
   {
     if(key == null) throw new ArgumentNullException();
 
-    bool signing = (key.Capabilities & KeyCapabilities.Sign) != 0;
-    bool encryption = (key.Capabilities & KeyCapabilities.Encrypt) != 0;
+    bool signing = key.HasCapabilities(KeyCapabilities.Sign);
+    bool encryption = key.HasCapabilities(KeyCapabilities.Encrypt);
     
     string text = signing && encryption ? "Signing/encryption" :
                     signing ? "Signing" : encryption ? "Encryption" : "Other";
@@ -744,10 +757,11 @@ public class KeyManagementList : KeyListBase
     for(int i=0; i<refreshedSecretKeys.Length; i++) newSecretKeys[secretKeyIndices[i]] = refreshedSecretKeys[i];
 
     // then remove the items, and recreate the ones that still exist
-    RemoveItems(items);
     for(int i=0; i<newPublicKeys.Length; i++)
     {
-      if(newPublicKeys[i] != null) AddKeyPair(new KeyPair(newPublicKeys[i], newSecretKeys[i]), items[i].Expanded);
+      bool expanded = items[i].Expanded;
+      RemoveItems(items[i]);
+      if(newPublicKeys[i] != null) AddKeyPair(new KeyPair(newPublicKeys[i], newSecretKeys[i]), expanded);
     }
   }
 
@@ -1086,14 +1100,27 @@ public class KeyManagementList : KeyListBase
     }
   }
 
+  /// <summary>Opens the subkey manager for the first selected key, if any are selected.</summary>
+  protected void ManageSubkeys()
+  {
+    PrimaryKeyItem[] items = GetSelectedPrimaryKeyItems();
+    if(items.Length == 0) return;
+    ManageSubkeys(items[0]);
+  }
+
+  /// <summary>Opens the subkey manager for the given item.</summary>
+  protected void ManageSubkeys(PrimaryKeyItem item)
+  {
+    if(item == null) throw new ArgumentNullException();
+    new SubkeyManagerForm(PGP, item.PublicKey).ShowDialog();
+    ReloadItems(item);
+  }
+
   /// <summary>Opens the user ID manager for the first selected key, if any are selected.</summary>
   protected void ManageUserIds()
   {
-    AssertPGPSystem();
-
     PrimaryKeyItem[] items = GetSelectedPrimaryKeyItems();
     if(items.Length == 0) return;
-
     ManageUserIds(items[0]);
   }
 
@@ -1277,7 +1304,7 @@ public class KeyManagementList : KeyListBase
     AssertPGPSystem();
 
     PrimaryKeyItem[] items = Array.FindAll(GetSelectedPrimaryKeyItems(),
-      delegate(PrimaryKeyItem item) { return item.PublicKey.HasCapability(KeyCapabilities.Certify) &&
+      delegate(PrimaryKeyItem item) { return item.PublicKey.HasCapabilities(KeyCapabilities.Certify) &&
                                       !item.PublicKey.Expired && !item.PublicKey.Revoked; });
     if(items.Length == 0) return;
 

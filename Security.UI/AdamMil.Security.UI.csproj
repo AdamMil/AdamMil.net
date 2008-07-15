@@ -127,6 +127,12 @@
     <Compile Include="NewPhotoIdForm.Designer.cs">
       <DependentUpon>NewPhotoIdForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="NewSubkeyForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="NewSubkeyForm.Designer.cs">
+      <DependentUpon>NewSubkeyForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="OwnerTrustForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -178,11 +184,17 @@
     <Compile Include="SimpleKeyList.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="UserIdForm.cs">
+    <Compile Include="SubkeyManagerForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="UserIdForm.Designer.cs">
-      <DependentUpon>UserIdForm.cs</DependentUpon>
+    <Compile Include="SubkeyManagerForm.Designer.cs">
+      <DependentUpon>SubkeyManagerForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="NewUserIdForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="NewUserIdForm.Designer.cs">
+      <DependentUpon>NewUserIdForm.cs</DependentUpon>
     </Compile>
     <Compile Include="UserIdManagerForm.cs">
       <SubType>Form</SubType>
@@ -246,6 +258,10 @@
       <SubType>Designer</SubType>
       <DependentUpon>NewPhotoIdForm.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="NewSubkeyForm.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>NewSubkeyForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="OwnerTrustForm.resx">
       <SubType>Designer</SubType>
       <DependentUpon>OwnerTrustForm.cs</DependentUpon>
@@ -274,9 +290,13 @@
       <SubType>Designer</SubType>
       <DependentUpon>SignaturesForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="UserIdForm.resx">
+    <EmbeddedResource Include="SubkeyManagerForm.resx">
       <SubType>Designer</SubType>
-      <DependentUpon>UserIdForm.cs</DependentUpon>
+      <DependentUpon>SubkeyManagerForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="NewUserIdForm.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>NewUserIdForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="UserIdManagerForm.resx">
       <SubType>Designer</SubType>

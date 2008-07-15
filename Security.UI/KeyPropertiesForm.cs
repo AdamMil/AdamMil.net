@@ -55,10 +55,10 @@ public partial class KeyPropertiesForm : Form
     txtFingerprint.Text = pair.PublicKey.Fingerprint;
 
     List<string> capabilities = new List<string>();
-    if(pair.PublicKey.HasCapability(KeyCapabilities.Encrypt)) capabilities.Add("encrypt");
-    if(pair.PublicKey.HasCapability(KeyCapabilities.Sign)) capabilities.Add("sign");
-    if(pair.PublicKey.HasCapability(KeyCapabilities.Certify)) capabilities.Add("certify");
-    if(pair.PublicKey.HasCapability(KeyCapabilities.Authenticate)) capabilities.Add("authenticate");
+    if(pair.PublicKey.HasCapabilities(KeyCapabilities.Authenticate)) capabilities.Add("authenticate");
+    if(pair.PublicKey.HasCapabilities(KeyCapabilities.Certify)) capabilities.Add("certify");
+    if(pair.PublicKey.HasCapabilities(KeyCapabilities.Encrypt)) capabilities.Add("encrypt");
+    if(pair.PublicKey.HasCapabilities(KeyCapabilities.Sign)) capabilities.Add("sign");
     txtCapabilities.Text = capabilities.Count == 0 ? "none" : string.Join(", ", capabilities.ToArray());
 
     keyList.Items.Clear();
