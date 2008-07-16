@@ -891,7 +891,7 @@ public class Subkey : Key, ISignableObject
     return primaryKey;
   }
 
-  /// <summary>Returns true if the <see cref="Capabilities"/> property contains the given capability flags.</summary>
+  /// <summary>Returns true if the <see cref="Key.Capabilities"/> property contains the given capability flags.</summary>
   public bool HasCapabilities(KeyCapabilities capability)
   {
     return (Capabilities & capability) == capability;

@@ -134,8 +134,15 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
   [Test]
   public void T04_Signing()
   {
+    const string PlainString = "Hello, world!";
+
     EnsureImported();
-    MemoryStream plaintext = new MemoryStream(Encoding.UTF8.GetBytes("Hello, world!")), signature = new MemoryStream();
+
+    DecryptionOptions decryptOptions = new DecryptionOptions();
+    decryptOptions.AdditionalKeyrings.Add(keyring);
+    decryptOptions.IgnoreDefaultKeyring = true;
+    
+    MemoryStream plaintext = new MemoryStream(Encoding.UTF8.GetBytes(PlainString)), signature = new MemoryStream();
 
     // we'll use only the test keyring
     VerificationOptions options = new VerificationOptions();
@@ -150,15 +157,37 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
     signature.Position = 0;
     CheckSignatures(keys, gpg.Verify(signature, options));
 
+    // verify the embedded text
+    MemoryStream output = new MemoryStream();
+    signature.Position = 0;
+    CheckSignatures(keys, gpg.Decrypt(signature, output, decryptOptions));
+    output.Position = 0;
+    Assert.IsTrue(new StreamReader(output).ReadToEnd().Contains(PlainString));
+
     // check that it contains the comment
     signature.Position = 0;
-    string asciiSig = new StreamReader(signature).ReadToEnd();
-    Assert.IsTrue(asciiSig.Contains("Comment: Woot"));
+    Assert.IsTrue(new StreamReader(signature).ReadToEnd().Contains("Comment: Woot"));
+
+    // test clearsigning
+    plaintext.Position = 0;
+    signature = new MemoryStream();
+    gpg.Sign(plaintext, signature, new SigningOptions(SignatureType.ClearSignedText, keys[Signer], keys[Encrypter]));
+
+    // verify that the original text is there in the clear
+    signature.Position = 0;
+    Assert.IsTrue(new StreamReader(signature).ReadToEnd().Contains(PlainString));
+
+    // verify the signature
+    output = new MemoryStream();
+    signature.Position = 0;
+    CheckSignatures(keys, gpg.Decrypt(signature, output, decryptOptions));
+    output.Position = 0;
+    Assert.IsTrue(new StreamReader(output).ReadToEnd().Contains(PlainString));
 
     // test binary detached signatures
     plaintext.Position = 0;
     signature = new MemoryStream();
-    gpg.Sign(plaintext, signature, new SigningOptions(true, keys[Signer], keys[Encrypter]), null);
+    gpg.Sign(plaintext, signature, new SigningOptions(SignatureType.Detached, keys[Signer], keys[Encrypter]));
 
     // verify the signature
     plaintext.Position = signature.Position = 0;

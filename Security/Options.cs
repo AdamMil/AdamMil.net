@@ -816,23 +816,13 @@ public class SigningOptions
     foreach(PrimaryKey key in signers) Signers.Add(key);
   }
 
-  /// <summary>Initializes a new <see cref="SigningOptions"/> object with the given detached flag and list of signing
-  /// keys.
+  /// <summary>Initializes a new <see cref="SigningOptions"/> object with the given <see cref="SignatureType"/> and
+  /// list of signing keys.
   /// </summary>
-  public SigningOptions(bool detached, params PrimaryKey[] signers)
+  public SigningOptions(SignatureType type, params PrimaryKey[] signers)
   {
-    Detached = detached;
+    Type = type;
     foreach(PrimaryKey key in signers) Signers.Add(key);
-  }
-
-  /// <summary>Gets or sets a value that determines whether the signature will be embedded in or detached from the
-  /// data. If true, the output of the signature operation will be only the signature itself. If false, the output will
-  /// be a copy of the data with the signature embedded. The default is false.
-  /// </summary>
-  public bool Detached
-  {
-    get { return detached; }
-    set { detached = value; }
   }
 
   /// <summary>Gets or sets the name of the algorithm used to hash the data. This can be one of the
@@ -853,9 +843,37 @@ public class SigningOptions
     get { return signers; }
   }
 
+  /// <summary>Gets or sets the type of signature to create. The default is <see cref="SignatureType.Embedded"/>.</summary>
+  public SignatureType Type
+  {
+    get { return type; }
+    set { type = value; }
+  }
+
   readonly KeyCollection<PrimaryKey> signers = new KeyCollection<PrimaryKey>(KeyCapabilities.Sign);
   string hash = HashAlgorithm.Default;
-  bool detached;
+  SignatureType type = SignatureType.Embedded;
+}
+#endregion
+
+#region SignatureType
+/// <summary>Determines the type of a data signature to be made.</summary>
+public enum SignatureType
+{
+  /// <summary>Signs arbitrary data, and outputs an OpenPGP message containing both the original data and the
+  /// signature.
+  /// </summary>
+  Embedded,
+  /// <summary>Signs arbitrary data, and outputs an OpenPGP message containing only the signature. To verify the
+  /// signature, the original data will need to be presented again.
+  /// </summary>
+  Detached,
+  /// <summary>Signs text data, and outputs a text document containing the original text and an embedded OpenPGP
+  /// message that holds the signature. The benefit of a clear-signed text is that the original text can be read by
+  /// humans without any special software. OpenPGP software is only needed to verify the signature. The text may be
+  /// modified to normalize end-of-line whitespace and line endings for platform independence.
+  /// </summary>
+  ClearSignedText
 }
 #endregion
 
