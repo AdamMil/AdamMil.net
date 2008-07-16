@@ -247,11 +247,20 @@ public class ExeGPG : GPG
 
     if(encryptionOptions != null) // if we'll be doing any encryption
     {
-      // we can't do signing with detached signatures because GPG doesn't have a way to specify the two output files
-      if(signingOptions != null && signingOptions.Detached)
+      // we can't do signing with detached signatures because GPG doesn't have a way to specify the two output files.
+      // and encryption with 
+      if(signingOptions != null && signingOptions.Type != SignatureType.Embedded)
       {
-        throw new NotSupportedException("Simultaneous encryption and detached signing is not supported by GPG. Perform "+
-                                        "the encryption and detached signing as two separate steps.");
+        if(signingOptions.Type == SignatureType.ClearSignedText)
+        {
+          throw new ArgumentException("Combining encryption with clear-signing does not make sense, because the data "+
+                                      "cannot be both encrypted and in the clear.");
+        }
+        else
+        {
+          throw new NotSupportedException("Simultaneous encryption and detached signing is not supported by GPG. "+
+                                          "Perform the encryption and detached signing as two separate steps.");
+        }
       }
 
       symmetric = encryptionOptions.Password != null && encryptionOptions.Password.Length != 0;
@@ -298,8 +307,10 @@ public class ExeGPG : GPG
         customAlgo = true;
       }
 
-      // add all of the signers to the command line, and the signing command (either detached or not)
-      args += GetFingerprintArgs(signingOptions.Signers, "-u") + (signingOptions.Detached ? "-b " : "-s ");
+      // add all of the signers to the command line, and the signing command
+      args += GetFingerprintArgs(signingOptions.Signers, "-u") +
+        (signingOptions.Type == SignatureType.Detached ? "-b " :
+         signingOptions.Type == SignatureType.ClearSignedText ? "--clearsign " : "-s ");
     }
 
     args += GetKeyringArgs(keyringKeys, true); // add all the keyrings to the command line

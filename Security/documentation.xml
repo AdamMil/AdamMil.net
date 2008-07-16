@@ -138,8 +138,9 @@
     
     <Decrypt>
       <summary>
-        Decrypts the given ciphertext and writes the result to the given destination. Signatures embedded
-        in the ciphertext are also verified and returned.
+        Takes the given ciphertext or embedded signature and writes the original plaintext to the given
+        destination. Embedded signatures are verified and returned. If you only want to embedded verify signatures in
+        an encrypted, signed document, you can pass use a destination stream of <see cref="Stream.Null"/>.
       </summary>
     </Decrypt>
 
@@ -559,8 +560,8 @@
 
     <Verify2>
       <summary>Verifies embedded signatures in the given signed data. The signed data should not have been
-        simultaneously encrypted. To verify signatures in encrypted, signed data, call
-        <see cref="Decrypt(Stream,Stream,DecryptionOptions)"/> with a destination stream of <see cref="Stream.Null"/>.
+        simultaneously encrypted. To verify signatures in encrypted, signed data, or to retrieve the original data from
+        an embedded or cleartext signature, call <see cref="Decrypt(Stream,Stream,DecryptionOptions)"/>.
       </summary>
     </Verify2>
 

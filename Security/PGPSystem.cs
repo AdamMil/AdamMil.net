@@ -809,8 +809,10 @@ public abstract class PGPSystem
   public abstract void SignAndEncrypt(Stream sourceData, Stream destination, SigningOptions signingOptions,
                                       EncryptionOptions encryptionOptions, OutputOptions outputOptions);
 
-  /// <summary>Decrypts the given ciphertext and writes the result to the given destination, using the default
-  /// decryption options. Signatures embedded in the ciphertext are also verified and returned.
+  /// <summary>Takes the given ciphertext or embedded signature and writes the original plaintext to the given
+  /// destination, using the default decryption options. Embedded signatures are verified and returned. If you only
+  /// want to embedded verify signatures in an encrypted, signed document, you can pass use a destination stream of
+  /// <see cref="Stream.Null"/>.
   /// </summary>
   public Signature[] Decrypt(Stream ciphertext, Stream destination)
   {
@@ -821,8 +823,8 @@ public abstract class PGPSystem
   public abstract Signature[] Decrypt(Stream ciphertext, Stream destination, DecryptionOptions options);
 
   /// <summary>Verifies embedded signatures in the given signed data, using the default verification options. The
-  /// signed data should not have been simultaneously encrypted. To verify signatures in encrypted, signed data, call
-  /// <see cref="Decrypt(Stream,Stream)"/> with a destination stream of <see cref="Stream.Null"/>.
+  /// signed data should not have been simultaneously encrypted. To verify signatures in encrypted, signed data, or to
+  /// retrieve the original data from an embedded or cleartext signature, use <see cref="Decrypt(Stream,Stream)"/>.
   /// </summary>
   public Signature[] Verify(Stream signedData)
   {
@@ -1053,6 +1055,14 @@ public abstract class PGPSystem
   #endregion
 
   #region Keyring queries
+  /// <summary>Searches for the public key with the given fingerprint, ID, or keyword in the default keyring.</summary>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKey/param[@name = 'keywordOrId']"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKey/returns"/>
+  public PrimaryKey FindPublicKey(string keywordOrId)
+  {
+    return FindPublicKey(keywordOrId, null, ListOptions.Default);
+  }
+
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKey/*[@name != 'options']"/>
   public PrimaryKey FindPublicKey(string keywordOrId, Keyring keyring)
   {
@@ -1073,6 +1083,14 @@ public abstract class PGPSystem
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKeys/*"/>
   public abstract PrimaryKey[] FindPublicKeys(string[] fingerprintsOrIds, Keyring[] keyrings,
                                               bool includeDefaultKeyring, ListOptions options);
+
+  /// <summary>Searches for the secret key with the given fingerprint, ID, or keyword in the default keyring.</summary>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKey/param[@name = 'keywordOrId']"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKey/returns"/>
+  public PrimaryKey FindSecretKey(string keywordOrId)
+  {
+    return FindSecretKey(keywordOrId, null, ListOptions.Default);
+  }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKey/*[@name != 'options']"/>
   public PrimaryKey FindSecretKey(string keywordOrId, Keyring keyring)
