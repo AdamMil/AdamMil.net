@@ -1410,11 +1410,12 @@ public class DocumentEditor : Control
     /// <summary>The split piece is a word. The line wrapping algorithm will wrap at word boundaries.</summary>
     Word,
     /// <summary>The split piece is a piece of whitespace that trails after a word and must not be separated from the
-    /// word unless horizontal justification is being performed.
+    /// word unless horizontal justification is being performed. These spaces are the ones that will be stretched by
+    /// justification.
     /// </summary>
     TrailingSpace,
     /// <summary>The split piece is a piece of whitespace between words. The whitespace may be split from the preceding
-    /// word and placed on the next line.
+    /// word and placed on the next line, but will not be stretched by justification.
     /// </summary>
     Space,
     /// <summary>The split piece represents a span of the node content that will be skipped, although its height will
@@ -2062,6 +2063,7 @@ public class DocumentEditor : Control
     List<LayoutRegion> newAncestors = new List<LayoutRegion>();
     LayoutSpan span = null; // the span of the current piece
     int nodeIndex = 0;      // the index within the content of the current document node
+    HorizontalAlignment hAlignment = parent.Style.HorizontalAlignment;
 
     // an enumerator that turns a list of node trees into sets of spans for each line of content
     PieceEnumerator pieceEnum = new PieceEnumerator(this, gdi, inlineNodes, available);
@@ -2116,8 +2118,8 @@ public class DocumentEditor : Control
         }
 
         // if the piece is a word, it may have trailing space attached. these spaces should be grouped along with it
-        // unless we're doing justification.
-        if(piece.Type == PieceType.Word)
+        // unless we're doing justification
+        if(hAlignment != HorizontalAlignment.Justify && piece.Type == PieceType.Word)
         {
           while(nextIndex < pieces.Count && pieces[nextIndex].Type == PieceType.TrailingSpace &&
                 pieces[nextIndex].Container == span)
@@ -2258,7 +2260,7 @@ public class DocumentEditor : Control
       block.Height += line.Height;
     }
 
-    ApplyHorizontalAlignment(parent.Style.HorizontalAlignment, block);
+    ApplyHorizontalAlignment(hAlignment, block);
     block.Start       = block.Children[0].Start;
     block.Length      = block.Children[block.Children.Length-1].End - block.Start;
     block.ContentSpan = block.Span;
@@ -3096,13 +3098,13 @@ public class DocumentEditor : Control
   }
 
   /// <summary>Called when the mouse is double-clicked on the control.</summary>
-  protected override void OnDoubleClick(EventArgs e)
+  protected override void OnMouseDoubleClick(MouseEventArgs e)
   {
-    base.OnDoubleClick(e);
+    base.OnMouseDoubleClick(e);
 
-    Point docPt = GetDocumentPoint(PointToClient(Cursor.Position));
+    Point docPt = GetDocumentPoint(e.Location);
     LayoutRegion region = GetRegion(docPt);
-    if(region != null) region.OnDoubleClick(this, new MouseEventArgs(MouseButtons.Left, 1, docPt.X, docPt.Y, 0));
+    if(region != null) region.OnDoubleClick(this, new MouseEventArgs(e.Button, e.Clicks, docPt.X, docPt.Y, e.Delta));
   }
 
   /// <summary>Called when the font changes.</summary>
@@ -3266,6 +3268,11 @@ public class DocumentEditor : Control
         {
           MoveCursorDownAPage(true);
         }
+        else goto default;
+        break;
+
+      case Keys.A:
+        if(e.Modifiers == Keys.Control) SelectAll(); // ctrl-a selects everything
         else goto default;
         break;
 

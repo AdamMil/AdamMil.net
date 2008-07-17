@@ -356,10 +356,7 @@ public class ExeGPG : GPG
       while(!ready.WaitOne(50, false) && !cmd.Process.HasExited) { }
 
       // if the process is still running and it didn't exit before we could copy the input data...
-      if(!cmd.Process.HasExited && WriteStreamToProcess(sourceData, cmd.Process))
-      {
-        IOH.CopyStream(cmd.Process.StandardOutput.BaseStream, destination); // then read the output data
-      }
+      if(!cmd.Process.HasExited) ReadAndWriteStreams(destination, sourceData, cmd.Process);
 
       cmd.WaitForExit(); // and wait for the command to finish
     }
@@ -3715,11 +3712,9 @@ public class ExeGPG : GPG
 
       cmd.Start();
 
-      if(WriteStreamToProcess(signedData, cmd.Process)) // write the signed and/or encrypted data to STDIN
-      {
-        // if we're decrypting, read the plaintext from STDOUT
-        if(destination != null) IOH.CopyStream(cmd.Process.StandardOutput.BaseStream, destination);
-      }
+      // write the signed and/or encrypted data to STDIN and read the plaintext from STDOUT
+      if(destination == null) WriteStreamToProcess(signedData, cmd.Process);
+      else ReadAndWriteStreams(destination, signedData, cmd.Process);
 
       cmd.WaitForExit();
       if(!cmd.SuccessfulExit) throw new DecryptionFailedException(state.FailureReasons);
@@ -5627,30 +5622,74 @@ public class ExeGPG : GPG
     return str == null ? null : str.Trim();
   }
 
+  /// <summary>Copys all data from the write stream to the standard input of the process, and copies the data from
+  /// the standard output into the read stream.
+  /// </summary>
+  /// <returns>Returns true if all data was written to the standard input before the process terminated, and all the
+  /// data was read from standard output.
+  /// </returns>
+  static bool ReadAndWriteStreams(Stream read, Stream write, Process process)
+  {
+    ManualResetEvent readComplete = null;
+    byte[] writeBuffer = new byte[4096], readBuffer = read == null ? null : new byte[4096];
+    bool allDataWritten = false;
+
+    if(read != null)
+    {
+      readComplete = new ManualResetEvent(false);
+
+      AsyncCallback callback = null;
+      callback = delegate(IAsyncResult result)
+      {
+        int bytes = process.StandardOutput.BaseStream.EndRead(result);
+        if(bytes == 0)
+        {
+          readComplete.Set();
+        }
+        else
+        {
+          read.Write(readBuffer, 0, bytes);
+          process.StandardOutput.BaseStream.BeginRead(readBuffer, 0, readBuffer.Length, callback, null);
+        }
+      };
+
+      process.StandardOutput.BaseStream.BeginRead(readBuffer, 0, readBuffer.Length, callback, null);
+    }
+
+    while(!process.HasExited)
+    {
+      int bytes;
+
+      // copy a chunk of bytes from the write stream to STDIN
+      bytes = write.Read(writeBuffer, 0, writeBuffer.Length);
+      if(bytes == 0)
+      {
+        allDataWritten = true;
+        break;
+      }
+
+      try { process.StandardInput.BaseStream.Write(writeBuffer, 0, bytes); }
+      catch(ObjectDisposedException) { break; }
+    }
+
+    process.StandardInput.Close(); // close STDIN so that GPG will finish up
+
+    if(read != null)
+    {
+      readComplete.WaitOne();
+      readComplete.Close();
+    }
+
+    return allDataWritten;
+  }
+
   /// <summary>Writes all data from the stream to the standard input of the process,
   /// and then closes the standard input.
   /// </summary>
   /// <returns>Returns true if all data was written to the stream before the process terminated.</returns>
   static bool WriteStreamToProcess(Stream data, Process process)
   {
-    byte[] buffer = new byte[4096];
-    bool allDataWritten = false;
-
-    while(!process.HasExited)
-    {
-      int read = data.Read(buffer, 0, buffer.Length);
-      if(read == 0)
-      {
-        allDataWritten = true;
-        break;
-      }
-
-      try { process.StandardInput.BaseStream.Write(buffer, 0, read); }
-      catch(ObjectDisposedException) { break; }
-    }
-
-    process.StandardInput.Close();
-    return allDataWritten;
+    return ReadAndWriteStreams(null, data, process); 
   }
 
   /// <summary>Clears the given buffer.</summary>
