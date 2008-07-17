@@ -251,6 +251,11 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
     // verify that it decrypted properly
     decrypted.Position = 0;
     Assert.AreEqual(PlainTextString, new StreamReader(decrypted).ReadToEnd());
+
+    // test encryption of a large data source, to make sure GPG doesn't deadlock on the read
+    byte[] buffer = new byte[70*1024];
+    new Random().NextBytes(buffer);
+    gpg.SignAndEncrypt(new MemoryStream(buffer), new MemoryStream(), null, new EncryptionOptions(password));
   }
 
   [Test]

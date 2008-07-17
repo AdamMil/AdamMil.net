@@ -17,8 +17,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Collections.Specialized;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
@@ -921,6 +921,19 @@ public class KeyCollection<KeyType> : Collection<KeyType> where KeyType : Key
   public KeyCollection(KeyCapabilities requiredCapabilities)
   {
     this.requiredCapabilities = requiredCapabilities;
+  }
+
+  /// <summary>Adds the given keys to the collection.</summary>
+  public void AddRange(IEnumerable<KeyType> keys)
+  {
+    if(keys == null) throw new ArgumentNullException();
+
+    foreach(KeyType key in keys)
+    {
+      if(key == null) throw new ArgumentException("A key was null.");
+    }
+
+    foreach(KeyType key in keys) Add(key);
   }
 
   /// <summary>Called when a new item is about to be inserted.</summary>
