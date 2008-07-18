@@ -109,8 +109,8 @@ public partial class KeyServerSearchForm : Form
     {
       try
       {
-        PGP.FindPublicKeysOnServer(keyServer, GotResults,
-                                   terms.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
+        PGP.FindKeysOnServer(keyServer, GotResults,
+                             terms.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
         Invoke((ThreadStart)delegate { SearchSucceeded(); });
       }
       catch(Exception ex)

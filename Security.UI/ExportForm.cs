@@ -36,8 +36,8 @@ public partial class ExportForm : Form
   {
     InitializeComponent();
 
-    options.Items.Add("Export Public Keys", true);
-    options.Items.Add("Export Secret Keys", false);
+    options.Items.Add(new ListItem<ExportOptions>(ExportOptions.ExportPublicKeys, "Export Public Keys"));
+    options.Items.Add(new ListItem<ExportOptions>(ExportOptions.ExportSecretKeys, "Export Secret Keys"));
     options.Items.Add("Export in a Binary Format", false);
     options.Items.Add(new ListItem<ExportOptions>(ExportOptions.ExportLocalSignatures, "Include Local Signatures"));
     options.Items.Add(new ListItem<ExportOptions>(ExportOptions.ExportSensitiveRevokerInfo, "Include Sensitive Revokers"));
@@ -71,20 +71,6 @@ public partial class ExportForm : Form
       }
       return exportOptions;
     }
-  }
-
-  /// <summary>Gets whether public keys are to be exported.</summary>
-  [Browsable(false)]
-  public bool ExportPublicKeys
-  {
-    get { return options.GetItemChecked(0); }
-  }
-
-  /// <summary>Gets whether secret keys are to be exported.</summary>
-  [Browsable(false)]
-  public bool ExportSecretKeys
-  {
-    get { return options.GetItemChecked(1); }
   }
 
   /// <summary>Gets the name of the file into which the keys should be saved, or null if they should be saved to the
