@@ -846,107 +846,55 @@ public abstract class PGPSystem
 
   #region Key import and export
   /// <summary>Exports the given public key to the given stream.</summary>
-  public void ExportPublicKey(PrimaryKey key, Stream destination)
+  public void ExportKey(PrimaryKey key, Stream destination)
   {
-    ExportPublicKey(key, destination, ExportOptions.Default, null);
+    ExportKey(key, destination, ExportOptions.Default, null);
   }
 
   /// <summary>Exports the given public key to the given stream.</summary>
-  public void ExportPublicKey(PrimaryKey key, Stream destination, ExportOptions exportOptions)
+  public void ExportKey(PrimaryKey key, Stream destination, ExportOptions exportOptions)
   {
-    ExportPublicKey(key, destination, exportOptions, null);
+    ExportKey(key, destination, exportOptions, null);
   }
 
   /// <summary>Exports the given public key to the given stream.</summary>
-  public void ExportPublicKey(PrimaryKey key, Stream destination, ExportOptions exportOptions,
+  public void ExportKey(PrimaryKey key, Stream destination, ExportOptions exportOptions,
                               OutputOptions outputOptions)
   {
-    ExportPublicKeys(new PrimaryKey[] { key }, destination, exportOptions, outputOptions);
+    ExportKeys(new PrimaryKey[] { key }, destination, exportOptions, outputOptions);
   }
 
   /// <summary>Exports the given public keys to the given stream.</summary>
-  public void ExportPublicKeys(PrimaryKey[] keys, Stream destination)
+  public void ExportKeys(PrimaryKey[] keys, Stream destination)
   {
-    ExportPublicKeys(keys, destination, ExportOptions.Default, null);
+    ExportKeys(keys, destination, ExportOptions.Default, null);
   }
 
   /// <summary>Exports the given public keys to the given stream.</summary>
-  public void ExportPublicKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions)
+  public void ExportKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions)
   {
-    ExportPublicKeys(keys, destination, exportOptions, null);
+    ExportKeys(keys, destination, exportOptions, null);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportPublicKeys/*"/>
-  public abstract void ExportPublicKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions,
-                                        OutputOptions outputOptions);
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportKeys/*"/>
+  public abstract void ExportKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions,
+                                  OutputOptions outputOptions);
 
   /// <summary>Exports all public keys in the given keyring files and/or the default keyring to the given stream.</summary>
-  public void ExportPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination)
+  public void ExportKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination)
   {
-    ExportPublicKeys(keyrings, includeDefaultKeyring, destination, ExportOptions.Default, null);
+    ExportKeys(keyrings, includeDefaultKeyring, destination, ExportOptions.Default, null);
   }
 
   /// <summary>Exports all public keys in the given keyring files and/or the default keyring to the given stream.</summary>
-  public void ExportPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
+  public void ExportKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
                                ExportOptions options)
   {
-    ExportPublicKeys(keyrings, includeDefaultKeyring, destination, options, null);
+    ExportKeys(keyrings, includeDefaultKeyring, destination, options, null);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportPublicKeys/*"/>
-  public abstract void ExportPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
-                                        ExportOptions exportOptions, OutputOptions outputOptions);
-
-  /// <summary>Exports the secret and public portion of the given key to the given stream.</summary>
-  public void ExportSecretKey(PrimaryKey key, Stream destination)
-  {
-    ExportSecretKey(key, destination, ExportOptions.Default, null);
-  }
-
-  /// <summary>Exports the secret and public portion of the given key to the given stream.</summary>
-  public void ExportSecretKey(PrimaryKey key, Stream destination, ExportOptions exportOptions)
-  {
-    ExportSecretKey(key, destination, exportOptions, null);
-  }
-
-  /// <summary>Exports the secret and public portion of the given key to the given stream.</summary>
-  public void ExportSecretKey(PrimaryKey key, Stream destination, ExportOptions exportOptions,
-                              OutputOptions outputOptions)
-  {
-    ExportSecretKeys(new PrimaryKey[] { key }, destination, exportOptions, outputOptions);
-  }
-
-  /// <summary>Exports the given secret and public keys to the given stream.</summary>
-  public void ExportSecretKeys(PrimaryKey[] keys, Stream destination)
-  {
-    ExportSecretKeys(keys, destination, ExportOptions.Default, null);
-  }
-
-  /// <summary>Exports the given secret and public keys to the given stream.</summary>
-  public void ExportSecretKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions)
-  {
-    ExportSecretKeys(keys, destination, exportOptions, null);
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportSecretKeys/*"/>
-  public abstract void ExportSecretKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions,
-                                        OutputOptions outputOptions);
-
-  /// <summary>Exports all secret keys in the given keyring files and/or the default keyring to the given stream.</summary>
-  public void ExportSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination)
-  {
-    ExportSecretKeys(keyrings, includeDefaultKeyring, destination, ExportOptions.Default, null);
-  }
-
-  /// <summary>Exports all secret keys in the given keyring files and/or the default keyring to the given stream.</summary>
-  public void ExportSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
-                               ExportOptions exportOptions)
-  {
-    ExportSecretKeys(keyrings, includeDefaultKeyring, destination, exportOptions, null);
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportSecretKeys/*"/>
-  public abstract void ExportSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportKeys/*"/>
+  public abstract void ExportKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
                                         ExportOptions exportOptions, OutputOptions outputOptions);
 
   /// <summary>Imports keys from the given source into the default keyring.</summary>
@@ -995,8 +943,8 @@ public abstract class PGPSystem
   #endregion
 
   #region Key server operations
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKeysOnServer/*"/>
-  public abstract void FindPublicKeysOnServer(Uri keyServer, KeySearchHandler handler, params string[] searchKeywords);
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKeysOnServer/*"/>
+  public abstract void FindKeysOnServer(Uri keyServer, KeySearchHandler handler, params string[] searchKeywords);
 
   /// <summary>Downloads the public keys specified with the given fingerprints (or key IDs) from the given key server,
   /// and imports them into the default keyring.
@@ -1055,105 +1003,68 @@ public abstract class PGPSystem
   #endregion
 
   #region Keyring queries
-  /// <summary>Searches for the public key with the given fingerprint, ID, or keyword in the default keyring.</summary>
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKey/param[@name = 'keywordOrId']"/>
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKey/returns"/>
-  public PrimaryKey FindPublicKey(string keywordOrId)
+  /// <summary>Searches for the key with the given fingerprint, ID, or keyword in the default keyring.</summary>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKey/param[@name = 'keywordOrId']"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKey/returns"/>
+  public PrimaryKey FindKey(string keywordOrId)
   {
-    return FindPublicKey(keywordOrId, null, ListOptions.Default);
+    return FindKey(keywordOrId, null, ListOptions.Default);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKey/*[@name != 'options']"/>
-  public PrimaryKey FindPublicKey(string keywordOrId, Keyring keyring)
+  /// <summary>Searches for the key with the given fingerprint, ID, or keyword in the default keyring.</summary>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKey/param[@name != 'keyring']"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKey/returns"/>
+  public PrimaryKey FindKey(string keywordOrId, ListOptions options)
   {
-    return FindPublicKey(keywordOrId, keyring, ListOptions.Default);
+    return FindKey(keywordOrId, null, options);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKey/*"/>
-  public abstract PrimaryKey FindPublicKey(string keywordOrId, Keyring keyring, ListOptions options);
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKey/*[@name != 'options']"/>
+  public PrimaryKey FindKey(string keywordOrId, Keyring keyring)
+  {
+    return FindKey(keywordOrId, keyring, ListOptions.Default);
+  }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKeys/*[@name != 'keyrings' and @name != 'includeDefaultKeyring']"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKey/*"/>
+  public abstract PrimaryKey FindKey(string keywordOrId, Keyring keyring, ListOptions options);
+
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKeys/*[@name != 'keyrings' and @name != 'includeDefaultKeyring']"/>
   /// <param name="keyring">The keyring to search, or null to search the default keyring.</param>
-  public PrimaryKey[] FindPublicKeys(string[] fingerprintsOrIds, Keyring keyring, ListOptions options)
+  public PrimaryKey[] FindKeys(string[] fingerprintsOrIds, Keyring keyring, ListOptions options)
   {
-    return FindPublicKeys(fingerprintsOrIds,
-                          keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
+    return FindKeys(fingerprintsOrIds, keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKeys/*"/>
-  public abstract PrimaryKey[] FindPublicKeys(string[] fingerprintsOrIds, Keyring[] keyrings,
-                                              bool includeDefaultKeyring, ListOptions options);
-
-  /// <summary>Searches for the secret key with the given fingerprint, ID, or keyword in the default keyring.</summary>
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKey/param[@name = 'keywordOrId']"/>
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKey/returns"/>
-  public PrimaryKey FindSecretKey(string keywordOrId)
-  {
-    return FindSecretKey(keywordOrId, null, ListOptions.Default);
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKey/*[@name != 'options']"/>
-  public PrimaryKey FindSecretKey(string keywordOrId, Keyring keyring)
-  {
-    return FindSecretKey(keywordOrId, keyring, ListOptions.Default);
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKey/*"/>
-  public abstract PrimaryKey FindSecretKey(string keywordOrId, Keyring keyring, ListOptions options);
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKeys/*[@name != 'keyrings' and @name != 'includeDefaultKeyring']"/>
-  /// <param name="keyring">The keyring to search, or null to search the default keyring.</param>
-  public PrimaryKey[] FindSecretKeys(string[] fingerprintsOrIds, Keyring keyring, ListOptions options)
-  {
-    return FindSecretKeys(fingerprintsOrIds,
-                          keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKeys/*"/>
-  public abstract PrimaryKey[] FindSecretKeys(string[] fingerprintsOrIds, Keyring[] keyrings,
-                                              bool includeDefaultKeyring, ListOptions options);
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKeys/*"/>
+  public abstract PrimaryKey[] FindKeys(string[] fingerprintsOrIds, Keyring[] keyrings,
+                                        bool includeDefaultKeyring, ListOptions options);
 
   /// <summary>Gets all public keys in the default keyring, without retrieving key signatures.</summary>
-  public PrimaryKey[] GetPublicKeys()
+  public PrimaryKey[] GetKeys()
   {
-    return GetPublicKeys(ListOptions.Default);
+    return GetKeys(ListOptions.Default);
   }
 
   /// <summary>Gets all public keys in the default keyring.</summary>
-  public PrimaryKey[] GetPublicKeys(ListOptions options)
+  public PrimaryKey[] GetKeys(ListOptions options)
   {
-    return GetPublicKeys(null, true, options);
+    return GetKeys(null, true, options);
   }
 
   /// <summary>Gets all public keys in the given keyring, without retrieving key signatures.</summary>
-  public PrimaryKey[] GetPublicKeys(Keyring keyring)
+  public PrimaryKey[] GetKeys(Keyring keyring)
   {
-    return GetPublicKeys(keyring, ListOptions.Default);
+    return GetKeys(keyring, ListOptions.Default);
   }
 
   /// <summary>Gets all public keys in the given keyring.</summary>
-  public PrimaryKey[] GetPublicKeys(Keyring keyring, ListOptions options)
+  public PrimaryKey[] GetKeys(Keyring keyring, ListOptions options)
   {
-    return GetPublicKeys(keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
+    return GetKeys(keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetPublicKeys2/*"/>
-  public abstract PrimaryKey[] GetPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, ListOptions options);
-
-  /// <summary>Gets all secret keys in the default keyring.</summary>
-  public PrimaryKey[] GetSecretKeys()
-  {
-    return GetSecretKeys(null, true);
-  }
-
-  /// <summary>Gets all secret keys in the given keyring.</summary>
-  public PrimaryKey[] GetSecretKeys(Keyring keyring)
-  {
-    return keyring == null ? GetSecretKeys(null, true) : GetSecretKeys(new Keyring[] { keyring }, false);
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetSecretKeys2/*"/>
-  public abstract PrimaryKey[] GetSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring);
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetKeys/*"/>
+  public abstract PrimaryKey[] GetKeys(Keyring[] keyrings, bool includeDefaultKeyring, ListOptions options);
 
   /// <summary>Refreshes the given key by reloading it from its keyring database and returning the updated key, or
   /// null if the key no longer exists on its keyring. The key will be retrieved with the default
@@ -1170,8 +1081,7 @@ public abstract class PGPSystem
   public PrimaryKey RefreshKey(PrimaryKey key, ListOptions options)
   {
     if(key == null) throw new ArgumentNullException();
-    return key.Secret ?
-      FindSecretKey(key.Fingerprint, key.Keyring, options) : FindPublicKey(key.Fingerprint, key.Keyring, options);
+    return FindKey(key.Fingerprint, key.Keyring, options);
   }
 
   /// <summary>Refreshes the given keys by reloading them from its keyring database. An array is returned containing
@@ -1199,6 +1109,7 @@ public abstract class PGPSystem
     PrimaryKey[] refreshedKeys = new PrimaryKey[keys.Length];
     List<string> fingerprints = new List<string>(keys.Length); // holds the fingerprints of the keys to find
     List<int> groupIndices = new List<int>(keys.Length); // holds the indices of the keys in the original array
+    bool ignoreUnusableKeys = (options & ListOptions.IgnoreUnusableKeys) != 0;
 
     // first we need to group the keys by keyring
     keys = (PrimaryKey[])keys.Clone(); // don't modify the parameter passed to us
@@ -1215,42 +1126,18 @@ public abstract class PGPSystem
       for(end=start+1; end<keys.Length && Keyring.Equals(keyring, keys[end].Keyring); end++) { }
       if(start == end) break;
 
-      // now we have a group of keys from 'start' to 'end'. for each group, we may have to issue up to two calls:
-      // one for public keys and one for secret keys. first we'll do the public keys
-      for(int i=start; i<end; i++)
+      // now we have a group of keys from 'start' to 'end'. get the group's keyrings, and advance 'start' to 'end'
+      for(; start < end; start++)
       {
-        if(!keys[i].Secret)
-        {
-          fingerprints.Add(keys[i].Fingerprint);
-          groupIndices.Add(indices[i]);
-        }
+        fingerprints.Add(keys[start].Fingerprint);
+        groupIndices.Add(indices[start]);
       }
 
-      if(fingerprints.Count != 0)
-      {
-        PrimaryKey[] foundKeys = FindPublicKeys(fingerprints.ToArray(), keyring, options);
-        for(int i=0; i<foundKeys.Length; i++) refreshedKeys[groupIndices[i]] = foundKeys[i];
-        fingerprints.Clear();
-        groupIndices.Clear();
-      }
-
-      // now we'll do the secret keys, as well as move 'start' to the beginning of the next group, if any
-      for(; start<end; start++)
-      {
-        if(keys[start].Secret)
-        {
-          fingerprints.Add(keys[start].Fingerprint);
-          groupIndices.Add(indices[start]);
-        }
-      }
-
-      if(fingerprints.Count != 0)
-      {
-        PrimaryKey[] foundKeys = FindSecretKeys(fingerprints.ToArray(), keyring, options);
-        for(int i=0; i<foundKeys.Length; i++) refreshedKeys[groupIndices[i]] = foundKeys[i];
-        fingerprints.Clear();
-        groupIndices.Clear();
-      }
+      // now call FindKeys to find the keys in this group, and place the found keys into the right places in the array
+      PrimaryKey[] foundKeys = FindKeys(fingerprints.ToArray(), keyring, options);
+      for(int i=0; i<foundKeys.Length; i++) refreshedKeys[groupIndices[i]] = foundKeys[i];
+      fingerprints.Clear();
+      groupIndices.Clear();
     }
 
     return refreshedKeys;
