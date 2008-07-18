@@ -208,24 +208,30 @@ public class EncryptionOptions
 public enum ExportOptions
 {
   /// <summary>The default export options will be used. This will cause only public keys to be exported.</summary>
-  Default=0,
+  Default=ExportPublicKeys,
+  /// <summary>The public portions of keys will be exported.</summary>
+  ExportPublicKeys=0x1,
+  /// <summary>The secret portions of keys will be exported.</summary>
+  ExportSecretKeys=0x2,
+  /// <summary>The public and secret portions of keys will be exported.</summary>
+  ExportPublicAndSecretKeys=ExportPublicKeys | ExportSecretKeys,
   /// <summary>Key signatures marked as "local only" will be exported. Normally, they are skipped.</summary>
-  ExportLocalSignatures=1,
+  ExportLocalSignatures=0x4,
   /// <summary>Attribute user IDs (eg, photo IDs) will not be included in the output.</summary>
-  ExcludeAttributes=2,
+  ExcludeAttributes=0x8,
   /// <summary>Includes revoker information that was marked as sensitive.</summary>
-  ExportSensitiveRevokerInfo=4,
+  ExportSensitiveRevokerInfo=0x10,
   /// <summary>When exporting secret keys, this option causes the secret portion of the primary key to not be exported.
   /// Only the secret subkeys are exported. This is not OpenPGP compliant and currently only GPG is known to
   /// implement this option or be capable of importing keys created by this option.
   /// </summary>
-  ClobberPrimarySecretKey=8,
+  ClobberPrimarySecretKey=0x20,
   /// <summary>When exporting secret subkeys, resets their passwords to empty.</summary>
-  ResetSubkeyPassword=16,
+  ResetSubkeyPassword=0x40,
   /// <summary>Does not export unusable signatures, and does not export any signatures for unusable user IDs.</summary>
-  CleanKeys=32,
+  CleanKeys=0x80,
   /// <summary>Exports only the most recent self-signature on each user ID.</summary>
-  MinimizeKeys=64
+  MinimizeKeys=0x100,
 }
 #endregion
 
@@ -538,9 +544,13 @@ public enum ListOptions
 
   /// <summary>Signatures on keys will be ignored.</summary>
   IgnoreSignatures=0,
-  /// <summary>Signatures on keys will be retrieved, but not verified.</summary>
+  /// <summary>Signatures on keys will be retrieved, causing <see cref="UserAttribute.Signatures"/> to be filled, but
+  /// not verified.
+  /// </summary>
   RetrieveSignatures=1,
-  /// <summary>Signatures on keys will be retrieved and verified.</summary>
+  /// <summary>Signatures on keys will be retrieved, causing <see cref="UserAttribute.Signatures"/> to be filled, and
+  /// verified.
+  /// </summary>
   VerifySignatures=3,
   /// <summary>A mask that can be ANDed with a <see cref="ListOptions"/> to get the signature handling value, which is
   /// one of <see cref="IgnoreSignatures"/>, <see cref="RetrieveSignatures"/>, or <see cref="VerifySignatures"/>.
@@ -549,17 +559,38 @@ public enum ListOptions
 
   /// <summary>User attributes on keys will be ignored.</summary>
   IgnoreAttributes=0,
-  /// <summary>User attributes will be retrieved, but unknown attributes will be ignored.</summary>
-  RetrieveAttributes=4,
-  /// <summary>A mask that can be ANDed with a <see cref="ListOptions"/> to get the attribute handling value, which is
-  /// one of <see cref="IgnoreAttributes"/> or <see cref="RetrieveAttributes"/>.
+  /// <summary>User attributes will be retrieved, causing the <see cref="PrimaryKey.Attributes"/> property to be
+  /// filled.
   /// </summary>
-  AttributeMask=4,
+  RetrieveAttributes=4,
 
-  /// <summary>Retrieves both attributes and signatures.</summary>
-  RetrieveAll=RetrieveAttributes | RetrieveSignatures,
-  /// <summary>Retrieves and verifies both attributes and signatures.</summary>
-  VerifyAll=RetrieveAttributes | VerifySignatures,
+  /// <summary>The secret portions of keys will be ignored.</summary>
+  IgnoreSecretKeys=0,
+  /// <summary>The secret portions of keys will be retrieved, causing the <see cref="PrimaryKey.HasSecretKey"/>
+  /// property to be valid.
+  /// </summary>
+  RetrieveSecretKeys=8,
+  /// <summary>Only keys that have secret portions will be retrieved.</summary>
+  RetrieveOnlySecretKeys=24,
+  /// <summary>A mask that can be ANDed with a <see cref="ListOptions"/> to get the secret key handling value, which is
+  /// one of <see cref="IgnoreSecretKeys"/>, <see cref="RetrieveSecretKeys"/>, or <see cref="RetrieveOnlySecretKeys"/>.
+  /// </summary>
+  SecretKeyMask=24,
+
+  /// <summary>Unusable keys (expired, revoked, disabled, etc) will not be returned.</summary>
+  IgnoreUnusableKeys=32,
+  /// <summary>Even keys that are unusable (expired, revoked, disabled, etc) will be returned.</summary>
+  RetrieveUnusableKeys=0,
+
+  /// <summary>Retrieves attributes, signatures, and secret keys, ignoring unusable keys.</summary>
+  RetrieveAllUsable=RetrieveAttributes | RetrieveSignatures | RetrieveSecretKeys | IgnoreUnusableKeys,
+  /// <summary>Retrieves and verifies attributes, signatures, and secret keys, ignoring unusable keys.</summary>
+  VerifyAllUsable=RetrieveAttributes | VerifySignatures | RetrieveSecretKeys | IgnoreUnusableKeys,
+
+  /// <summary>Retrieves attributes, signatures, and secret keys, including unusable keys.</summary>
+  RetrieveAll=RetrieveAttributes | RetrieveSignatures | RetrieveSecretKeys | RetrieveUnusableKeys,
+  /// <summary>Retrieves and verifies attributes, signatures, and secret keys, including unusable keys.</summary>
+  VerifyAll=RetrieveAttributes | VerifySignatures | RetrieveSecretKeys | RetrieveUnusableKeys,
 }
 #endregion
 

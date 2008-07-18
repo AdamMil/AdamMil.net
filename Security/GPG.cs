@@ -408,31 +408,60 @@ public class ExeGPG : GPG
   #endregion
 
   #region Key import and export
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportPublicKeys/*"/>
-  public override void ExportPublicKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions,
-                                        OutputOptions outputOptions)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportKeys/*"/>
+  public override void ExportKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions,
+                                  OutputOptions outputOptions)
   {
-    ExportKeys(keys, destination, exportOptions, outputOptions, false);
+    if(keys == null || destination == null) throw new ArgumentNullException();
+
+    if((exportOptions & (ExportOptions.ExportPublicKeys|ExportOptions.ExportSecretKeys)) == 0)
+    {
+      throw new ArgumentException("At least one of ExportOptions.ExportPublicKeys or ExportOptions.ExportSecretKeys "+
+                                  "must be specified.");
+    }
+
+    if(keys.Length == 0) return;
+
+    if((exportOptions & ExportOptions.ExportPublicKeys) != 0)
+    {
+      string args = GetKeyringArgs(keys, false) + GetExportArgs(exportOptions, false, true) +
+                    GetOutputArgs(outputOptions) + GetFingerprintArgs(keys);
+      ExportCore(args, destination);
+    }
+
+    if((exportOptions & ExportOptions.ExportSecretKeys) != 0)
+    {
+      string args = GetKeyringArgs(keys, true) + GetExportArgs(exportOptions, true, true) +
+                    GetOutputArgs(outputOptions) + GetFingerprintArgs(keys);
+      ExportCore(args, destination);
+    }
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportPublicKeys2/*"/>
-  public override void ExportPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
-                                        ExportOptions exportOptions, OutputOptions outputOptions)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportKeys2/*"/>
+  public override void ExportKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
+                                  ExportOptions exportOptions, OutputOptions outputOptions)
   {
-    ExportKeyrings(keyrings, includeDefaultKeyring, destination, exportOptions, outputOptions, false);
-  }
+    if(destination == null) throw new ArgumentNullException();
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportSecretKeys/*"/>
-  public override void ExportSecretKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions, OutputOptions outputOptions)
-  {
-    ExportKeys(keys, destination, exportOptions, outputOptions, true);
-  }
+    if((exportOptions & (ExportOptions.ExportPublicKeys|ExportOptions.ExportSecretKeys)) == 0)
+    {
+      throw new ArgumentException("At least one of ExportOptions.ExportPublicKeys or ExportOptions.ExportSecretKeys "+
+                                  "must be specified.");
+    }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportSecretKeys2/*"/>
-  public override void ExportSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
-                                        ExportOptions exportOptions, OutputOptions outputOptions)
-  {
-    ExportKeyrings(keyrings, includeDefaultKeyring, destination, exportOptions, outputOptions, true);
+    if((exportOptions & ExportOptions.ExportPublicKeys) != 0)
+    {
+      string args = GetKeyringArgs(keyrings, !includeDefaultKeyring, false) +
+                    GetExportArgs(exportOptions, false, true) + GetOutputArgs(outputOptions);
+      ExportCore(args, destination);
+    }
+
+    if((exportOptions & ExportOptions.ExportSecretKeys) != 0)
+    {
+      string args = GetKeyringArgs(keyrings, !includeDefaultKeyring, true) +
+                    GetExportArgs(exportOptions, true, true) + GetOutputArgs(outputOptions);
+      ExportCore(args, destination);
+    }
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeys3/*"/>
@@ -505,8 +534,8 @@ public class ExeGPG : GPG
   #endregion
 
   #region Key server operations
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKeysOnServer/*"/>
-  public override void FindPublicKeysOnServer(Uri keyServer, KeySearchHandler handler, params string[] searchKeywords)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKeysOnServer/*"/>
+  public override void FindKeysOnServer(Uri keyServer, KeySearchHandler handler, params string[] searchKeywords)
   {
     if(keyServer == null || handler == null || searchKeywords == null) throw new ArgumentNullException();
     if(searchKeywords.Length == 0) throw new ArgumentException("No keywords were given.");
@@ -729,46 +758,68 @@ public class ExeGPG : GPG
   #endregion
 
   #region Keyring queries
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKey/*"/>
-  public override PrimaryKey FindPublicKey(string keywordOrId, Keyring keyring, ListOptions options)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKey/*"/>
+  public override PrimaryKey FindKey(string keywordOrId, Keyring keyring, ListOptions options)
   {
-    PrimaryKey[] keys = FindPublicKeys(new string[] { keywordOrId },
-                                       keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
+    PrimaryKey[] keys = FindKeys(new string[] { keywordOrId },
+                                 keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
     return keys[0];
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindPublicKeys/*"/>
-  public override PrimaryKey[] FindPublicKeys(string[] fingerprintsOrIds, Keyring[] keyrings,
-                                              bool includeDefaultKeyring, ListOptions options)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKeys/*"/>
+  public override PrimaryKey[] FindKeys(string[] fingerprintsOrIds, Keyring[] keyrings,
+                                        bool includeDefaultKeyring, ListOptions options)
   {
-    return FindKeys(fingerprintsOrIds, keyrings, includeDefaultKeyring, options, false);
+    if(fingerprintsOrIds == null) throw new ArgumentNullException();
+    if(fingerprintsOrIds.Length == 0) return new PrimaryKey[0];
+
+    // create search arguments containing all the key IDs
+    string searchArgs = null;
+
+    if(fingerprintsOrIds.Length > 1) // if there's more than one ID, we can't allow fancy matches like email addresses,
+    {                                // so validate and normalize all IDs
+      // clone the array so we don't modify the parameters
+      fingerprintsOrIds = (string[])fingerprintsOrIds.Clone();
+      for(int i=0; i<fingerprintsOrIds.Length; i++)
+      {
+        if(string.IsNullOrEmpty(fingerprintsOrIds[i]))
+        {
+          throw new ArgumentException("A fingerprint/ID was null or empty.");
+        }
+        fingerprintsOrIds[i] = NormalizeKeyId(fingerprintsOrIds[i]);
+      }
+    }
+
+    // add all IDs to the command line
+    foreach(string id in fingerprintsOrIds) searchArgs += EscapeArg(id) + " ";
+    PrimaryKey[] keys = GetKeys(keyrings, includeDefaultKeyring, options, searchArgs);
+
+    if(fingerprintsOrIds.Length == 1) // if there was only a single key returned, then that's the one
+    {
+      return keys.Length == 1 ? keys : new PrimaryKey[1];
+    }
+    else
+    {
+      // add each key found to a dictionary
+      Dictionary<string, PrimaryKey> keyDict = new Dictionary<string, PrimaryKey>();
+      foreach(PrimaryKey key in keys)
+      {
+        keyDict[key.Fingerprint] = key;
+        keyDict[key.KeyId]       = key;
+        keyDict[key.ShortKeyId]  = key;
+      }
+
+      // then create the return array and return the keys found
+      if(keys.Length != fingerprintsOrIds.Length) keys = new PrimaryKey[fingerprintsOrIds.Length];
+      for(int i=0; i<keys.Length; i++) keyDict.TryGetValue(fingerprintsOrIds[i], out keys[i]);
+      return keys;
+    }
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKey/*"/>
-  public override PrimaryKey FindSecretKey(string keywordOrId, Keyring keyring, ListOptions options)
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetKeys/*"/>
+  public override PrimaryKey[] GetKeys(Keyring[] keyrings, bool includeDefaultKeyring, ListOptions options)
   {
-    PrimaryKey[] keys = FindSecretKeys(new string[] { keywordOrId },
-                                       keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
-    return keys[0];
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindSecretKeys/*"/>
-  public override PrimaryKey[] FindSecretKeys(string[] fingerprintsOrIds, Keyring[] keyrings,
-                                              bool includeDefaultKeyring, ListOptions options)
-  {
-    return FindKeys(fingerprintsOrIds, keyrings, includeDefaultKeyring, options, true);
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetPublicKeys2/*"/>
-  public override PrimaryKey[] GetPublicKeys(Keyring[] keyrings, bool includeDefaultKeyring, ListOptions options)
-  {
-    return GetKeys(keyrings, includeDefaultKeyring, options, false, null);
-  }
-
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetSecretKeys2/*"/>
-  public override PrimaryKey[] GetSecretKeys(Keyring[] keyrings, bool includeDefaultKeyring)
-  {
-    return GetKeys(keyrings, includeDefaultKeyring, ListOptions.Default, true, null);
+    return GetKeys(keyrings, includeDefaultKeyring, options, null);
   }
   #endregion
 
@@ -1079,7 +1130,7 @@ public class ExeGPG : GPG
     }
 
     PrimaryKey newKey = !cmd.SuccessfulExit || keyFingerprint == null ?
-                          null : FindPublicKey(keyFingerprint, options.Keyring, ListOptions.Default);
+                          null : FindKey(keyFingerprint, options.Keyring, ListOptions.Default);
     if(newKey == null) throw new KeyCreationFailedException(state.FailureReasons);
 
     if(!subIsNone && keyExpirationDays != subkeyExpirationDays)
@@ -1774,6 +1825,7 @@ public class ExeGPG : GPG
 
         // a possible race condition with WaitForExit() (or Dispose()) may have disposed the stream, so check CanRead
         // to prevent an ObjectDisposedException if possible
+        // TODO: eliminate this race condition if possible
         if(!stream.CanRead)
         {
           bufferDone = true;
@@ -4047,80 +4099,6 @@ public class ExeGPG : GPG
     if(!cmd.SuccessfulExit) throw new ExportFailedException(state.FailureReasons);
   }
 
-  /// <summary>Exports all the keys on the the given keyrings.</summary>
-  void ExportKeyrings(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
-                      ExportOptions exportOptions, OutputOptions outputOptions, bool exportSecretKeys)
-  {
-    if(destination == null) throw new ArgumentNullException();
-
-    string args = GetKeyringArgs(keyrings, !includeDefaultKeyring, exportSecretKeys) +
-                  GetExportArgs(exportOptions, exportSecretKeys, true) + GetOutputArgs(outputOptions);
-
-    ExportCore(args, destination);
-  }
-
-  /// <summary>Exports the given keys.</summary>
-  void ExportKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions, OutputOptions outputOptions,
-                  bool exportSecretKeys)
-  {
-    if(keys == null || destination == null) throw new ArgumentNullException();
-    if(keys.Length == 0) return;
-
-    string args = GetKeyringArgs(keys, exportSecretKeys) + GetExportArgs(exportOptions, exportSecretKeys, true) +
-                  GetOutputArgs(outputOptions) + GetFingerprintArgs(keys);
-    ExportCore(args, destination);
-  }
-
-  /// <summary>Finds the keys identified by the given fingerprints or key IDs.</summary>
-  PrimaryKey[] FindKeys(string[] fingerprintsOrIds, Keyring[] keyrings, bool includeDefaultKeyring,
-                        ListOptions options, bool secretkeys)
-  {
-    if(fingerprintsOrIds == null) throw new ArgumentNullException();
-    if(fingerprintsOrIds.Length == 0) return new PrimaryKey[0];
-
-    // create search arguments containing all the key IDs
-    string searchArgs = null;
-
-    if(fingerprintsOrIds.Length > 1) // if there's more than one ID, we can't allow fancy matches like email addresses,
-    {                                // so validate and normalize all IDs
-      // clone the array so we don't modify the parameters
-      fingerprintsOrIds = (string[])fingerprintsOrIds.Clone();
-      for(int i=0; i<fingerprintsOrIds.Length; i++)
-      {
-        if(string.IsNullOrEmpty(fingerprintsOrIds[i]))
-        {
-          throw new ArgumentException("A fingerprint/ID was null or empty.");
-        }
-        fingerprintsOrIds[i] = NormalizeKeyId(fingerprintsOrIds[i]);
-      }
-    }
-
-    // add all IDs to the command line
-    foreach(string id in fingerprintsOrIds) searchArgs += EscapeArg(id) + " ";
-    PrimaryKey[] keys = GetKeys(keyrings, includeDefaultKeyring, options, secretkeys, searchArgs);
-
-    if(fingerprintsOrIds.Length == 1) // if there was only a single key returned, then that's the one
-    {
-      return keys.Length == 1 ? keys : new PrimaryKey[1];
-    }
-    else
-    {
-      // add each key found to a dictionary
-      Dictionary<string, PrimaryKey> keyDict = new Dictionary<string, PrimaryKey>();
-      foreach(PrimaryKey key in keys)
-      {
-        keyDict[key.Fingerprint] = key;
-        keyDict[key.KeyId]       = key;
-        keyDict[key.ShortKeyId]  = key;
-      }
-
-      // then create the return array and return the keys found
-      if(keys.Length != fingerprintsOrIds.Length) keys = new PrimaryKey[fingerprintsOrIds.Length];
-      for(int i=0; i<keys.Length; i++) keyDict.TryGetValue(fingerprintsOrIds[i], out keys[i]);
-      return keys;
-    }
-  }
-
   /// <summary>Generates a revocation certificate, either directly or via a designated revoker.</summary>
   void GenerateRevocationCertificateCore(PrimaryKey key, PrimaryKey designatedRevoker, Stream destination,
                                          KeyRevocationReason reason, OutputOptions outputOptions)
@@ -4181,45 +4159,83 @@ public class ExeGPG : GPG
   }
 
   /// <summary>Does the work of retrieving and searching for keys.</summary>
-  PrimaryKey[] GetKeys(Keyring[] keyrings, bool includeDefaultKeyring, ListOptions options, bool secretKeys,
-                       string searchArgs)
+  PrimaryKey[] GetKeys(Keyring[] keyrings, bool includeDefaultKeyring, ListOptions options, string searchArgs)
   {
-    ListOptions signatures = options & ListOptions.SignatureMask;
-
-    string args;
-    
-    if(secretKeys) args = "--list-secret-keys ";
-    else if(signatures != 0 && RetrieveKeySignatureFingerprints) args = "--check-sigs --no-sig-cache ";
-    else if(signatures == ListOptions.RetrieveSignatures) args = "--list-sigs ";
-    else if(signatures == ListOptions.VerifySignatures) args = "--check-sigs ";
-    else args = "--list-keys ";
-
-    // produce machine-readable output
-    args += "--with-fingerprint --with-fingerprint --with-colons --fixed-list-mode ";
+    string args = "--with-fingerprint --with-fingerprint --with-colons --fixed-list-mode "; // machine-readable output
 
     // although GPG has a "show-keyring" option, it doesn't work with --with-colons, so we need to query each keyring
     // individually, so we can tell which keyring a key came from. this may cause problems with signature verification
     // if a key on one ring signs a key on another ring...
-    List<PrimaryKey> keys = new List<PrimaryKey>();
-    if(includeDefaultKeyring) GetKeys(keys, options, args, null, secretKeys, searchArgs);
+    List<PrimaryKey> keys = new List<PrimaryKey>(64);
+    if(includeDefaultKeyring) GetKeys(keys, options, args, null, searchArgs);
     if(keyrings != null)
     {
       foreach(Keyring keyring in keyrings)
       {
         if(keyring == null) throw new ArgumentException("A keyring was null.");
-        string file = secretKeys ? keyring.SecretFile : keyring.PublicFile;
-        if(file == null) throw new ArgumentException("Empty keyring secret filename."); // only secret files can be
-        GetKeys(keys, options, args, keyring, secretKeys, searchArgs);                  // null or empty
+        GetKeys(keys, options, args, keyring, searchArgs);
       }
     }
+
+    // make the keys read only, which we couldn't do when they were first added to the list
+    foreach(PrimaryKey key in keys) key.MakeReadOnly();
 
     return keys.ToArray();
   }
 
   /// <summary>Does the work of retrieving and searching for keys on a single keyring.</summary>
-  void GetKeys(List<PrimaryKey> keys, ListOptions options, string args, Keyring keyring,
-               bool secretKeys, string searchArgs)
+  void GetKeys(List<PrimaryKey> keys, ListOptions options, string args, Keyring keyring, string searchArgs)
   {
+    ListOptions secretKeyHandling = options & ListOptions.SecretKeyMask;
+    if(secretKeyHandling == ListOptions.IgnoreSecretKeys)
+    {
+      GetKeys(keys, options, args, keyring, searchArgs, false);
+    }
+    else
+    {
+      Dictionary<string,object> secretKeys = new Dictionary<string,object>(StringComparer.Ordinal);
+      List<PrimaryKey> tempKeys = new List<PrimaryKey>(64);
+
+      // get the list of secret keys and store their IDs in a dictionary
+      GetKeys(tempKeys, options & ~(ListOptions.SignatureMask|ListOptions.RetrieveAttributes),
+              args, keyring, searchArgs, true);
+      foreach(PrimaryKey key in tempKeys) secretKeys[key.EffectiveId] = null;
+      tempKeys.Clear();
+
+      // then get the public keys and match them up to the secret ones
+      GetKeys(tempKeys, options & ~ListOptions.SecretKeyMask, args, keyring, searchArgs, false);
+
+      if(secretKeyHandling == ListOptions.RetrieveSecretKeys)
+      {
+        foreach(PrimaryKey key in tempKeys) key.HasSecretKey = secretKeys.ContainsKey(key.EffectiveId);
+        keys.AddRange(tempKeys);
+      }
+      else
+      {
+        foreach(PrimaryKey key in tempKeys)
+        {
+          if(secretKeys.ContainsKey(key.EffectiveId))
+          {
+            key.HasSecretKey = true;
+            keys.Add(key);
+          }
+        }
+      }
+    }
+  }
+
+  /// <summary>Does the work of retrieving and searching for keys on a single keyring.</summary>
+  void GetKeys(List<PrimaryKey> keys, ListOptions options, string args, Keyring keyring,
+               string searchArgs, bool secretKeys)
+  {
+    ListOptions signatures = options & ListOptions.SignatureMask;
+
+    if(secretKeys) args += "--list-secret-keys ";
+    else if(signatures != 0 && RetrieveKeySignatureFingerprints) args += "--check-sigs --no-sig-cache ";
+    else if(signatures == ListOptions.RetrieveSignatures) args += "--list-sigs ";
+    else if(signatures == ListOptions.VerifySignatures) args += "--check-sigs ";
+    else args += "--list-keys ";
+
     args += GetKeyringArgs(keyring, secretKeys);
 
     // keep track of the initial key count so we know which ones were added by this call
@@ -4296,7 +4312,7 @@ public class ExeGPG : GPG
       cmd.Start();
 
       List<Subkey> subkeys = new List<Subkey>(); // holds the subkeys in the current primary key
-      List<KeySignature> sigs = new List<KeySignature>(); // holds the signatures on the last key or user id
+      List<KeySignature> sigs = new List<KeySignature>(32); // holds the signatures on the last key or user id
       List<UserAttribute> attributes = new List<UserAttribute>(); // holds user attributes on the key
       List<string> revokers = new List<string>(); // holds designated revokers on the key
 
@@ -4368,20 +4384,17 @@ public class ExeGPG : GPG
 
           case "pub": case "sec": // public and secret primary keys
             FinishPrimaryKey(keys, subkeys, attributes, sigs, revokers,
-                             ref currentPrimary, ref currentSubkey, ref currentAttribute);
+                             ref currentPrimary, ref currentSubkey, ref currentAttribute, options);
             currentPrimary = new PrimaryKey();
             currentPrimary.Keyring = keyring;
-            currentPrimary.Secret  = secretKeys;
             ReadKeyData(currentPrimary, fields);
-            currentPrimary.Secret = fields[0][0] == 's'; // it's secret if the field was "sec"
+            currentPrimary.HasSecretKey = fields[0][0] == 's'; // it's secret if the field was "sec"
             break;
 
           case "sub": case "ssb": // public and secret subkeys
             FinishSubkey(subkeys, sigs, currentPrimary, ref currentSubkey, currentAttribute);
             currentSubkey = new Subkey();
-            currentSubkey.Secret = secretKeys;
             ReadKeyData(currentSubkey, fields);
-            currentSubkey.Secret = fields[0][1] == 's'; // it's secret if the field was "ssb"
             break;
 
           case "fpr": // key fingerprint
@@ -4412,13 +4425,13 @@ public class ExeGPG : GPG
 
           case "crt": case "crs": // X.509 certificates (we just treat them as an end to the current key)
             FinishPrimaryKey(keys, subkeys, attributes, sigs, revokers,
-                             ref currentPrimary, ref currentSubkey, ref currentAttribute);
+                             ref currentPrimary, ref currentSubkey, ref currentAttribute, options);
             break;
         }
       }
 
       FinishPrimaryKey(keys, subkeys, attributes, sigs, revokers,
-                       ref currentPrimary, ref currentSubkey, ref currentAttribute);
+                       ref currentPrimary, ref currentSubkey, ref currentAttribute, options);
       cmd.WaitForExit();
 
       if(retrieveAttributes)
@@ -4463,9 +4476,6 @@ public class ExeGPG : GPG
           }
         }
       }
-
-      // we couldn't make the keys read-only before because we had to wait for the attribute data, so we'll do it now
-      for(int i=initialKeyCount; i<keys.Count; i++) keys[i].MakeReadOnly();
     }
     finally
     {
@@ -4836,7 +4846,7 @@ public class ExeGPG : GPG
   /// <summary>A helper for reading key listings, that finishes the current primary key.</summary>
   static void FinishPrimaryKey(List<PrimaryKey> keys, List<Subkey> subkeys, List<UserAttribute> attributes,
                                List<KeySignature> sigs, List<string> revokers,ref PrimaryKey currentPrimary,
-                               ref Subkey currentSubkey, ref UserAttribute currentAttribute)
+                               ref Subkey currentSubkey, ref UserAttribute currentAttribute, ListOptions options)
   {
     // finishing a primary key finishes all signatures, subkeys, and user IDs on it
     FinishSignatures(sigs, currentPrimary, currentSubkey, currentAttribute);
@@ -4868,9 +4878,18 @@ public class ExeGPG : GPG
       if(currentPrimary.Signatures == null) currentPrimary.Signatures = NoSignatures;
 
       // we don't make the primary key read only here because a bug in GPG causes us to not know the real attributes
-      // until the process exits. so we'll make the key read only later. GetKeys() will do it for us.
-      //currentPrimary.MakeReadOnly();
-      keys.Add(currentPrimary);
+      // until the process exits. so we'll make the key read only later. also, we may need to set .HasSecretKey later.
+      // GetKeys() will do it for us.
+
+      // filter out unusable keys if that was asked of us. we can't use PrimaryKey.Usable because whether we care about
+      // TotalCapabilities depends on the options
+      if((options & ListOptions.IgnoreUnusableKeys) == 0 ||
+         !currentPrimary.Disabled && !currentPrimary.Expired && !currentPrimary.Revoked &&
+         (currentPrimary.TotalCapabilities != KeyCapabilities.None || (options & ListOptions.SecretKeyMask) != 0))
+      {
+        keys.Add(currentPrimary);
+      }
+
       currentPrimary = null;
     }
 

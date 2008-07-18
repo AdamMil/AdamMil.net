@@ -108,7 +108,7 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
     foreach(ImportedKey key in results) Assert.IsTrue(key.Successful);
 
     // read the keys (which also indicates that everything was imported)
-    keys = gpg.GetPublicKeys(keyring);
+    keys = gpg.GetKeys(keyring);
 
     // set the trust level of the encryption key to Ultimate
     gpg.SetOwnerTrust(TrustLevel.Ultimate, keys[Encrypter]);
@@ -265,8 +265,7 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
     
     // test ascii armored public keys
     MemoryStream output = new MemoryStream();
-    gpg.ExportPublicKey(keys[Encrypter], output, ExportOptions.Default,
-                        new OutputOptions(OutputFormat.ASCII, "Woot"));
+    gpg.ExportKey(keys[Encrypter], output, ExportOptions.Default, new OutputOptions(OutputFormat.ASCII, "Woot"));
 
     // verify that it contains the comment
     output.Position = 0;
@@ -281,7 +280,7 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
 
     // test binary secret keys
     output = new MemoryStream();
-    gpg.ExportSecretKey(keys[Encrypter], output);
+    gpg.ExportKey(keys[Encrypter], output, ExportOptions.ExportSecretKeys);
 
     // verify that it doesn't import (because the secret key already exists)
     output.Position = 0;
@@ -289,7 +288,7 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
 
     // then delete the existing key and verify that it does import
     gpg.DeleteKey(keys[Encrypter], KeyDeletion.PublicAndSecret);
-    Assert.AreEqual(2, gpg.GetPublicKeys(keyring).Length);
+    Assert.AreEqual(2, gpg.GetKeys(keyring).Length);
     output.Position = 0;
     imported = gpg.ImportKeys(output, keyring);
     Assert.AreEqual(1, imported.Length);
@@ -297,10 +296,10 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
     Assert.AreEqual(imported[0].Fingerprint, keys[Encrypter].Fingerprint);
 
     // then delete all of the keys and reimport them to restore things to the way they were
-    keys = gpg.GetPublicKeys(keyring);
+    keys = gpg.GetKeys(keyring);
     Assert.AreEqual(3, keys.Length);
     gpg.DeleteKeys(keys, KeyDeletion.PublicAndSecret);
-    Assert.AreEqual(0, gpg.GetPublicKeys(keyring).Length);
+    Assert.AreEqual(0, gpg.GetKeys(keyring).Length);
 
     this.keys = null; // force the next test to import keys
   }
@@ -321,7 +320,7 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
     options.SubkeyExpiration = new DateTime(2080, 4, 5, 0, 0, 0, DateTimeKind.Utc);
 
     // create and delete the key
-    Assert.AreEqual(3, gpg.GetPublicKeys(keyring).Length);
+    Assert.AreEqual(3, gpg.GetKeys(keyring).Length);
     PrimaryKey key = gpg.CreateKey(options);
     Assert.IsNotNull(key);
     Assert.AreEqual(KeyType.RSA, key.KeyType);
@@ -333,7 +332,7 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
     Assert.AreEqual(options.SubkeyExpiration, key.Subkeys[0].ExpirationTime.Value.Date);
     Assert.AreEqual(KeyCapabilities.Authenticate | KeyCapabilities.Certify | KeyCapabilities.Sign, key.Capabilities);
     Assert.AreEqual(KeyCapabilities.Encrypt, key.Subkeys[0].Capabilities);
-    Assert.AreEqual(4, gpg.GetPublicKeys(keyring).Length);
+    Assert.AreEqual(4, gpg.GetKeys(keyring).Length);
     gpg.DeleteKey(key, KeyDeletion.PublicAndSecret);
   }
 
@@ -342,7 +341,7 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
   {
     EnsureImported();
 
-    PrimaryKey[] keys = gpg.GetPublicKeys(keyring, ListOptions.RetrieveAttributes);
+    PrimaryKey[] keys = gpg.GetKeys(keyring, ListOptions.RetrieveAttributes);
 
     Assert.AreEqual(1, keys[Encrypter].Attributes.Count);
     Assert.IsTrue(keys[Encrypter].Attributes[0] is UserImage);
@@ -405,7 +404,7 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
     CollectionAssert.AreEqual(preferences.PreferredHashes, newPrefs.PreferredHashes);
 
     // test key signing (sign Receiver's key with Encrypter's key)
-    keys = gpg.GetPublicKeys(keyring, ListOptions.RetrieveSignatures);
+    keys = gpg.GetKeys(keyring, ListOptions.RetrieveSignatures);
     Assert.AreEqual(keys[Receiver].UserIds[0].Signatures.Count, 1);
     gpg.SignKey(keys[Receiver], keys[Encrypter], null);
     keys[Receiver] = gpg.RefreshKey(keys[Receiver], ListOptions.RetrieveSignatures);
@@ -578,34 +577,34 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
     EnsureImported();
 
     // try searching by partial name
-    PrimaryKey key = gpg.FindPublicKey("encrypt", keyring);
+    PrimaryKey key = gpg.FindKey("encrypt", keyring);
     Assert.IsNotNull(key);
     Assert.IsTrue(key.PrimaryUserId.Name.StartsWith("Encrypter"));
 
     // try searching by email
-    key = gpg.FindPublicKey("e@x.com", keyring);
+    key = gpg.FindKey("e@x.com", keyring);
     Assert.IsNotNull(key);
     Assert.IsTrue(key.PrimaryUserId.Name.StartsWith("Encrypter"));
 
     // try searching by short key ID
-    key = gpg.FindPublicKey(key.ShortKeyId, keyring);
+    key = gpg.FindKey(key.ShortKeyId, keyring);
     Assert.IsNotNull(key);
     Assert.IsTrue(key.PrimaryUserId.Name.StartsWith("Encrypter"));
 
     // try searching for secret keys
-    key = gpg.FindSecretKey(key.ShortKeyId, keyring);
+    key = gpg.FindKey(key.ShortKeyId, keyring, ListOptions.RetrieveSecretKeys);
     Assert.IsNotNull(key);
     Assert.IsTrue(key.PrimaryUserId.Name.StartsWith("Encrypter"));
-    Assert.IsTrue(key.Secret);
+    Assert.IsTrue(key.HasSecretKey);
 
     // try refreshing a secret key
-    key = gpg.RefreshKey(key);
+    key = gpg.RefreshKey(key, ListOptions.RetrieveOnlySecretKeys);
     Assert.IsNotNull(key);
     Assert.IsTrue(key.PrimaryUserId.Name.StartsWith("Encrypter"));
-    Assert.IsTrue(key.Secret);
+    Assert.IsTrue(key.HasSecretKey);
 
     // make sure we can retrieve both attributes and signatures (a bug caused it to never return when doing this)
-    gpg.GetPublicKeys(keyring, ListOptions.RetrieveAll);
+    gpg.GetKeys(keyring, ListOptions.RetrieveAll);
 
     // import an expired key and make sure it doesn't mess things up when retrieving signatures (a bug related to
     // status messages appearing in the middle of a line caused this)
@@ -620,7 +619,7 @@ AAMFBACLFWaqntBBdepV1a0BPGYpSIrkuRLRfmk82hRmzRny5JIhDBrdtIVE1EESsdDcMaq3MUwIgzZs
     Assert.AreEqual(1, results.Length);
     Assert.IsTrue(results[0].Successful);
 
-    PrimaryKey[] keys = gpg.GetPublicKeys(keyring, ListOptions.RetrieveSignatures);
+    PrimaryKey[] keys = gpg.GetKeys(keyring, ListOptions.RetrieveSignatures);
     Assert.AreEqual(4, keys.Length);
     Assert.IsTrue(keys[3].PrimaryUserId.Name.StartsWith("James Martin"));
     gpg.DeleteKey(keys[3], KeyDeletion.PublicAndSecret);
@@ -683,7 +682,7 @@ A2vQeoDMU0TXnBp+fHVF3auXU1grP/08nzekF470s8fPccga22t33zqdTRFKRKwK2yjONqPpfXIRrTsv
     foreach(ImportedKey result in results) Assert.IsTrue(result.Successful);
 
     // read several times in quick succession to try to expose deadlocks
-    for(int i=0; i<20; i++) keys = gpg.GetPublicKeys(keyring);
+    for(int i=0; i<20; i++) keys = gpg.GetKeys(keyring);
     Assert.AreEqual(7, keys.Length);
     gpg.DeleteKeys(keys, KeyDeletion.PublicAndSecret);
     this.keys = null; // force the next test to reimport keys
@@ -696,7 +695,7 @@ A2vQeoDMU0TXnBp+fHVF3auXU1grP/08nzekF470s8fPccga22t33zqdTRFKRKwK2yjONqPpfXIRrTsv
 
     // try searching for keys
     List<PrimaryKey> keysFound = new List<PrimaryKey>();
-    gpg.FindPublicKeysOnServer(downloadOptions.KeyServer,
+    gpg.FindKeysOnServer(downloadOptions.KeyServer,
                                delegate(PrimaryKey[] keys) { keysFound.AddRange(keys); return true; },
                                "adam@adammil.net");
     Assert.AreEqual(2, keysFound.Count);
@@ -710,7 +709,7 @@ A2vQeoDMU0TXnBp+fHVF3auXU1grP/08nzekF470s8fPccga22t33zqdTRFKRKwK2yjONqPpfXIRrTsv
     Assert.AreEqual("21A3235327E64C6256B7912BB6E5982D6252430A", result[0].Fingerprint);
 
     // make sure it was really imported
-    PrimaryKey adamsKey = gpg.FindPublicKey("6252430A", keyring);
+    PrimaryKey adamsKey = gpg.FindKey("6252430A", keyring);
     Assert.IsNotNull(adamsKey);
     Assert.IsTrue(adamsKey.PrimaryUserId.Name.StartsWith("Adam Milazzo"));
     // TODO: Assert.IsNotNull(gpg.GetPreferences(adamsKey.PrimaryUserId).Keyserver);

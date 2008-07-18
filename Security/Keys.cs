@@ -583,17 +583,6 @@ public abstract class Key : ReadOnlyClass
     }
   }
 
-  /// <summary>Gets or sets whether this is a secret key.</summary>
-  public bool Secret
-  {
-    get { return secret; }
-    set
-    {
-      AssertNotReadOnly();
-      secret = value;
-    }
-  }
-
   /// <summary>Gets or sets a read-only list of signatures on this user ID.</summary>
   public IReadOnlyList<KeySignature> Signatures
   {
@@ -659,7 +648,7 @@ public abstract class Key : ReadOnlyClass
   int length;
   KeyCapabilities capabilities;
   TrustLevel calculatedTrust;
-  bool invalid, revoked, expired, secret;
+  bool invalid, revoked, expired;
 }
 #endregion
 
@@ -709,6 +698,19 @@ public class PrimaryKey : Key, ISignableObject
     {
       AssertNotReadOnly();
       disabled = value;
+    }
+  }
+
+  /// <summary>Gets or sets whether this primary key has a secret portion. This property will not be valid unless
+  /// <see cref="ListOptions.RetrieveSecretKeys"/> was passed during the key retrieval.
+  /// </summary>
+  public bool HasSecretKey
+  {
+    get { return hasSecret; }
+    set
+    {
+      AssertNotReadOnly();
+      hasSecret = value;
     }
   }
 
@@ -762,6 +764,12 @@ public class PrimaryKey : Key, ISignableObject
       AssertNotReadOnly();
       totalCapabilities = value;
     }
+  }
+
+  /// <summary>Gets whether the key is not disabled, expired, or revoked, and whether the key has some capabilities.</summary>
+  public bool Usable
+  {
+    get { return !Disabled && !Expired && !Revoked && TotalCapabilities != KeyCapabilities.None; }
   }
 
   /// <summary>Gets or sets a read-only list of user IDs associated with this primary key.</summary>
@@ -852,7 +860,7 @@ public class PrimaryKey : Key, ISignableObject
   Keyring keyring;
   KeyCapabilities totalCapabilities;
   TrustLevel ownerTrust;
-  bool disabled;
+  bool disabled, hasSecret;
 }
 #endregion
 
