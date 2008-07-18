@@ -52,6 +52,7 @@ public abstract class PGPListBase : ListView
     base.AllowColumnReorder = true;
     base.Font               = new Font("Arial", 8f);
     base.FullRowSelect      = true;
+    base.HideSelection      = false;
     base.SmallImageList     = treeImageList;
     base.View               = View.Details;
   }
@@ -164,10 +165,15 @@ public abstract class KeyListBase : PGPListBase
   protected ItemStatus GetItemStatus(Key key)
   {
     if(key == null) throw new ArgumentNullException();
-    return key.Revoked || key.GetPrimaryKey().Revoked ? ItemStatus.Revoked :
-           key.Expired || key.GetPrimaryKey().Expired ? ItemStatus.Expired :
-           key.GetPrimaryKey().Disabled ? ItemStatus.Disabled :
-           ItemStatus.Normal;
+    ItemStatus basicStatus = key.Revoked || key.GetPrimaryKey().Revoked ? ItemStatus.Revoked :
+                             key.Expired || key.GetPrimaryKey().Expired ? ItemStatus.Expired :
+                             key.GetPrimaryKey().Disabled ? ItemStatus.Disabled :
+                             ItemStatus.Normal;
+
+    PrimaryKey primaryKey = key as PrimaryKey;
+    if(primaryKey != null && primaryKey.HasSecretKey) basicStatus |= ItemStatus.Owned;
+
+    return basicStatus;
   }
 
   /// <summary>Gets the <see cref="ItemStatus"/> value representing the status of a <see cref="UserAttribute"/>.</summary>
@@ -331,28 +337,20 @@ public class KeySignatureItem : PGPListViewItem
 #endregion
 
 #region PrimaryKeyItem
-/// <summary>A <see cref="PGPListViewItem"/> that represents a <see cref="KeyPair"/>.</summary>
+/// <summary>A <see cref="PGPListViewItem"/> that represents a <see cref="PrimaryKey"/>.</summary>
 public class PrimaryKeyItem : PGPListViewItem
 {
   /// <summary>Initializes a new <see cref="PrimaryKeyItem"/> with the public portion of the key pair it represents.</summary>
-  public PrimaryKeyItem(PrimaryKey publicKey) : this(new KeyPair(publicKey, null), null) { }
+  public PrimaryKeyItem(PrimaryKey key) : this(key, null) { }
 
   /// <summary>Initializes a new <see cref="PrimaryKeyItem"/> with the public portion of the key pair it represents,
   /// and the text of the item.
   /// </summary>
-  public PrimaryKeyItem(PrimaryKey publicKey, string text) : this(new KeyPair(publicKey, null), text) { }
-
-  /// <summary>Initializes a new <see cref="PrimaryKeyItem"/> with the <see cref="KeyPair"/> it represents.</summary>
-  public PrimaryKeyItem(KeyPair keyPair) : this(keyPair, null) { }
-
-  /// <summary>Initializes a new <see cref="PrimaryKeyItem"/> with the <see cref="KeyPair"/> it represents, and the
-  /// text of the item.
-  /// </summary>
-  public PrimaryKeyItem(KeyPair keyPair, string text) : base(text)
+  public PrimaryKeyItem(PrimaryKey key, string text) : base(text)
   {
-    if(keyPair == null) throw new ArgumentNullException();
-    this.keyPair = keyPair;
-    this.Name    = keyPair.PublicKey.EffectiveId;
+    if(key == null) throw new ArgumentNullException();
+    this.key  = key;
+    this.Name = key.EffectiveId;
   }
 
   /// <summary>Gets whether the <see cref="PrimaryKeyItem"/> is expanded to show its related items.</summary>
@@ -367,24 +365,10 @@ public class PrimaryKeyItem : PGPListViewItem
     get { return relatedItems != null; }
   }
 
-  /// <summary>Gets the <see cref="KeyPair"/> represented by this list item.</summary>
-  public KeyPair KeyPair
-  {
-    get { return keyPair; }
-  }
-
-  /// <summary>Gets the public key of the <see cref="KeyPair"/> represented by this list item.</summary>
+  /// <summary>Gets the public key represented by this list item.</summary>
   public override PrimaryKey PublicKey
   {
-    get { return KeyPair.PublicKey; }
-  }
-
-  /// <summary>Gets the secret key of the <see cref="KeyPair"/> represented by this list item, or null if the secret
-  /// key is not available.
-  /// </summary>
-  public PrimaryKey SecretKey
-  {
-    get { return KeyPair.SecretKey; }
+    get { return key; }
   }
 
   /// <summary>Gets an array of list items that are related to this <see cref="PrimaryKeyItem"/>.</summary>
@@ -393,7 +377,7 @@ public class PrimaryKeyItem : PGPListViewItem
     return relatedItems == null ? new ListViewItem[0] : (ListViewItem[])relatedItems.Clone();
   }
 
-  readonly KeyPair keyPair;
+  readonly PrimaryKey key;
   internal ListViewItem[] relatedItems;
   internal bool expanded;
 }

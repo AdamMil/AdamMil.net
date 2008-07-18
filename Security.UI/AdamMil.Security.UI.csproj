@@ -160,6 +160,15 @@
     <Compile Include="ProgressForm.Designer.cs">
       <DependentUpon>ProgressForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="RecipientList.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="RecipientSearchForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="RecipientSearchForm.Designer.cs">
+      <DependentUpon>RecipientSearchForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="RevocationCertForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -281,6 +290,10 @@
     <EmbeddedResource Include="ProgressForm.resx">
       <SubType>Designer</SubType>
       <DependentUpon>ProgressForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="RecipientSearchForm.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>RecipientSearchForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="RevocationCertForm.resx">
       <SubType>Designer</SubType>

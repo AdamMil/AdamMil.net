@@ -24,7 +24,7 @@ using AdamMil.Security.PGP;
 namespace AdamMil.Security.UI
 {
 
-/// <summary>This form displays basic properties about a key pair.</summary>
+/// <summary>This form displays basic properties about a <see cref="PrimaryKey"/>.</summary>
 public partial class KeyPropertiesForm : Form
 {
   /// <summary>Creates a new <see cref="KeyPropertiesForm"/>. You should call <see cref="Initialize"/> to initialize
@@ -35,35 +35,35 @@ public partial class KeyPropertiesForm : Form
     InitializeComponent();
   }
 
-  /// <summary>Initializes a new <see cref="KeyPropertiesForm"/> with the given key pair.</summary>
-  public KeyPropertiesForm(KeyPair pair) : this()
+  /// <summary>Initializes a new <see cref="KeyPropertiesForm"/> with the given <see cref="PrimaryKey"/>.</summary>
+  public KeyPropertiesForm(PrimaryKey key) : this()
   {
-    Initialize(pair);
+    Initialize(key);
   }
 
   /// <summary>Initializes this form with the given key pair.</summary>
-  public void Initialize(KeyPair pair)
+  public void Initialize(PrimaryKey key)
   {
-    if(pair == null) throw new ArgumentNullException();
+    if(key == null) throw new ArgumentNullException();
 
-    txtPrimaryId.Text   = pair.PublicKey.PrimaryUserId.Name;
-    txtKeyId.Text       = pair.PublicKey.ShortKeyId +
-                          (pair.PublicKey.KeyId.Length > 8 ? " (long ID: " + pair.PublicKey.KeyId + ")" : null);
-    txtKeyType.Text     = (pair.SecretKey == null ? "public key" : "public and secret key pair");
-    txtKeyValidity.Text = PGPUI.GetKeyValidityDescription(pair.PublicKey);
-    txtOwnerTrust.Text  = PGPUI.GetTrustDescription(pair.PublicKey.OwnerTrust);
-    txtFingerprint.Text = pair.PublicKey.Fingerprint;
+    txtPrimaryId.Text   = key.PrimaryUserId.Name;
+    txtKeyId.Text       = key.ShortKeyId +
+                          (key.KeyId.Length > 8 ? " (long ID: " + key.KeyId + ")" : null);
+    txtKeyType.Text     = (key.HasSecretKey ? "public key" : "public and secret key pair");
+    txtKeyValidity.Text = PGPUI.GetKeyValidityDescription(key);
+    txtOwnerTrust.Text  = PGPUI.GetTrustDescription(key.OwnerTrust);
+    txtFingerprint.Text = key.Fingerprint;
 
     List<string> capabilities = new List<string>();
-    if(pair.PublicKey.HasCapabilities(KeyCapabilities.Authenticate)) capabilities.Add("authenticate");
-    if(pair.PublicKey.HasCapabilities(KeyCapabilities.Certify)) capabilities.Add("certify");
-    if(pair.PublicKey.HasCapabilities(KeyCapabilities.Encrypt)) capabilities.Add("encrypt");
-    if(pair.PublicKey.HasCapabilities(KeyCapabilities.Sign)) capabilities.Add("sign");
+    if(key.HasCapabilities(KeyCapabilities.Authenticate)) capabilities.Add("authenticate");
+    if(key.HasCapabilities(KeyCapabilities.Certify)) capabilities.Add("certify");
+    if(key.HasCapabilities(KeyCapabilities.Encrypt)) capabilities.Add("encrypt");
+    if(key.HasCapabilities(KeyCapabilities.Sign)) capabilities.Add("sign");
     txtCapabilities.Text = capabilities.Count == 0 ? "none" : string.Join(", ", capabilities.ToArray());
 
     keyList.Items.Clear();
-    keyList.AddKey(pair.PublicKey);
-    foreach(Subkey subkey in pair.PublicKey.Subkeys) keyList.AddKey(subkey);
+    keyList.AddKey(key);
+    foreach(Subkey subkey in key.Subkeys) keyList.AddKey(subkey);
   }
 
   /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/*"/>
