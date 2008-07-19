@@ -409,16 +409,30 @@ public static class PGPUI
                     MessageBoxButtons.OK, failCount == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
   }
 
-  /// <summary>Given two <see cref="SecureTextBox"/> controls containing passwords, checks that the passwords match
-  /// and are sufficiently strong. Message boxes may be displayed to the user if any problems are found with the
-  /// passwords. True is returned if the passwords should be used, and false if not.
+  /// <summary>Given two <see cref="SecureTextBox"/> controls containing passwords, checks that the passwords match.
+  /// Message boxes will be displayed to the user if any problems are found with the passwords. True is returned if
+  /// the passwords should be used, and false if not.
   /// </summary>
-  public static bool ValidateAndCheckPasswords(SecureTextBox pass1, SecureTextBox pass2)
+  public static bool ValidatePasswords(SecureTextBox pass1, SecureTextBox pass2)
   {
     if(!PGPUI.ArePasswordsEqual(pass1, pass2))
     {
       MessageBox.Show("The passwords you have entered do not match.", "Password mismatch", MessageBoxButtons.OK,
                       MessageBoxIcon.Error);
+      return false;
+    }
+
+    return true;
+  }
+
+  /// <summary>Given two <see cref="SecureTextBox"/> controls containing passwords, checks that the passwords match
+  /// and are sufficiently strong. Message boxes will be displayed to the user if any problems are found with the
+  /// passwords. True is returned if the passwords should be used, and false if not.
+  /// </summary>
+  public static bool ValidateAndCheckPasswords(SecureTextBox pass1, SecureTextBox pass2)
+  {
+    if(!ValidatePasswords(pass1, pass2))
+    {
       return false;
     }
     else if(pass1.TextLength == 0)
