@@ -67,6 +67,8 @@ namespace AdamMil.Security.UI
       this.txtName = new System.Windows.Forms.TextBox();
       this.grpPassword = new System.Windows.Forms.GroupBox();
       this.lblStrength = new System.Windows.Forms.Label();
+      this.txtPass2 = new AdamMil.Security.UI.SecureTextBox();
+      this.txtPass1 = new AdamMil.Security.UI.SecureTextBox();
       this.grpPrimary = new System.Windows.Forms.GroupBox();
       this.chkKeyNoExpiration = new System.Windows.Forms.CheckBox();
       this.keyExpiration = new System.Windows.Forms.DateTimePicker();
@@ -80,8 +82,6 @@ namespace AdamMil.Security.UI
       this.progressBar = new System.Windows.Forms.ProgressBar();
       this.btnCancel = new System.Windows.Forms.Button();
       this.btnGenerate = new System.Windows.Forms.Button();
-      this.txtPass2 = new AdamMil.Security.UI.SecureTextBox();
-      this.txtPass1 = new AdamMil.Security.UI.SecureTextBox();
       lblHelp = new System.Windows.Forms.Label();
       lblKeyId = new System.Windows.Forms.Label();
       lblType = new System.Windows.Forms.Label();
@@ -301,6 +301,29 @@ namespace AdamMil.Security.UI
       this.lblStrength.TabIndex = 13;
       this.lblStrength.Text = "Estimated password strength:";
       // 
+      // txtPass2
+      // 
+      this.txtPass2.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+      this.txtPass2.ImeMode = System.Windows.Forms.ImeMode.Disable;
+      this.txtPass2.Location = new System.Drawing.Point(115, 46);
+      this.txtPass2.Name = "txtPass2";
+      this.txtPass2.Size = new System.Drawing.Size(218, 21);
+      this.txtPass2.TabIndex = 12;
+      this.txtPass2.UseSystemPasswordChar = true;
+      // 
+      // txtPass1
+      // 
+      this.txtPass1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+      this.txtPass1.ImeMode = System.Windows.Forms.ImeMode.Disable;
+      this.txtPass1.Location = new System.Drawing.Point(115, 20);
+      this.txtPass1.Name = "txtPass1";
+      this.txtPass1.Size = new System.Drawing.Size(218, 21);
+      this.txtPass1.TabIndex = 11;
+      this.txtPass1.UseSystemPasswordChar = true;
+      this.txtPass1.TextChanged += new System.EventHandler(this.txtPass1_TextChanged);
+      // 
       // grpPrimary
       // 
       this.grpPrimary.Controls.Add(this.chkKeyNoExpiration);
@@ -440,29 +463,6 @@ namespace AdamMil.Security.UI
       this.btnGenerate.UseVisualStyleBackColor = true;
       this.btnGenerate.Click += new System.EventHandler(this.btnGenerate_Click);
       // 
-      // txtPass2
-      // 
-      this.txtPass2.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-      this.txtPass2.ImeMode = System.Windows.Forms.ImeMode.Disable;
-      this.txtPass2.Location = new System.Drawing.Point(115, 46);
-      this.txtPass2.Name = "txtPass2";
-      this.txtPass2.Size = new System.Drawing.Size(218, 21);
-      this.txtPass2.TabIndex = 12;
-      this.txtPass2.UseSystemPasswordChar = true;
-      // 
-      // txtPass1
-      // 
-      this.txtPass1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-      this.txtPass1.ImeMode = System.Windows.Forms.ImeMode.Disable;
-      this.txtPass1.Location = new System.Drawing.Point(115, 20);
-      this.txtPass1.Name = "txtPass1";
-      this.txtPass1.Size = new System.Drawing.Size(218, 21);
-      this.txtPass1.TabIndex = 11;
-      this.txtPass1.UseSystemPasswordChar = true;
-      this.txtPass1.TextChanged += new System.EventHandler(this.txtPass1_TextChanged);
-      // 
       // GenerateKeyForm
       // 
       this.AcceptButton = this.btnGenerate;
@@ -483,6 +483,7 @@ namespace AdamMil.Security.UI
       this.MinimizeBox = false;
       this.Name = "GenerateKeyForm";
       this.ShowIcon = false;
+      this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
       this.Text = "Generate Key Pair";
       this.grpUser.ResumeLayout(false);
       this.grpUser.PerformLayout();

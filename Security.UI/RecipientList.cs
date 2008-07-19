@@ -150,11 +150,14 @@ public class RecipientList : KeyListBase
 
     foreach(PrimaryKey key in keys)
     {
-      PrimaryKeyItem item = CreatePrimaryKeyItem(key);
-      if(item != null)
+      if(key.HasCapabilities(KeyCapabilities.Encrypt))
       {
-        SetFont(item, GetItemStatus(key));
-        Items.Add(item);
+        PrimaryKeyItem item = CreatePrimaryKeyItem(key);
+        if(item != null)
+        {
+          SetFont(item, GetItemStatus(key));
+          Items.Add(item);
+        }
       }
     }
   }

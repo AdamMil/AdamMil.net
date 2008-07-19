@@ -120,7 +120,7 @@ public partial class GenerateKeyForm : Form
 
     subkeyType.Items.Clear();
     subkeyType.Items.Add(new KeyTypeItem(KeyType.None, 0, "None"));
-    keyType.Items.Add(new KeyTypeItem(KeyType.Default, encryptOnly, "Default (encryption only)"));
+    subkeyType.Items.Add(new KeyTypeItem(KeyType.Default, encryptOnly, "Default (encryption only)"));
     if(supportsELG) subkeyType.Items.Add(new KeyTypeItem(KeyType.ElGamal, encryptOnly, "El Gamal (encryption only)"));
     if(supportsRSA) subkeyType.Items.Add(new KeyTypeItem(KeyType.RSA, encryptOnly, "RSA (encryption only)"));
     if(supportsDSA) subkeyType.Items.Add(new KeyTypeItem(KeyType.DSA, signOnly, "DSA (signing only)"));

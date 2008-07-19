@@ -25,18 +25,20 @@ namespace AdamMil.Security.UI
 {
 
 /// <summary>This form displays signatures on a key.</summary>
-public partial class SignaturesForm : Form
+public partial class KeySignaturesForm : Form
 {
-  /// <summary>Creates a new <see cref="SignaturesForm"/>. You must call <see cref="Initialize"/> to initialize the
+  /// <summary>Creates a new <see cref="KeySignaturesForm"/>. You must call <see cref="Initialize"/> to initialize the
   /// form.
   /// </summary>
-  public SignaturesForm()
+  public KeySignaturesForm()
   {
     InitializeComponent();
   }
 
-  /// <summary>Initializes a new <see cref="SignaturesForm"/> with the public key whose signatures will be displayed.</summary>
-  public SignaturesForm(PrimaryKey publicKey) : this()
+  /// <summary>Initializes a new <see cref="KeySignaturesForm"/> with the public key whose signatures will be
+  /// displayed.
+  /// </summary>
+  public KeySignaturesForm(PrimaryKey publicKey) : this()
   {
     Initialize(publicKey);
   }
