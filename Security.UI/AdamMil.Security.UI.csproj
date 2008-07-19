@@ -190,6 +190,15 @@
     <Compile Include="KeySignatureList.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="SignatureList.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="SignaturesForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SignaturesForm.Designer.cs">
+      <DependentUpon>SignaturesForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="SimpleKeyList.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -302,6 +311,10 @@
     <EmbeddedResource Include="KeySignaturesForm.resx">
       <SubType>Designer</SubType>
       <DependentUpon>KeySignaturesForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SignaturesForm.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>SignaturesForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="SubkeyManagerForm.resx">
       <SubType>Designer</SubType>

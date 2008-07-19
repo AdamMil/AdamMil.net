@@ -1,7 +1,29 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 
 <UI>
+  <Collection>
+    <ClearItems>
+      <summary>Called to remove all items from the list.</summary>
+    </ClearItems>
+
+    <InsertItem>
+      <summary>Called to insert an item into the list.</summary>
+    </InsertItem>
+
+    <RemoveItem>
+      <summary>Called to remove an item from the list.</summary>
+    </RemoveItem>
+
+    <SetItem>
+      <summary>Called to change an item in the list.</summary>
+    </SetItem>
+  </Collection>
+  
   <Common>
+    <DefaultSize>
+      <summary>Gets the default size of the control.</summary>
+    </DefaultSize>
+    
     <Dispose>
       <summary>Releases unmanaged resources held by the object.</summary>
     </Dispose>
@@ -19,6 +41,10 @@
       <summary>Gets a hash code for the object.</summary>  
     </GetHashCode>
 
+    <OnPaint>
+      <summary>Renders the control.</summary>
+    </OnPaint>
+    
     <OpEquals>
       <summary>Returns true if the two objects are equal, and false if not.</summary>
     </OpEquals>
