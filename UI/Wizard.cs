@@ -30,9 +30,13 @@ namespace AdamMil.UI.Wizard
 {
 
 #region Wizard
+/// <summary>A wizard control, which displays one or more <see cref="WizardStep">steps</see> and provides navigation
+/// between them.
+/// </summary>
 [Designer(typeof(WizardDesigner)), DefaultEvent("StepChanged"), DefaultProperty("Steps")]
 public class Wizard : Control
 {
+  /// <summary>Initializes a new <see cref="Wizard"/> control.</summary>
   public Wizard()
   {
     steps = new StepCollection(this);
@@ -40,6 +44,7 @@ public class Wizard : Control
   }
 
   #region StepCollection
+  /// <summary>A collection of <see cref="WizardStep"/> objects.</summary>
   [Serializable]
   public sealed class StepCollection : Collection<WizardStep>
   {
@@ -49,6 +54,7 @@ public class Wizard : Control
       this.owner = owner;
     }
 
+    /// <include file="documentation.xml" path="/UI/Collection/ClearItems/*"/>
     protected override void ClearItems()
     {
       foreach(WizardStep step in this) OnRemove(step);
@@ -58,6 +64,7 @@ public class Wizard : Control
       owner.CurrentStepIndex = -1;
     }
 
+    /// <include file="documentation.xml" path="/UI/Collection/InsertItem/*"/>
     protected override void InsertItem(int index, WizardStep item)
     {
       ValidateItem(item);
@@ -75,6 +82,7 @@ public class Wizard : Control
       else owner.UpdateButtons();
     }
 
+    /// <include file="documentation.xml" path="/UI/Collection/RemoveItem/*"/>
     protected override void RemoveItem(int index)
     {
       OnRemove(this[index]);
@@ -94,6 +102,7 @@ public class Wizard : Control
       }
     }
 
+    /// <include file="documentation.xml" path="/UI/Collection/SetItem/*"/>
     protected override void SetItem(int index, WizardStep item)
     {
       if(item != this[index])
@@ -108,11 +117,13 @@ public class Wizard : Control
       }
     }
 
+    /// <summary>Renumbers all indices from <paramref name="index"/> to the end of the list.</summary>
     void FixIndicesFrom(int index)
     {
       for(; index < Count; index++) this[index].index = index;
     }
 
+    /// <summary>Binds a <see cref="WizardStep"/> to the wizard.</summary>
     void OnAdded(WizardStep item, int index)
     {
       item.index   = index;
@@ -121,6 +132,7 @@ public class Wizard : Control
       if(!owner.stepContainer.Controls.Contains(item)) owner.stepContainer.Controls.Add(item);
     }
 
+    /// <summary>Unbinds a <see cref="WizardStep"/> from the wizard.</summary>
     void OnRemove(WizardStep item)
     {
       owner.stepContainer.Controls.Remove(item);
@@ -131,32 +143,40 @@ public class Wizard : Control
 
     readonly Wizard owner;
 
-    static void ValidateItem(WizardStep step)
+    /// <summary>Makes sure the item is not null and that it doesn't already belong to a wizard.</summary>
+    static void ValidateItem(WizardStep item)
     {
-      if(step == null) throw new ArgumentNullException();
-      if(step.owner != null) throw new ArgumentException("This step already belongs to a wizard.");
+      if(item == null) throw new ArgumentNullException();
+      if(item.owner != null) throw new ArgumentException("This step already belongs to a wizard.");
     }
   }
   #endregion
 
+  /// <summary>Raised when the Back button is clicked.</summary>
   [Category("Action"), Description("Raised when the Back button is clicked.")]
   public event CancelEventHandler BackButtonClicked;
 
+  /// <summary>Raised when the Cancel button is clicked.</summary>
   [Category("Action"), Description("Raised when the Cancel button is clicked.")]
   public event CancelEventHandler CancelButtonClicked;
 
+  /// <summary>Raised when the Finish button is clicked.</summary>
   [Category("Action"), Description("Raised when the Finish button is clicked.")]
   public event CancelEventHandler FinishButtonClicked;
 
+  /// <summary>Raised when the Help button is clicked.</summary>
   [Category("Action"), Description("Raised when the Help button is clicked.")]
   public event EventHandler HelpButtonClicked;
 
+  /// <summary>Raised when the Next button is clicked.</summary>
   [Category("Action"), Description("Raised when the Next button is clicked.")]
   public event CancelEventHandler NextButtonClicked;
 
+  /// <summary>Raised when current <see cref="WizardStep"/> changes.</summary>
   [Category("Property Changed"), Description("Raised when the current step changes.")]
   public event EventHandler StepChanged;
 
+  /// <summary>Gets or sets the current <see cref="WizardStep"/>. If null, no wizard step is displayed.</summary>
   [Browsable(false), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
   public WizardStep CurrentStep
   {
@@ -169,6 +189,9 @@ public class Wizard : Control
     }
   }
 
+  /// <summary>Gets or sets the current <see cref="WizardStep"/>, based on its index. If -1, no wizard step is
+  /// displayed.
+  /// </summary>
   [Browsable(false), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
   public int CurrentStepIndex
   {
@@ -184,6 +207,10 @@ public class Wizard : Control
     }
   }
 
+  /// <summary>Gets or sets whether the Next (or Finish) button is enabled. This property will be reset to true
+  /// whenever the current step changes, so you'll have to set it in the <see cref="StepChanged"/> or
+  /// <see cref="WizardStep.StepDisplayed"/> event handlers if you want to keep it false.
+  /// </summary>
   [Browsable(false), DefaultValue(true)]
   public bool EnableNextButton
   {
@@ -195,6 +222,7 @@ public class Wizard : Control
     }
   }
 
+  /// <summary>Gets or sets whether the Help button is displayed.</summary>
   [Category("Appearance"), Description("Determines whether the Help button will be displayed."), DefaultValue(true)]
   public bool ShowHelpButton
   {
@@ -202,6 +230,7 @@ public class Wizard : Control
     set { btnHelp.Visible = value; }
   }
 
+  /// <summary>Gets a collection containing the <see cref="WizardStep">steps</see> in the wizard.</summary>
   [Category("Behavior"), Description("A collection of the steps displayed in the wizard."), MergableProperty(false)]
   [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
   [Editor(typeof(StepCollectionEditor), typeof(UITypeEditor))]
@@ -210,11 +239,15 @@ public class Wizard : Control
     get { return steps; }
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/DefaultSize/*"/>
   protected override System.Drawing.Size DefaultSize
   {
     get { return new Size(540, 400); }
   }
 
+  /// <summary>Called when the Back button is clicked. If the event is not canceled, the wizard will navigate to the
+  /// previous step.
+  /// </summary>
   protected virtual void OnBackButtonClicked(CancelEventArgs e)
   {
     if(CurrentStepIndex != -1) CurrentStep.OnBackButtonClicked(e);
@@ -222,8 +255,8 @@ public class Wizard : Control
 
     if(!e.Cancel && CurrentStepIndex != -1)
     {
-      if(DesignMode || CurrentStep.PreviousStep == null)
-      {
+      if(DesignMode || CurrentStep.PreviousStep == null) // in design mode, we always want to move through the steps in
+      {                                                  // order, so it's predictable and the user can access them all
         if(CurrentStepIndex > 0) CurrentStepIndex--;
       }
       else
@@ -233,12 +266,15 @@ public class Wizard : Control
     }
   }
 
+  /// <summary>Called when the Cancel button is clicked. If the event is not canceled and the parent control is a form,
+  /// the form will be closed with <see cref="DialogResult.Cancel"/>.
+  /// </summary>
   protected virtual void OnCancelButtonClicked(CancelEventArgs e)
   {
     if(CurrentStepIndex != -1) CurrentStep.OnCancelButtonClicked(e);
     if(CancelButtonClicked != null) CancelButtonClicked(this, e);
 
-    if(!e.Cancel)
+    if(!e.Cancel && !DesignMode) // don't close the form in design mode
     {
       Form form = Parent as Form;
       if(form != null)
@@ -249,18 +285,22 @@ public class Wizard : Control
     }
   }
 
+  /// <summary>Called when the Help button is clicked.</summary>
   protected virtual void OnHelpButtonClicked(EventArgs e)
   {
     if(CurrentStepIndex != -1) CurrentStep.OnHelpButtonClicked(e);
     if(HelpButtonClicked != null) HelpButtonClicked(this, e);
   }
 
+  /// <summary>Called when the Finish button is clicked. If the event is not canceled and the parent control is a form,
+  /// the form will be closed with <see cref="DialogResult.OK"/>.
+  /// </summary>
   protected virtual void OnFinishButtonClicked(CancelEventArgs e)
   {
     if(CurrentStepIndex != -1) CurrentStep.OnFinishButtonClicked(e);
     if(FinishButtonClicked != null) FinishButtonClicked(this, e);
 
-    if(!e.Cancel)
+    if(!e.Cancel && !DesignMode) // don't close the form in design mode
     {
       Form form = Parent as Form;
       if(form != null)
@@ -271,6 +311,9 @@ public class Wizard : Control
     }
   }
 
+  /// <summary>Called when the Back button is clicked. If the event is not canceled, the wizard will navigate to the
+  /// next step.
+  /// </summary>
   protected virtual void OnNextButtonClicked(CancelEventArgs e)
   {
     if(CurrentStepIndex != -1) CurrentStep.OnNextButtonClicked(e);
@@ -278,8 +321,8 @@ public class Wizard : Control
 
     if(!e.Cancel && CurrentStepIndex != -1)
     {
-      if(DesignMode || CurrentStep.NextStep == null)
-      {
+      if(DesignMode || CurrentStep.NextStep == null) // in design mode, we always want to move through the steps in
+      {                                              // order, so it's predictable and the user can access them all
         if(CurrentStepIndex < Steps.Count-1) CurrentStepIndex++;
       }
       else
@@ -289,6 +332,7 @@ public class Wizard : Control
     }
   }
 
+  /// <summary>Called when the current <see cref="WizardStep"/> changes.</summary>
   protected virtual void OnStepChanged(EventArgs e)
   {
     foreach(Control control in stepContainer.Controls)
@@ -305,6 +349,7 @@ public class Wizard : Control
     if(CurrentStepIndex != -1) CurrentStep.OnStepDisplayed(e);
   }
 
+  /// <summary>Paints a border above the wizard buttons.</summary>
   protected void OnPaintButtonContainer(PaintEventArgs e)
   {
     base.OnPaint(e);
@@ -315,6 +360,7 @@ public class Wizard : Control
     }
   }
 
+  /// <summary>Updates the text and enabled state of the wizard buttons, based on the current <see cref="WizardStep"/>.</summary>
   internal void UpdateButtons()
   {
     if(CurrentStepIndex == -1)
@@ -324,7 +370,7 @@ public class Wizard : Control
     }
     else
     {
-      bool forceDisable = !DesignMode && !EnableNextButton;
+      bool forceDisable = !DesignMode && !EnableNextButton; // always enable the buttons in design mode
       btnNext.Text    = IsFinishStep ? "&Finish" : "&Next >";
       btnBack.Enabled = CurrentStepIndex > 0 || !DesignMode && CurrentStep.PreviousStep != null;
       btnNext.Enabled = !forceDisable && (IsFinishStep || CurrentStepIndex < Steps.Count-1 ||
@@ -333,6 +379,7 @@ public class Wizard : Control
   }
 
   #region StepContainer
+  /// <summary>A panel that contains and displays the <see cref="WizardStep"/> controls.</summary>
   sealed class StepContainer : Panel
   {
     public StepContainer(Wizard owner)
@@ -359,6 +406,7 @@ public class Wizard : Control
   }
   #endregion
 
+  /// <summary>Gets whether the current step is a finish step.</summary>
   bool IsFinishStep
   {
     get
@@ -370,25 +418,23 @@ public class Wizard : Control
 
   void InitializeComponent()
   {
-    SetStyle(ControlStyles.ResizeRedraw | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
-             ControlStyles.UserPaint, true);
-    SetStyle(ControlStyles.Selectable, false);
+    SetStyle(ControlStyles.Selectable, false); // the wizard itself can't receive keyboard focus
 
     SuspendLayout();
 
     Size = DefaultSize;
 
-    buttonContainer = new Panel();
+    buttonContainer = new Panel(); // create a panel to hold the buttons
     buttonContainer.Size     = new Size(Width, 38);
     buttonContainer.Location = new Point(0, Height-buttonContainer.Height);
     buttonContainer.Anchor   = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
     buttonContainer.Name     = "buttonContainer";
-    buttonContainer.TabIndex = 1000;
+    buttonContainer.TabIndex = 1000; // the tabindex starts at 1000 so the buttons hopefully come last in the tab order
     buttonContainer.Paint += delegate(object sender, PaintEventArgs e) { OnPaintButtonContainer(e); };
 
     btnBack = new Button();
     btnBack.Size     = new Size(75, 23);
-    btnBack.Location = new Point(219, (buttonContainer.Height - btnBack.Height + 1) / 2);
+    btnBack.Location = new Point(219, (buttonContainer.Height - btnBack.Height + 1) / 2); // center it vertically
     btnBack.Anchor   = AnchorStyles.Right | AnchorStyles.Bottom;
     btnBack.Text     = "< &Back";
     btnBack.Name     = "btnBack";
@@ -448,13 +494,13 @@ public class Wizard : Control
 #endregion
 
 #region WizardStep
+/// <summary>A base class for steps within a <see cref="Wizard"/>.</summary>
 [Designer(typeof(WizardStepDesigner)), DefaultEvent("NextButtonClicked"), DefaultProperty("Title")]
 public abstract class WizardStep : Control
 {
+  /// <summary>Initializes a new <see cref="WizardStep"/>.</summary>
   public WizardStep()
   {
-    SetStyle(ControlStyles.ResizeRedraw | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
-             ControlStyles.UserPaint, true);
     SetStyle(ControlStyles.Selectable, false);
 
     subtitleFont = defaultSubtitleFont = Font;
@@ -465,30 +511,42 @@ public abstract class WizardStep : Control
     ResetTitleColor();
   }
 
+  /// <summary>Raised when the Back button is clicked while this step is visible.</summary>
   [Category("Action"), Description("Raised when the Back button is clicked while this step is visible.")]
   public event CancelEventHandler BackButtonClicked;
 
+  /// <summary>Raised when the Cancel button is clicked while this step is visible.</summary>
   [Category("Action"), Description("Raised when the Cancel button is clicked while this step is visible.")]
   public event CancelEventHandler CancelButtonClicked;
 
+  /// <summary>Raised when the Finish button is clicked while this step is visible.</summary>
   [Category("Action"), Description("Raised when the Finish button is clicked while this step is visible.")]
   public event CancelEventHandler FinishButtonClicked;
 
+  /// <summary>Raised when the Help button is clicked while this step is visible.</summary>
   [Category("Action"), Description("Raised when the Help button is clicked while this step is visible.")]
   public event EventHandler HelpButtonClicked;
 
+  /// <summary>Raised when the Next button is clicked while this step is visible.</summary>
   [Category("Action"), Description("Raised when the Next button is clicked while this step is visible.")]
   public event CancelEventHandler NextButtonClicked;
 
+  /// <summary>Raised when the user navigates to this step.</summary>
   [Category("Behavior"), Description("Raised when the user navigates to this step.")]
   public event EventHandler StepDisplayed;
 
+  /// <summary>Gets the index of this <see cref="WizardStep"/> within its parent <see cref="Wizard"/>, or -1 if the
+  /// step does not belong to a <see cref="Wizard"/>.
+  /// </summary>
   [Browsable(false), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
   public int Index
   {
     get { return index; }
   }
 
+  /// <summary>Gets or sets the brush used to paint the header area of the wizard step, if <see cref="HeaderImage"/> is
+  /// null. If null, the <see cref="HeaderImage"/> or <see cref="HeaderColor"/> will be used.
+  /// </summary>
   [Category("Appearance"), Description("The brush used to paint the header area of the wizard, if HeaderImage is null.")]
   [DefaultValue(null)]
   public Brush HeaderBrush
@@ -501,6 +559,9 @@ public abstract class WizardStep : Control
     }
   }
 
+  /// <summary>Gets or sets the color used to paint the header area of the wizard step, if <see cref="HeaderImage"/>
+  /// and <see cref="HeaderBrush"/> are null.
+  /// </summary>
   [Category("Appearance"), Description("The color used to paint the header area of the wizard, if HeaderImage and HeaderBrush are null.")]
   public Color HeaderColor
   {
@@ -512,6 +573,9 @@ public abstract class WizardStep : Control
     }
   }
 
+  /// <summary>Gets or sets the image displayed in the header area of the wizard step. If null, the
+  /// <see cref="HeaderBrush"/> or <see cref="HeaderColor"/> will be used.
+  /// </summary>
   [Category("Appearance"), Description("The image displayed in the header area of the wizard.")]
   [DefaultValue(null)]
   public Image HeaderImage
@@ -524,7 +588,8 @@ public abstract class WizardStep : Control
     }
   }
 
-  [Category("Appearance"), Description("Gets whether the header area is displayed to the left or the top of the wizard page.")]
+  /// <summary>Gets or sets whether the header area is displayed to the left of the wizard or at the top.</summary>
+  [Category("Appearance"), Description("Gets whether the header area is displayed to the left or the top of the wizard step.")]
   [DefaultValue(Orientation.Horizontal)]
   public Orientation HeaderOrientation
   {
@@ -536,7 +601,8 @@ public abstract class WizardStep : Control
     }
   }
 
-  [Category("Appearance"), Description("The description of the wizard page.")]
+  /// <summary>Gets or sets the subtitle text, which describes the wizard step.</summary>
+  [Category("Appearance"), Description("The description of the wizard step.")]
   public string Subtitle
   {
     get { return subtitle; }
@@ -548,7 +614,8 @@ public abstract class WizardStep : Control
     }
   }
 
-  [Category("Appearance"), Description("The font used to paint the subtitle.")]
+  /// <summary>Gets or sets the font used to render the subtitle text.</summary>
+  [Category("Appearance"), Description("The font used to draw the subtitle text.")]
   public Font SubtitleFont
   {
     get { return subtitleFont; }
@@ -561,7 +628,8 @@ public abstract class WizardStep : Control
     }
   }
 
-  [Category("Appearance"), Description("The title of the wizard page.")]
+  /// <summary>Gets or sets the title of the wizard step.</summary>
+  [Category("Appearance"), Description("The title of the wizard step.")]
   public string Title
   {
     get { return title; }
@@ -573,7 +641,8 @@ public abstract class WizardStep : Control
     }
   }
 
-  [Category("Appearance"), Description("The color used to paint the title and subtitle.")]
+  /// <summary>Gets or sets the color used to render the title and subtitle text.</summary>
+  [Category("Appearance"), Description("The color used to draw the title and subtitle text.")]
   public Color TitleColor
   {
     get { return titleColor; }
@@ -584,7 +653,8 @@ public abstract class WizardStep : Control
     }
   }
 
-  [Category("Appearance"), Description("The font used to paint the title.")]
+  /// <summary>Gets or sets the font used to render the title text.</summary>
+  [Category("Appearance"), Description("The font used to draw the title text.")]
   public Font TitleFont
   {
     get { return titleFont; }
@@ -597,8 +667,12 @@ public abstract class WizardStep : Control
     }
   }
 
+  /// <summary>Gets or sets the <see cref="WizardStep"/> that comes after this one in the wizard. If null, the step
+  /// at the next index will be used.
+  /// </summary>
   [DefaultValue(null), Category("Behavior")]
   [Description("Specifies the next step in the wizard. If null, the step at the next index will be used.")]
+  [TypeConverter(typeof(WizardStepTypeConverter))]
   public WizardStep NextStep
   {
     get { return nextStep; }
@@ -612,8 +686,12 @@ public abstract class WizardStep : Control
     }
   }
 
+  /// <summary>Gets or sets the <see cref="WizardStep"/> that comes before this one in the wizard. If null, the step
+  /// at the previous index will be used.
+  /// </summary>
   [DefaultValue(null), Category("Behavior")]
   [Description("Specifies the previous step in the wizard. If null, the step at the previous index will be used.")]
+  [TypeConverter(typeof(WizardStepTypeConverter))]
   public WizardStep PreviousStep
   {
     get { return prevStep; }
@@ -628,11 +706,15 @@ public abstract class WizardStep : Control
     }
   }
 
+  /// <summary>Gets the <see cref="Wizard"/> that owns this <see cref="WizardStep"/>, or null if this
+  /// <see cref="WizardStep"/> does not belong to a <see cref="Wizard"/>.
+  /// </summary>
   protected internal Wizard Wizard
   {
     get { return owner; }
   }
 
+  /// <summary>Gets the thickness of the header area.</summary>
   protected virtual int HeaderSize
   {
     get
@@ -648,43 +730,76 @@ public abstract class WizardStep : Control
     }
   }
 
+  /// <summary>Called when the Back button is clicked while this wizard step is visible.</summary>
   protected internal virtual void OnBackButtonClicked(CancelEventArgs e)
   {
     if(BackButtonClicked != null) BackButtonClicked(this, e);
   }
 
+  /// <summary>Called when the Cancel button is clicked while this wizard step is visible.</summary>
   protected internal virtual void OnCancelButtonClicked(CancelEventArgs e)
   {
     if(CancelButtonClicked != null) CancelButtonClicked(this, e);
   }
 
+  /// <summary>Called when the Help button is clicked while this wizard step is visible.</summary>
   protected internal virtual void OnHelpButtonClicked(EventArgs e)
   {
     if(HelpButtonClicked != null) HelpButtonClicked(this, e);
   }
 
+  /// <summary>Called when the Finish button is clicked while this wizard step is visible.</summary>
   protected internal virtual void OnFinishButtonClicked(CancelEventArgs e)
   {
     if(FinishButtonClicked != null) FinishButtonClicked(this, e);
   }
 
+  /// <summary>Called when the Next button is clicked while this wizard step is visible.</summary>
   protected internal virtual void OnNextButtonClicked(CancelEventArgs e)
   {
     if(NextButtonClicked != null) NextButtonClicked(this, e);
   }
 
+  /// <summary>Called when this wizard step is made visible.</summary>
   protected internal virtual void OnStepDisplayed(EventArgs e)
   {
     if(StepDisplayed != null) StepDisplayed(this, e);
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/OnFontChanged/*"/>
+  protected override void OnFontChanged(EventArgs e)
+  {
+    base.OnFontChanged(e);
+
+    bool titleWasDefault = !ShouldSerializeTitleFont(), subtitleWasDefault = !ShouldSerializeSubtitleFont();
+
+    defaultTitleFont    = CreateDefaultTitleFont();
+    defaultSubtitleFont = Font;
+
+    if(titleWasDefault) ResetTitleFont();
+    if(subtitleWasDefault) ResetSubtitleFont();
+  }
+
+  /// <include file="documentation.xml" path="/UI/Common/OnPaint/*"/>
   protected override void OnPaint(PaintEventArgs e)
   {
     base.OnPaint(e);
-    PaintHeaderBackground(e);
-    PaintTitleText(e);
+    PaintHeaderBackground(e); // draw the header
+    PaintTitleText(e);        // and the title and subtitle text
   }
 
+  /// <include file="documentation.xml" path="/UI/Common/OnSizeChanged/*"/>
+  protected override void OnSizeChanged(EventArgs e)
+  {
+    base.OnSizeChanged(e);
+    // since the text is painted within the header for horizontal headers, recalculate header size if the size changes,
+    // because it may cause the text to wrap differently and take up more or less vertical space
+    if(HeaderOrientation == Orientation.Horizontal) RecalculateHeaderSize();
+  }
+
+  /// <summary>Draws the background of the header. The default implementation uses the <see cref="HeaderImage"/>,
+  /// <see cref="HeaderBrush"/>, and <see cref="HeaderColor"/> properties to paint the background.
+  /// </summary>
   protected virtual void PaintHeaderBackground(PaintEventArgs e)
   {
     Size headerSize = HeaderOrientation == Orientation.Horizontal ?
@@ -709,6 +824,9 @@ public abstract class WizardStep : Control
     }
   }
 
+  /// <summary>Draws the title and subtitle text. The default implementation places the text within the header if the
+  /// header is horizontal, or to the right of the header if the header is vertical.
+  /// </summary>
   protected virtual void PaintTitleText(PaintEventArgs e)
   {
     using(Brush brush = new SolidBrush(TitleColor))
@@ -735,30 +853,9 @@ public abstract class WizardStep : Control
     }
   }
 
-  protected override void OnFontChanged(EventArgs e)
-  {
-    base.OnFontChanged(e);
-
-    bool titleWasDefault = !ShouldSerializeTitleFont(), subtitleWasDefault = !ShouldSerializeSubtitleFont();
-    
-    defaultTitleFont    = CreateDefaultTitleFont();
-    defaultSubtitleFont = Font;
-
-    if(titleWasDefault) ResetTitleFont();
-    if(subtitleWasDefault) ResetSubtitleFont();
-  }
-
-  protected override void OnSizeChanged(EventArgs e)
-  {
-    base.OnSizeChanged(e);
-    if(HeaderOrientation == Orientation.Horizontal) RecalculateHeaderSize();
-  }
-
-  protected virtual Font CreateDefaultTitleFont()
-  {
-    return new Font(Font.FontFamily, 10, FontStyle.Bold);
-  }
-
+  /// <summary>Called to create calculate the header height, when the header is horizontally oriented. The default
+  /// implementation measures the height of the title and subtitle text to determine the height of the header.
+  /// </summary>
   protected virtual int CalculateHeaderHeight()
   {
     using(Graphics g = Graphics.FromHwnd(Handle))
@@ -784,6 +881,14 @@ public abstract class WizardStep : Control
 
       return Math.Max(60, height);
     }
+  }
+
+  /// <summary>Called to create the default title font. The default implementation returns the same font face as
+  /// <see cref="Control.Font"/>, but with a size of 10 points, and bold.
+  /// </summary>
+  protected virtual Font CreateDefaultTitleFont()
+  {
+    return new Font(Font.FontFamily, 10, FontStyle.Bold);
   }
 
   #region ShouldSerialize*/Reset* methods
@@ -845,13 +950,17 @@ public abstract class WizardStep : Control
   int calculatedHeaderHeight;
   Orientation headerOrientation;
 
-  static readonly Color DefaultHeaderColor = Color.Orange;
+  static readonly Color DefaultHeaderColor = Color.FromArgb(255, 192, 64); // an orangish color
 }
 #endregion
 
 #region WizardStartStep
+/// <summary>Implements a wizard start step, which has a white background, a vertical header area, and a large title
+/// font.
+/// </summary>
 public class StartStep : WizardStep
 {
+  /// <summary>Initializes a new <see cref="StartStep"/>.</summary>
   public StartStep()
   {
     Title    = "Welcome to the Wizard.";
@@ -861,6 +970,9 @@ public class StartStep : WizardStep
     HeaderOrientation = Orientation.Vertical;
   }
 
+  /// <summary>Called to create the default title font. This implementation returns the same font face as
+  /// <see cref="Control.Font"/>, but with a size of 16 points.
+  /// </summary>
   protected override Font CreateDefaultTitleFont()
   {
     return new Font(Font.FontFamily, 16);
@@ -868,10 +980,12 @@ public class StartStep : WizardStep
 }
 #endregion
 
-#region WizardIntermediateStep
-public class IntermediateStep : WizardStep
+#region WizardMiddleStep
+/// <summary>Implements a basic wizard step.</summary>
+public class MiddleStep : WizardStep
 {
-  public IntermediateStep()
+  /// <summary>Initializes a new <see cref="MiddleStep"/>.</summary>
+  public MiddleStep()
   {
     Title = "Intermediate Step";
   }
@@ -879,8 +993,13 @@ public class IntermediateStep : WizardStep
 #endregion
 
 #region WizardFinishStep
+/// <summary>Implements a finish step, which has a white background.</summary>
+/// <remarks>Any <see cref="WizardStep"/> can be a finish step in the wizard, not only those deriving from this class.
+/// But this class implements a common style for finish steps.
+/// </remarks>
 public class FinishStep : WizardStep
 {
+  /// <summary>Initializes a new <see cref="FinishStep"/>.</summary>
   public FinishStep()
   {
     BackColor = SystemColors.Window;

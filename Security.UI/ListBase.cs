@@ -53,7 +53,6 @@ public abstract class PGPListBase : ListView
     base.Font               = new Font("Arial", 8f);
     base.FullRowSelect      = true;
     base.HideSelection      = false;
-    base.SmallImageList     = treeImageList;
     base.View               = View.Details;
   }
 
@@ -118,6 +117,12 @@ public abstract class PGPListBase : ListView
 /// <summary>A base class for lists that display PGP keys.</summary>
 public abstract class KeyListBase : PGPListBase
 {
+  /// <summary>Initializes a new <see cref="KeyListBase"/>.</summary>
+  protected KeyListBase()
+  {
+    base.SmallImageList = TreeImageList;
+  }
+
   /// <summary>Represents the status of an item.</summary>
   [Flags]
   protected enum ItemStatus
@@ -380,6 +385,38 @@ public class PrimaryKeyItem : PGPListViewItem
   readonly PrimaryKey key;
   internal ListViewItem[] relatedItems;
   internal bool expanded;
+}
+#endregion
+
+#region SignatureItem
+/// <summary>A <see cref="PGPListViewItem"/> that represents a <see cref="Signature"/>.</summary>
+public class SignatureItem : PGPListViewItem
+{
+  /// <summary>Initializes a new <see cref="SignatureItem"/> with the <see cref="Signature"/> that it represents.</summary>
+  public SignatureItem(Signature sig) : this(sig, null) { }
+
+  /// <summary>Initializes a new <see cref="SignatureItem"/> with the <see cref="Signature"/> that it represents,
+  /// and the text of the item.
+  /// </summary>
+  public SignatureItem(Signature sig, string text) : base(text)
+  {
+    if(sig == null) throw new ArgumentNullException();
+    this.sig = sig;
+  }
+
+  /// <summary>Throws a <see cref="NotSupportedException"/>.</summary>
+  public override PrimaryKey PublicKey
+  {
+    get { throw new NotSupportedException(); }
+  }
+
+  /// <summary>Gets the <see cref="Signature"/> that this list item represents.</summary>
+  public Signature Signature
+  {
+    get { return sig; }
+  }
+
+  readonly Signature sig;
 }
 #endregion
 

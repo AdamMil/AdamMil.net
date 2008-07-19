@@ -17,38 +17,34 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
-using System.ComponentModel;
 using System.Windows.Forms;
 using AdamMil.Security.PGP;
 
 namespace AdamMil.Security.UI
 {
 
-/// <summary>This form displays signatures on a key.</summary>
-public partial class KeySignaturesForm : Form
+/// <summary>This form displays a list of data signatures to the user.</summary>
+public partial class SignaturesForm : Form
 {
-  /// <summary>Creates a new <see cref="KeySignaturesForm"/>. You must call <see cref="Initialize"/> to initialize the
+  /// <summary>Creates a new <see cref="SignaturesForm"/>. You must call <see cref="Initialize"/> to initialize the
   /// form.
   /// </summary>
-  public KeySignaturesForm()
+  public SignaturesForm()
   {
     InitializeComponent();
   }
 
-  /// <summary>Initializes a new <see cref="KeySignaturesForm"/> with the public key whose signatures will be
-  /// displayed.
-  /// </summary>
-  public KeySignaturesForm(PrimaryKey publicKey) : this()
+  /// <summary>Initializes a new <see cref="SignaturesForm"/> with the signatures to display.</summary>
+  public SignaturesForm(Signature[] sigs) : this()
   {
-    Initialize(publicKey);
+    Initialize(sigs);
   }
 
-  /// <summary>Initializes this form with the public key whose signatures will be displayed.</summary>
-  public void Initialize(PrimaryKey publicKey)
+  /// <summary>Initializes this form with the signatures to display.</summary>
+  public void Initialize(Signature[] sigs)
   {
-    if(publicKey == null) throw new ArgumentNullException();
-    Text = lblDescription.Text = "Key Signatures for " + PGPUI.GetKeyName(publicKey);
-    sigList.Initialize(publicKey);
+    if(sigs == null) throw new ArgumentNullException();
+    signatureList.Initialize(sigs);
   }
 
   /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/*"/>

@@ -89,8 +89,6 @@ public class SimpleKeyList : KeyListBase
   {
     ColumnHeader keyHeader, keyIdHeader, algorithmHeader, sizeHeader, createdHeader, expireHeader, capsHeader;
 
-    base.SmallImageList = null;
-
     keyHeader = new ColumnHeader();
     keyHeader.Text = "Key";
     keyHeader.Width = 60;

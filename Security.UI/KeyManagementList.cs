@@ -1362,6 +1362,7 @@ public class KeyManagementList : KeyListBase
                                           expireHeader });
 
     base.ListViewItemSorter = new ItemComparerByName(this);
+    base.SmallImageList     = TreeImageList;
   }
 
   /// <summary>Finishes an output file opened with <see cref="OpenOutputFile"/>. This must be called before the file is

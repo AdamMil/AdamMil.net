@@ -205,6 +205,8 @@ public class KeySignatureList : PGPListBase
     createdHeader.Width = 75;
 
     Columns.AddRange(new ColumnHeader[] { userIdHeader, keyIdHeader, sigTypeHeader, validityHeader, createdHeader });
+
+    base.SmallImageList = TreeImageList;
   }
 
   Font userIdFont, revokedIdFont;

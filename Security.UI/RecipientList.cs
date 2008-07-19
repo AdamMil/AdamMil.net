@@ -135,8 +135,6 @@ public class RecipientList : KeyListBase
 
   void InitializeControl()
   {
-    base.SmallImageList = null;
-
     ColumnHeader header = new ColumnHeader();
     header.Text  = "Recipient";
     header.Width = 300;

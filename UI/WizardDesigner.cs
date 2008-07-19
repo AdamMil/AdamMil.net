@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.Design;
 using System.Drawing;
@@ -30,18 +31,20 @@ namespace AdamMil.UI.Wizard.Design
 {
 
 #region StepCollectionEditor
+/// <summary>A step collection editor that allows the user to add start steps, middle steps, and finish steps.</summary>
 sealed class StepCollectionEditor : CollectionEditor
 {
   public StepCollectionEditor(Type typeToEdit) : base(typeToEdit) { }
 
   protected override Type[] CreateNewItemTypes()
   {
-    return new Type[] { typeof(StartStep), typeof(IntermediateStep), typeof(FinishStep) };
+    return new Type[] { typeof(StartStep), typeof(MiddleStep), typeof(FinishStep) };
   }
 }
 #endregion
 
 #region WizardActionList
+/// <summary>Returns lists of actions that the user can perform on the wizard.</summary>
 sealed class WizardActionList : DesignerActionList
 {
   public WizardActionList(IComponent component) : base(component) { }
@@ -75,7 +78,8 @@ sealed class WizardActionList : DesignerActionList
     if(host != null)
     {
       Wizard wizard = GetWizard();
-      WizardStep step = (WizardStep)host.CreateComponent(typeof(IntermediateStep));
+      WizardStep step = (WizardStep)host.CreateComponent(typeof(MiddleStep));
+      // insert it after the current step unless the current step is a finish step, in which case put it before
       wizard.Steps.Insert(wizard.CurrentStepIndex + (wizard.CurrentStep is FinishStep ? 0 : 1), step);
       wizard.CurrentStep = step;
     }
@@ -120,12 +124,12 @@ sealed class WizardDesigner : ParentControlDesigner
 
   public override System.Collections.ICollection AssociatedComponents
   {
-    get { return GetWizard().Steps; }
-  }
+    get { return GetWizard().Steps; } // the steps are associated components, so they get copied and pasted and deleted
+  }                                   // along with the wizard itself
 
   public override bool CanParent(Control control)
   {
-    return control is WizardStep;
+    return control is WizardStep; // only wizard steps are allowed in this control
   }
 
   public override void Initialize(IComponent component)
@@ -149,9 +153,10 @@ sealed class WizardDesigner : ParentControlDesigner
     IDesignerHost host = (IDesignerHost)GetService(typeof(IDesignerHost));
     if(host != null)
     {
+      // add a start, middle, and end step to new wizards
       Wizard wizard = GetWizard();
       wizard.Steps.Add((WizardStep)host.CreateComponent(typeof(StartStep)));
-      wizard.Steps.Add((WizardStep)host.CreateComponent(typeof(IntermediateStep)));
+      wizard.Steps.Add((WizardStep)host.CreateComponent(typeof(MiddleStep)));
       wizard.Steps.Add((WizardStep)host.CreateComponent(typeof(FinishStep)));
     }
   }
@@ -172,8 +177,8 @@ sealed class WizardDesigner : ParentControlDesigner
 
   protected override bool GetHitTest(Point point)
   {
-    if(isSelected)
-    {
+    if(isSelected) // if the wizard is selected and the user clicked on one of the wizard buttons, process the click
+    {              // normally, so the user can click Back and Next to move among the steps
       Wizard wizard = GetWizard();
       Point buttonPoint = wizard.buttonContainer.PointToClient(point);
       if(wizard.btnBack.Bounds.Contains(buttonPoint) || wizard.btnNext.Bounds.Contains(buttonPoint) ||
@@ -188,10 +193,10 @@ sealed class WizardDesigner : ParentControlDesigner
 
   protected override void OnDragComplete(DragEventArgs e)
   {
-    if(forwardingDrag)
+    if(forwardingDrag) // forward the event to the wizard step designer
     {
       GetStepDesigner().InternalOnDragComplete(e);
-      forwardingDrag = false;
+      forwardingDrag = false; // and then stop forwarding because the drag is complete
     }
     else
     {
@@ -201,10 +206,10 @@ sealed class WizardDesigner : ParentControlDesigner
 
   protected override void OnDragDrop(DragEventArgs e)
   {
-    if(forwardingDrag)
+    if(forwardingDrag) // forward the event to the wizard step designer
     {
       GetStepDesigner().InternalOnDragDrop(e);
-      forwardingDrag = false;
+      forwardingDrag = false; // and then stop forwarding because the drag is complete
     }
     else
     {
@@ -217,6 +222,7 @@ sealed class WizardDesigner : ParentControlDesigner
     WizardStepDesigner stepDesigner = GetStepDesigner();
     WizardStep currentStep = GetWizard().CurrentStep;
 
+    // if the user drags something over the wizard step, begin forwarding the events to the step designer
     if(stepDesigner != null && currentStep.ClientRectangle.Contains(currentStep.PointToClient(new Point(e.X, e.Y))))
     {
       forwardingDrag = true;
@@ -230,7 +236,7 @@ sealed class WizardDesigner : ParentControlDesigner
 
   protected override void OnDragLeave(EventArgs e)
   {
-    if(forwardingDrag)
+    if(forwardingDrag) // forward the event to the wizard step designer
     {
       GetStepDesigner().InternalOnDragLeave(e);
       forwardingDrag = false;
@@ -243,13 +249,13 @@ sealed class WizardDesigner : ParentControlDesigner
 
   protected override void OnDragOver(DragEventArgs e)
   {
-    if(forwardingDrag) GetStepDesigner().InternalOnDragOver(e);
+    if(forwardingDrag) GetStepDesigner().InternalOnDragOver(e); // forward the event to the wizard step designer
     else base.OnDragOver(e);
   }
 
   protected override void OnGiveFeedback(GiveFeedbackEventArgs e)
   {
-    if(forwardingDrag) GetStepDesigner().InternalOnGiveFeedback(e);
+    if(forwardingDrag) GetStepDesigner().InternalOnGiveFeedback(e); // forward the event to the wizard step designer
     else base.OnGiveFeedback(e);
   }
 
@@ -258,13 +264,14 @@ sealed class WizardDesigner : ParentControlDesigner
     base.OnPaintAdornments(pe);
 
     Wizard wizard = GetWizard();
-    if(wizard.Steps.Count == 0)
-    {
+    if(wizard.Steps.Count == 0) // if there aren't any steps, paint a border around the wizard so the user can see its
+    {                           // dimensions
       ControlPaint.DrawBorder(pe.Graphics, wizard.ClientRectangle,
                               SystemColors.ControlDark, ButtonBorderStyle.Dashed);
     }
   }
 
+  /// <summary>Gets the designer associated with the current wizard step.</summary>
   WizardStepDesigner GetStepDesigner()
   {
     Wizard wizard = GetWizard();
@@ -276,6 +283,7 @@ sealed class WizardDesigner : ParentControlDesigner
     return null;
   }
 
+  /// <summary>Gets the <see cref="Wizard"/> being designed.</summary>
   Wizard GetWizard()
   {
     return (Wizard)Control;
@@ -289,7 +297,7 @@ sealed class WizardDesigner : ParentControlDesigner
     if(service != null)
     {
       // when the wizard is reloaded, it goes back to the first step. but the user may have been working on another
-      // step. so if any controls are selected that belong to a different step, switch to that step.s
+      // step. so if any controls are selected that belong to a different step, switch to that step
       Wizard wizard = GetWizard();
       if(wizard != null && wizard.CurrentStepIndex == 0)
       {
@@ -331,7 +339,7 @@ sealed class WizardStepDesigner : ParentControlDesigner
       if(actions == null)
       {
         Wizard wizard = GetStep().Wizard;
-        if(wizard != null)
+        if(wizard != null) // we need the wizard to create the action list, so wait until it's available
         {
           actions = new DesignerActionListCollection(new DesignerActionList[] { new WizardActionList(wizard) });
         }
@@ -342,51 +350,118 @@ sealed class WizardStepDesigner : ParentControlDesigner
   }
 
   public override SelectionRules SelectionRules
-  {
+  { // wizard steps fill the wizard, and so can't be moved or resized
     get { return base.SelectionRules & ~(SelectionRules.Moveable | SelectionRules.AllSizeable); }
   }
 
   public override bool CanBeParentedTo(IDesigner parentDesigner)
   {
-    return parentDesigner is WizardDesigner;
+    return parentDesigner is WizardDesigner; // wizard steps can only go inside wizards
   }
 
   internal void InternalOnDragComplete(DragEventArgs e)
   {
-    OnDragComplete(e);
+    OnDragComplete(e); // use the default implementation
   }
 
   internal void InternalOnDragDrop(DragEventArgs e)
   {
-    OnDragDrop(e);
+    OnDragDrop(e); // use the default implementation
   }
 
   internal void InternalOnDragEnter(DragEventArgs e)
   {
-    OnDragEnter(e);
+    OnDragEnter(e); // use the default implementation
   }
 
   internal void InternalOnDragLeave(EventArgs e)
   {
-    OnDragLeave(e);
+    OnDragLeave(e); // use the default implementation
   }
 
   internal void InternalOnDragOver(DragEventArgs e)
   {
-    OnDragOver(e);
+    OnDragOver(e); // use the default implementation
   }
 
   internal void InternalOnGiveFeedback(GiveFeedbackEventArgs e)
   {
-    OnGiveFeedback(e);
+    OnGiveFeedback(e); // use the default implementation
   }
 
+  /// <summary>Gets the <see cref="WizardStep"/> being designed.</summary>
   WizardStep GetStep()
   {
     return (WizardStep)Control;
   }
 
   DesignerActionListCollection actions;
+}
+#endregion
+
+#region WizardStepTypeConverter
+/// <summary>Implements a type converter that allows the user to select from among the wizard steps in the form.</summary>
+sealed class WizardStepTypeConverter : TypeConverter
+{
+  public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)
+  {
+    return sourceType == typeof(string) || base.CanConvertFrom(context, sourceType);
+  }
+
+  public override object ConvertFrom(ITypeDescriptorContext context, System.Globalization.CultureInfo culture, object value)
+  {
+    string str = value as string;
+
+    if(str != null)
+    {
+      if(str.Equals("(none)", StringComparison.Ordinal)) return null;
+
+      WizardStep instance = context.Instance as WizardStep;
+      if(instance != null && instance.Wizard != null)
+      {
+        foreach(WizardStep step in instance.Wizard.Steps)
+        {
+          if(string.Equals(step.Name, str, StringComparison.Ordinal)) return step;
+        }
+      }
+    }
+
+    return base.ConvertFrom(context, culture, value);
+  }
+
+  public override bool CanConvertTo(ITypeDescriptorContext context, Type destinationType)
+  {
+    return destinationType == typeof(string) || base.CanConvertTo(context, destinationType);
+  }
+
+  public override object ConvertTo(ITypeDescriptorContext context, System.Globalization.CultureInfo culture, object value, Type destinationType)
+  {
+    WizardStep step = value as WizardStep;
+    if(step != null && destinationType == typeof(string)) return step.Name;
+    else return base.ConvertTo(context, culture, value, destinationType);
+  }
+
+  public override StandardValuesCollection GetStandardValues(ITypeDescriptorContext context)
+  {
+    List<string> otherSteps = new List<string>();
+    otherSteps.Add("(none)");
+
+    WizardStep instance = context.Instance as WizardStep;
+    if(instance != null && instance.Wizard != null)
+    {
+      foreach(WizardStep step in instance.Wizard.Steps)
+      {
+        if(step != instance) otherSteps.Add(step.Name);
+      }
+    }
+    
+    return new StandardValuesCollection(otherSteps);
+  }
+
+  public override bool GetStandardValuesSupported(ITypeDescriptorContext context)
+  {
+    return true;
+  }
 }
 #endregion
 

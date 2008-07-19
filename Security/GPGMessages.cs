@@ -281,7 +281,7 @@ abstract class KeyIdAndNameSigVerifyMessage : StatusMessage
   protected KeyIdAndNameSigVerifyMessage(StatusMessageType type, string[] arguments) : base(type)
   {
     keyId    = arguments[0].ToUpperInvariant();
-    userName = arguments[1];
+    userName = string.Join(" ", arguments, 1, arguments.Length-1);
   }
 
   /// <summary>Gets the ID of the signing key used, as a hex string. Note that key IDs are not unique.</summary>
