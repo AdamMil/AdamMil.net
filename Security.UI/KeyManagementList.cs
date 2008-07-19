@@ -1285,7 +1285,7 @@ public class KeyManagementList : KeyListBase
     if(keys.Length == 0) return;
 
     PrimaryKey key = PGP.RefreshKey(keys[0], ListOptions.VerifyAll);
-    if(key != null) new SignaturesForm(key).ShowDialog();
+    if(key != null) new KeySignaturesForm(key).ShowDialog();
     else RemoveItems(GetSelectedPrimaryKeyItems()[0]); // if the key no longer exists, remove it from the list
   }
 

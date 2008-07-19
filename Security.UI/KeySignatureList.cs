@@ -28,18 +28,18 @@ namespace AdamMil.Security.UI
 {
 
 /// <summary>Displays a list of signatures on a key's user IDs.</summary>
-public class SignatureList : PGPListBase
+public class KeySignatureList : PGPListBase
 {
-  /// <summary>Creates a new <see cref="SignatureList"/>. You should call <see cref="Initialize"/> to initialize the
+  /// <summary>Creates a new <see cref="KeySignatureList"/>. You should call <see cref="Initialize"/> to initialize the
   /// list.
   /// </summary>
-  public SignatureList()
+  public KeySignatureList()
   {
     InitializeControl();
   }
 
-  /// <summary>Initializes a new <see cref="SignatureList"/> given the key whose signatures will be displayed.</summary>
-  public SignatureList(PrimaryKey publicKey) : this()
+  /// <summary>Initializes a new <see cref="KeySignatureList"/> given the key whose signatures will be displayed.</summary>
+  public KeySignatureList(PrimaryKey publicKey) : this()
   {
     Initialize(publicKey);
   }

@@ -18,7 +18,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 namespace AdamMil.Security.UI
 {
-  partial class SignaturesForm
+  partial class KeySignaturesForm
   {
     /// <summary>
     /// Required designer variable.
@@ -48,9 +48,9 @@ namespace AdamMil.Security.UI
     {
       this.components = new System.ComponentModel.Container();
       System.Windows.Forms.Label lblHelp;
-      System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(SignaturesForm));
+      System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(KeySignaturesForm));
       this.lblDescription = new System.Windows.Forms.Label();
-      this.sigList = new AdamMil.Security.UI.SignatureList();
+      this.sigList = new AdamMil.Security.UI.KeySignatureList();
       lblHelp = new System.Windows.Forms.Label();
       this.SuspendLayout();
       // 
@@ -112,7 +112,7 @@ namespace AdamMil.Security.UI
 
     #endregion
 
-    private SignatureList sigList;
+    private KeySignatureList sigList;
     private System.Windows.Forms.Label lblDescription;
   }
 }

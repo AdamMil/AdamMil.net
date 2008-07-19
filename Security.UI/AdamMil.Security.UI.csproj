@@ -181,13 +181,13 @@
     <Compile Include="SecureTextBox.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="SignaturesForm.cs">
+    <Compile Include="KeySignaturesForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="SignaturesForm.Designer.cs">
-      <DependentUpon>SignaturesForm.cs</DependentUpon>
+    <Compile Include="KeySignaturesForm.Designer.cs">
+      <DependentUpon>KeySignaturesForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="SignatureList.cs">
+    <Compile Include="KeySignatureList.cs">
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="SimpleKeyList.cs">
@@ -299,9 +299,9 @@
       <SubType>Designer</SubType>
       <DependentUpon>RevocationCertForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="SignaturesForm.resx">
+    <EmbeddedResource Include="KeySignaturesForm.resx">
       <SubType>Designer</SubType>
-      <DependentUpon>SignaturesForm.cs</DependentUpon>
+      <DependentUpon>KeySignaturesForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="SubkeyManagerForm.resx">
       <SubType>Designer</SubType>
