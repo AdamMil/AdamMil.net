@@ -59,9 +59,9 @@ namespace AdamMil.Security.UI
       // btnOK
       // 
       btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-      btnOK.Location = new System.Drawing.Point(152, 39);
+      btnOK.Location = new System.Drawing.Point(177, 41);
       btnOK.Name = "btnOK";
-      btnOK.Size = new System.Drawing.Size(87, 23);
+      btnOK.Size = new System.Drawing.Size(75, 23);
       btnOK.TabIndex = 4;
       btnOK.Text = "OK";
       btnOK.UseVisualStyleBackColor = true;
@@ -71,9 +71,9 @@ namespace AdamMil.Security.UI
       // 
       btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-      btnCancel.Location = new System.Drawing.Point(246, 39);
+      btnCancel.Location = new System.Drawing.Point(258, 41);
       btnCancel.Name = "btnCancel";
-      btnCancel.Size = new System.Drawing.Size(87, 23);
+      btnCancel.Size = new System.Drawing.Size(75, 23);
       btnCancel.TabIndex = 5;
       btnCancel.Text = "Cancel";
       btnCancel.UseVisualStyleBackColor = true;
@@ -83,7 +83,7 @@ namespace AdamMil.Security.UI
       lblKeyServer.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       lblKeyServer.Location = new System.Drawing.Point(2, 12);
       lblKeyServer.Name = "lblKeyServer";
-      lblKeyServer.Size = new System.Drawing.Size(96, 21);
+      lblKeyServer.Size = new System.Drawing.Size(88, 21);
       lblKeyServer.TabIndex = 2;
       lblKeyServer.Text = "Key server:";
       lblKeyServer.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -93,9 +93,9 @@ namespace AdamMil.Security.UI
       this.keyservers.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
       this.keyservers.FormattingEnabled = true;
-      this.keyservers.Location = new System.Drawing.Point(98, 12);
+      this.keyservers.Location = new System.Drawing.Point(91, 12);
       this.keyservers.Name = "keyservers";
-      this.keyservers.Size = new System.Drawing.Size(235, 21);
+      this.keyservers.Size = new System.Drawing.Size(242, 21);
       this.keyservers.TabIndex = 3;
       // 
       // lblHelp
