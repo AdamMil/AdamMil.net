@@ -68,6 +68,7 @@ namespace AdamMil.Security.UI
       this.signatureList.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+      this.signatureList.Font = new System.Drawing.Font("Arial", 8F);
       this.signatureList.FullRowSelect = true;
       this.signatureList.HideSelection = false;
       this.signatureList.Location = new System.Drawing.Point(8, 52);
@@ -85,6 +86,7 @@ namespace AdamMil.Security.UI
       this.Controls.Add(lblHelp);
       this.Controls.Add(this.signatureList);
       this.Font = new System.Drawing.Font("Verdana", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+      this.KeyPreview = true;
       this.MaximizeBox = false;
       this.MinimizeBox = false;
       this.MinimumSize = new System.Drawing.Size(604, 321);

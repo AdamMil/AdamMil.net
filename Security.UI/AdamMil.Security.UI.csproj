@@ -82,6 +82,12 @@
     <Compile Include="ImportForm.Designer.cs">
       <DependentUpon>ImportForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="KeyForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="KeyForm.Designer.cs">
+      <DependentUpon>KeyForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="KeyPropertiesForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -243,6 +249,10 @@
     <EmbeddedResource Include="ImportForm.resx">
       <SubType>Designer</SubType>
       <DependentUpon>ImportForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="KeyForm.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>KeyForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="KeyPropertiesForm.resx">
       <SubType>Designer</SubType>

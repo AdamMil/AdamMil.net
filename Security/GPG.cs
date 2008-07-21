@@ -335,7 +335,11 @@ public class ExeGPG : GPG
         {
           cmd.SendPassword(encryptionOptions.Password, false);
         }
-        else DefaultPromptHandler(promptId, state);
+        else if(!state.Canceled)
+        {
+          DefaultPromptHandler(promptId, state);
+          if(state.Canceled) cmd.Kill(); // kill GPG if the user doesn't give the password, so it doesn't keep asking
+        }
       };
 
       cmd.StatusMessageReceived += delegate(StatusMessage msg)
@@ -363,7 +367,8 @@ public class ExeGPG : GPG
 
     if(!cmd.SuccessfulExit) // if the process wasn't successful, throw an exception
     {
-      if(encryptionOptions != null) throw new EncryptionFailedException(state.FailureReasons);
+      if(state.Canceled) throw new OperationCanceledException();
+      else if(encryptionOptions != null) throw new EncryptionFailedException(state.FailureReasons);
       else throw new SigningFailedException(state.FailureReasons);
     }
   }
@@ -3815,7 +3820,7 @@ public class ExeGPG : GPG
         {
           state.DefaultPassword = null;
         }
-        else
+        else if(!state.Canceled) // don't send the OnInvalidPassword message if a user has simply hit Cancel
         {
           OnInvalidPassword(((BadPassphraseMessage)msg).KeyId);
           state.FailureReasons |= FailureReason.BadPassword;
@@ -4136,9 +4141,12 @@ public class ExeGPG : GPG
         }
         else if(!HandleRevokePrompt(cmd, promptId, reason, null, ref lines, ref lineIndex))
         {
-          DefaultPromptHandler(promptId, state);
-          if(state.Canceled) cmd.Kill(); // if the user didn't give the password, kill GPG to prevent it from asking
-        }                                // again
+          if(!state.Canceled)
+          {
+            DefaultPromptHandler(promptId, state);
+            if(state.Canceled) cmd.Kill(); // kill GPG if the user doesn't give the password, so it doesn't keep asking
+          }
+        }
       };
 
       cmd.Start();
