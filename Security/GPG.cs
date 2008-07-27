@@ -393,9 +393,9 @@ public class ExeGPG : GPG
   /// <remarks>The signature data (from <paramref name="signature"/>) will be written into a temporary file for the
   /// duration of this method call.
   /// </remarks>
-  public override Signature[] Verify(Stream signature, Stream signedData, VerificationOptions options)
+  public override Signature[] Verify(Stream signedData, Stream signature, VerificationOptions options)
   {
-    if(signature == null || signedData == null) throw new ArgumentNullException();
+    if(signedData == null || signature == null) throw new ArgumentNullException();
 
     // copy the signature into a temporary file, because we can't pass both streams on standard input
     string sigFileName = Path.GetTempFileName();
@@ -5659,7 +5659,7 @@ public class ExeGPG : GPG
   {
     ManualResetEvent readComplete = null;
     byte[] writeBuffer = new byte[4096], readBuffer = read == null ? null : new byte[4096];
-    bool allDataWritten = false;
+    bool allDataWritten = false, allDataRead = read == null;
 
     if(read != null)
     {
@@ -5668,19 +5668,30 @@ public class ExeGPG : GPG
       AsyncCallback callback = null;
       callback = delegate(IAsyncResult result)
       {
-        int bytes = process.StandardOutput.BaseStream.EndRead(result);
+        Stream stream = process.StandardOutput.BaseStream;
+        int bytes = stream == null ? 0 : stream.EndRead(result);
         if(bytes == 0)
         {
+          if(stream != null) allDataRead = true;
           readComplete.Set();
         }
         else
         {
           read.Write(readBuffer, 0, bytes);
-          process.StandardOutput.BaseStream.BeginRead(readBuffer, 0, readBuffer.Length, callback, null);
+          if(stream.CanRead)
+          {
+            try { stream.BeginRead(readBuffer, 0, readBuffer.Length, callback, null); }
+            catch(ObjectDisposedException) { }
+          }
         }
       };
 
-      process.StandardOutput.BaseStream.BeginRead(readBuffer, 0, readBuffer.Length, callback, null);
+      Stream stdOut = process.StandardOutput.BaseStream;
+      if(stdOut != null && stdOut.CanRead)
+      {
+        try { stdOut.BeginRead(readBuffer, 0, readBuffer.Length, callback, null); }
+        catch(ObjectDisposedException) { }
+      }
     }
 
     while(!process.HasExited)
@@ -5695,7 +5706,10 @@ public class ExeGPG : GPG
         break;
       }
 
-      try { process.StandardInput.BaseStream.Write(writeBuffer, 0, bytes); }
+      Stream stdIn = process.StandardInput.BaseStream;
+      if(stdIn == null || !stdIn.CanWrite) break;
+
+      try { stdIn.Write(writeBuffer, 0, bytes); }
       catch(ObjectDisposedException) { break; }
     }
 
@@ -5707,7 +5721,7 @@ public class ExeGPG : GPG
       readComplete.Close();
     }
 
-    return allDataWritten;
+    return allDataWritten && allDataRead;
   }
 
   /// <summary>Writes all data from the stream to the standard input of the process,

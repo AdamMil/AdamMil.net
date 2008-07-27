@@ -47,42 +47,40 @@ namespace AdamMil.Security.UI
     private void InitializeComponent()
     {
       this.components = new System.ComponentModel.Container();
-      System.Windows.Forms.Button btnAddUserId;
-      System.Windows.Forms.Button btnAddPhotoId;
       System.Windows.Forms.ColumnHeader nameColumn;
       System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(UserIdManagerForm));
+      this.btnAddUserId = new System.Windows.Forms.Button();
+      this.btnAddPhotoId = new System.Windows.Forms.Button();
       this.lblDescription = new System.Windows.Forms.Label();
       this.userIds = new System.Windows.Forms.ListView();
       this.imageList = new System.Windows.Forms.ImageList(this.components);
       this.btnSetPrimary = new System.Windows.Forms.Button();
       this.btnDelete = new System.Windows.Forms.Button();
       this.btnRevoke = new System.Windows.Forms.Button();
-      btnAddUserId = new System.Windows.Forms.Button();
-      btnAddPhotoId = new System.Windows.Forms.Button();
       nameColumn = new System.Windows.Forms.ColumnHeader();
       this.SuspendLayout();
       // 
       // btnAddUserId
       // 
-      btnAddUserId.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-      btnAddUserId.Location = new System.Drawing.Point(8, 233);
-      btnAddUserId.Name = "btnAddUserId";
-      btnAddUserId.Size = new System.Drawing.Size(93, 23);
-      btnAddUserId.TabIndex = 2;
-      btnAddUserId.Text = "&Add User ID";
-      btnAddUserId.UseVisualStyleBackColor = true;
-      btnAddUserId.Click += new System.EventHandler(this.btnAddUserId_Click);
+      this.btnAddUserId.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+      this.btnAddUserId.Location = new System.Drawing.Point(8, 233);
+      this.btnAddUserId.Name = "btnAddUserId";
+      this.btnAddUserId.Size = new System.Drawing.Size(93, 23);
+      this.btnAddUserId.TabIndex = 2;
+      this.btnAddUserId.Text = "&Add User ID";
+      this.btnAddUserId.UseVisualStyleBackColor = true;
+      this.btnAddUserId.Click += new System.EventHandler(this.btnAddUserId_Click);
       // 
       // btnAddPhotoId
       // 
-      btnAddPhotoId.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-      btnAddPhotoId.Location = new System.Drawing.Point(107, 233);
-      btnAddPhotoId.Name = "btnAddPhotoId";
-      btnAddPhotoId.Size = new System.Drawing.Size(93, 23);
-      btnAddPhotoId.TabIndex = 3;
-      btnAddPhotoId.Text = "Add &Photo ID";
-      btnAddPhotoId.UseVisualStyleBackColor = true;
-      btnAddPhotoId.Click += new System.EventHandler(this.btnAddPhotoId_Click);
+      this.btnAddPhotoId.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+      this.btnAddPhotoId.Location = new System.Drawing.Point(107, 233);
+      this.btnAddPhotoId.Name = "btnAddPhotoId";
+      this.btnAddPhotoId.Size = new System.Drawing.Size(93, 23);
+      this.btnAddPhotoId.TabIndex = 3;
+      this.btnAddPhotoId.Text = "Add &Photo ID";
+      this.btnAddPhotoId.UseVisualStyleBackColor = true;
+      this.btnAddPhotoId.Click += new System.EventHandler(this.btnAddPhotoId_Click);
       // 
       // nameColumn
       // 
@@ -170,8 +168,8 @@ namespace AdamMil.Security.UI
       this.Controls.Add(this.btnRevoke);
       this.Controls.Add(this.btnDelete);
       this.Controls.Add(this.btnSetPrimary);
-      this.Controls.Add(btnAddPhotoId);
-      this.Controls.Add(btnAddUserId);
+      this.Controls.Add(this.btnAddPhotoId);
+      this.Controls.Add(this.btnAddUserId);
       this.Controls.Add(this.lblDescription);
       this.Font = new System.Drawing.Font("Verdana", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
       this.KeyPreview = true;
@@ -194,5 +192,7 @@ namespace AdamMil.Security.UI
     private System.Windows.Forms.Button btnRevoke;
     private System.Windows.Forms.Label lblDescription;
     private System.Windows.Forms.ImageList imageList;
+    private System.Windows.Forms.Button btnAddUserId;
+    private System.Windows.Forms.Button btnAddPhotoId;
   }
 }

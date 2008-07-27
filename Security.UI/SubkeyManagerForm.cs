@@ -50,6 +50,9 @@ public partial class SubkeyManagerForm : Form
     if(pgp == null || publicKey == null) throw new ArgumentNullException();
     this.pgp = pgp;
     this.key = publicKey;
+
+    btnAdd.Enabled = key.HasSecretKey;
+
     if(Visible) ReloadKey();
   }
 
@@ -161,7 +164,7 @@ public partial class SubkeyManagerForm : Form
 
   void subkeys_SelectedIndexChanged(object sender, EventArgs e)
   {
-    btnDelete.Enabled = btnRevoke.Enabled = subkeys.SelectedItems.Count != 0;
+    btnDelete.Enabled = btnRevoke.Enabled = key.HasSecretKey && subkeys.SelectedItems.Count != 0;
   }
 
   PGPSystem pgp;

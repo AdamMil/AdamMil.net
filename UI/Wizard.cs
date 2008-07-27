@@ -209,7 +209,7 @@ public class Wizard : Control
 
   /// <summary>Gets or sets whether the Next (or Finish) button is enabled. This property will be reset to true
   /// whenever the current step changes, so you'll have to set it in the <see cref="StepChanged"/> or
-  /// <see cref="WizardStep.StepDisplayed"/> event handlers if you want to keep it false.
+  /// <see cref="WizardStep.StepDisplayed"/> event handler if you want to keep it false.
   /// </summary>
   [Browsable(false), DefaultValue(true)]
   public bool EnableNextButton

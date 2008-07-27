@@ -17,6 +17,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using System.Collections.Generic;
 using System.Windows.Forms;
 using AdamMil.Security.PGP;
 
@@ -26,7 +27,7 @@ namespace AdamMil.Security.UI
 /// <summary>This form displays a list of data signatures to the user.</summary>
 public partial class SignaturesForm : Form
 {
-  /// <summary>Creates a new <see cref="SignaturesForm"/>. You must call <see cref="Initialize"/> to initialize the
+  /// <summary>Creates a new <see cref="SignaturesForm"/>. You must call <c>Initialize</c> to initialize the
   /// form.
   /// </summary>
   public SignaturesForm()
@@ -40,8 +41,21 @@ public partial class SignaturesForm : Form
     Initialize(sigs);
   }
 
+  /// <summary>Initializes a new <see cref="SignaturesForm"/> with the signatures to display.</summary>
+  public SignaturesForm(Dictionary<string,Signature[]> sigs) : this()
+  {
+    Initialize(sigs);
+  }
+
   /// <summary>Initializes this form with the signatures to display.</summary>
   public void Initialize(Signature[] sigs)
+  {
+    if(sigs == null) throw new ArgumentNullException();
+    signatureList.Initialize(sigs);
+  }
+
+  /// <summary>Initializes this form with the signatures to display.</summary>
+  public void Initialize(Dictionary<string,Signature[]> sigs)
   {
     if(sigs == null) throw new ArgumentNullException();
     signatureList.Initialize(sigs);

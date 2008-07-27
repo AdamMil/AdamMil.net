@@ -150,6 +150,12 @@
       <summary>Sets the font of an <see cref="AttributeItem"/>, based on the <see cref="UserAttribute"/> it represents.</summary>
     </SetAttributeItemFont>
 
+    <SetSourceItemFont>
+      <summary>Sets the font of a <see cref="ListViewItem"/>, based on the overall status of the source data it 
+        represents.
+      </summary>
+    </SetSourceItemFont>
+
     <SetKeySignatureItemFont>
       <summary>
         Sets the font of a <see cref="KeySignatureItem"/>, based on the <see cref="KeySignature"/> it represents.

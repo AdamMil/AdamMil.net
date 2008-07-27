@@ -173,7 +173,8 @@ public class KeyManagementList : KeyListBase
       }
     }
 
-    Items.Add(items[0]);
+    Items.Add(primaryItem);
+    itemDict[key.EffectiveId] = primaryItem;
 
     if(items.Count > 1)
     {
@@ -182,6 +183,48 @@ public class KeyManagementList : KeyListBase
       items.CopyTo(1, primaryItem.relatedItems, 0, items.Count-1);
 
       if(expanded) ExpandItem(primaryItem);
+    }
+  }
+
+  /// <summary>Filters the list of keys by showing only those with a user ID or key fingerprint that contains at least
+  /// one of the given keyword strings. If the keywords array is null or contains no keywords, all keys are shown.
+  /// </summary>
+  public void FilterItems(string[] keywords)
+  {
+    bool showAll = keywords == null || keywords.Length == 0 ||
+                   keywords.Length == 1 && string.IsNullOrEmpty(keywords[0]);
+    foreach(PrimaryKeyItem item in itemDict.Values)
+    {
+      bool shouldShow = showAll;
+      if(!shouldShow)
+      {
+        foreach(string keyword in keywords)
+        {
+          if(PGPUI.KeyMatchesKeyword(item.PublicKey, keyword))
+          {
+            shouldShow = true;
+            break;
+          }
+        }
+      }
+
+      if(shouldShow)
+      {
+        if(Items[item.PublicKey.EffectiveId] == null) // if the item is not currently displayed, show it
+        {
+          item.expanded   = false;
+          item.ImageIndex = PlusImage;
+          Items.Add(item);
+        }
+      }
+      else
+      {
+        if(Items[item.PublicKey.EffectiveId] != null) // if the item is currently displayed, hide it
+        {
+          CollapseItem(item);
+          Items.RemoveAt(item.Index);
+        }
+      }
     }
   }
 
@@ -195,6 +238,7 @@ public class KeyManagementList : KeyListBase
     PrimaryKey[] keys = PGP.GetKeys(keyring, ListOptions.RetrieveAttributes | ListOptions.RetrieveSecretKeys);
 
     Items.Clear();
+    itemDict.Clear();
     foreach(PrimaryKey key in keys) AddKey(key);
 
     this.keyring = keyring;
@@ -304,31 +348,31 @@ public class KeyManagementList : KeyListBase
   /// <include file="documentation.xml" path="/UI/ListBase/ActivateItem/*"/>
   protected virtual void ActivateItem(ListViewItem item)
   {
+    PrimaryKeyItem primaryItem = GetPrimaryItem(item);
     AttributeItem attrItem = item as AttributeItem;
     if(attrItem != null)
     {
       if(attrItem.Attribute is UserImage) // activating a user image displays it
       {
         ShowPhotoId((UserImage)attrItem.Attribute);
+        return;
       }
-      else // activating any other attribute goes to the management form
-      {
+      else if(primaryItem != null && primaryItem.PublicKey.HasSecretKey) // activating any other attribute goes to the
+      {                                                                  // management form, if we have the secret key
         ManageUserIds(GetPrimaryItem(item));
+        return;
       }
     }
-    else
+
+    if(primaryItem != null)
     {
-      PrimaryKeyItem primaryItem = GetPrimaryItem(item);
-      if(primaryItem != null)
+      if(item is SubkeyItem && primaryItem.PublicKey.HasSecretKey) // activating a subkey goes to the management form
+      {                                                            // if the user owns the key
+        ManageSubkeys(primaryItem);
+      }
+      else // otherwise, show the key properties
       {
-        if(item is SubkeyItem) // activating a subkey goes to the management form
-        {
-          ManageSubkeys(primaryItem);
-        }
-        else // otherwise, show the key properties
-        {
-          ShowKeyProperties(primaryItem);
-        }
+        ShowKeyProperties(primaryItem);
       }
     }
   }
@@ -369,26 +413,18 @@ public class KeyManagementList : KeyListBase
       if(key.Disabled) hasDisabled = true;
       else hasEnabled = true;
 
-      if(key.Usable)
-      {
-        hasUsableSelectedKey = true;
-        if(key.HasSecretKey) hasUsableSecretKey = true;
-      }
-
+      if(key.Usable) hasUsableSelectedKey = true;
       if(key.HasSecretKey) secretCount++;
     }
 
     if(keyCount == 0 && PGP == null) return null;
 
-    if(!hasUsableSecretKey)
+    foreach(PrimaryKey secretKey in secretKeys)
     {
-      foreach(PrimaryKey key in secretKeys)
+      if(secretKey.Usable)
       {
-        if(key.Usable)
-        {
-          hasUsableSecretKey = true;
-          break;
-        }
+        hasUsableSecretKey = true;
+        break;
       }
     }
 
@@ -420,9 +456,12 @@ public class KeyManagementList : KeyListBase
     if(keyCount == 0) // if nothing is selected, display commands that operate on the entire list
     {
       menu.Items.Add(new ToolStripMenuItem("Export Keys...", null,
-                                             delegate(object sender, EventArgs e) { ExportKeys(); }));
+                                           delegate(object sender, EventArgs e) { ExportKeys(); }));
       menu.Items.Add(new ToolStripMenuItem("Import Keys...", null,
-                                             delegate(object sender, EventArgs e) { ImportKeys(); }));
+                                           delegate(object sender, EventArgs e) { ImportKeys(); }));
+      menu.Items.Add(new ToolStripSeparator());
+      menu.Items.Add(new ToolStripMenuItem("Import Keys from Key Server...", null,
+                                           delegate(object sender, EventArgs e) { ImportKeysFromKeyServer(); }));
     }
     else
     {
@@ -438,6 +477,8 @@ public class KeyManagementList : KeyListBase
         menu.Items.Add(new ToolStripSeparator());
 
         // key server operations
+        menu.Items.Add(new ToolStripMenuItem("Import Keys from Key Server...", null,
+                                             delegate(object sender, EventArgs e) { ImportKeysFromKeyServer(); }));
         menu.Items.Add(new ToolStripMenuItem("Send Public Keys to Key Server...", null,
                                              delegate(object sender, EventArgs e) { SendKeysToKeyServer(); }));
         menu.Items.Add(new ToolStripMenuItem("Refresh Public Keys from Key Server...", null,
@@ -561,6 +602,16 @@ public class KeyManagementList : KeyListBase
     return item;
   }
 
+  /// <summary>Given a the effective ID of a primary key, returns the <see cref="PrimaryKeyItem"/> associated with it,
+  /// or null if there is no associated item.
+  /// </summary>
+  protected PrimaryKeyItem GetPrimaryItem(string effectiveId)
+  {
+    PrimaryKeyItem item;
+    itemDict.TryGetValue(effectiveId, out item);
+    return item;
+  }
+
   /// <summary>Given a <see cref="ListViewItem"/>, returns the <see cref="PrimaryKeyItem"/> associated with it, or null
   /// if there is no associated item.
   /// </summary>
@@ -574,9 +625,7 @@ public class KeyManagementList : KeyListBase
   protected PrimaryKeyItem GetPrimaryItem(PGPListViewItem pgpItem)
   {
     PrimaryKeyItem primaryItem = pgpItem as PrimaryKeyItem;
-    if(primaryItem != null) return primaryItem;
-
-    return (PrimaryKeyItem)Items[pgpItem.PublicKey.EffectiveId];
+    return primaryItem != null ? primaryItem : GetPrimaryItem(pgpItem.PublicKey.EffectiveId);
   }
 
   /// <summary>Gets the primary key items associated with the selected items.</summary>
@@ -654,14 +703,16 @@ public class KeyManagementList : KeyListBase
   {
     base.OnMouseClick(e);
 
+    // this only seems to get called if an item was clicked on, but we'll check anyway
+
     if(e.Button == MouseButtons.Left)
     {
       PrimaryKeyItem item = GetItemAt(e.X, e.Y) as PrimaryKeyItem;
       // ugly code to see if they clicked on the +/- of a primary key item
       if(item != null && item.HasRelatedItems && e.X < TreeImageList.ImageSize.Width+4) ToggleItemExpansion(item);
     }
-    else if(e.Button == MouseButtons.Right)
-    {
+    else if(e.Button == MouseButtons.Right && GetItemAt(e.X, e.Y) != null) // the case where the user doesn't click on
+    {                                                                      // an item is handled in OnMouseUp
       ContextMenuStrip menu = CreateContextMenu();
       if(menu != null) menu.Show(PointToScreen(e.Location));
     }
@@ -676,6 +727,20 @@ public class KeyManagementList : KeyListBase
     {
       ListViewItem item = GetItemAt(e.X, e.Y);
       if(item != null) ActivateItem(item);
+    }
+  }
+
+  /// <include file="documentation.xml" path="/UI/Common/OnMouseUp/*"/>
+  protected override void OnMouseUp(MouseEventArgs e)
+  {
+    base.OnMouseUp(e);
+
+    // since OnMouseClick only seems to get called if an item was clicked on, we'll check for the case where the user
+    // clicks on empty space
+    if(e.Button == MouseButtons.Right && GetItemAt(e.X, e.Y) == null)
+    {
+      ContextMenuStrip menu = CreateContextMenu();
+      if(menu != null) menu.Show(PointToScreen(e.Location));
     }
   }
 
@@ -712,35 +777,35 @@ public class KeyManagementList : KeyListBase
     }
   }
 
-  /// <summary>Gets all of the key pairs in the list that have a secret key.</summary>
+  /// <summary>Gets all of the keys in the list that have a secret key.</summary>
   protected PrimaryKey[] GetSecretKeys(bool ignoreUnusable)
   {
-    List<PrimaryKey> pairs = new List<PrimaryKey>();
-    foreach(ListViewItem item in Items)
+    List<PrimaryKey> keys = new List<PrimaryKey>();
+    foreach(PrimaryKeyItem item in itemDict.Values)
     {
-      PrimaryKeyItem primaryItem = item as PrimaryKeyItem;
-      if(primaryItem != null && primaryItem.PublicKey.HasSecretKey &&
-         (!ignoreUnusable || primaryItem.PublicKey.Usable))
-      {
-        pairs.Add(primaryItem.PublicKey);
-      }
+      if(item.PublicKey.HasSecretKey && (!ignoreUnusable || item.PublicKey.Usable)) keys.Add(item.PublicKey);
     }
-    return pairs.ToArray();
+    return keys.ToArray();
   }
 
   /// <include file="documentation.xml" path="/UI/ListBase/RecreateItems/*"/>
   protected override void RecreateItems()
   {
-    List<PrimaryKeyItem> primaryKeyItems = new List<PrimaryKeyItem>();
+    Dictionary<string, object> visible = new Dictionary<string, object>();
 
     foreach(ListViewItem item in Items)
     {
       PrimaryKeyItem primaryKeyItem = item as PrimaryKeyItem;
-      if(primaryKeyItem != null) primaryKeyItems.Add(primaryKeyItem);
+      if(primaryKeyItem != null) visible[primaryKeyItem.PublicKey.EffectiveId] = null;
     }
 
     Items.Clear();
-    foreach(PrimaryKeyItem item in primaryKeyItems) AddKey(item.PublicKey, item.Expanded);
+    foreach(PrimaryKeyItem item in itemDict.Values)
+    {
+      bool isVisible = visible.ContainsKey(item.PublicKey.EffectiveId);
+      AddKey(item.PublicKey, isVisible && item.Expanded);
+      if(!isVisible) Items.Remove(GetPrimaryItem(item.PublicKey.EffectiveId));
+    }
   }
 
   /// <summary>Reloads the given list of <see cref="PrimaryKeyItem"/> from the PGP system.</summary>
@@ -763,17 +828,29 @@ public class KeyManagementList : KeyListBase
   /// <summary>Reloads the <see cref="PrimaryKeyItem"/> that represents the given public key.</summary>
   protected void ReloadKey(PrimaryKey publicKey)
   {
-    foreach(ListViewItem item in Items)
-    {
-      PrimaryKeyItem primaryItem = item as PrimaryKeyItem;
-      if(primaryItem != null && primaryItem.PublicKey == publicKey)
-      {
-        ReloadItems(primaryItem);
-        return;
-      }
-    }
-
+    PrimaryKeyItem item = GetPrimaryItem(publicKey.EffectiveId);
+    if(item != null) ReloadItems(item);
     throw new ArgumentException("The key was not found in the list.");
+  }
+
+  /// <summary>Reloads the <see cref="PrimaryKeyItem"/> that represents the public key with the given id, or adds it if
+  /// it does not exist in the list.
+  /// </summary>
+  protected void ReloadOrAddKey(string effectiveId)
+  {
+    AssertPGPSystem();
+
+    PrimaryKeyItem item = GetPrimaryItem(effectiveId);
+    if(item != null)
+    {
+      ReloadItems(item);
+    }
+    else
+    {
+      PrimaryKey key = PGP.FindKey(effectiveId, keyring,
+                                   ListOptions.RetrieveAttributes | ListOptions.RetrieveSecretKeys);
+      if(key != null) AddKey(key);
+    }
   }
 
   /// <summary>Removes the given items and their subitems from the list.</summary>
@@ -783,6 +860,7 @@ public class KeyManagementList : KeyListBase
     {
       CollapseItem(item);
       Items.RemoveAt(item.Index);
+      itemDict.Remove(item.PublicKey.EffectiveId);
     }
   }
 
@@ -1071,7 +1149,32 @@ public class KeyManagementList : KeyListBase
       }
 
       PGPUI.ShowImportResults(results);
+
+      foreach(ImportedKey key in results)
+      {
+        if(key.Successful) ReloadOrAddKey(key.EffectiveId);
+      }
     }
+  }
+
+  /// <summary>Imports keys from a key server into the keyring given to <see cref="ShowKeyring"/>, or the default
+  /// keyring if that method was not called.
+  /// </summary>
+  protected void ImportKeysFromKeyServer()
+  {
+    AssertPGPSystem();
+    
+    KeyServerSearchForm form = new KeyServerSearchForm(PGP, keyring);
+
+    form.ImportCompleted += delegate(object sender, ImportedKey[] results)
+    {
+      foreach(ImportedKey key in results)
+      {
+        if(key.Successful) ReloadOrAddKey(key.EffectiveId);
+      }
+    };
+
+    form.ShowDialog();
   }
 
   /// <summary>Makes the selected key a designated revoker for one of the keys owned by the user.</summary>
@@ -1400,6 +1503,7 @@ public class KeyManagementList : KeyListBase
     return output;
   }
 
+  Dictionary<string, PrimaryKeyItem> itemDict = new Dictionary<string, PrimaryKeyItem>(StringComparer.Ordinal);
   PGPSystem pgp;
   Keyring keyring;
   bool displayUserIds=true, displaySubkeys, displayRevokers;
