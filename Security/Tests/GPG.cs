@@ -191,7 +191,7 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
 
     // verify the signature
     plaintext.Position = signature.Position = 0;
-    CheckSignatures(keys, gpg.Verify(signature, plaintext, options));
+    CheckSignatures(keys, gpg.Verify(plaintext, signature, options));
   }
 
   [Test]

@@ -50,30 +50,14 @@ public class RecipientList : KeyListBase
     List<PrimaryKey> keysToShow = new List<PrimaryKey>();
     foreach(PrimaryKey key in keys)
     {
-      bool addKey = false;
-
       foreach(string keyword in keywords)
       {
-        string trimmed = keyword.Trim();
-
-        foreach(UserId id in key.UserIds)
+        if(PGPUI.KeyMatchesKeyword(key, keyword))
         {
-          if(id.Name.IndexOf(trimmed, StringComparison.CurrentCultureIgnoreCase) != -1)
-          {
-            addKey = true;
-            goto done;
-          }
-        }
-
-        if(key.EffectiveId.IndexOf(trimmed, StringComparison.OrdinalIgnoreCase) != -1)
-        {
-          addKey = true;
-          goto done;
+          keysToShow.Add(key);
+          break;
         }
       }
-
-      done:
-      if(addKey) keysToShow.Add(key);
     }
 
     AddKeyItems(keysToShow.ToArray());

@@ -380,6 +380,22 @@ public static class PGPUI
     return emailLocalRe.IsMatch(local) && domainRe.IsMatch(domain);
   }
 
+  /// <summary>Determines whether the given keyword matches the given primary key.</summary>
+  public static bool KeyMatchesKeyword(PrimaryKey key, string keyword)
+  {
+    if(key == null || keyword == null) throw new ArgumentNullException();
+    if(string.IsNullOrEmpty(keyword)) return false;
+
+    foreach(UserId id in key.UserIds)
+    {
+      if(id.Name.IndexOf(keyword, StringComparison.CurrentCultureIgnoreCase) != -1) return true;
+    }
+
+    if(key.EffectiveId.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) != -1) return true;
+
+    return false;
+  }
+
   /// <summary>Given a desired file name, changes the name by removing characters that are not supported by the
   /// operating system.
   /// </summary>

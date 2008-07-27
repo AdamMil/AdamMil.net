@@ -51,6 +51,9 @@ public partial class UserIdManagerForm : Form
     if(pgp == null || key == null) throw new ArgumentNullException();
     this.pgp = pgp;
     this.key = key;
+
+    btnAddPhotoId.Enabled = btnAddUserId.Enabled = key.HasSecretKey;
+
     if(Visible) ReloadKey();
   }
 
@@ -318,8 +321,8 @@ public partial class UserIdManagerForm : Form
 
   void userIds_SelectedIndexChanged(object sender, EventArgs e)
   {
-    btnDelete.Enabled = btnRevoke.Enabled = userIds.SelectedIndices.Count != 0;
-    btnSetPrimary.Enabled = userIds.SelectedItems.Count == 1 &&
+    btnDelete.Enabled = btnRevoke.Enabled = userIds.SelectedIndices.Count != 0 && key.HasSecretKey;
+    btnSetPrimary.Enabled = key.HasSecretKey && userIds.SelectedItems.Count == 1 &&
                             !((AttributeItem)userIds.SelectedItems[0]).Attribute.Primary;
   }
 

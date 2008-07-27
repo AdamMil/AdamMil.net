@@ -25,6 +25,9 @@ using AdamMil.Security.PGP;
 namespace AdamMil.Security.UI
 {
 
+/// <summary>A delegate used to handle events related to the importing of keys.</summary>
+public delegate void ImportEventHandler(object sender, ImportedKey[] results);
+
 /// <summary>This form allows the user to search for keys on a key server and import them.</summary>
 public partial class KeyServerSearchForm : Form
 {
@@ -54,7 +57,7 @@ public partial class KeyServerSearchForm : Form
   }
 
   /// <summary>Raised when an import completes successfully.</summary>
-  public event EventHandler ImportCompleted;
+  public event ImportEventHandler ImportCompleted;
   /// <summary>Raised when a search completes sucessfully.</summary>
   public event EventHandler SearchCompleted;
 
@@ -213,7 +216,7 @@ public partial class KeyServerSearchForm : Form
 
     if(results != null)
     {
-      if(ImportCompleted != null) ImportCompleted(this, EventArgs.Empty);
+      if(ImportCompleted != null) ImportCompleted(this, results);
       PGPUI.ShowImportResults(results);
     }
   }

@@ -30,7 +30,7 @@ namespace AdamMil.Security.UI
 /// <summary>Displays a list of data signature verification results.</summary>
 public class SignatureList : PGPListBase
 {
-  /// <summary>Creates a new <see cref="SignatureList"/>. You should call <see cref="Initialize"/> to initialize the
+  /// <summary>Creates a new <see cref="SignatureList"/>. You should call <c>Initialize</c> to initialize the
   /// list.
   /// </summary>
   public SignatureList()
@@ -44,12 +44,19 @@ public class SignatureList : PGPListBase
     Initialize(sigs);
   }
 
+  /// <summary>Initializes a new <see cref="SignatureList"/> with the signatures to be displayed.</summary>
+  public SignatureList(Dictionary<string,Signature[]> sigs) : this()
+  {
+    Initialize(sigs);
+  }
+
   /// <summary>Initializes this list given the key whose signatures will be displayed.</summary>
   public void Initialize(Signature[] sigs)
   {
     if(sigs == null) throw new ArgumentNullException();
 
     Items.Clear();
+    this.SmallImageList = null;
 
     foreach(Signature sig in sigs)
     {
@@ -60,6 +67,67 @@ public class SignatureList : PGPListBase
         Items.Add(item);
       }
     }
+  }
+
+  /// <summary>Initializes this list given the key whose signatures will be displayed.</summary>
+  public void Initialize(Dictionary<string,Signature[]> sigs)
+  {
+    if(sigs == null) throw new ArgumentNullException();
+
+    Items.Clear();
+    this.SmallImageList = TreeImageList;
+
+    foreach(KeyValuePair<string,Signature[]> pair in sigs)
+    {
+      ListViewItem sourceItem = new ListViewItem(pair.Key);
+      Items.Add(sourceItem);
+
+      ListViewItem subItem = null;
+      SignatureStatus overallStatus = SignatureStatus.Valid;
+
+      if(pair.Value == null)
+      {
+        subItem = new ListViewItem("An error occurred");
+        subItem.ForeColor   = Color.FromArgb(255, 96, 96);
+        subItem.IndentCount = 1;
+        Items.Add(subItem);
+        overallStatus = SignatureStatus.Error;
+      }
+      else if(pair.Value.Length == 0)
+      {
+        subItem = new ListViewItem("No signatures");
+        subItem.IndentCount = 1;
+        Items.Add(subItem);
+      }
+      else
+      {
+        foreach(Signature sig in pair.Value)
+        {
+          if(sig.IsInvalid) overallStatus = SignatureStatus.Invalid;
+          else if(!sig.IsValid && overallStatus != SignatureStatus.Invalid) overallStatus = SignatureStatus.Error;
+          
+          SignatureItem sigItem = CreateSignatureItem(sig);
+          if(sigItem != null)
+          {
+            sigItem.ImageIndex  = IndentImage;
+            sigItem.IndentCount = 1;
+            SetFont(sigItem);
+            Items.Add(sigItem);
+            subItem = sigItem;
+          }
+        }
+      }
+
+      subItem.ImageIndex = CornerImage;
+      SetFont(sourceItem, overallStatus);
+    }
+  }
+
+  /// <include file="documentation.xml" path="/UI/ListBase/ClearCachedFonts/*"/>
+  protected override void ClearCachedFonts()
+  {
+    base.ClearCachedFonts();
+    boldFont = null;
   }
 
   /// <include file="documentation.xml" path="/UI/ListBase/CreateSignatureItem/*"/>
@@ -107,6 +175,24 @@ public class SignatureList : PGPListBase
     }
   }
 
+  /// <include file="documentation.xml" path="/UI/ListBase/SetSourceItemFont/*"/>
+  protected virtual void SetFont(ListViewItem sourceItem, SignatureStatus status)
+  {
+    SignatureStatus basicStatus = status & SignatureStatus.SuccessMask;
+    if(basicStatus == SignatureStatus.Invalid)
+    {
+      sourceItem.ForeColor = Color.Red;
+    }
+    else if(basicStatus != SignatureStatus.Valid)
+    {
+      sourceItem.ForeColor = Color.FromArgb(255, 96, 96);
+    }
+
+    if(boldFont == null) boldFont = new Font(Font, FontStyle.Bold);
+
+    sourceItem.Font = boldFont;
+  }
+
   void InitializeControl()
   {
     ColumnHeader userIdHeader, validityHeader, createdHeader, expiresHeader;
@@ -129,6 +215,8 @@ public class SignatureList : PGPListBase
 
     Columns.AddRange(new ColumnHeader[] { userIdHeader, validityHeader, createdHeader, expiresHeader });
   }
+
+  Font boldFont;
 }
 
 } // namespace AdamMil.Security.UI

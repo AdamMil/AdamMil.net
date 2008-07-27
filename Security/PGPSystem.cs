@@ -344,6 +344,12 @@ public enum OpenPGPSignatureType
 /// </summary>
 public class ImportedKey : ReadOnlyClass
 {
+  /// <summary>Gets the <see cref="Fingerprint"/> if it is valid, and the <see cref="KeyId"/> otherwise.</summary>
+  public string EffectiveId
+  {
+    get { return string.IsNullOrEmpty(fingerprint) ? keyId : fingerprint; }
+  }
+
   /// <summary>Gets the fingerprint of the primary key, or null if the fingerprint is not known.</summary>
   public string Fingerprint
   {
@@ -832,16 +838,16 @@ public abstract class PGPSystem
   }
 
   /// <summary>Verifies detached signatures for the given signed data, using the default verification options.</summary>
-  public Signature[] Verify(Stream signature, Stream signedData)
+  public Signature[] Verify(Stream signedData, Stream signature)
   {
-    return Verify(signature, signedData, null);
+    return Verify(signedData, signature, null);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/Verify2/*"/>
   public abstract Signature[] Verify(Stream signedData, VerificationOptions options);
   
   /// <include file="documentation.xml" path="/Security/PGPSystem/Verify3/*"/>
-  public abstract Signature[] Verify(Stream signature, Stream signedData, VerificationOptions options);
+  public abstract Signature[] Verify(Stream signedData, Stream signature, VerificationOptions options);
   #endregion
 
   #region Key import and export
