@@ -63,7 +63,7 @@ public partial class PhotoIdForm : Form
   {
     base.OnKeyDown(e);
     
-    if(!e.Handled && e.KeyCode == Keys.Escape)
+    if(!e.Handled && PGPUI.IsCloseKey(e))
     {
       Close();
       e.Handled = true;

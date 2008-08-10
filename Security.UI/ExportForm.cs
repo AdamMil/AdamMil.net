@@ -46,6 +46,8 @@ public partial class ExportForm : Form
     options.Items.Add(new ListItem<ExportOptions>(ExportOptions.MinimizeKeys, "Minimize Exported Keys"));
     options.Items.Add(new ListItem<ExportOptions>(ExportOptions.ClobberPrimarySecretKey, "Clobber Exported Primary Secret Key"));
     options.Items.Add(new ListItem<ExportOptions>(ExportOptions.ResetSubkeyPassword, "Reset Secret Subkey Passwords"));
+    
+    options.SetItemChecked(0, true); // export public keys by default
   }
 
   /// <summary>Initializes a new <see cref="ExportForm"/> with the given list of keys to export.</summary>

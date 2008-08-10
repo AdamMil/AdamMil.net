@@ -5156,26 +5156,29 @@ public class ExeGPG : GPG
     string args = null, trustDb = null;
     bool trustDbSet = false;
 
-    foreach(Keyring keyring in keyrings)
+    if(keyrings != null)
     {
-      string thisTrustDb = keyring == null ? null : NormalizeKeyringFile(keyring.TrustDbFile);
-      if(!trustDbSet)
+      foreach(Keyring keyring in keyrings)
       {
-        trustDb    = thisTrustDb;
-        trustDbSet = true;
-      }
-      else if(!string.Equals(trustDb, thisTrustDb, StringComparison.Ordinal))
-      {
-        throw new ArgumentException("Trust databases cannot be mixed in the same command. The two databases were "+
-                                    trustDb + " and " + thisTrustDb);
-      }
-
-      if(keyring != null)
-      {
-        args += "--keyring " + EscapeArg(NormalizeKeyringFile(keyring.PublicFile)) + " ";
-        if(wantSecretKeyrings && keyring.SecretFile != null)
+        string thisTrustDb = keyring == null ? null : NormalizeKeyringFile(keyring.TrustDbFile);
+        if(!trustDbSet)
         {
-          args += "--secret-keyring " + EscapeArg(NormalizeKeyringFile(keyring.SecretFile)) + " ";
+          trustDb    = thisTrustDb;
+          trustDbSet = true;
+        }
+        else if(!string.Equals(trustDb, thisTrustDb, StringComparison.Ordinal))
+        {
+          throw new ArgumentException("Trust databases cannot be mixed in the same command. The two databases were "+
+                                      trustDb + " and " + thisTrustDb);
+        }
+
+        if(keyring != null)
+        {
+          args += "--keyring " + EscapeArg(NormalizeKeyringFile(keyring.PublicFile)) + " ";
+          if(wantSecretKeyrings && keyring.SecretFile != null)
+          {
+            args += "--secret-keyring " + EscapeArg(NormalizeKeyringFile(keyring.SecretFile)) + " ";
+          }
         }
       }
     }

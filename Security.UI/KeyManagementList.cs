@@ -455,12 +455,12 @@ public class KeyManagementList : KeyListBase
 
     if(keyCount == 0) // if nothing is selected, display commands that operate on the entire list
     {
-      menu.Items.Add(new ToolStripMenuItem("Export Keys...", null,
+      menu.Items.Add(new ToolStripMenuItem("E&xport Keys...", null,
                                            delegate(object sender, EventArgs e) { ExportKeys(); }));
-      menu.Items.Add(new ToolStripMenuItem("Import Keys...", null,
+      menu.Items.Add(new ToolStripMenuItem("&Import Keys...", null,
                                            delegate(object sender, EventArgs e) { ImportKeys(); }));
       menu.Items.Add(new ToolStripSeparator());
-      menu.Items.Add(new ToolStripMenuItem("Import Keys from Key Server...", null,
+      menu.Items.Add(new ToolStripMenuItem("I&mport Keys from Key Server...", null,
                                            delegate(object sender, EventArgs e) { ImportKeysFromKeyServer(); }));
     }
     else
@@ -468,63 +468,59 @@ public class KeyManagementList : KeyListBase
       if(PGP != null)
       {
         // importing and exporting keys
-        menu.Items.Add(new ToolStripMenuItem("Copy Public Keys to Clipboard", null,
+        menu.Items.Add(new ToolStripMenuItem("&Copy Public Keys to Clipboard", null,
                                              delegate(object sender, EventArgs e) { ExportPublicKeysToClipboard(); }));
-        menu.Items.Add(new ToolStripMenuItem("Export Keys to File...", null,
+        menu.Items.Add(new ToolStripMenuItem("E&xport Keys to File...", null,
                                              delegate(object sender, EventArgs e) { ExportKeysToFile(); }));
-        menu.Items.Add(new ToolStripMenuItem("Import Keys...", null,
+        menu.Items.Add(new ToolStripMenuItem("&Import Keys...", null,
                                              delegate(object sender, EventArgs e) { ImportKeys(); }));
         menu.Items.Add(new ToolStripSeparator());
 
         // key server operations
-        menu.Items.Add(new ToolStripMenuItem("Import Keys from Key Server...", null,
+        menu.Items.Add(new ToolStripMenuItem("I&mport Keys from Key Server...", null,
                                              delegate(object sender, EventArgs e) { ImportKeysFromKeyServer(); }));
-        menu.Items.Add(new ToolStripMenuItem("Send Public Keys to Key Server...", null,
+        menu.Items.Add(new ToolStripMenuItem("S&end Public Keys to Key Server...", null,
                                              delegate(object sender, EventArgs e) { SendKeysToKeyServer(); }));
-        menu.Items.Add(new ToolStripMenuItem("Refresh Public Keys from Key Server...", null,
+        menu.Items.Add(new ToolStripMenuItem("Re&fresh Public Keys from Key Server...", null,
                                              delegate(object sender, EventArgs e) { RefreshKeysFromKeyServer(); }));
         menu.Items.Add(new ToolStripSeparator());
 
         // key signing
-        menu.Items.Add(new ToolStripMenuItem("Sign Keys...", null,
+        menu.Items.Add(new ToolStripMenuItem("&Sign Keys...", null,
                                              delegate(object sender, EventArgs e) { SignKeys(); }));
         menu.Items[menu.Items.Count-1].Enabled = hasUsableSecretKey && hasUsableSelectedKey;
-        menu.Items.Add(new ToolStripMenuItem("Set Owner Trust...", null,
+        menu.Items.Add(new ToolStripMenuItem("Set Owner &Trust...", null,
                                              delegate(object sender, EventArgs e) { SetOwnerTrust(); }));
         menu.Items.Add(new ToolStripSeparator());
 
         // key management
-        menu.Items.Add(new ToolStripMenuItem("Clean Keys", null,
+        menu.Items.Add(new ToolStripMenuItem("C&lean Keys", null,
                                              delegate(object sender, EventArgs e) { CleanKeys(); }));
-        menu.Items.Add(new ToolStripMenuItem("Delete Keys", null,
+        menu.Items.Add(new ToolStripMenuItem("&Delete Keys", null,
                                              delegate(object sender, EventArgs e) { DeleteKeys(); }));
-        menu.Items.Add(new ToolStripMenuItem("Generate Revocation Certificate...", null,
+        menu.Items.Add(new ToolStripMenuItem("&Generate Revocation Certificate...", null,
                                              delegate(object sender, EventArgs e) { GenerateRevocationCertificate(); }));
         menu.Items[menu.Items.Count-1].Enabled = canRevoke;
-        menu.Items.Add(new ToolStripMenuItem("Revoke Key...", null,
+        menu.Items.Add(new ToolStripMenuItem("&Revoke Key...", null,
                                              delegate(object sender, EventArgs e) { RevokeKey(); }));
         menu.Items[menu.Items.Count-1].Enabled = canRevoke;
         menu.Items.Add(new ToolStripSeparator());
       }
 
-      // user management
       if(PGP != null)
       {
-        menu.Items.Add(new ToolStripMenuItem("Change Passphrase...", null,
+        menu.Items.Add(new ToolStripMenuItem("Change &Passphrase...", null,
                                              delegate(object sender, EventArgs e) { ChangePassphrase(); }));
         menu.Items[menu.Items.Count-1].Enabled = secretCount == 1;
-        menu.Items.Add(new ToolStripMenuItem("Manage User IDs...", null,
-                                             delegate(object sender, EventArgs e) { ManageUserIds(); }));
-        menu.Items[menu.Items.Count-1].Enabled = secretCount == 1;
-        menu.Items.Add(new ToolStripMenuItem("View Signatures...", null,
+        menu.Items.Add(new ToolStripMenuItem("&View Signatures...", null,
                                              delegate(object sender, EventArgs e) { ShowSignatures(); }));
         menu.Items[menu.Items.Count-1].Enabled = keyCount == 1;
       }
 
-      menu.Items.Add(new ToolStripMenuItem("View Photo ID...", null,
+      menu.Items.Add(new ToolStripMenuItem("View P&hoto ID...", null,
                                            delegate(object sender, EventArgs e) { ShowPhotoId(); }));
       menu.Items[menu.Items.Count-1].Enabled = photoCount == 1;
-      menu.Items.Add(new ToolStripMenuItem("View Key Properties...", null,
+      menu.Items.Add(new ToolStripMenuItem("View &Key Properties...", null,
                                            delegate(object sender, EventArgs e) { ShowKeyProperties(); }));
       menu.Items[menu.Items.Count-1].Enabled = keyCount == 1;
 
@@ -533,28 +529,29 @@ public class KeyManagementList : KeyListBase
         menu.Items.Add(new ToolStripSeparator());
 
         // advanced options
-        ToolStripMenuItem advanced = new ToolStripMenuItem("Advanced");
-        advanced.DropDownItems.Add(new ToolStripMenuItem("Delete Secret Portion of Keys", null,
-                                                      delegate(object sender, EventArgs e) { DeleteSecretKeys(); }));
+        ToolStripMenuItem advanced = new ToolStripMenuItem("&Advanced");
+        advanced.DropDownItems.Add(new ToolStripMenuItem("Delete Secret &Portion of Keys", null,
+                                                        delegate(object sender, EventArgs e) { DeleteSecretKeys(); }));
         advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = secretCount != 0;
-        advanced.DropDownItems.Add(new ToolStripMenuItem("Disable Keys", null,
+        advanced.DropDownItems.Add(new ToolStripMenuItem("E&xport Keys...", null,
+                                                         delegate(object sender, EventArgs e) { ExportKeys(); }));
+        advanced.DropDownItems.Add(new ToolStripMenuItem("&Disable Keys", null,
                                                          delegate(object sender, EventArgs e) { DisableKeys(); }));
         advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = hasEnabled;
-        advanced.DropDownItems.Add(new ToolStripMenuItem("Enable Keys", null,
+        advanced.DropDownItems.Add(new ToolStripMenuItem("&Enable Keys", null,
                                                          delegate(object sender, EventArgs e) { EnableKeys(); }));
         advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = hasDisabled;
-        advanced.DropDownItems.Add(new ToolStripMenuItem("Minimize Keys", null,
+        advanced.DropDownItems.Add(new ToolStripMenuItem("&Minimize Keys", null,
                                                          delegate(object sender, EventArgs e) { MinimizeKeys(); }));
-        advanced.DropDownItems.Add(new ToolStripMenuItem("Make this Key a Designated Revoker...", null,
-                                                     delegate(object sender, EventArgs e) { MakeDesignatedRevoker(); }));
+        advanced.DropDownItems.Add(new ToolStripMenuItem("Make this Key a Designated &Revoker...", null,
+                                                   delegate(object sender, EventArgs e) { MakeDesignatedRevoker(); }));
         advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = keyCount == 1 && hasUsableSecretKey;
-        advanced.DropDownItems.Add(new ToolStripMenuItem("Manage Subkeys...", null,
+        advanced.DropDownItems.Add(new ToolStripMenuItem("Manage &Subkeys...", null,
                                                          delegate(object sender, EventArgs e) { ManageSubkeys(); }));
         advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = secretCount == 1;
-        advanced.DropDownItems.Add(new ToolStripMenuItem("Export Keys...", null,
-                                                         delegate(object sender, EventArgs e) { ExportKeys(); }));
-        advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = attributeCount != 0;
-
+        advanced.DropDownItems.Add(new ToolStripMenuItem("Manage &User IDs...", null,
+                                                         delegate(object sender, EventArgs e) { ManageUserIds(); }));
+        advanced.DropDownItems[advanced.DropDownItems.Count-1].Enabled = secretCount == 1;
         menu.Items.Add(advanced);
       }
     }
@@ -670,30 +667,43 @@ public class KeyManagementList : KeyListBase
   {
     base.OnKeyDown(e);
 
-    if(!e.Handled && e.Modifiers == Keys.None && SelectedItems.Count == 1)
+    if(!e.Handled && e.Modifiers == Keys.None)
     {
-      ListViewItem item = SelectedItems[0];
-      PrimaryKeyItem itemAsPrimary = item as PrimaryKeyItem;
-
-      if(e.KeyCode == Keys.Left)
+      if(e.KeyCode == Keys.Apps)
       {
-        if(itemAsPrimary != null) CollapseItem(itemAsPrimary); // collapse primary items
-        else Select(GetPrimaryItem(item), true); // and move from sub items to the primary item
-        e.Handled = true;
-      }
-      else if(e.KeyCode == Keys.Right)
-      {
-        if(itemAsPrimary != null)
+        ContextMenuStrip menu = CreateContextMenu();
+        if(menu != null)
         {
-          if(itemAsPrimary.Expanded) Select(Items[item.Index+1], true); // move from primary items to sub items
-          else ExpandItem(itemAsPrimary); // or expand primary items if they're not expanded
+          menu.Show(PointToScreen(SelectedIndices.Count == 0 ? new Point()
+                                                             : GetItemRect(SelectedIndices[0]).Location));
+          e.Handled = true;
         }
-        e.Handled = true;
       }
-      else if(e.KeyCode == Keys.Enter) // enter shows key properties
+      else if(SelectedItems.Count == 1)
       {
-        ActivateItem(item);
-        e.Handled = true;
+        ListViewItem item = SelectedItems[0];
+        PrimaryKeyItem itemAsPrimary = item as PrimaryKeyItem;
+
+        if(e.KeyCode == Keys.Left)
+        {
+          if(itemAsPrimary != null) CollapseItem(itemAsPrimary); // collapse primary items
+          else Select(GetPrimaryItem(item), true); // and move from sub items to the primary item
+          e.Handled = true;
+        }
+        else if(e.KeyCode == Keys.Right)
+        {
+          if(itemAsPrimary != null)
+          {
+            if(itemAsPrimary.Expanded) Select(Items[item.Index+1], true); // move from primary items to sub items
+            else ExpandItem(itemAsPrimary); // or expand primary items if they're not expanded
+          }
+          e.Handled = true;
+        }
+        else if(e.KeyCode == Keys.Enter) // enter shows key properties
+        {
+          ActivateItem(item);
+          e.Handled = true;
+        }
       }
     }
   }
@@ -1001,7 +1011,8 @@ public class KeyManagementList : KeyListBase
 
       try
       {
-        PGP.ExportKeys(keys, output, form.ExportOptions, form.OutputOptions);
+        if(keys.Length == 0) PGP.ExportKeys(keyring, output, form.ExportOptions, form.OutputOptions);
+        else PGP.ExportKeys(keys, output, form.ExportOptions, form.OutputOptions);
         FinishOutputFile(output);
       }
       finally { output.Close(); }

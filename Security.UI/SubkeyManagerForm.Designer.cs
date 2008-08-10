@@ -46,6 +46,7 @@ namespace AdamMil.Security.UI
     /// </summary>
     private void InitializeComponent()
     {
+      this.components = new System.ComponentModel.Container();
       System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(SubkeyManagerForm));
       this.btnAdd = new System.Windows.Forms.Button();
       this.btnRevoke = new System.Windows.Forms.Button();
@@ -104,6 +105,7 @@ namespace AdamMil.Security.UI
       this.subkeys.AllowColumnReorder = true;
       this.subkeys.Font = new System.Drawing.Font("Arial", 8F);
       this.subkeys.FullRowSelect = true;
+      this.subkeys.HideSelection = false;
       this.subkeys.Location = new System.Drawing.Point(9, 130);
       this.subkeys.Name = "subkeys";
       this.subkeys.Size = new System.Drawing.Size(500, 97);
