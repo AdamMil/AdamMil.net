@@ -193,7 +193,7 @@ namespace AdamMil.Security.UI
       // 
       btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-      btnCancel.Location = new System.Drawing.Point(329, 433);
+      btnCancel.Location = new System.Drawing.Point(329, 434);
       btnCancel.Name = "btnCancel";
       btnCancel.Size = new System.Drawing.Size(75, 23);
       btnCancel.TabIndex = 5;
@@ -214,7 +214,7 @@ namespace AdamMil.Security.UI
       // btnExport
       // 
       this.btnExport.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-      this.btnExport.Location = new System.Drawing.Point(248, 433);
+      this.btnExport.Location = new System.Drawing.Point(248, 434);
       this.btnExport.Name = "btnExport";
       this.btnExport.Size = new System.Drawing.Size(75, 23);
       this.btnExport.TabIndex = 4;
@@ -228,7 +228,7 @@ namespace AdamMil.Security.UI
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.CancelButton = btnCancel;
-      this.ClientSize = new System.Drawing.Size(412, 462);
+      this.ClientSize = new System.Drawing.Size(412, 464);
       this.Controls.Add(this.btnExport);
       this.Controls.Add(btnCancel);
       this.Controls.Add(whereBox);
@@ -236,6 +236,7 @@ namespace AdamMil.Security.UI
       this.Controls.Add(lblKeys);
       this.Controls.Add(this.keyList);
       this.Font = new System.Drawing.Font("Verdana", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+      this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
       this.MaximizeBox = false;
       this.MaximumSize = new System.Drawing.Size(2000, 489);
       this.MinimizeBox = false;

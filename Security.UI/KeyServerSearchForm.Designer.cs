@@ -46,7 +46,6 @@ namespace AdamMil.Security.UI
     /// </summary>
     private void InitializeComponent()
     {
-      this.components = new System.ComponentModel.Container();
       System.Windows.Forms.Label lblKeyServer;
       System.Windows.Forms.Label lblTerms;
       System.Windows.Forms.Label lblHelp;
@@ -65,7 +64,7 @@ namespace AdamMil.Security.UI
       // lblKeyServer
       // 
       lblKeyServer.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-      lblKeyServer.Location = new System.Drawing.Point(8, 466);
+      lblKeyServer.Location = new System.Drawing.Point(8, 464);
       lblKeyServer.Name = "lblKeyServer";
       lblKeyServer.Size = new System.Drawing.Size(92, 21);
       lblKeyServer.TabIndex = 1;
@@ -75,7 +74,7 @@ namespace AdamMil.Security.UI
       // lblTerms
       // 
       lblTerms.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-      lblTerms.Location = new System.Drawing.Point(8, 493);
+      lblTerms.Location = new System.Drawing.Point(8, 491);
       lblTerms.Name = "lblTerms";
       lblTerms.Size = new System.Drawing.Size(92, 21);
       lblTerms.TabIndex = 2;
@@ -96,7 +95,7 @@ namespace AdamMil.Security.UI
       // 
       this.keyservers.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.keyservers.FormattingEnabled = true;
-      this.keyservers.Location = new System.Drawing.Point(102, 466);
+      this.keyservers.Location = new System.Drawing.Point(102, 464);
       this.keyservers.Name = "keyservers";
       this.keyservers.Size = new System.Drawing.Size(268, 21);
       this.keyservers.TabIndex = 1;
@@ -105,7 +104,7 @@ namespace AdamMil.Security.UI
       // 
       this.progressBar.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-      this.progressBar.Location = new System.Drawing.Point(8, 521);
+      this.progressBar.Location = new System.Drawing.Point(8, 519);
       this.progressBar.Name = "progressBar";
       this.progressBar.Size = new System.Drawing.Size(674, 23);
       this.progressBar.TabIndex = 3;
@@ -114,7 +113,7 @@ namespace AdamMil.Security.UI
       // 
       this.btnImport.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.btnImport.Enabled = false;
-      this.btnImport.Location = new System.Drawing.Point(457, 465);
+      this.btnImport.Location = new System.Drawing.Point(457, 463);
       this.btnImport.Name = "btnImport";
       this.btnImport.Size = new System.Drawing.Size(75, 23);
       this.btnImport.TabIndex = 4;
@@ -125,7 +124,7 @@ namespace AdamMil.Security.UI
       // terms
       // 
       this.terms.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-      this.terms.Location = new System.Drawing.Point(102, 493);
+      this.terms.Location = new System.Drawing.Point(102, 491);
       this.terms.Name = "terms";
       this.terms.Size = new System.Drawing.Size(266, 21);
       this.terms.TabIndex = 2;
@@ -136,7 +135,7 @@ namespace AdamMil.Security.UI
       // 
       this.btnSearch.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.btnSearch.Enabled = false;
-      this.btnSearch.Location = new System.Drawing.Point(376, 465);
+      this.btnSearch.Location = new System.Drawing.Point(376, 463);
       this.btnSearch.Name = "btnSearch";
       this.btnSearch.Size = new System.Drawing.Size(75, 23);
       this.btnSearch.TabIndex = 3;
@@ -153,7 +152,8 @@ namespace AdamMil.Security.UI
       this.results.CheckBoxes = true;
       this.results.Font = new System.Drawing.Font("Arial", 8F);
       this.results.FullRowSelect = true;
-      this.results.Location = new System.Drawing.Point(8, 57);
+      this.results.HideSelection = false;
+      this.results.Location = new System.Drawing.Point(8, 55);
       this.results.Name = "results";
       this.results.Size = new System.Drawing.Size(674, 402);
       this.results.TabIndex = 0;
@@ -166,7 +166,6 @@ namespace AdamMil.Security.UI
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.ClientSize = new System.Drawing.Size(690, 549);
-      this.Controls.Add(lblHelp);
       this.Controls.Add(this.btnSearch);
       this.Controls.Add(this.terms);
       this.Controls.Add(this.keyservers);
@@ -175,8 +174,9 @@ namespace AdamMil.Security.UI
       this.Controls.Add(this.progressBar);
       this.Controls.Add(lblKeyServer);
       this.Controls.Add(this.results);
+      this.Controls.Add(lblHelp);
       this.Font = new System.Drawing.Font("Verdana", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-      this.MinimumSize = new System.Drawing.Size(529, 300);
+      this.MinimumSize = new System.Drawing.Size(548, 315);
       this.Name = "KeyServerSearchForm";
       this.ShowIcon = false;
       this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;

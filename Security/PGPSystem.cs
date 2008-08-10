@@ -886,22 +886,42 @@ public abstract class PGPSystem
   public abstract void ExportKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions,
                                   OutputOptions outputOptions);
 
+  /// <summary>Exports all public keys in the given keyring to the given stream, using the default export and output
+  /// options.
+  /// </summary>
+  public void ExportKeys(Keyring keyring, Stream destination)
+  {
+    ExportKeys(keyring, destination, ExportOptions.Default, null);
+  }
+
+  /// <summary>Exports all keys in the given keyring to the given stream, using the default output options.</summary>
+  public void ExportKeys(Keyring keyring, Stream destination, ExportOptions exportOptions)
+  {
+    ExportKeys(keyring, destination, exportOptions, null);
+  }
+
+  /// <summary>Exports all keys in the given keyring to the given stream.</summary>
+  public void ExportKeys(Keyring keyring, Stream destination, ExportOptions exportOptions, OutputOptions outputOptions)
+  {
+    if(keyring == null) ExportKeys(null, true, destination, exportOptions, outputOptions);
+    else ExportKeys(new Keyring[] { keyring }, false, destination, exportOptions, outputOptions);
+  }
+
   /// <summary>Exports all public keys in the given keyring files and/or the default keyring to the given stream.</summary>
   public void ExportKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination)
   {
     ExportKeys(keyrings, includeDefaultKeyring, destination, ExportOptions.Default, null);
   }
 
-  /// <summary>Exports all public keys in the given keyring files and/or the default keyring to the given stream.</summary>
-  public void ExportKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
-                               ExportOptions options)
+  /// <summary>Exports all keys in the given keyring files and/or the default keyring to the given stream.</summary>
+  public void ExportKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination, ExportOptions options)
   {
     ExportKeys(keyrings, includeDefaultKeyring, destination, options, null);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/ExportKeys/*"/>
   public abstract void ExportKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
-                                        ExportOptions exportOptions, OutputOptions outputOptions);
+                                  ExportOptions exportOptions, OutputOptions outputOptions);
 
   /// <summary>Imports keys from the given source into the default keyring.</summary>
   public ImportedKey[] ImportKeys(Stream source)
