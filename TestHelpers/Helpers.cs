@@ -77,7 +77,7 @@ public static class TestHelpers
       if(!typeof(T).IsAssignableFrom(ex.GetType())) throw;
       threw = true;
     }
-    Assert.IsTrue(threw);
+    Assert.That(threw, "A "+typeof(T).Name+" exception was expected, but did not occur.");
   }
 }
 
