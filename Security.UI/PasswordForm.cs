@@ -68,11 +68,31 @@ public partial class PasswordForm : Form
     set { chkRemember.Text = value; }
   }
 
+  /// <summary>Gets or sets whether the user is required to enter a password in order for the "OK" button to be
+  /// enabled. The default is true.
+  /// </summary>
+  public bool RequirePassword
+  {
+    get { return required; }
+    set
+    {
+      required = value;
+      btnOK.Enabled = !value || txtPassword.TextLength != 0;
+    }
+  }
+
   /// <summary>Gets the password entered by the user.</summary>
   public SecureString GetPassword()
   {
     return txtPassword.GetText();
   }
+
+  void txtPassword_TextChanged(object sender, EventArgs e)
+  {
+    if(required) btnOK.Enabled = txtPassword.TextLength != 0;
+  }
+
+  bool required;
 }
 
 } // namespace AdamMil.Security.UI

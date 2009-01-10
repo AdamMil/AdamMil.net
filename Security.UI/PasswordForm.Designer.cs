@@ -46,25 +46,24 @@ namespace AdamMil.Security.UI
     /// </summary>
     private void InitializeComponent()
     {
-      System.Windows.Forms.Button btnOK;
       System.Windows.Forms.Button btnCancel;
+      this.btnOK = new System.Windows.Forms.Button();
       this.lblDescription = new System.Windows.Forms.Label();
       this.txtPassword = new AdamMil.Security.UI.SecureTextBox();
       this.chkRemember = new System.Windows.Forms.CheckBox();
-      btnOK = new System.Windows.Forms.Button();
       btnCancel = new System.Windows.Forms.Button();
       this.SuspendLayout();
       // 
       // btnOK
       // 
-      btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-      btnOK.DialogResult = System.Windows.Forms.DialogResult.OK;
-      btnOK.Location = new System.Drawing.Point(246, 96);
-      btnOK.Name = "btnOK";
-      btnOK.Size = new System.Drawing.Size(75, 23);
-      btnOK.TabIndex = 3;
-      btnOK.Text = "&OK";
-      btnOK.UseVisualStyleBackColor = true;
+      this.btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+      this.btnOK.DialogResult = System.Windows.Forms.DialogResult.OK;
+      this.btnOK.Location = new System.Drawing.Point(246, 96);
+      this.btnOK.Name = "btnOK";
+      this.btnOK.Size = new System.Drawing.Size(75, 23);
+      this.btnOK.TabIndex = 3;
+      this.btnOK.Text = "&OK";
+      this.btnOK.UseVisualStyleBackColor = true;
       // 
       // btnCancel
       // 
@@ -99,6 +98,7 @@ namespace AdamMil.Security.UI
       this.txtPassword.Size = new System.Drawing.Size(393, 21);
       this.txtPassword.TabIndex = 1;
       this.txtPassword.UseSystemPasswordChar = true;
+      this.txtPassword.TextChanged += new System.EventHandler(this.txtPassword_TextChanged);
       // 
       // chkRemember
       // 
@@ -113,14 +113,14 @@ namespace AdamMil.Security.UI
       // 
       // PasswordForm
       // 
-      this.AcceptButton = btnOK;
+      this.AcceptButton = this.btnOK;
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.CancelButton = btnCancel;
       this.ClientSize = new System.Drawing.Size(409, 124);
       this.Controls.Add(this.chkRemember);
       this.Controls.Add(btnCancel);
-      this.Controls.Add(btnOK);
+      this.Controls.Add(this.btnOK);
       this.Controls.Add(this.txtPassword);
       this.Controls.Add(this.lblDescription);
       this.Font = new System.Drawing.Font("Verdana", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
@@ -141,5 +141,6 @@ namespace AdamMil.Security.UI
     private System.Windows.Forms.Label lblDescription;
     private SecureTextBox txtPassword;
     private System.Windows.Forms.CheckBox chkRemember;
+    private System.Windows.Forms.Button btnOK;
   }
 }

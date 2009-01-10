@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Math>
+  <CoherentNoise>
+    <AboutPerlin>
+      <remarks>
+        Perlin noise is a coherent, pseudo-random noise source developed by Ken Perlin in the 1980s. It won him an
+        academy award, as the technique quickly became ubiquitous in the generation of all kinds of procedural textures
+        for use in computer graphics. Perlin noise has some minor flaws, however. These include computational
+        complexity that increases exponentially with the number of dimensions and minor directional artifacts due to
+        its anisotropy. These have been mostly rectified by the creation of Simplex noise, which is also implemented
+        in this class. Note that this class implements the improvements to Perlin noise that Ken Perlin published in
+        2002, which eliminate several artifacts.
+      </remarks>
+    </AboutPerlin>
+
+    <AboutSimplex>
+      <remarks>
+        Simplex noise was coherent, pseudo-random noise source developed by Ken Perlin in 2001 to address the flaws in
+        his earlier Perlin noise algorithm. Simplex noise is substantially faster than Perlin noise above 3 dimensions,
+        is visually isotropic, and is easy to implement in hardware. It can be used for the same tasks to which Perlin
+        noise is typically applied.
+      </remarks>
+    </AboutSimplex>
+  </CoherentNoise>
+</Math>
