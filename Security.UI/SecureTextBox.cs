@@ -161,7 +161,7 @@ public class SecureTextBox : TextBox
   /// <summary>Determines whether the character is outside the allowable range of low ASCII characters.</summary>
   bool IsCharRestricted(char c)
   {
-    return RestrictToLowAscii && (c < 32 || c >= 127);
+    return RestrictToLowAscii && (c < 32 || c >= 127) && c != '\b'; // we'll allow backspace
   }
 
   SecureString text = new SecureString();

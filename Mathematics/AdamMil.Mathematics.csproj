@@ -33,6 +33,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Combinatorics.cs" />
+    <Compile Include="CoherentNoise.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -40,6 +41,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="AdamMil.snk" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="documentation.xml" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
