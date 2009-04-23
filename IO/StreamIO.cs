@@ -131,6 +131,37 @@ public unsafe static partial class IOH
     return total;
   }
 
+  /// <summary>Reads and returns all of the remaining bytes from the stream.</summary>
+  public static byte[] ReadAllBytes(Stream stream)
+  {
+    if(stream == null) throw new ArgumentNullException();
+    byte[] buffer   = new byte[4096];
+    int bufferBytes = 0;
+
+    while(true)
+    {
+      if(bufferBytes == buffer.Length)
+      {
+        byte[] newBuffer = new byte[buffer.Length*2];
+        Array.Copy(buffer, newBuffer, bufferBytes);
+        buffer = newBuffer;
+      }
+
+      int read = stream.Read(buffer, bufferBytes, buffer.Length - bufferBytes);
+      if(read == 0) break;
+      bufferBytes += read;
+    }
+
+    if(bufferBytes != buffer.Length)
+    {
+      byte[] finalBuffer = new byte[bufferBytes];
+      Array.Copy(buffer, finalBuffer, bufferBytes);
+      buffer = finalBuffer;
+    }
+
+    return buffer;
+  }
+
   /// <summary>Reads the given number of bytes from the stream and converts them into a string using ASCII encoding.</summary>
   public static string ReadAscii(Stream stream, int length)
   {
@@ -153,7 +184,7 @@ public unsafe static partial class IOH
   /// <returns>The byte value read from the stream.</returns>
   /// <exception cref="EndOfStreamException">Thrown if the end of the stream was reached before the byte could be read.
   /// </exception>
-  public static byte Read1(Stream stream)
+  public static byte ReadByte(Stream stream)
   {
     int i = stream.ReadByte();
     if(i == -1) throw new EndOfStreamException();
@@ -161,21 +192,21 @@ public unsafe static partial class IOH
   }
 
   /// <summary>Reads a little-endian short (2 bytes) from a stream.</summary>
-  public static short ReadLE2(Stream stream) { return (short)(Read1(stream)|(Read1(stream)<<8)); }
+  public static short ReadLE2(Stream stream) { return (short)(ReadByte(stream)|(ReadByte(stream)<<8)); }
 
   /// <summary>Reads a big-endian short (2 bytes) from a stream.</summary>
-  public static short ReadBE2(Stream stream) { return (short)((Read1(stream)<<8)|Read1(stream)); }
+  public static short ReadBE2(Stream stream) { return (short)((ReadByte(stream)<<8)|ReadByte(stream)); }
 
   /// <summary>Reads a little-endian integer (4 bytes) from a stream.</summary>
   public static int ReadLE4(Stream stream)
   {
-    return (int)(Read1(stream)|(Read1(stream)<<8)|(Read1(stream)<<16)|(Read1(stream)<<24));
+    return (int)(ReadByte(stream)|(ReadByte(stream)<<8)|(ReadByte(stream)<<16)|(ReadByte(stream)<<24));
   }
 
   /// <summary>Reads a big-endian integer (4 bytes) from a stream.</summary>
   public static int ReadBE4(Stream stream)
   {
-    return (int)((Read1(stream)<<24)|(Read1(stream)<<16)|(Read1(stream)<<8)|Read1(stream));
+    return (int)((ReadByte(stream)<<24)|(ReadByte(stream)<<16)|(ReadByte(stream)<<8)|ReadByte(stream));
   }
 
   /// <summary>Reads a little-endian long (8 bytes) from a stream.</summary>
@@ -193,21 +224,21 @@ public unsafe static partial class IOH
   }
 
   /// <summary>Reads a little-endian unsigned short (2 bytes) from a stream.</summary>
-  public static ushort ReadLE2U(Stream stream) { return (ushort)(Read1(stream)|(Read1(stream)<<8)); }
+  public static ushort ReadLE2U(Stream stream) { return (ushort)(ReadByte(stream)|(ReadByte(stream)<<8)); }
 
   /// <summary>Reads a big-endian unsigned short (2 bytes) from a stream.</summary>
-  public static ushort ReadBE2U(Stream stream) { return (ushort)((Read1(stream)<<8)|Read1(stream)); }
+  public static ushort ReadBE2U(Stream stream) { return (ushort)((ReadByte(stream)<<8)|ReadByte(stream)); }
 
   /// <summary>Reads a little-endian unsigned integer (4 bytes) from a stream.</summary>
   public static uint ReadLE4U(Stream stream)
   {
-    return (uint)(Read1(stream)|(Read1(stream)<<8)|(Read1(stream)<<16)|(Read1(stream)<<24));
+    return (uint)(ReadByte(stream)|(ReadByte(stream)<<8)|(ReadByte(stream)<<16)|(ReadByte(stream)<<24));
   }
 
   /// <summary>Reads a big-endian unsigned integer (4 bytes) from a stream.</summary>
   public static uint ReadBE4U(Stream stream)
   {
-    return (uint)((Read1(stream)<<24)|(Read1(stream)<<16)|(Read1(stream)<<8)|Read1(stream));
+    return (uint)((ReadByte(stream)<<24)|(ReadByte(stream)<<16)|(ReadByte(stream)<<8)|ReadByte(stream));
   }
 
   /// <summary>Reads a little-endian unsigned long (8 bytes) from a stream.</summary>
@@ -228,7 +259,7 @@ public unsafe static partial class IOH
   public unsafe static float ReadFloat(Stream stream)
   {
     byte* buf = stackalloc byte[4];
-    buf[0]=Read1(stream); buf[1]=Read1(stream); buf[2]=Read1(stream); buf[3]=Read1(stream);
+    buf[0]=ReadByte(stream); buf[1]=ReadByte(stream); buf[2]=ReadByte(stream); buf[3]=ReadByte(stream);
     return *(float*)buf;
   }
 
@@ -254,7 +285,7 @@ public unsafe static partial class IOH
     else if(bytes <= 4)
     { 
       int b = (int)bytes; 
-      while(b-- > 0) Read1(stream); 
+      while(b-- > 0) ReadByte(stream); 
     }
     else
     {
