@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("Release")]
 #endif
 [assembly: AssemblyProduct("AdamMil.net")]
-[assembly: AssemblyCopyright("Copyright © Adam Milazzo 2007-2008")]
+[assembly: AssemblyCopyright("Copyright © Adam Milazzo 2007-2009")]
 
 [assembly: ComVisible(false)]
 

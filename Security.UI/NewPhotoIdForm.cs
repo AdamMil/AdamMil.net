@@ -199,6 +199,12 @@ public partial class NewPhotoIdForm : Form
       }
     }
 
+    protected override void OnSizeChanged(EventArgs e)
+    {
+      base.OnSizeChanged(e);
+      Invalidate();
+    }
+
     /// <summary>Gets the region of the overlay control onto which the bitmap will be painted.</summary>
     RectangleF GetBitmapDestinationRect()
     {
@@ -458,19 +464,19 @@ public partial class NewPhotoIdForm : Form
     btnUndo.Enabled = bitmapRects.Count != 0;              // and update the Enabled state of the "Undo" button
   }
 
-  void overlay_MouseDown(object sender, MouseEventArgs e)
+  void control_MouseDown(object sender, MouseEventArgs e)
   {
-    OnMouseDown(e.Button, PointToClient(overlay.PointToScreen(e.Location)));
+    OnMouseDown(e.Button, PointToClient(((Control)sender).PointToScreen(e.Location)));
   }
 
-  void overlay_MouseMove(object sender, MouseEventArgs e)
+  void control_MouseMove(object sender, MouseEventArgs e)
   {
-    OnMouseMove(PointToClient(overlay.PointToScreen(e.Location)));
+    OnMouseMove(PointToClient(((Control)sender).PointToScreen(e.Location)));
   }
 
-  void overlay_MouseUp(object sender, MouseEventArgs e)
+  void control_MouseUp(object sender, MouseEventArgs e)
   {
-    OnMouseUp(e.Button, PointToClient(overlay.PointToScreen(e.Location)));
+    OnMouseUp(e.Button, PointToClient(((Control)sender).PointToScreen(e.Location)));
   }
 
   List<RectangleF> bitmapRects = new List<RectangleF>();

@@ -32,13 +32,13 @@ public interface IFiniteDomainCSP<VarType>
 
   // TODO: should we add a GetRandomAssignment() method and use it in the local search?
 
-  /// <summary>Retrieves the variables in the CSP, as well as the indices of the variables connected to each by
+  /// <summary>Retrieves the variables in the CSP, as well as the indices of the variables connected to each other by
   /// constraints.
   /// </summary>
   /// <param name="variables">Receives an array of the variables in the CSP.</param>
-  /// <param name="neighbors">Receives an array of arrays holding the indices of the variables connected to each
-  /// variable by constraints. The array should be the same length as <paramref name="variables"/>, and an element at
-  /// index <c>i</c> should be an array containing the indices of the variables connected to the variable at index
+  /// <param name="neighbors">Receives an <see cref="INeighborList"/> holding the indices of the variables connected to
+  /// each variable by constraints. The list should be the same length as <paramref name="variables"/>, and the
+  /// collection at index <c>i</c> should contain the indices of the variables connected to the variable at index
   /// <c>i</c> by constraints, where the variable indices are as they are in <paramref name="variables"/>.
   /// </param>
   void GetVariables(out SimpleVariable<VarType>[] variables, out INeighborList neighbors);
@@ -1007,7 +1007,7 @@ public sealed class BacktrackingSolver<VarType> : SearchBase<Assignment,Assignme
       for(int i=0; i<conflictSets.Length; i++) conflictSets[i] = new Set(variables.Length);
     }
 
-    // if a complete initial assignment was given, we need to ensure that it's consistent
+    // if an initial assignment was given, we need to ensure that it's consistent
     return initialAssignment == null || IsConsistent(assignment);
   }
 
@@ -1519,7 +1519,7 @@ public class LocalSearchSolver<VarType> : IterativeSearchBase<Assignment,Assignm
 
     solution = assignment; // always return the most current result
 
-    // if the number of conflicted variables drops to zero, we have a solution that consistent with the possible
+    // if the number of conflicted variables drops to zero, we have a solution that is consistent, with the possible
     // exception of conflicts between variables with domains of a single value, which we didn't track during the
     // search because we can't change them anyway.
     if(numConflictedVars == 0)
@@ -1714,7 +1714,7 @@ public class LocalSearchSolver<VarType> : IterativeSearchBase<Assignment,Assignm
                                                    conflicts == null ? null : conflicts[valueIndices.Count]);
       
       // we'll accumulate a list of values tied for the fewest conflicts
-      if(numConflicts < fewestConflicts) // if this values has fewer conflicts than the current best...
+      if(numConflicts < fewestConflicts) // if this value has fewer conflicts than the current best...
       {
         // move the list containing the conflicting neighbors back to the beginning
         if(conflicts != null)

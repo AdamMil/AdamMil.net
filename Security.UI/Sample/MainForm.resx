@@ -117,35 +117,24 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <metadata name="lblHelp.GenerateMember" type="System.Boolean, mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
-    <value>False</value>
+  <metadata name="imageList1.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <value>17, 17</value>
   </metadata>
-  <data name="lblHelp.Text" xml:space="preserve">
-    <value>First, press your mouse button and drag a rectangle around your face. Then click "Crop" to crop the image around your face. If you want, you can select a size. When you're done, click "Done". If you make a mistake, you can click "Undo".</value>
-  </data>
-  <metadata name="lblResize.GenerateMember" type="System.Boolean, mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
-    <value>False</value>
-  </metadata>
-  <metadata name="btnDone.GenerateMember" type="System.Boolean, mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
-    <value>False</value>
-  </metadata>
-  <metadata name="btnCancel.GenerateMember" type="System.Boolean, mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
-    <value>False</value>
-  </metadata>
-  <data name="overlay.BitmapRect" mimetype="application/x-microsoft.net.object.binary.base64">
+  <data name="imageList1.ImageStream" mimetype="application/x-microsoft.net.object.binary.base64">
     <value>
-        AAEAAAD/////AQAAAAAAAAAMAgAAAFFTeXN0ZW0uRHJhd2luZywgVmVyc2lvbj0yLjAuMC4wLCBDdWx0
-        dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWIwM2Y1ZjdmMTFkNTBhM2EFAQAAABlTeXN0ZW0uRHJh
-        d2luZy5SZWN0YW5nbGVGBAAAAAF4AXkFd2lkdGgGaGVpZ2h0AAAAAAsLCwsCAAAAAAAAAAAAAAAAAAAA
-        AAAAAAs=
-</value>
-  </data>
-  <data name="overlay.OverlayRect" mimetype="application/x-microsoft.net.object.binary.base64">
-    <value>
-        AAEAAAD/////AQAAAAAAAAAMAgAAAFFTeXN0ZW0uRHJhd2luZywgVmVyc2lvbj0yLjAuMC4wLCBDdWx0
-        dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWIwM2Y1ZjdmMTFkNTBhM2EFAQAAABlTeXN0ZW0uRHJh
-        d2luZy5SZWN0YW5nbGVGBAAAAAF4AXkFd2lkdGgGaGVpZ2h0AAAAAAsLCwsCAAAAAAAAAAAAAAAAAAAA
-        AAAAAAs=
+        AAEAAAD/////AQAAAAAAAAAMAgAAAFdTeXN0ZW0uV2luZG93cy5Gb3JtcywgVmVyc2lvbj0yLjAuMC4w
+        LCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWI3N2E1YzU2MTkzNGUwODkFAQAAACZTeXN0
+        ZW0uV2luZG93cy5Gb3Jtcy5JbWFnZUxpc3RTdHJlYW1lcgEAAAAERGF0YQcCAgAAAAkDAAAADwMAAAAq
+        AgAAAk1TRnQBSQFMAgEBBAEAAQkBAAEEAQABDQEAAQ0BAAT/AQUBAAj/AUIBTQF2BwABdgMAASgDAAE0
+        AwABGgMAAQEBAAEEBQAB2AECGAABgAIAAYADAAKAAQABgAMAAYABAAGAAQACgAIAA8ABAAOAAwAB/wIA
+        Af8DAAL/AQAB/wMAAf8BAAH/AQAC/wIAA///AH4AAYAnAAEHBHcCAAR3AXAEAAGACwABBwP/AfcCAAF/
+        A/8BcBAAAQcB9wJ3AfcCAAF/AXcBBwF/AXAEAAGABQAECAIAAQcB9wJ3AfcCAAF/AXcBBwF/AXAQAAEH
+        AfACAAH3AgABfwIAAQ8BcAQAAYAFAAEIBQABBwP/AfcCAAF/Af8BDwH/AXAQAAEHA/8B9wIAAX8B/wEP
+        Af8BcAQABIACAAEIBQABBwP/AfcCAAF/A/8BcBAAAQcEdwIABHcBcAQAAYAFAAEIMQABgAUAAQgFAAFC
+        AU0BPgcAAT4DAAEoAwABNAMAARoDAAEBAQABAQUAAdAXAAP/aQAE/wF/Af8B8AEABv8B8AEAAYABPAEB
+        Af8BfwH/AfABAAGAATwBAQP/AfABAAGAATwBAQH/AX8B+gGgAQABgAE8AQED/wHwAQABgAE8AQEB/wF/
+        AfsB8AEAAYABPAEBA/8B8AEAAYABPAEBAf8BVQH7AfABAAGAATwBAQP/AfABAAGAATwBAQH/AX8B+wHw
+        AQAG/wHwAQAE/wF/AfsB8AEACw==
 </value>
   </data>
 </root>
