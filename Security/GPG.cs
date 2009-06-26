@@ -28,7 +28,6 @@ using Microsoft.Win32.SafeHandles;
 using AdamMil.Collections;
 using AdamMil.IO;
 using AdamMil.Security.PGP.GPG.StatusMessages;
-using Marshal      = System.Runtime.InteropServices.Marshal;
 using SecureString = System.Security.SecureString;
 
 namespace AdamMil.Security.PGP.GPG
@@ -1104,22 +1103,8 @@ public class ExeGPG : GPG
       if(options.Password != null && options.Password.Length != 0)
       {
         cmd.Process.StandardInput.Write("Passphrase: ");
-
-        // treat the password as securely as we can by ensuring that it doesn't stick around
-        // in memory any longer than necessary
-        IntPtr bstr  = IntPtr.Zero;
-        char[] chars = new char[options.Password.Length];
-        try
-        {
-          bstr = Marshal.SecureStringToBSTR(options.Password);
-          Marshal.Copy(bstr, chars, 0, chars.Length);
-          cmd.Process.StandardInput.WriteLine(chars);
-        }
-        finally
-        {
-          if(bstr != IntPtr.Zero) Marshal.ZeroFreeBSTR(bstr);
-          ZeroBuffer(chars);
-        }
+        SecurityUtility.ProcessSecureString(options.Password,
+                                            delegate(char[] chars) { cmd.Process.StandardInput.WriteLine(chars); });
       }
 
       // GPG doesn't allow separate expiration dates for the primary key and subkey during key creation, so we'll
@@ -1697,26 +1682,10 @@ public class ExeGPG : GPG
       }
       else
       {
-        IntPtr bstr  = IntPtr.Zero;
-        char[] chars = new char[password.Length+1];
-        byte[] bytes = null;
-        try
-        {
-          if(commandStream == null) throw new InvalidOperationException("The command stream is not open.");
-          bstr = Marshal.SecureStringToBSTR(password);
-          Marshal.Copy(bstr, chars, 0, chars.Length);
-          chars[password.Length] = '\n'; // the password must be EOL-terminated for GPG to accept it
-          bytes = Encoding.UTF8.GetBytes(chars);
-          commandStream.Write(bytes, 0, bytes.Length);
-          commandStream.Flush();
-        }
-        finally
-        {
-          if(ownsPassword) password.Dispose();
-          if(bstr != IntPtr.Zero) Marshal.ZeroFreeBSTR(bstr);
-          ZeroBuffer(chars);
-          ZeroBuffer(bytes);
-        }
+        SecurityUtility.ProcessSecureString(password,
+          delegate(byte[] bytes) { commandStream.Write(bytes, 0, bytes.Length); });
+        commandStream.WriteByte((byte)'\n'); // the password must be EOL-terminated for GPG to accept it
+        commandStream.Flush();
       }
     }
 
@@ -1790,9 +1759,9 @@ public class ExeGPG : GPG
         if(process != null) Exit(process);
 
         // wipe the read buffers. it's unlikely that they contains sensitive data, but just in case...
-        ZeroBuffer(outBuffer);
-        ZeroBuffer(errorBuffer);
-        ZeroBuffer(partialLine);
+        SecurityUtility.ZeroBuffer(outBuffer);
+        SecurityUtility.ZeroBuffer(errorBuffer);
+        SecurityUtility.ZeroBuffer(partialLine);
         statusMessage = null;
 
         statusDone = errorDone = disposed = true; // mark reads complete so IsDone will return true
@@ -5734,12 +5703,6 @@ public class ExeGPG : GPG
   static bool WriteStreamToProcess(Stream data, Process process)
   {
     return ReadAndWriteStreams(null, data, process); 
-  }
-
-  /// <summary>Clears the given buffer.</summary>
-  static void ZeroBuffer<T>(T[] buffer)
-  {
-    if(buffer != null) Array.Clear(buffer, 0, buffer.Length);
   }
 
   string[] ciphers, hashes, keyTypes, compressions;

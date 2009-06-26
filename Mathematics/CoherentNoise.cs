@@ -30,6 +30,7 @@ public sealed class CoherentNoise
     Reseed(rand);
   }
 
+// TODO: remove this
 public void Print()
 {
   for(int i=0; i<256; i++) { Console.Write(permutation[i]); Console.Write(", "); }
@@ -214,7 +215,7 @@ public void Print()
       sum += t * t * Gradient(permutation[(ix + 1 + permutation[(iy + 1) & 255]) & 255], tx, ty);
     }
 
-    return sum * 45.230614138179;
+    return sum * 45.230614138179; // inexact, unscientific scaling factor
   }
 
   /// <summary>Generates three-dimensional Perlin noise based on the given position on the x, y, and z axes. The noise
@@ -328,7 +329,7 @@ public void Print()
                                 permutation[(iy + 1 + permutation[(iz + 1) & 255]) & 255]) & 255], tx, ty, tz);
     }
 
-    return sum * 32.69599590511519;
+    return sum * 32.69599590511519; // inexact, unscientific scaling factor
   }
 
   /// <summary>Resets this <see cref="CoherentNoise"/> class to the default random seed.</summary>
@@ -366,7 +367,9 @@ public void Print()
     return t * t * t * (t * (t * 6 - 15) + 10); 
   }
 
-  /// <summary>Performs a floor calculation faster than Math.Floor().</summary>
+  /// <summary>Performs a floor calculation faster than Math.Floor(). It's not always correct, but should work for
+  /// our purposes.
+  /// </summary>
   static int FastFloor(double n)
   {
     int i = (int)n;
@@ -410,7 +413,7 @@ public void Print()
   }
 
   /// <summary>A permutation that I've found produces a nearly full range between -1 and 1 for 1, 2, and 3 dimensional
-  /// Perlin noise.
+  /// Perlin noise. (But I'm not sure if that's what we want to optimize for...)
   /// </summary>
   static readonly byte[] defaultPermutation = new byte[256]
     {

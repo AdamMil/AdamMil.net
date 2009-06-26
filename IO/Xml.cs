@@ -3,7 +3,7 @@ AdamMil.IO is a library that provides high performance and high level IO
 tools for the .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2007-2008 Adam Milazzo
+Copyright (C) 2007-2009 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -276,12 +276,12 @@ public static class Xml
     return string.IsNullOrEmpty(childValue) ? defaultValue : XmlConvert.ToUInt64(childValue);
   }
 
-  public static DateTime DateTime(XmlNode node, string attrName)
+  public static DateTime? DateTime(XmlNode node, string attrName)
   {
-    return DateTime(node, attrName, new DateTime());
+    return DateTime(node, attrName, (DateTime?)null);
   }
 
-  public static DateTime DateTime(XmlNode node, string attrName, DateTime defaultValue)
+  public static DateTime? DateTime(XmlNode node, string attrName, DateTime? defaultValue)
   {
     string attrValue = Attr(node, attrName);
     return string.IsNullOrEmpty(attrValue) ?

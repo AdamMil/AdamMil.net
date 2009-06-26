@@ -3,7 +3,7 @@ AdamMil.IO is a library that provides high performance and high level IO
 tools for the .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2007-2008 Adam Milazzo
+Copyright (C) 2007-2009 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -23,6 +23,14 @@ using System.IO;
 
 namespace AdamMil.IO
 {
+
+/// <summary>This delegate is used by the <see cref="IOH.ProcessStream"/> method to process a stream in chunks. It is
+/// given a chunk of data to process and returns true if processing should continue or false if it should stop.
+/// </summary>
+/// <param name="buffer">The buffer containing the chunk of data.</param>
+/// <param name="dataLength">The number of bytes in the buffer.</param>
+/// <returns>Returns true if processing should continue or false if it should stop.</returns>
+public delegate bool StreamProcessor(byte[] buffer, int dataLength);
 
 /// <summary>This class provides methods for reading and writing numeric and string values from/to streams
 /// with little or big endianness.
@@ -87,6 +95,18 @@ public unsafe static partial class IOH
   }
   #endregion
 
+  /// <summary>Processes the given stream in chunks of the given size, using the given <see cref="StreamProcessor"/>.</summary>
+  public static void ProcessStream(Stream stream, StreamProcessor processor, int chunkSize)
+  {
+    if(stream == null || processor == null) throw new ArgumentNullException();
+    if(chunkSize <= 0) throw new ArgumentOutOfRangeException();
+
+    byte[] buffer = new byte[chunkSize];
+    int read;
+    do read = stream.Read(buffer, 0, chunkSize);
+    while(read != 0 && processor(buffer, read));
+  }
+  
   #region Reading
   /// <summary>Reads the given number of bytes from a stream.</summary>
   /// <returns>A byte array containing <paramref name="length"/> bytes of data.</returns>

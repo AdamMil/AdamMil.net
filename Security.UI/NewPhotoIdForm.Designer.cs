@@ -70,6 +70,9 @@ namespace AdamMil.Security.UI
       lblHelp.Size = new System.Drawing.Size(486, 46);
       lblHelp.TabIndex = 0;
       lblHelp.Text = resources.GetString("lblHelp.Text");
+      lblHelp.MouseMove += new System.Windows.Forms.MouseEventHandler(this.control_MouseMove);
+      lblHelp.MouseDown += new System.Windows.Forms.MouseEventHandler(this.control_MouseDown);
+      lblHelp.MouseUp += new System.Windows.Forms.MouseEventHandler(this.control_MouseUp);
       // 
       // lblResize
       // 
@@ -109,14 +112,16 @@ namespace AdamMil.Security.UI
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
       this.overlay.Bitmap = null;
+      this.overlay.BitmapRect = ((System.Drawing.RectangleF)(resources.GetObject("overlay.BitmapRect")));
       this.overlay.Location = new System.Drawing.Point(8, 56);
       this.overlay.Name = "overlay";
+      this.overlay.OverlayRect = ((System.Drawing.RectangleF)(resources.GetObject("overlay.OverlayRect")));
       this.overlay.Size = new System.Drawing.Size(486, 452);
       this.overlay.TabIndex = 0;
       this.overlay.TabStop = false;
-      this.overlay.MouseMove += new System.Windows.Forms.MouseEventHandler(this.overlay_MouseMove);
-      this.overlay.MouseDown += new System.Windows.Forms.MouseEventHandler(this.overlay_MouseDown);
-      this.overlay.MouseUp += new System.Windows.Forms.MouseEventHandler(this.overlay_MouseUp);
+      this.overlay.MouseMove += new System.Windows.Forms.MouseEventHandler(this.control_MouseMove);
+      this.overlay.MouseDown += new System.Windows.Forms.MouseEventHandler(this.control_MouseDown);
+      this.overlay.MouseUp += new System.Windows.Forms.MouseEventHandler(this.control_MouseUp);
       // 
       // btnCrop
       // 

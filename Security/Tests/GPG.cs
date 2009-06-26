@@ -696,8 +696,8 @@ A2vQeoDMU0TXnBp+fHVF3auXU1grP/08nzekF470s8fPccga22t33zqdTRFKRKwK2yjONqPpfXIRrTsv
     // try searching for keys
     List<PrimaryKey> keysFound = new List<PrimaryKey>();
     gpg.FindKeysOnServer(downloadOptions.KeyServer,
-                               delegate(PrimaryKey[] keys) { keysFound.AddRange(keys); return true; },
-                               "adam@adammil.net");
+                         delegate(PrimaryKey[] keys) { keysFound.AddRange(keys); return true; },
+                         "adam@adammil.net");
     Assert.AreEqual(2, keysFound.Count);
     Assert.IsTrue(keysFound[0].PrimaryUserId.Name.StartsWith("Adam Milazzo"));
     Assert.IsTrue(keysFound[1].Revoked);
