@@ -22,4 +22,137 @@
       </remarks>
     </AboutSimplex>
   </CoherentNoise>
+
+  <Geometry>
+    <Math2D>
+      <AngleBetween>
+        <summary>This method returns the angle between two points.</summary>
+        <param name="start">The first point.</param>
+        <param name="end">The second point.</param>
+        <returns>
+          Returns the angle between <paramref name="start"/> and <paramref name="end"/>, in radians.
+          A return value of 0.0 indicates that the second point is to the right of the first point.
+        </returns>
+      </AngleBetween>
+    </Math2D>
+
+    <Line>
+     <Line>
+      <summary>Initializes this line from a point and a vector.</summary>
+      <param name="start">A point on the line (or the start of the line segment).</param>
+      <param name="vector">The line's direction. If you're defining a line segment, this should be the distance
+      travelled from <paramref name="start"/>.
+      </param>
+     </Line>
+     <Line2>
+      <summary>Initializes this line from two points.</summary>
+      <param name="start">A point on the line (or the start of the line segment).</param>
+      <param name="end">Another point on the line (or the end of the line segment).</param>
+      <remarks>Since the end point will need to be converted into a vector, some miniscule accuracy may be lost.
+      Most notably, the <see cref="End"/> property may not be exactly equal to <paramref name="end"/>.
+      </remarks>
+     </Line2>
+     <GetPoint>
+      <summary>Gets one of the endpoints of the line segment.</summary>
+      <param name="point">The index of the point to retrieve. A value of zero indicates that the start point should
+      be returned, and a value of 1 indicates that the endpoint should be returned.
+      </param>
+      <returns>The requested point.</returns>
+      <remarks>This method simply returns <see cref="Start"/> or <see cref="End"/> depending on the value of
+      <paramref name="point"/>.
+      </remarks>
+      <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="point"/> is not 0 or 1.</exception>
+     </GetPoint>
+     <Equals>
+      <summary>Determines whether the given object is a <see cref="Line"/> equal to this one.</summary>
+      <param name="obj">An object to test for equality.</param>
+      <returns>Returns true if <paramref name="obj"/> is a <see cref="Line"/> and equals this one.</returns>
+     </Equals>
+     <Equals3>
+      <summary>Determines whether the given line is equal to this one, within a given margin of error.</summary>
+      <param name="line">A line to test for equality.</param>
+      <param name="epsilon">The given margin of error. The difference between both lines' <see cref="Start"/> and
+      <see cref="Vector"/> properties must be less than or equal to this for them to qualify as equal.
+      </param>
+      <returns>Returns true if <paramref name="line"/> equals this line, within the given margin of error.</returns>
+     </Equals3>
+    </Line>
+
+    <Point>
+     <DistanceTo>
+      <summary>Calculates the distance to another point.</summary>
+      <param name="point">The point to calculate the distance to.</param>
+      <returns>The distance to <paramref name="point"/>.</returns>
+     </DistanceTo>
+     <DistanceSquaredTo>
+      <summary>Calculates the square of the distance to another point.</summary>
+      <param name="point">The point to calculate the distance to.</param>
+      <returns>The distance to <paramref name="point"/>, squared.</returns>
+     </DistanceSquaredTo>
+     <Equals>
+      <summary>Determines whether the given object is a point equal to this one.</summary>
+      <param name="obj">An object to test for equality.</param>
+      <returns>Returns true if <paramref name="obj"/> is a <see cref="Point"/> and equals this one.</returns>
+     </Equals>
+     <Equals3>
+      <summary>Determines whether the given point is equal to this one, within a given margin of error.</summary>
+      <param name="point">A point to test for equality.</param>
+      <param name="epsilon">The given margin of error. The difference between both points' X and Y coordinates must be
+      less than or equal to this for them to qualify as equal.
+      </param>
+      <returns>Returns true if <paramref name="point"/> equals this point, within the given margin of error.</returns>
+     </Equals3>
+    </Point>
+
+    <Vector>
+     <DotProduct>
+      <summary>Returns the dot product of this vector with another vector.</summary>
+      <param name="v">The other operand for the dot product operation.</param>
+      <returns>The dot product, which is the cosine of the angle between the two vectors, scaled by the magnitudes
+      of both vectors.
+      </returns>
+     </DotProduct>
+     <Equals>
+      <summary>Determines whether the given object is a <see cref="Vector"/> equal to this one.</summary>
+      <param name="obj">An object to test for equality.</param>
+      <returns>Returns true if <paramref name="obj"/> is a <see cref="Vector"/> and equals this one.</returns>
+     </Equals>
+     <Equals3>
+      <summary>Determines whether the given <see cref="Vector"/> is equal to this one, within a given margin of error.</summary>
+      <param name="vect">A vector to test for equality.</param>
+      <param name="epsilon">The given margin of error. The difference between both vectors' X and Y axes must be
+      less than or equal to this for them to qualify as equal.
+      </param>
+      <returns>Returns true if <paramref name="vect"/> equals this one, within the given margin of error.</returns>
+     </Equals3>
+     <Normalize>
+      <summary>Normalizes this vector to a length of 1.</summary>
+      <remarks>Calling this method is invalid when the length of the vector is zero, since the vector would not be
+      pointing in any direction and could not possibly be scaled to the correct length.
+      </remarks>
+     </Normalize>
+     <Normalize2>
+      <summary>Normalizes this vector to a given length.</summary>
+      <param name="length">The desired length of the vector.</param>
+      <remarks>Calling this method is invalid when the length of the vector is zero, since the vector would not be
+      pointing in any direction and could not possibly be scaled to the given length.
+      </remarks>
+     </Normalize2>
+     <Length>
+      <summary>Calculates and returns the length of this vector, or sets the length.</summary>
+      <remarks>Setting this property is not valid when the length of the vector is already zero, since the vector
+      would not be pointing in any direction and could not possibly be scaled up to the given length.
+      </remarks>
+     </Length>
+     <Normal>
+      <summary>Returns a normalized copy of this vector.</summary>
+      <value>A <see cref="Vector"/> pointing in the same direction as this one, but with a length of 1.0 (or as
+      close as floating-point precision will let us get to 1.0).
+      </value>
+      <remarks>This property is not valid when the length of the vector is zero, since the vector would not be
+      pointing in any direction and could not possibly be scaled to the correct length.
+      </remarks>
+     </Normal>
+    </Vector>
+  </Geometry>
 </Math>
