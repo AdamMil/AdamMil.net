@@ -35,6 +35,7 @@ public static unsafe partial class IOH
   /// Fixed-width parameters should not be included. If you want to include fixed-width parameters too, use
   /// <see cref="CalculateSize(bool,string,object[])"/>.
   /// </param>
+  /// <include file="documentation.xml" path="//IOH/BinaryFormat/*"/>
   public static int CalculateSize(string format, params object[] args)
   {
     return CalculateSize(false, Encoding.UTF8, format, args);
@@ -47,6 +48,7 @@ public static unsafe partial class IOH
   /// expect the variable-length arguments where a prefix was not given in the format string.
   /// </param>
   /// <param name="args">The arguments expected by the formatter.</param>
+  /// <include file="documentation.xml" path="//IOH/BinaryFormat/*"/>
   public static int CalculateSize(bool allArgs, string format, params object[] args)
   {
     return CalculateSize(allArgs, Encoding.UTF8, format, args);
@@ -59,6 +61,7 @@ public static unsafe partial class IOH
   /// expect the variable-length arguments where a prefix was not given in the format string.
   /// </param>
   /// <param name="args">The arguments expected by the formatter.</param>
+  /// <include file="documentation.xml" path="//IOH/BinaryFormat/*"/>
   public static int CalculateSize(bool allArgs, Encoding encoding, string format, params object[] args)
   {
     if(encoding == null || format == null || args == null) throw new ArgumentNullException();
@@ -173,7 +176,7 @@ public static unsafe partial class IOH
         // now add the length of the current iteration's code
         switch(c)
         {
-          case 'b': case 'B': case 'x': size += prefix; break;
+          case 'b': case 'B': case 'x': case 'L': size += prefix; break;
           case 'w': case 'W': size += prefix*2; break;
           case 'd': case 'D': case 'f': size += prefix*4; break;
           case 'q': case 'Q': case 'F': size += prefix*8; break;
@@ -237,6 +240,7 @@ public static unsafe partial class IOH
   /// <summary>Reads formatted binary data from the given array, using UTF-8 encoding for encoded strings.</summary>
   /// <param name="index">The starting index of the area in the array from which data should be read.</param>
   /// <returns>Returns the objects read.</returns>
+  /// <include file="documentation.xml" path="//IOH/BinaryFormat/*"/>
   public static object[] Read(byte[] array, int index, string format)
   {
     return Read(array, index, Encoding.UTF8, format);
@@ -245,6 +249,7 @@ public static unsafe partial class IOH
   /// <summary>Reads formatted binary data from the given array, using the given encoding for encoded strings.</summary>
   /// <param name="index">The starting index of the area in the array from which data should be read.</param>
   /// <returns>Returns the objects read.</returns>
+  /// <include file="documentation.xml" path="//IOH/BinaryFormat/*"/>
   public static object[] Read(byte[] array, int index, Encoding encoding, string format)
   {
     int bytesRead;
@@ -254,6 +259,7 @@ public static unsafe partial class IOH
   /// <summary>Reads formatted binary data from the given array, using UTF-8 encoding for encoded strings.</summary>
   /// <param name="index">The starting index of the area in the array from which data should be read.</param>
   /// <returns>Returns the objects read.</returns>
+  /// <include file="documentation.xml" path="//IOH/BinaryFormat/*"/>
   public static object[] Read(byte[] array, int index, string format, out int bytesRead)
   {
     return Read(array, index, Encoding.UTF8, format, out bytesRead);
@@ -262,6 +268,7 @@ public static unsafe partial class IOH
   /// <summary>Reads formatted binary data from the given array, using the given encoding for encoded strings.</summary>
   /// <param name="index">The starting index of the area in the array from which data should be read.</param>
   /// <returns>Returns the objects read.</returns>
+  /// <include file="documentation.xml" path="//IOH/BinaryFormat/*"/>
   public static object[] Read(byte[] array, int index, Encoding encoding, string format, out int bytesRead)
   {
     if(array == null) throw new ArgumentNullException();
@@ -273,6 +280,7 @@ public static unsafe partial class IOH
 
   /// <summary>Reads formatted binary data from the given stream, using UTF-8 encoding for encoded strings.</summary>
   /// <returns>Returns the objects read.</returns>
+  /// <include file="documentation.xml" path="//IOH/BinaryFormat/*"/>
   public static object[] Read(System.IO.Stream stream, string format)
   {
     return Read(stream, Encoding.UTF8, format);
@@ -280,6 +288,7 @@ public static unsafe partial class IOH
 
   /// <summary>Reads formatted binary data from the given stream, using the given encoding for encoded strings.</summary>
   /// <returns>Returns the objects read.</returns>
+  /// <include file="documentation.xml" path="//IOH/BinaryFormat/*"/>
   public static object[] Read(System.IO.Stream stream, Encoding encoding, string format)
   {
     int bytesRead;
@@ -288,6 +297,7 @@ public static unsafe partial class IOH
 
   /// <summary>Reads formatted binary data from the given stream, using UTF-8 encoding for encoded strings.</summary>
   /// <returns>Returns the objects read.</returns>
+  /// <include file="documentation.xml" path="//IOH/BinaryFormat/*"/>
   public static object[] Read(System.IO.Stream stream, string format, out int bytesRead)
   {
     return Read(stream, Encoding.UTF8, format, out bytesRead);
@@ -295,6 +305,7 @@ public static unsafe partial class IOH
 
   /// <summary>Reads formatted binary data from the given stream, using the given encoding for encoded strings.</summary>
   /// <returns>Returns the objects read.</returns>
+  /// <include file="documentation.xml" path="//IOH/BinaryFormat/*"/>
   public static object[] Read(System.IO.Stream stream, Encoding encoding, string format, out int bytesRead)
   {
     using(BinaryReader br = new BinaryReader(stream))
@@ -307,6 +318,7 @@ public static unsafe partial class IOH
   /// encoded strings.
   /// </summary>
   /// <returns>Returns the objects read.</returns>
+  /// <include file="documentation.xml" path="//IOH/BinaryFormat/*"/>
   public static object[] Read(BinaryReader reader, string format)
   {
     return Read(reader, Encoding.UTF8, format);
@@ -316,6 +328,7 @@ public static unsafe partial class IOH
   /// encoded strings.
   /// </summary>
   /// <returns>Returns the objects read.</returns>
+  /// <include file="documentation.xml" path="//IOH/BinaryFormat/*"/>
   public static object[] Read(BinaryReader reader, Encoding encoding, string format)
   {
     int bytesRead;
@@ -326,6 +339,7 @@ public static unsafe partial class IOH
   /// encoded strings.
   /// </summary>
   /// <returns>Returns the objects read.</returns>
+  /// <include file="documentation.xml" path="//IOH/BinaryFormat/*"/>
   public static object[] Read(BinaryReader reader, string format, out int bytesRead)
   {
     return Read(reader, Encoding.UTF8, format, out bytesRead);
@@ -335,6 +349,7 @@ public static unsafe partial class IOH
   /// encoded strings.
   /// </summary>
   /// <returns>Returns the objects read.</returns>
+  /// <include file="documentation.xml" path="//IOH/BinaryFormat/*"/>
   public static object[] Read(BinaryReader reader, Encoding encoding, string format, out int bytesRead)
   {
     bytesRead = 0;
@@ -366,7 +381,7 @@ public static unsafe partial class IOH
           prefix = QuestionPrefix;
           c = ' '; // make it read the next character as the code below
         }
-        else if(c == '*') // if there's an asterisk, the length of the next argument will be written to the stream
+        else if(c == '*') // if there's an asterisk, the length of the next argument was written to the stream
         {
           if(starPrefix) throw new ArgumentException("You can't use two '*' prefixes in a row.");
           prefix     = StarPrefix;
@@ -458,7 +473,7 @@ public static unsafe partial class IOH
               AddOutput(ret, ref ri, reader.ReadSByte());
               prefix = 1;
             }
-            else AddOutput(ret, ref ri, ReadArray(reader, new sbyte[prefix], 1, true));
+            else AddOutput(ret, ref ri, ReadArray(reader, new sbyte[prefix], 1, false));
             bytesRead += prefix;
             break;
 
@@ -468,7 +483,7 @@ public static unsafe partial class IOH
               AddOutput(ret, ref ri, reader.ReadByte());
               prefix = 1;
             }
-            else AddOutput(ret, ref ri, ReadArray(reader, new byte[prefix], 1, true));
+            else AddOutput(ret, ref ri, ReadArray(reader, new byte[prefix], 1, false));
             bytesRead += prefix;
             break;
 
@@ -550,6 +565,16 @@ public static unsafe partial class IOH
             }
             else AddOutput(ret, ref ri, ReadArray(reader, new double[prefix], 8, false));
             bytesRead += prefix*8;
+            break;
+
+          case 'L':
+            if(prefix == DefaultPrefix)
+            {
+              AddOutput(ret, ref ri, reader.ReadBool());
+              prefix = 1;
+            }
+            else AddOutput(ret, ref ri, ReadArray(reader, new bool[prefix], 1, false));
+            bytesRead += prefix;
             break;
 
           case 'c':
@@ -689,7 +714,7 @@ public static unsafe partial class IOH
       switch(c)
       { 
         case 'b': case 'B': case 'w': case 'W': case 'd': case 'D': case 'f': case 'F':
-        case 'q': case 'Q': case 'c': case 'p': case 's': case 'v': case 'V':
+        case 'q': case 'Q': case 'c': case 'p': case 's': case 'v': case 'V': case 'L':
           count++;
           break;
         case '*': count--; break;
@@ -724,6 +749,7 @@ public static unsafe partial class IOH
   #region Write
   /// <summary>Writes formatted binary data to the given stream, using UTF-8 encoding for encoded strings.</summary>
   /// <returns>Returns the number of bytes written.</returns>
+  /// <include file="documentation.xml" path="//IOH/BinaryFormat/*"/>
   public static int Write(System.IO.Stream stream, string format, params object[] args)
   {
     return Write(stream, Encoding.UTF8, format, args);
@@ -731,6 +757,7 @@ public static unsafe partial class IOH
 
   /// <summary>Writes formatted binary data to the given stream, using the given encoding for encoded strings.</summary>
   /// <returns>Returns the number of bytes written.</returns>
+  /// <include file="documentation.xml" path="//IOH/BinaryFormat/*"/>
   public static int Write(System.IO.Stream stream, Encoding encoding, string format, params object[] args)
   {
     using(BinaryWriter bw = new BinaryWriter(stream))
@@ -742,6 +769,7 @@ public static unsafe partial class IOH
   /// <summary>Writes formatted binary data to the given array, using UTF-8 encoding for encoded strings.</summary>
   /// <param name="index">The starting index within the array where data can be written.</param>
   /// <returns>Returns the number of bytes written.</returns>
+  /// <include file="documentation.xml" path="//IOH/BinaryFormat/*"/>
   public static int Write(byte[] array, int index, string format, params object[] args)
   {
     return Write(array, index, Encoding.UTF8, format, args);
@@ -750,6 +778,7 @@ public static unsafe partial class IOH
   /// <summary>Writes formatted binary data to the given array, using the given encoding for encoded strings.</summary>
   /// <param name="index">The starting index within the array where data can be written.</param>
   /// <returns>Returns the number of bytes written.</returns>
+  /// <include file="documentation.xml" path="//IOH/BinaryFormat/*"/>
   public static int Write(byte[] array, int index, Encoding encoding, string format, params object[] args)
   {
     if(array == null) throw new ArgumentNullException();
@@ -763,6 +792,7 @@ public static unsafe partial class IOH
   /// strings.
   /// </summary>
   /// <returns>Returns the number of bytes written.</returns>
+  /// <include file="documentation.xml" path="//IOH/BinaryFormat/*"/>
   public static int Write(BinaryWriter writer, string format, params object[] args)
   {
     return Write(writer, Encoding.UTF8, format, args);
@@ -772,6 +802,7 @@ public static unsafe partial class IOH
   /// encoded strings.
   /// </summary>
   /// <returns>Returns the number of bytes written.</returns>
+  /// <include file="documentation.xml" path="//IOH/BinaryFormat/*"/>
   public static int Write(BinaryWriter writer, Encoding encoding, string format, params object[] args)
   {
     if(writer == null || encoding == null || format == null || args == null) throw new ArgumentNullException();
@@ -892,7 +923,7 @@ public static unsafe partial class IOH
           {
             size += prefix;
             sbyte[] arr;
-            if(TryGetArg(args, ref ai, out arr)) WriteArray(writer, arr, prefix, 1, true);
+            if(TryGetArg(args, ref ai, out arr)) WriteArray(writer, arr, prefix, 1, false);
             else do writer.Write(Convert.ToSByte(GetArg(args, ref ai))); while(--prefix != 0);
             break;
           }
@@ -900,7 +931,7 @@ public static unsafe partial class IOH
           {
             size += prefix;
             byte[] arr;
-            if(TryGetArg(args, ref ai, out arr)) WriteArray(writer, arr, prefix, 1, true);
+            if(TryGetArg(args, ref ai, out arr)) WriteArray(writer, arr, prefix, 1, false);
             else do writer.Write(Convert.ToByte(GetArg(args, ref ai))); while(--prefix != 0);
             break;
           }
@@ -950,6 +981,14 @@ public static unsafe partial class IOH
             ulong[] arr;
             if(TryGetArg(args, ref ai, out arr)) WriteArray(writer, arr, prefix, 8, true);
             else do writer.Write(Convert.ToUInt64(GetArg(args, ref ai))); while(--prefix != 0);
+            break;
+          }
+          case 'L':
+          {
+            size += prefix;
+            bool[] arr;
+            if(TryGetArg(args, ref ai, out arr)) WriteArray(writer, arr, prefix, 1, false);
+            else do writer.Write(Convert.ToBoolean(GetArg(args, ref ai))); while(--prefix != 0);
             break;
           }
           case 'c':

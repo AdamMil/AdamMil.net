@@ -1,0 +1,160 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<IO>
+  <IOH>
+   <BinaryFormat> <!-- BinaryFormat codes -->
+    <remarks>
+     <para>The binary formatters allow you to format binary data in a way analogous to using
+      <see cref="Console.Write"/> or <see cref="String.Format"/> to format text. The following format codes are
+      recognized, and examples are given below. 
+     </para>
+<code>
+Code  Writes/Effect           Parameter
+------------------------------------------
+x     Zero-valued bytes       NONE
+L     One-byte boolean        Array/Values
+b     Signed bytes            Array/Values
+B     Unsigned bytes          Array/Values
+w     Signed words            Array/Values
+W     Unsigned words          Array/Values
+d     Signed doublewords      Array/Values
+D     Unsigned doublewords    Array/Values
+q     Signed quadwords        Array/Values
+Q     Unsigned quadwords      Array/Values
+v     Signed varlength int    Array/Values
+V     Unsigned varlength int  Array/Values
+f     Floats                  Array/Values
+F     Doubles                 Array/Values
+c     Characters              Array/Values
+s     A string                String
+p     A pascal string         String
+A     Sets ASCII mode         NONE (default)
+U     Sets UCS-2 mode         NONE
+E     Sets encoding mode      NONE
+&lt;     Sets little-endian mode NONE
+&gt;     Sets big-endian mode    NONE
+=     Sets system endianness  NONE (default)
+</code>
+     <para>Whitespace between tokens in the format string is ignored, so you can use whitespace to make the format
+      string more readable. However, whitespace between a prefix and its associated format code is not allowed
+      (this restriction may be relaxed in the future).
+     </para>
+     <para>The <c>v</c> and <c>V</c> codes specify an integer encoded with a variable-length scheme. The high bit is
+       used to indicate that another byte needs to be read, so a number that can be represented in 7 bits is encoded as
+       one byte, up to 15 bits as two bytes, etc.
+     </para>
+     <para>The <c>x</c> code and all codes that take parameters also take an optional prefix. A prefix is a positive
+      integer or a question mark added before the code to specify a count of items. If not specified, the prefix
+      defaults to 1 (except for string codes <c>s</c> and <c>p</c>, where it defaults to the length of the string).
+      If the prefix is a question mark, an array or string is expected (depending on the code chosen), and the prefix
+      is set to the length of the array or string.
+     </para>
+     <para>The <c>p</c> code specifies a pascal string, which has the length of the string stored before the string
+      itself. The length is written with the <c>V</c> variable length encoding.
+     </para>
+     <para>
+       <list type="bullet">
+         <item>
+           <description>A number, which specifies the length of the following code.</description>
+         </item>
+         <item>
+           <description>A <c>?</c>, which is used by <see cref="Write" /> and <see cref="CalculateSize" /> to indicate
+            that the next code is variable-length. For instance, <c>?d</c> means would accept either a single integer or an
+            array of integers, all of which will be written. When reading, a code prefixed with <c>?</c> must be
+            preceded by a code prefixed with <c>*</c>.
+           </description>
+         </item>
+         <item>
+           <description>A <c>*</c>, which will cause the length of the next code to be written into the
+             <c>*</c>-prefixed code. For example, <c>*B?d</c> would cause the length of the variable-length integer
+             argument (described by <c>?d</c>) to be written as a single unsigned byte. When reading, <c>*B?d</c> would
+             cause a length to be read as an unsigned byte, and that number of integers to be read and returned.
+           </description>
+         </item>
+       </list>
+     </para>
+     <para>If a numeric prefix is given for a string code (<c>s</c> or <c>p</c>) and the prefix is longer than the
+      string, the remaining characters will be written as NILs (value of zero) to reach the length given in the prefix.
+     </para>
+     <para>Codes that take Array/Values as a parameter either take an array of the specified type or a list of
+      values convertible to that type (using the <see cref="System.Convert"/> class). For instance, the 'w' code
+      takes either an array of signed words or a literal list of values convertible to signed words, with a number
+      of values equal to the prefix. You may be surprised by the semantics of the <see cref="System.Convert"/> class,
+      however, so see its documentation to learn how it converts values.
+     </para>
+     <para>The codes that write words, doublewords, and quadwords are affected by the endianness mode. Unicode
+      characters and strings are also affected. The default endianness is set to the default for the system the code
+      is running on. It can be changed with the <c>&lt;</c>, <c>&gt;</c>, and <c>=</c> codes. The endianness mode
+      can be changed in the middle of the format string if you want to write some data using one endianness
+      mode and some other data with another mode.
+     </para>
+     <para>The <c>s</c>, <c>p</c>, and <c>c</c> codes are affected by the character mode. By default, the character
+      mode is ASCII, but it can be changed with the <c>A</c>, <c>U</c>, and <c>E</c> codes. If the character mode is
+      ASCII, characters will be written out as single bytes and strings will be converted to ASCII before being
+      written. If the character mode is set to Unicode, strings will be written as UCS-2 (16-bit Unicode)
+      and characters will be written using two bytes each with the byte order determined by the current endianness
+      mode. If the character mode is set to Encode, characters will be written as two byte UCS-2, while strings will be
+      encoded as a stream of bytes before being sent (by default, using UTF-8 encoding).
+      The character mode can be changed in the middle of the format string if you want to write some data using
+      one character mode and some other data with another mode.
+     </para>
+     <para>Because the <see cref="CalculateSize"/> and formatted <see cref="Write"/> functions accept a variable
+      length parameter array, you can also pass a single array of <see cref="System.Object"/> that contains all
+      the parameters.
+     </para>
+     <para>For the formatted <see cref="Read"/> functions, you cannot pass format codes that have an unknown
+      length (eg, <c>s</c> without a prefix, or anything with a <c>?</c> prefix). This restriction may be relaxed
+      in the future.
+     </para>
+     <example>
+      <para>See the following examples:</para>
+<code>
+// A simple example that first writes an array's length, and then writes the
+// contents of the array (of Int32), using default endianness:
+IOH.Write(stream, "d?d", Array.Length, Array);
+
+// Codes taking Array/Vals accept both arrays and value lists. For instance:
+short[] arr = new short[] { 1, 2, 4, 8 };
+IOH.Write(stream, "4w", arr);        // writes eight bytes
+IOH.Write(stream, "wwww", arr);      // writes the same eight bytes
+IOH.Write(stream, "4w", 1, 2, 4, 8); // writes the same eight bytes
+
+// Reading, however, doesn't consider "4w" and "wwww" to be the same:
+IOH.Read(stream, "4w");   // reads an array containing 4 words
+IOH.Read(stream, "wwww"); // reads four individual words
+
+// An example taken from some .PSD writing code to begin the header. It
+// writes the signature (8BPS) as ASCII, the version byte (1), six padding
+// bytes, the number of channels (a word), the dimensions of the image (two
+// integers), and two words specifying the bit depth per channel (8) and
+// color mode (3 = RGB), using big-endian output.
+// It uses whitespace to make the format string a bit more readable.
+IOH.Write(stream, "&gt;s B 6x w 2d 2w", "8BPS", 1, image.Channels,
+          image.Height, image.Width, 8, 3);
+
+// This is illegal because whitespace between a prefix and its associated
+// format code is currently not allowed. This restriction may be relaxed
+// in the future.
+IOH.Write(stream, "6 x"); // BUG: no space allowed between prefix and code
+
+// This example uses IOH.CalculateSize() and IOH.Write() in part of a
+// network serialization implementation. It writes the player's name as
+// a pascal string, the player's position, the length of a byte array,
+// and the byte array itself, using big-endian output.
+public int SizeOf()
+{ return IOH.CalculateSize("&gt;p3d?B", player.Name, byteArray);
+}
+public void SerializeTo(byte[] buf, int index)
+{ IOH.Write(buf, index, "&gt;p3d?B", player.Name, player.X, player.Y,
+            byteArray.Length, byteArray);
+}
+
+// You can also pack all the parameters into a single object array, possibly
+// with the parameter array and/or format string built dynamically.
+object[] parms = new object[] { 1, 2.4f, stringVar, intArray };
+byte[] output = IOH.Write("dfp?d", parms);
+</code>
+     </example>
+    </remarks>
+   </BinaryFormat>
+  </IOH>
+</IO>
