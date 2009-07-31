@@ -2478,7 +2478,7 @@ public sealed class Polygon : ICloneable, ISerializable
           if(Math.Sign(c.CrossZ) != sign)
           {
             double dist = double.MaxValue, d, d2;
-            Point splitPoint=new Point();
+            Point splitPoint = new Point();
             int splitEdge=-1, extPoint=-1, ept;
             for(int ei=0; ei<2; ei++) // try to extend each of the edges that make up this corner
             {

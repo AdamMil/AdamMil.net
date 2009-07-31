@@ -30,12 +30,6 @@ public sealed class CoherentNoise
     Reseed(rand);
   }
 
-// TODO: remove this
-public void Print()
-{
-  for(int i=0; i<256; i++) { Console.Write(permutation[i]); Console.Write(", "); }
-}
-
   /// <summary>Generates one-dimensional Perlin noise based on the given position on the x axis. The noise value will
   /// lie in the range [-1,1], and will begin to repeat if <paramref name="x"/> is outside the range [0,256).
   /// </summary>
@@ -413,7 +407,7 @@ public void Print()
   }
 
   /// <summary>A permutation that I've found produces a nearly full range between -1 and 1 for 1, 2, and 3 dimensional
-  /// Perlin noise. (But I'm not sure if that's what we want to optimize for...)
+  /// Perlin noise. (TODO: But I'm not sure if that's what we want to optimize for...)
   /// </summary>
   static readonly byte[] defaultPermutation = new byte[256]
     {
