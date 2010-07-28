@@ -3,7 +3,7 @@ AdamMil.IO is a library that provides high performance and high level IO
 tools for the .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2007-2009 Adam Milazzo
+Copyright (C) 2007-2010 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -32,8 +32,9 @@ namespace AdamMil.IO
 /// <returns>Returns true if processing should continue or false if it should stop.</returns>
 public delegate bool StreamProcessor(byte[] buffer, int dataLength);
 
-/// <summary>This class provides methods for reading and writing numeric and string values from/to streams
-/// with little or big endianness.
+#region IOH
+/// <summary>This class provides methods and extension methods for reading and writing numeric and string values
+/// from/to streams with little or big endianness.
 /// </summary>
 public unsafe static partial class IOH
 {
@@ -41,7 +42,7 @@ public unsafe static partial class IOH
   /// <summary>Copies a source stream into a destination stream and returns the number of bytes copied. The streams
   /// are not rewound or disposed.
   /// </summary>
-  public static int CopyStream(Stream source, Stream dest) { return CopyStream(source, dest, false, false, 0); }
+  public static int CopyStream(this Stream source, Stream dest) { return CopyStream(source, dest, false, false, 0); }
 
   /// <summary>Copies a source stream into a destination stream and returns the number of bytes copied. The streams
   /// are not rewound.
@@ -96,7 +97,7 @@ public unsafe static partial class IOH
   #endregion
 
   /// <summary>Processes the given stream in chunks of the given size, using the given <see cref="StreamProcessor"/>.</summary>
-  public static void ProcessStream(Stream stream, StreamProcessor processor, int chunkSize)
+  public static void Process(this Stream stream, StreamProcessor processor, int chunkSize)
   {
     if(stream == null || processor == null) throw new ArgumentNullException();
     if(chunkSize <= 0) throw new ArgumentOutOfRangeException();
@@ -110,7 +111,7 @@ public unsafe static partial class IOH
   #region Reading
   /// <summary>Reads the given number of bytes from a stream.</summary>
   /// <returns>A byte array containing <paramref name="length"/> bytes of data.</returns>
-  public static byte[] Read(Stream stream, int length)
+  public static byte[] Read(this Stream stream, int length)
   {
     if(length < 0) throw new ArgumentOutOfRangeException();
     byte[] buf = new byte[length];
@@ -120,14 +121,14 @@ public unsafe static partial class IOH
 
   /// <summary>Reads the given number of bytes from a stream into a buffer.</summary>
   /// <returns>The number of bytes read. This will always be equal to <paramref name="length"/>.</returns>
-  public static int Read(Stream stream, byte[] buf, int index, int length)
+  public static int ReadOrThrow(this Stream stream, byte[] buf, int index, int length)
   {
     return Read(stream, buf, index, length, true);
   }
 
   /// <summary>Tries to read the given number of bytes from a stream into a buffer.</summary>
   /// <returns>The number of bytes read.</returns>
-  public static int Read(Stream stream, byte[] buf, int index, int length, bool throwOnEOF)
+  public static int Read(this Stream stream, byte[] buf, int index, int length, bool throwOnEOF)
   {
     if(stream == null || buf == null) throw new ArgumentNullException();
     if(index < 0 || length < 0 || index+length > buf.Length) throw new ArgumentOutOfRangeException();
@@ -152,50 +153,44 @@ public unsafe static partial class IOH
   }
 
   /// <summary>Reads and returns all of the remaining bytes from the stream.</summary>
-  public static byte[] ReadAllBytes(Stream stream)
+  public static byte[] ReadAllBytes(this Stream stream)
   {
     if(stream == null) throw new ArgumentNullException();
-    byte[] buffer   = new byte[4096];
-    int bufferBytes = 0;
+    byte[] buffer  = new byte[stream.CanSeek ? (int)(stream.Length-stream.Position) : 4096];
+    int totalBytes = 0;
 
     while(true)
     {
-      if(bufferBytes == buffer.Length)
+      if(totalBytes == buffer.Length)
       {
         byte[] newBuffer = new byte[buffer.Length*2];
-        Array.Copy(buffer, newBuffer, bufferBytes);
+        Array.Copy(buffer, newBuffer, totalBytes);
         buffer = newBuffer;
       }
 
-      int read = stream.Read(buffer, bufferBytes, buffer.Length - bufferBytes);
-      if(read == 0) break;
-      bufferBytes += read;
+      int read = stream.Read(buffer, totalBytes, buffer.Length - totalBytes);
+      if(read == 0 || stream.CanSeek && stream.Position == stream.Length) break;
+      totalBytes += read;
     }
 
-    if(bufferBytes != buffer.Length)
+    if(totalBytes != buffer.Length)
     {
-      byte[] finalBuffer = new byte[bufferBytes];
-      Array.Copy(buffer, finalBuffer, bufferBytes);
+      byte[] finalBuffer = new byte[totalBytes];
+      Array.Copy(buffer, finalBuffer, totalBytes);
       buffer = finalBuffer;
     }
 
     return buffer;
   }
 
-  /// <summary>Reads the given number of bytes from the stream and converts them into a string using ASCII encoding.</summary>
-  public static string ReadAscii(Stream stream, int length)
-  {
-    return ReadString(stream, length, System.Text.Encoding.ASCII);
-  }
-
   /// <summary>Reads the given number of bytes from the stream and converts them into a string using UTF-8 encoding.</summary>
-  public static string ReadString(Stream stream, int length)
+  public static string ReadString(this Stream stream, int length)
   {
     return ReadString(stream, length, System.Text.Encoding.UTF8);
   }
 
   /// <summary>Reads the given number of bytes from the stream and converts them to a string.</summary>
-  public static string ReadString(Stream stream, int length, System.Text.Encoding encoding)
+  public static string ReadString(this Stream stream, int length, System.Text.Encoding encoding)
   {
     return encoding.GetString(Read(stream, length));
   }
@@ -204,7 +199,7 @@ public unsafe static partial class IOH
   /// <returns>The byte value read from the stream.</returns>
   /// <exception cref="EndOfStreamException">Thrown if the end of the stream was reached before the byte could be read.
   /// </exception>
-  public static byte ReadByte(Stream stream)
+  public static byte ReadByteOrThrow(Stream stream)
   {
     int i = stream.ReadByte();
     if(i == -1) throw new EndOfStreamException();
@@ -212,79 +207,98 @@ public unsafe static partial class IOH
   }
 
   /// <summary>Reads a little-endian short (2 bytes) from a stream.</summary>
-  public static short ReadLE2(Stream stream) { return (short)(ReadByte(stream)|(ReadByte(stream)<<8)); }
+  public static short ReadLE2(this Stream stream)
+  {
+    return (short)(ReadByteOrThrow(stream)|(ReadByteOrThrow(stream)<<8));
+  }
 
   /// <summary>Reads a big-endian short (2 bytes) from a stream.</summary>
-  public static short ReadBE2(Stream stream) { return (short)((ReadByte(stream)<<8)|ReadByte(stream)); }
+  public static short ReadBE2(this Stream stream)
+  {
+    return (short)((ReadByteOrThrow(stream)<<8)|ReadByteOrThrow(stream));
+  }
 
   /// <summary>Reads a little-endian integer (4 bytes) from a stream.</summary>
-  public static int ReadLE4(Stream stream)
+  public static int ReadLE4(this Stream stream)
   {
-    return (int)(ReadByte(stream)|(ReadByte(stream)<<8)|(ReadByte(stream)<<16)|(ReadByte(stream)<<24));
+    return (int)(ReadByteOrThrow(stream)|(ReadByteOrThrow(stream)<<8)|
+                 (ReadByteOrThrow(stream)<<16)|(ReadByteOrThrow(stream)<<24));
   }
 
   /// <summary>Reads a big-endian integer (4 bytes) from a stream.</summary>
-  public static int ReadBE4(Stream stream)
+  public static int ReadBE4(this Stream stream)
   {
-    return (int)((ReadByte(stream)<<24)|(ReadByte(stream)<<16)|(ReadByte(stream)<<8)|ReadByte(stream));
+    return (int)((ReadByteOrThrow(stream)<<24)|(ReadByteOrThrow(stream)<<16)|
+                 (ReadByteOrThrow(stream)<<8)|ReadByteOrThrow(stream));
   }
 
   /// <summary>Reads a little-endian long (8 bytes) from a stream.</summary>
-  public static long ReadLE8(Stream stream)
+  public static long ReadLE8(this Stream stream)
   {
     byte[] buf = Read(stream, 8);
     return ReadLE4U(buf, 0) | ((long)ReadLE4(buf, 4)<<32);
   }
 
   /// <summary>Reads a big-endian long (8 bytes) from a stream.</summary>
-  public static long ReadBE8(Stream stream)
+  public static long ReadBE8(this Stream stream)
   {
     byte[] buf = Read(stream, 8);
     return ((long)ReadBE4(buf, 0)<<32)|ReadBE4U(buf, 4);
   }
 
   /// <summary>Reads a little-endian unsigned short (2 bytes) from a stream.</summary>
-  public static ushort ReadLE2U(Stream stream) { return (ushort)(ReadByte(stream)|(ReadByte(stream)<<8)); }
+  public static ushort ReadLE2U(this Stream stream)
+  {
+    return (ushort)(ReadByteOrThrow(stream)|(ReadByteOrThrow(stream)<<8));
+  }
 
   /// <summary>Reads a big-endian unsigned short (2 bytes) from a stream.</summary>
-  public static ushort ReadBE2U(Stream stream) { return (ushort)((ReadByte(stream)<<8)|ReadByte(stream)); }
+  public static ushort ReadBE2U(this Stream stream)
+  {
+    return (ushort)((ReadByteOrThrow(stream)<<8)|ReadByteOrThrow(stream));
+  }
 
   /// <summary>Reads a little-endian unsigned integer (4 bytes) from a stream.</summary>
-  public static uint ReadLE4U(Stream stream)
+  public static uint ReadLE4U(this Stream stream)
   {
-    return (uint)(ReadByte(stream)|(ReadByte(stream)<<8)|(ReadByte(stream)<<16)|(ReadByte(stream)<<24));
+    return (uint)(ReadByteOrThrow(stream)|(ReadByteOrThrow(stream)<<8)|
+                  (ReadByteOrThrow(stream)<<16)|(ReadByteOrThrow(stream)<<24));
   }
 
   /// <summary>Reads a big-endian unsigned integer (4 bytes) from a stream.</summary>
-  public static uint ReadBE4U(Stream stream)
+  public static uint ReadBE4U(this Stream stream)
   {
-    return (uint)((ReadByte(stream)<<24)|(ReadByte(stream)<<16)|(ReadByte(stream)<<8)|ReadByte(stream));
+    return (uint)((ReadByteOrThrow(stream)<<24)|(ReadByteOrThrow(stream)<<16)|
+                  (ReadByteOrThrow(stream)<<8)|ReadByteOrThrow(stream));
   }
 
   /// <summary>Reads a little-endian unsigned long (8 bytes) from a stream.</summary>
-  public static ulong ReadLE8U(Stream stream)
+  public static ulong ReadLE8U(this Stream stream)
   {
     byte[] buf = Read(stream, 8);
     return ReadLE4U(buf, 0)|((ulong)ReadLE4U(buf, 4)<<32);
   }
 
   /// <summary>Reads a big-endian unsigned long (8 bytes) from a stream.</summary>
-  public static ulong ReadBE8U(Stream stream)
+  public static ulong ReadBE8U(this Stream stream)
   {
     byte[] buf = Read(stream, 8);
     return ((ulong)ReadBE4U(buf, 0)<<32)|ReadBE4U(buf, 4);
   }
 
   /// <summary>Reads an IEEE754 float (4 bytes) from a stream.</summary>
-  public unsafe static float ReadFloat(Stream stream)
+  public unsafe static float ReadFloat(this Stream stream)
   {
     byte* buf = stackalloc byte[4];
-    buf[0]=ReadByte(stream); buf[1]=ReadByte(stream); buf[2]=ReadByte(stream); buf[3]=ReadByte(stream);
+    buf[0]=ReadByteOrThrow(stream);
+    buf[1]=ReadByteOrThrow(stream);
+    buf[2]=ReadByteOrThrow(stream);
+    buf[3]=ReadByteOrThrow(stream);
     return *(float*)buf;
   }
 
   /// <summary>Reads an IEEE754 double (8 bytes) from a stream.</summary>
-  public unsafe static double ReadDouble(Stream stream)
+  public unsafe static double ReadDouble(this Stream stream)
   {
     byte[] buf = Read(stream, sizeof(double));
     fixed(byte* ptr=buf) return *(double*)ptr;
@@ -294,7 +308,7 @@ public unsafe static partial class IOH
   #region Skip
   /// <summary>Skips forward a number of bytes in a stream.</summary>
   /// <remarks>This method works on both seekable and non-seekable streams, but is more efficient with seekable ones.</remarks>
-  public static void Skip(Stream stream, long bytes)
+  public static void Skip(this Stream stream, long bytes)
   {
     if(bytes < 0) throw new ArgumentException("cannot be negative", "bytes");
 
@@ -305,7 +319,7 @@ public unsafe static partial class IOH
     else if(bytes <= 4)
     { 
       int b = (int)bytes; 
-      while(b-- > 0) ReadByte(stream); 
+      while(b-- > 0) ReadByteOrThrow(stream); 
     }
     else
     {
@@ -322,7 +336,7 @@ public unsafe static partial class IOH
 
   #region Writing
   /// <summary>Writes an array of data to a stream.</summary>
-  public static int Write(Stream stream, byte[] data)
+  public static int Write(this Stream stream, byte[] data)
   {
     if(data == null) throw new ArgumentNullException();
     stream.Write(data, 0, data.Length);
@@ -331,41 +345,41 @@ public unsafe static partial class IOH
 
   /// <summary>Encodes a string as ASCII and writes it to a stream.</summary>
   /// <returns>The number of bytes written to the stream.</returns>
-  public static int WriteAscii(Stream stream, string str)
+  public static int WriteAscii(this Stream stream, string str)
   {
     return WriteString(stream, str, System.Text.Encoding.ASCII);
   }
 
   /// <summary>Encodes a string as UTF-8 and writes it to a stream.</summary>
   /// <returns>The number of bytes written to the stream.</returns>
-  public static int WriteString(Stream stream, string str)
+  public static int WriteString(this Stream stream, string str)
   {
     return WriteString(stream, str, System.Text.Encoding.UTF8);
   }
 
   /// <summary>Encodes a string using the given encoding and writes it to a stream.</summary>
   /// <returns>The number of bytes written to the stream.</returns>
-  public static int WriteString(Stream stream, string str, System.Text.Encoding encoding)
+  public static int WriteString(this Stream stream, string str, System.Text.Encoding encoding)
   {
     return Write(stream, encoding.GetBytes(str));
   }
 
   /// <summary>Writes a little-endian short (2 bytes) to a stream.</summary>
-  public static void WriteLE2(Stream stream, short val)
+  public static void WriteLE2(this Stream stream, short val)
   {
     stream.WriteByte((byte)val);
     stream.WriteByte((byte)(val>>8));
   }
 
   /// <summary>Writes a big-endian short (2 bytes) to a stream.</summary>
-  public static void WriteBE2(Stream stream, short val)
+  public static void WriteBE2(this Stream stream, short val)
   {
     stream.WriteByte((byte)(val>>8));
     stream.WriteByte((byte)val);
   }
 
   /// <summary>Writes a little-endian integer (4 bytes) to a stream.</summary>
-  public static void WriteLE4(Stream stream, int val)
+  public static void WriteLE4(this Stream stream, int val)
   {
     stream.WriteByte((byte)val);
     stream.WriteByte((byte)(val>>8));
@@ -374,7 +388,7 @@ public unsafe static partial class IOH
   }
 
   /// <summary>Writes a big-endian integer (4 bytes) to a stream.</summary>
-  public static void WriteBE4(Stream stream, int val)
+  public static void WriteBE4(this Stream stream, int val)
   {
     stream.WriteByte((byte)(val>>24));
     stream.WriteByte((byte)(val>>16));
@@ -383,35 +397,35 @@ public unsafe static partial class IOH
   }
 
   /// <summary>Writes a little-endian long (8 bytes) to a stream.</summary>
-  public static void WriteLE8(Stream stream, long val)
+  public static void WriteLE8(this Stream stream, long val)
   {
     WriteLE4(stream, (int)val);
     WriteLE4(stream, (int)(val>>32));
   }
 
   /// <summary>Writes a big-endian long (8 bytes) to a stream.</summary>
-  public static void WriteBE8(Stream stream, long val)
+  public static void WriteBE8(this Stream stream, long val)
   {
     WriteBE4(stream, (int)(val>>32));
     WriteBE4(stream, (int)val);
   }
 
   /// <summary>Writes a little-endian unsigned short (2 bytes) to a stream.</summary>
-  public static void WriteLE2U(Stream stream, ushort val)
+  public static void WriteLE2U(this Stream stream, ushort val)
   {
     stream.WriteByte((byte)val);
     stream.WriteByte((byte)(val>>8));
   }
 
   /// <summary>Writes a big-endian unsigned short (2 bytes) to a stream.</summary>
-  public static void WriteBE2U(Stream stream, ushort val)
+  public static void WriteBE2U(this Stream stream, ushort val)
   {
     stream.WriteByte((byte)(val>>8));
     stream.WriteByte((byte)val);
   }
 
   /// <summary>Writes a little-endian unsigned integer (4 bytes) to a stream.</summary>
-  public static void WriteLE4U(Stream stream, uint val)
+  public static void WriteLE4U(this Stream stream, uint val)
   {
     stream.WriteByte((byte)val);
     stream.WriteByte((byte)(val>>8));
@@ -420,7 +434,7 @@ public unsafe static partial class IOH
   }
 
   /// <summary>Writes a big-endian unsigned integer (4 bytes) to a stream.</summary>
-  public static void WriteBE4U(Stream stream, uint val)
+  public static void WriteBE4U(this Stream stream, uint val)
   {
     stream.WriteByte((byte)(val>>24));
     stream.WriteByte((byte)(val>>16));
@@ -429,21 +443,21 @@ public unsafe static partial class IOH
   }
 
   /// <summary>Writes a little-endian unsigned long (8 bytes) to a stream.</summary>
-  public static void WriteLE8U(Stream stream, ulong val)
+  public static void WriteLE8U(this Stream stream, ulong val)
   {
     WriteLE4U(stream, (uint)val);
     WriteLE4U(stream, (uint)(val>>32));
   }
 
   /// <summary>Writes a big-endian unsigned long (8 bytes) to a stream.</summary>
-  public static void WriteBE8U(Stream stream, ulong val)
+  public static void WriteBE8U(this Stream stream, ulong val)
   {
     WriteBE4U(stream, (uint)(val>>32));
     WriteBE4U(stream, (uint)val);
   }
 
   /// <summary>Writes an IEEE754 float (4 bytes) to a stream.</summary>
-  public unsafe static void WriteFloat(Stream stream, float val)
+  public unsafe static void WriteFloat(this Stream stream, float val)
   {
     byte* buf = (byte*)&val;
     stream.WriteByte(buf[0]);
@@ -453,7 +467,7 @@ public unsafe static partial class IOH
   }
 
   /// <summary>Writes an IEEE754 double (8 bytes) to a stream.</summary>
-  public unsafe static void WriteDouble(Stream stream, double val)
+  public unsafe static void WriteDouble(this Stream stream, double val)
   {
     byte[] buf = new byte[sizeof(double)];
     fixed(byte* pbuf=buf) *(double*)pbuf = val;
@@ -461,5 +475,42 @@ public unsafe static partial class IOH
   }
   #endregion
 }
+#endregion
+
+#region TextReaderExtensions
+public static class TextReaderExtensions
+{
+  /// <summary>Processes each line in the given reader using the given method.</summary>
+  public static void ProcessLines(this TextReader reader, Action<string> processor)
+  {
+    if(reader == null || processor == null) throw new ArgumentNullException();
+
+    while(true)
+    {
+      string line = reader.ReadLine();
+      if(line == null) break;
+      processor(line);
+    }
+  }
+
+  /// <summary>Processes each non-empty and non-whitespace line in the given reader using the given method.</summary>
+  public static void ProcessNonEmptyLines(this TextReader reader, Action<string> processor)
+  {
+    ProcessNonEmptyLines(reader, true, processor);
+  }
+
+  /// <summary>Processes each non-empty line in the given reader using the given method. If <paramref name="trimLines"/> is true,
+  /// lines that contain only whitespace will not be processed either.
+  /// </summary>
+  public static void ProcessNonEmptyLines(this TextReader reader, bool trimLines, Action<string> processor)
+  {
+    ProcessLines(reader, line =>
+    {
+      if(trimLines) line = line.Trim();
+      if(line.Length != 0) processor(line);
+    });
+  }
+}
+#endregion
 
 } // namespace AdamMil.IO

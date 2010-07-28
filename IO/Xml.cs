@@ -3,7 +3,7 @@ AdamMil.IO is a library that provides high performance and high level IO
 tools for the .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2007-2009 Adam Milazzo
+Copyright (C) 2007-2010 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -19,440 +19,793 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
 
 namespace AdamMil.IO
 {
 
-public static class Xml
+#region XmlNodeExtensions
+public static class XmlNodeExtensions
 {
-  public static string Attr(XmlNode node, string attrName) 
-  {
-    return Attr(node, attrName, null); 
-  }
-
-  public static string Attr(XmlNode node, string attrName, string defaultValue)
-  {
-    XmlAttribute an = AttrNode(node, attrName);
-    return an == null ? defaultValue : an.Value;
-  }
-
-  public static XmlAttribute AttrNode(XmlNode node, string attrName)
-  { 
-    return node == null ? null : node.Attributes[attrName]; 
-  }
-
-  public static bool Bool(XmlNode node, string attrName)
-  {
-    return Bool(node, attrName, false);
-  }
-
-  public static bool Bool(XmlNode node, string attrName, bool defaultValue)
-  {
-    string attrValue = Attr(node, attrName);
-    return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToBoolean(attrValue);
-  }
-
-  public static byte Byte(XmlNode node, string attrName)
-  {
-    return Byte(node, attrName, 0);
-  }
-
-  public static byte Byte(XmlNode node, string attrName, byte defaultValue)
-  {
-    string attrValue = Attr(node, attrName);
-    return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToByte(attrValue);
-  }
-
-  public static char Char(XmlNode node, string attrName)
-  {
-    return Char(node, attrName, '\0');
-  }
-
-  public static char Char(XmlNode node, string attrName, char defaultValue)
-  {
-    string attrValue = Attr(node, attrName);
-    return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToChar(attrValue);
-  }
-
-  public static string Child(XmlNode node, string xpath)
-  {
-    return Child(node, xpath, null);
-  }
-
-  public static string Child(XmlNode node, string xpath, string defaultValue)
-  {
-    if(node == null) return defaultValue;
-    XmlNode child = node.SelectSingleNode(xpath);
-    return child == null ? defaultValue : child.InnerText;
-  }
-
-  public static bool ChildBool(XmlNode node, string xpath)
-  {
-    return ChildBool(node, xpath, false);
-  }
-
-  public static bool ChildBool(XmlNode node, string xpath, bool defaultValue)
-  {
-    string childValue = Child(node, xpath);
-    return string.IsNullOrEmpty(childValue) ? defaultValue : XmlConvert.ToBoolean(childValue);
-  }
-
-  public static byte ChildByte(XmlNode node, string xpath)
-  {
-    return ChildByte(node, xpath, 0);
-  }
-
-  public static byte ChildByte(XmlNode node, string xpath, byte defaultValue)
-  {
-    string childValue = Child(node, xpath);
-    return string.IsNullOrEmpty(childValue) ? defaultValue : XmlConvert.ToByte(childValue);
-  }
-
-  public static char ChildChar(XmlNode node, string xpath)
-  {
-    return ChildChar(node, xpath, '\0');
-  }
-
-  public static char ChildChar(XmlNode node, string xpath, char defaultValue)
-  {
-    string childValue = Child(node, xpath);
-    return string.IsNullOrEmpty(childValue) ? defaultValue : XmlConvert.ToChar(childValue);
-  }
-
-  public static DateTime ChildDateTime(XmlNode node, string xpath)
-  {
-    return ChildDateTime(node, xpath, new DateTime());
-  }
-
-  public static DateTime ChildDateTime(XmlNode node, string xpath, DateTime defaultValue)
-  {
-    string childValue = Child(node, xpath);
-    return string.IsNullOrEmpty(childValue) ?
-      defaultValue : XmlConvert.ToDateTime(childValue, XmlDateTimeSerializationMode.Unspecified);
-  }
-
-  public static decimal ChildDecimal(XmlNode node, string xpath)
-  {
-    return ChildDecimal(node, xpath, 0);
-  }
-
-  public static decimal ChildDecimal(XmlNode node, string xpath, decimal defaultValue)
-  {
-    string childValue = Child(node, xpath);
-    return string.IsNullOrEmpty(childValue) ? defaultValue : XmlConvert.ToDecimal(childValue);
-  }
-
-  public static double ChildDouble(XmlNode node, string xpath)
-  {
-    return ChildDouble(node, xpath, 0);
-  }
-
-  public static double ChildDouble(XmlNode node, string xpath, double defaultValue)
-  {
-    string childValue = Child(node, xpath);
-    return string.IsNullOrEmpty(childValue) ? defaultValue : XmlConvert.ToDouble(childValue);
-  }
-
-  public static Guid ChildGuid(XmlNode node, string xpath)
-  {
-    return ChildGuid(node, xpath, System.Guid.Empty);
-  }
-
-  public static Guid ChildGuid(XmlNode node, string xpath, Guid defaultValue)
-  {
-    string childValue = Child(node, xpath);
-    return string.IsNullOrEmpty(childValue) ? defaultValue : XmlConvert.ToGuid(childValue);
-  }
-
-  public static short ChildInt16(XmlNode node, string xpath)
-  {
-    return ChildInt16(node, xpath, 0);
-  }
-
-  public static short ChildInt16(XmlNode node, string xpath, short defaultValue)
-  {
-    string childValue = Child(node, xpath);
-    return string.IsNullOrEmpty(childValue) ? defaultValue : XmlConvert.ToInt16(childValue);
-  }
-
-  public static int ChildInt32(XmlNode node, string xpath)
-  {
-    return ChildInt32(node, xpath, 0);
-  }
-
-  public static int ChildInt32(XmlNode node, string xpath, int defaultValue)
-  {
-    string childValue = Child(node, xpath);
-    return string.IsNullOrEmpty(childValue) ? defaultValue : XmlConvert.ToInt32(childValue);
-  }
-
-  public static long ChildInt64(XmlNode node, string xpath)
-  {
-    return ChildInt64(node, xpath, 0);
-  }
-
-  public static long ChildInt64(XmlNode node, string xpath, long defaultValue)
-  {
-    string childValue = Child(node, xpath);
-    return string.IsNullOrEmpty(childValue) ? defaultValue : XmlConvert.ToInt64(childValue);
-  }
-
-  public static sbyte ChildSByte(XmlNode node, string xpath)
-  {
-    return ChildSByte(node, xpath, 0);
-  }
-
-  public static sbyte ChildSByte(XmlNode node, string xpath, sbyte defaultValue)
-  {
-    string childValue = Child(node, xpath);
-    return string.IsNullOrEmpty(childValue) ? defaultValue : XmlConvert.ToSByte(childValue);
-  }
-
-  public static float ChildSingle(XmlNode node, string xpath)
-  {
-    return ChildSingle(node, xpath, 0);
-  }
-
-  public static float ChildSingle(XmlNode node, string xpath, float defaultValue)
-  {
-    string childValue = Child(node, xpath);
-    return string.IsNullOrEmpty(childValue) ? defaultValue : XmlConvert.ToSingle(childValue);
-  }
-
-  public static string ChildString(XmlNode node, string xpath)
-  {
-    return ChildString(node, xpath, string.Empty);
-  }
-
-  public static string ChildString(XmlNode node, string xpath, string defaultValue)
-  {
-    string childValue = Child(node, xpath);
-    return string.IsNullOrEmpty(childValue) ? defaultValue : childValue;
-  }
-
-  public static TimeSpan ChildTimeSpan(XmlNode node, string xpath)
-  {
-    return ChildTimeSpan(node, xpath, new TimeSpan());
-  }
-
-  public static TimeSpan ChildTimeSpan(XmlNode node, string xpath, TimeSpan defaultValue)
-  {
-    string childValue = Child(node, xpath);
-    return string.IsNullOrEmpty(childValue) ? defaultValue : XmlConvert.ToTimeSpan(childValue);
-  }
-
-  public static ushort ChildUInt16(XmlNode node, string xpath)
-  {
-    return ChildUInt16(node, xpath, 0);
-  }
-
-  public static ushort ChildUInt16(XmlNode node, string xpath, ushort defaultValue)
-  {
-    string childValue = Child(node, xpath);
-    return string.IsNullOrEmpty(childValue) ? defaultValue : XmlConvert.ToUInt16(childValue);
-  }
-
-  public static uint ChildUInt32(XmlNode node, string xpath)
-  {
-    return ChildUInt32(node, xpath, 0);
-  }
-
-  public static uint ChildUInt32(XmlNode node, string xpath, uint defaultValue)
-  {
-    string childValue = Child(node, xpath);
-    return string.IsNullOrEmpty(childValue) ? defaultValue : XmlConvert.ToUInt32(childValue);
-  }
-
-  public static ulong ChildUInt64(XmlNode node, string xpath)
-  {
-    return ChildUInt64(node, xpath, 0);
-  }
-
-  public static ulong ChildUInt64(XmlNode node, string xpath, ulong defaultValue)
-  {
-    string childValue = Child(node, xpath);
-    return string.IsNullOrEmpty(childValue) ? defaultValue : XmlConvert.ToUInt64(childValue);
-  }
-
-  public static DateTime? DateTime(XmlNode node, string attrName)
-  {
-    return DateTime(node, attrName, (DateTime?)null);
-  }
-
-  public static DateTime? DateTime(XmlNode node, string attrName, DateTime? defaultValue)
-  {
-    string attrValue = Attr(node, attrName);
-    return string.IsNullOrEmpty(attrValue) ?
-      defaultValue : XmlConvert.ToDateTime(attrValue, XmlDateTimeSerializationMode.Unspecified);
-  }
-
-  public static decimal Decimal(XmlNode node, string attrName)
-  {
-    return Decimal(node, attrName, 0);
-  }
-
-  public static decimal Decimal(XmlNode node, string attrName, decimal defaultValue)
-  {
-    string attrValue = Attr(node, attrName);
-    return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToDecimal(attrValue);
-  }
-
-  public static double Double(XmlNode node, string attrName)
-  {
-    return Double(node, attrName, 0);
-  }
-
-  public static double Double(XmlNode node, string attrName, double defaultValue)
-  {
-    string attrValue = Attr(node, attrName);
-    return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToDouble(attrValue);
-  }
-
-  public static Guid Guid(XmlNode node, string attrName)
-  {
-    return Guid(node, attrName, System.Guid.Empty);
-  }
-
-  public static Guid Guid(XmlNode node, string attrName, Guid defaultValue)
-  {
-    string attrValue = Attr(node, attrName);
-    return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToGuid(attrValue);
-  }
-
-  public static short Int16(XmlNode node, string attrName)
-  {
-    return Int16(node, attrName, 0);
-  }
-
-  public static short Int16(XmlNode node, string attrName, short defaultValue)
-  {
-    string attrValue = Attr(node, attrName);
-    return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToInt16(attrValue);
-  }
-
-  public static int Int32(XmlNode node, string attrName)
-  {
-    return Int32(node, attrName, 0);
-  }
-
-  public static int Int32(XmlNode node, string attrName, int defaultValue)
-  {
-    string attrValue = Attr(node, attrName);
-    return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToInt32(attrValue);
-  }
-
-  public static long Int64(XmlNode node, string attrName)
-  {
-    return Int64(node, attrName, 0);
-  }
-
-  public static long Int64(XmlNode node, string attrName, long defaultValue)
-  {
-    string attrValue = Attr(node, attrName);
-    return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToInt64(attrValue);
-  }
-
-  public static sbyte SByte(XmlNode node, string attrName)
-  {
-    return SByte(node, attrName, 0);
-  }
-
-  public static sbyte SByte(XmlNode node, string attrName, sbyte defaultValue)
-  {
-    string attrValue = Attr(node, attrName);
-    return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToSByte(attrValue);
-  }
-
-  public static float Single(XmlNode node, string attrName)
-  {
-    return Single(node, attrName, 0); 
-  }
-
-  public static float Single(XmlNode node, string attrName, float defaultValue)
-  {
-    string attrValue = Attr(node, attrName);
-    return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToSingle(attrValue);
-  }
-
-  public static string String(XmlNode node, string attrName)
-  {
-    return String(node, attrName, string.Empty);
-  }
-
-  public static string String(XmlNode node, string attrName, string defaultValue)
-  {
-    string attrValue = Attr(node, attrName);
-    return string.IsNullOrEmpty(attrValue) ? defaultValue : attrValue;
-  }
-
-  public static TimeSpan TimeSpan(XmlNode node, string attrName)
-  {
-    return TimeSpan(node, attrName, new TimeSpan());
-  }
-
-  public static TimeSpan TimeSpan(XmlNode node, string attrName, TimeSpan defaultValue)
-  {
-    string attrValue = Attr(node, attrName);
-    return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToTimeSpan(attrValue);
-  }
-
-  public static ushort UInt16(XmlNode node, string attrName)
-  {
-    return UInt16(node, attrName, 0);
-  }
-
-  public static ushort UInt16(XmlNode node, string attrName, ushort defaultValue)
-  {
-    string attrValue = Attr(node, attrName);
-    return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToUInt16(attrValue);
-  }
-
-  public static uint UInt32(XmlNode node, string attrName)
-  {
-    return UInt32(node, attrName, 0);
-  }
-
-  public static uint UInt32(XmlNode node, string attrName, uint defaultValue)
-  {
-    string attrValue = Attr(node, attrName);
-    return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToUInt32(attrValue);
-  }
-
-  public static ulong UInt64(XmlNode node, string attrName)
-  {
-    return UInt64(node, attrName, 0);
-  }
-
-  public static ulong UInt64(XmlNode node, string attrName, ulong defaultValue)
-  {
-    string attrValue = Attr(node, attrName);
-    return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToUInt64(attrValue);
-  }
-
-  public static bool IsEmpty(XmlAttribute attr)
-  {
-    return attr == null || string.IsNullOrEmpty(attr.Value); 
-  }
-
-  public static bool IsEmpty(XmlNode node, string attrName)
-  {
-    return IsEmpty(AttrNode(node, attrName));
-  }
-
-  public static string[] List(XmlNode node, string attrName)
-  {
-    XmlAttribute attr = AttrNode(node, attrName);
-    return attr == null ? new string[0] : List(attr.Value);
-  }
-
-  public static string[] List(string data)
-  {
-    return string.IsNullOrEmpty(data) ? new string[0] : split.Split(data.Trim()); 
-  }
-
-  static readonly Regex split = new Regex(@"\s+", RegexOptions.Singleline);
+  /// <summary>Returns the value of the named attribute, or <c>default(T)</c> if the attribute was unspecified.</summary>
+  public static T GetAttribute<T>(this XmlNode node, string attrName, Converter<string, T> converter)
+  {
+    return GetAttribute<T>(node, attrName, converter, default(T));
+  }
+
+  /// <summary>Returns the value of the named attribute, or the given default value if the attribute was unspecified.</summary>
+  public static T GetAttribute<T>(this XmlNode node, string attrName, Converter<string, T> converter,
+                                  T defaultValue)
+  {
+    if(converter == null) throw new ArgumentNullException("converter");
+    XmlAttribute an = GetAttributeNode(node, attrName);
+    return an == null ? defaultValue : converter(an.Value);
+  }
+
+  /// <summary>Returns the value of the named attribute, or null if the attribute was unspecified.</summary>
+	public static string GetAttributeValue(this XmlNode node, string attrName)
+	{
+		return GetAttributeValue(node, attrName, null);
+	}
+
+	/// <summary>Returns the value of the named attribute, or the given default value if the attribute was unspecified.</summary>
+	public static string GetAttributeValue(this XmlNode node, string attrName, string defaultValue)
+	{
+		XmlAttribute an = GetAttributeNode(node, attrName);
+		return an == null ? defaultValue : an.Value;
+	}
+
+  /// <summary>Returns the value of the named attribute as a boolean, or false if the attribute was unspecified or empty.</summary>
+	public static bool GetBoolAttribute(this XmlNode node, string attrName)
+	{
+		return GetBoolAttribute(node, attrName, false);
+	}
+
+	/// <summary>Returns the value of the named attribute as a boolean, or the given
+	/// default value if the attribute was unspecified or empty.
+	/// </summary>
+	public static bool GetBoolAttribute(this XmlNode node, string attrName, bool defaultValue)
+	{
+		string attrValue = GetAttributeValue(node, attrName);
+		return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToBoolean(attrValue);
+	}
+
+	/// <summary>Returns the value of the named attribute as a byte, or 0 if the attribute was unspecified or empty.</summary>
+	public static byte GetByteAttribute(this XmlNode node, string attrName)
+	{
+		return GetByteAttribute(node, attrName, 0);
+	}
+
+	/// <summary>Returns the value of the named attribute as a byte, or the given default
+	/// value if the attribute was unspecified or empty.
+	/// </summary>
+	public static byte GetByteAttribute(this XmlNode node, string attrName, byte defaultValue)
+	{
+		string attrValue = GetAttributeValue(node, attrName);
+		return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToByte(attrValue);
+	}
+
+	/// <summary>Returns the value of the named attribute as a character, or the nul character if the attribute was unspecified or empty.</summary>
+	public static char GetCharAttribute(this XmlNode node, string attrName)
+	{
+		return GetCharAttribute(node, attrName, '\0');
+	}
+
+	/// <summary>Returns the value of the named attribute as a character, or the given default
+	/// value if the attribute was unspecified or empty.
+	/// </summary>
+	public static char GetCharAttribute(this XmlNode node, string attrName, char defaultValue)
+	{
+		string attrValue = GetAttributeValue(node, attrName);
+		return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToChar(attrValue);
+	}
+
+	/// <summary>Returns the value of the named attribute as a nullable datetime, or null if the attribute was unspecified or empty.</summary>
+	public static DateTime? GetDateTimeAttribute(this XmlNode node, string attrName)
+	{
+		return GetDateTimeAttribute(node, attrName, (DateTime?)null);
+	}
+
+	/// <summary>Returns the value of the named attribute as a nullable datetime, or the given default
+	/// value if the attribute was unspecified or empty.
+	/// </summary>
+	public static DateTime? GetDateTimeAttribute(this XmlNode node, string attrName, DateTime? defaultValue)
+	{
+		string attrValue = GetAttributeValue(node, attrName);
+		return string.IsNullOrEmpty(attrValue) ?
+			defaultValue : XmlConvert.ToDateTime(attrValue, XmlDateTimeSerializationMode.Unspecified);
+	}
+
+	/// <summary>Returns the value of the named attribute as a decimal, or 0 if the attribute was unspecified or empty.</summary>
+	public static decimal GetDecimalAttribute(this XmlNode node, string attrName)
+	{
+		return GetDecimalAttribute(node, attrName, 0);
+	}
+
+	/// <summary>Returns the value of the named attribute as a decimal, or the given default
+	/// value if the attribute was unspecified or empty.
+	/// </summary>
+	public static decimal GetDecimalAttribute(this XmlNode node, string attrName, decimal defaultValue)
+	{
+		string attrValue = GetAttributeValue(node, attrName);
+		return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToDecimal(attrValue);
+	}
+
+	/// <summary>Returns the value of the named attribute as a 64-bit floating point value, or 0 if the attribute was unspecified or empty.</summary>
+	public static double GetDoubleAttribute(this XmlNode node, string attrName)
+	{
+		return GetDoubleAttribute(node, attrName, 0);
+	}
+
+	/// <summary>Returns the value of the named attribute as a 64-bit floating point value, or the given default
+	/// value if the attribute was unspecified or empty.
+	/// </summary>
+	public static double GetDoubleAttribute(this XmlNode node, string attrName, double defaultValue)
+	{
+		string attrValue = GetAttributeValue(node, attrName);
+		return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToDouble(attrValue);
+	}
+
+	/// <summary>Returns the value of the named attribute as a <see cref="Guid"/>, or <see cref="Guid.Empty" />
+	/// if the attribute was unspecified or empty.
+	/// </summary>
+	public static Guid GetGuidAttribute(this XmlNode node, string attrName)
+	{
+		return GetGuidAttribute(node, attrName, Guid.Empty);
+	}
+
+	/// <summary>Returns the value of the named attribute as a <see cref="Guid"/>, or the given default
+	/// value if the attribute was unspecified or empty.
+	/// </summary>
+	public static Guid GetGuidAttribute(this XmlNode node, string attrName, Guid defaultValue)
+	{
+		string attrValue = GetAttributeValue(node, attrName);
+		return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToGuid(attrValue);
+	}
+
+	/// <summary>Returns the value of the named attribute as a 16-bit signed integer, or 0 if the attribute was unspecified or empty.</summary>
+	public static short GetInt16Attribute(this XmlNode node, string attrName)
+	{
+		return GetInt16Attribute(node, attrName, 0);
+	}
+
+	/// <summary>Returns the value of the named attribute as a 16-bit signed integer, or the given default
+	/// value if the attribute was unspecified or empty.
+	/// </summary>
+	public static short GetInt16Attribute(this XmlNode node, string attrName, short defaultValue)
+	{
+		string attrValue = GetAttributeValue(node, attrName);
+		return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToInt16(attrValue);
+	}
+
+	/// <summary>Returns the value of the named attribute as a 32-bit signed integer, or 0 if the attribute was unspecified or empty.</summary>
+	public static int GetInt32Attribute(this XmlNode node, string attrName)
+	{
+		return GetInt32Attribute(node, attrName, 0);
+	}
+
+	/// <summary>Returns the value of the named attribute as a 32-bit signed integer, or the given default
+	/// value if the attribute was unspecified or empty.
+	/// </summary>
+	public static int GetInt32Attribute(this XmlNode node, string attrName, int defaultValue)
+	{
+		string attrValue = GetAttributeValue(node, attrName);
+		return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToInt32(attrValue);
+	}
+
+	/// <summary>Returns the value of the named attribute as a 64-bit signed integer, or 0 if the attribute was unspecified or empty.</summary>
+	public static long GetInt64Attribute(this XmlNode node, string attrName)
+	{
+		return GetInt64Attribute(node, attrName, 0);
+	}
+
+	/// <summary>Returns the value of the named attribute as a 64-bit signed integer, or the given default
+	/// value if the attribute was unspecified or empty.
+	/// </summary>
+	public static long GetInt64Attribute(this XmlNode node, string attrName, long defaultValue)
+	{
+		string attrValue = GetAttributeValue(node, attrName);
+		return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToInt64(attrValue);
+	}
+
+	/// <summary>Returns the value of the named attribute as an 8-bit signed integer, or 0 if the attribute was unspecified or empty.</summary>
+	public static sbyte GetSByteAttribute(this XmlNode node, string attrName)
+	{
+		return GetSByteAttribute(node, attrName, 0);
+	}
+
+	/// <summary>Returns the value of the named attribute as an 8-bit signed integer, or the given default
+	/// value if the attribute was unspecified or empty.
+	/// </summary>
+	public static sbyte GetSByteAttribute(this XmlNode node, string attrName, sbyte defaultValue)
+	{
+		string attrValue = GetAttributeValue(node, attrName);
+		return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToSByte(attrValue);
+	}
+
+	/// <summary>Returns the value of the named attribute as a 32-bit floating point value, or 0 if the attribute was unspecified or empty.</summary>
+	public static float GetSingleAttribute(this XmlNode node, string attrName)
+	{
+		return GetSingleAttribute(node, attrName, 0); 
+	}
+
+	/// <summary>Returns the value of the named attribute as a 32-bit floating point value, or the given default
+	/// value if the attribute was unspecified or empty.
+	/// </summary>
+	public static float GetSingleAttribute(this XmlNode node, string attrName, float defaultValue)
+	{
+		string attrValue = GetAttributeValue(node, attrName);
+		return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToSingle(attrValue);
+	}
+
+	/// <summary>Returns the value of the named attribute as a string, or the empty string if the attribute was unspecified or empty.</summary>
+	public static string GetStringAttribute(this XmlNode node, string attrName)
+	{
+		return GetStringAttribute(node, attrName, string.Empty);
+	}
+
+	/// <summary>Returns the value of the named attribute as a string, or the given default
+	/// value if the attribute was unspecified or empty.
+	/// </summary>
+	public static string GetStringAttribute(this XmlNode node, string attrName, string defaultValue)
+	{
+		string attrValue = GetAttributeValue(node, attrName);
+		return string.IsNullOrEmpty(attrValue) ? defaultValue : attrValue;
+	}
+
+	/// <summary>Returns the value of the named attribute as a <see cref="TimeSpan"/>, or
+	/// an empty timespan if the attribute was unspecified or empty.
+	/// </summary>
+	public static TimeSpan GetTimeSpanAttribute(this XmlNode node, string attrName)
+	{
+		return GetTimeSpanAttribute(node, attrName, new TimeSpan());
+	}
+
+	/// <summary>Returns the value of the named attribute as a <see cref="TimeSpan"/>, or
+	/// the given default value if the attribute was unspecified or empty.
+	/// </summary>
+	public static TimeSpan GetTimeSpanAttribute(this XmlNode node, string attrName, TimeSpan defaultValue)
+	{
+		string attrValue = GetAttributeValue(node, attrName);
+		return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToTimeSpan(attrValue);
+	}
+
+	/// <summary>Returns the value of the named attribute as a 16-bit unsigned integer, or 0 if the attribute was unspecified or empty.</summary>
+	public static ushort GetUInt16Attribute(this XmlNode node, string attrName)
+	{
+		return GetUInt16Attribute(node, attrName, 0);
+	}
+
+	/// <summary>Returns the value of the named attribute as a 16-bit unsigned integer, or the given default
+	/// value if the attribute was unspecified or empty.
+	/// </summary>
+	public static ushort GetUInt16Attribute(this XmlNode node, string attrName, ushort defaultValue)
+	{
+		string attrValue = GetAttributeValue(node, attrName);
+		return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToUInt16(attrValue);
+	}
+
+	/// <summary>Returns the value of the named attribute as a 32-bit unsigned integer, or 0 if the attribute was unspecified or empty.</summary>
+	public static uint GetUInt32Attribute(this XmlNode node, string attrName)
+	{
+		return GetUInt32Attribute(node, attrName, 0);
+	}
+
+	/// <summary>Returns the value of the named attribute as a 32-bit unsigned integer, or the given default
+	/// value if the attribute was unspecified or empty.
+	/// </summary>
+	public static uint GetUInt32Attribute(this XmlNode node, string attrName, uint defaultValue)
+	{
+		string attrValue = GetAttributeValue(node, attrName);
+		return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToUInt32(attrValue);
+	}
+
+	/// <summary>Returns the value of the named attribute as a 64-bit unsigned integer, or 0 if the attribute was unspecified or empty.</summary>
+	public static ulong GetUInt64Attribute(this XmlNode node, string attrName)
+	{
+		return GetUInt64Attribute(node, attrName, 0);
+	}
+
+	/// <summary>Returns the value of the named attribute as a 64-bit unsigned integer, or the given default
+	/// value if the attribute was unspecified or empty.
+	/// </summary>
+	public static ulong GetUInt64Attribute(this XmlNode node, string attrName, ulong defaultValue)
+	{
+		string attrValue = GetAttributeValue(node, attrName);
+		return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToUInt64(attrValue);
+	}
+
+	/// <summary>Returns the first child node of type <see cref="XmlNodeType.Element"/>, or null if there is no such child node.</summary>
+	public static XmlElement GetFirstChildElement(this XmlNode node)
+	{
+		if(node == null) throw new ArgumentNullException();
+		XmlNode child = node.FirstChild;
+		while(child != null && child.NodeType != XmlNodeType.Element) child = child.NextSibling;
+		return (XmlElement)child;
+	}
+
+	/// <summary>Returns the next sibling node of type <see cref="XmlNodeType.Element"/>, or null if there is no such node.</summary>
+	public static XmlElement GetNextSiblingElement(this XmlNode node)
+	{
+		if(node == null) throw new ArgumentNullException();
+		do node = node.NextSibling; while(node != null && node.NodeType != XmlNodeType.Element);
+		return (XmlElement)node;
+	}
+
+	/// <summary>Returns the previous sibling node of type <see cref="XmlNodeType.Element"/>, or null if there is no such node.</summary>
+	public static XmlElement GetPreviousSiblingElement(this XmlNode node)
+	{
+		if(node == null) throw new ArgumentNullException();
+		do node = node.PreviousSibling; while(node != null && node.NodeType != XmlNodeType.Element);
+		return (XmlElement)node;
+	}
+
+	/// <summary>Returns true if the attribute was unspecified or empty.</summary>
+	public static bool IsAttributeEmpty(XmlAttribute attr)
+	{
+		return attr == null || string.IsNullOrEmpty(attr.Value); 
+	}
+
+	/// <summary>Returns true if the attribute was unspecified or empty.</summary>
+	public static bool IsAttributeEmpty(this XmlNode node, string attrName)
+	{
+		return IsAttributeEmpty(GetAttributeNode(node, attrName));
+	}
+
+	/// <summary>Parses an attribute whose value contains a whitespace-separated list of items into an array of strings containing
+	/// the substrings corresponding to the individual items.
+	/// </summary>
+	public static string[] ParseListAttribute(this XmlNode node, string attrName)
+	{
+		return XmlUtility.ParseList(GetAttributeValue(node, attrName));
+	}
+
+	/// <summary>Parses an attribute whose value contains a whitespace-separated list of items into an array containing the
+	/// corresponding items, using the given converter to convert an item's string representation into its value.
+	/// </summary>
+	public static T[] ParseListAttribute<T>(this XmlNode node, string attrName, Converter<string, T> converter)
+	{
+		return XmlUtility.ParseList(GetAttributeValue(node, attrName), converter);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a boolean,
+	/// or false if the node could not be found or was empty.
+	/// </summary>
+	public static bool SelectBool(this XmlNode node, string xpath)
+	{
+		return SelectBool(node, xpath, false);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a boolean,
+	/// or the given default value if the node could not be found or was empty.
+	/// </summary>
+	public static bool SelectBool(this XmlNode node, string xpath, bool defaultValue)
+	{
+		string stringValue = SelectValue(node, xpath);
+		return string.IsNullOrEmpty(stringValue) ? defaultValue : XmlConvert.ToBoolean(stringValue);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a byte,
+	/// or 0 if the node could not be found or was empty.
+	/// </summary>
+	public static byte SelectByte(this XmlNode node, string xpath)
+	{
+		return SelectByte(node, xpath, 0);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a byte,
+	/// or the given default value if the node could not be found or was empty.
+	/// </summary>
+	public static byte SelectByte(this XmlNode node, string xpath, byte defaultValue)
+	{
+		string stringValue = SelectValue(node, xpath);
+		return string.IsNullOrEmpty(stringValue) ? defaultValue : XmlConvert.ToByte(stringValue);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a character,
+	/// or the nul character if the node could not be found or was empty.
+	/// </summary>
+	public static char SelectChar(this XmlNode node, string xpath)
+	{
+		return SelectChar(node, xpath, '\0');
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a character,
+	/// or the given default value if the node could not be found or was empty.
+	/// </summary>
+	public static char SelectChar(this XmlNode node, string xpath, char defaultValue)
+	{
+		string stringValue = SelectValue(node, xpath);
+		return string.IsNullOrEmpty(stringValue) ? defaultValue : XmlConvert.ToChar(stringValue);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a nullable <see cref="DateTime"/>,
+	/// or null if the node could not be found or was empty.
+	/// </summary>
+	public static DateTime? SelectDateTime(this XmlNode node, string xpath)
+	{
+		return SelectDateTime(node, xpath, null);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a nullable <see cref="DateTime"/>,
+	/// or the given default value if the node could not be found or was empty.
+	/// </summary>
+	public static DateTime? SelectDateTime(this XmlNode node, string xpath, DateTime? defaultValue)
+	{
+		string stringValue = SelectValue(node, xpath);
+		return string.IsNullOrEmpty(stringValue) ?
+			defaultValue : XmlConvert.ToDateTime(stringValue, XmlDateTimeSerializationMode.Unspecified);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a decimal,
+	/// or 0 if the node could not be found or was empty.
+	/// </summary>
+	public static decimal SelectDecimal(this XmlNode node, string xpath)
+	{
+		return SelectDecimal(node, xpath, 0);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a decimal,
+	/// or the given default value if the node could not be found or was empty.
+	/// </summary>
+	public static decimal SelectDecimal(this XmlNode node, string xpath, decimal defaultValue)
+	{
+		string stringValue = SelectValue(node, xpath);
+		return string.IsNullOrEmpty(stringValue) ? defaultValue : XmlConvert.ToDecimal(stringValue);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a 64-bit floating point value,
+	/// or 0 if the node could not be found or was empty.
+	/// </summary>
+	public static double SelectDouble(this XmlNode node, string xpath)
+	{
+		return SelectDouble(node, xpath, 0);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a 64-bit floating point value,
+	/// or the given default value if the node could not be found or was empty.
+	/// </summary>
+	public static double SelectDouble(this XmlNode node, string xpath, double defaultValue)
+	{
+		string stringValue = SelectValue(node, xpath);
+		return string.IsNullOrEmpty(stringValue) ? defaultValue : XmlConvert.ToDouble(stringValue);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a <see cref="Guid"/>,
+	/// or <see cref="Guid.Empty"/> if the node could not be found or was empty.
+	/// </summary>
+	public static Guid SelectGuid(this XmlNode node, string xpath)
+	{
+		return SelectGuid(node, xpath, Guid.Empty);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a <see cref="Guid"/>,
+	/// or the given default value if the node could not be found or was empty.
+	/// </summary>
+	public static Guid SelectGuid(this XmlNode node, string xpath, Guid defaultValue)
+	{
+		string stringValue = SelectValue(node, xpath);
+		return string.IsNullOrEmpty(stringValue) ? defaultValue : XmlConvert.ToGuid(stringValue);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a 16-bit signed integer,
+	/// or 0 if the node could not be found or was empty.
+	/// </summary>
+	public static short SelectInt16(this XmlNode node, string xpath)
+	{
+		return SelectInt16(node, xpath, 0);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a 16-bit signed integer,
+	/// or the given default value if the node could not be found or was empty.
+	/// </summary>
+	public static short SelectInt16(this XmlNode node, string xpath, short defaultValue)
+	{
+		string stringValue = SelectValue(node, xpath);
+		return string.IsNullOrEmpty(stringValue) ? defaultValue : XmlConvert.ToInt16(stringValue);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a 32-bit signed integer,
+	/// or 0 if the node could not be found or was empty.
+	/// </summary>
+	public static int SelectInt32(this XmlNode node, string xpath)
+	{
+		return SelectInt32(node, xpath, 0);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a 32-bit signed integer,
+	/// or the given default value if the node could not be found or was empty.
+	/// </summary>
+	public static int SelectInt32(this XmlNode node, string xpath, int defaultValue)
+	{
+		string stringValue = SelectValue(node, xpath);
+		return string.IsNullOrEmpty(stringValue) ? defaultValue : XmlConvert.ToInt32(stringValue);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a 64-bit signed integer,
+	/// or 0 if the node could not be found or was empty.
+	/// </summary>
+	public static long SelectInt64(this XmlNode node, string xpath)
+	{
+		return SelectInt64(node, xpath, 0);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a 64-bit signed integer,
+	/// or the given default value if the node could not be found or was empty.
+	/// </summary>
+	public static long SelectInt64(this XmlNode node, string xpath, long defaultValue)
+	{
+		string stringValue = SelectValue(node, xpath);
+		return string.IsNullOrEmpty(stringValue) ? defaultValue : XmlConvert.ToInt64(stringValue);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as an 8-bit signed integer,
+	/// or 0 if the node could not be found or was empty.
+	/// </summary>
+	public static sbyte SelectSByte(this XmlNode node, string xpath)
+	{
+		return SelectSByte(node, xpath, 0);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as an 8-bit signed integer,
+	/// or the given default value if the node could not be found or was empty.
+	/// </summary>
+	public static sbyte SelectSByte(this XmlNode node, string xpath, sbyte defaultValue)
+	{
+		string stringValue = SelectValue(node, xpath);
+		return string.IsNullOrEmpty(stringValue) ? defaultValue : XmlConvert.ToSByte(stringValue);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a 32-bit floating point value,
+	/// or 0 if the node could not be found or was empty.
+	/// </summary>
+	public static float SelectSingle(this XmlNode node, string xpath)
+	{
+		return SelectSingle(node, xpath, 0);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a 32-bit floating point value,
+	/// or the given default value if the node could not be found or was empty.
+	/// </summary>
+	public static float SelectSingle(this XmlNode node, string xpath, float defaultValue)
+	{
+		string stringValue = SelectValue(node, xpath);
+		return string.IsNullOrEmpty(stringValue) ? defaultValue : XmlConvert.ToSingle(stringValue);
+	}
+
+	/// <summary>Returns the trimmed inner text of the node selected by the given XPath query,
+	/// or an empty string if the node could not be found.
+	/// </summary>
+	public static string SelectString(this XmlNode node, string xpath)
+	{
+		return SelectString(node, xpath, string.Empty);
+	}
+
+	public static string SelectString(this XmlNode node, string xpath, string defaultValue)
+	{
+		string stringValue = SelectValue(node, xpath);
+		return string.IsNullOrEmpty(stringValue) ? defaultValue : stringValue;
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a <see cref="TimeSpan"/>,
+	/// or an empty timespan if the node could not be found or was empty.
+	/// </summary>
+	public static TimeSpan SelectTimeSpan(this XmlNode node, string xpath)
+	{
+		return SelectTimeSpan(node, xpath, new TimeSpan());
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a <see cref="TimeSpan"/>,
+	/// or the given default value if the node could not be found or was empty.
+	/// </summary>
+	public static TimeSpan SelectTimeSpan(this XmlNode node, string xpath, TimeSpan defaultValue)
+	{
+		string stringValue = SelectValue(node, xpath);
+		return string.IsNullOrEmpty(stringValue) ? defaultValue : XmlConvert.ToTimeSpan(stringValue);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a 16-bit unsigned integer,
+	/// or 0 if the node could not be found or was empty.
+	/// </summary>
+	public static ushort SelectUInt16(this XmlNode node, string xpath)
+	{
+		return SelectUInt16(node, xpath, 0);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a 16-bit unsigned integer,
+	/// or the given default value if the node could not be found or was empty.
+	/// </summary>
+	public static ushort SelectUInt16(this XmlNode node, string xpath, ushort defaultValue)
+	{
+		string stringValue = SelectValue(node, xpath);
+		return string.IsNullOrEmpty(stringValue) ? defaultValue : XmlConvert.ToUInt16(stringValue);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a 32-bit unsigned integer,
+	/// or 0 if the node could not be found or was empty.
+	/// </summary>
+	public static uint SelectUInt32(this XmlNode node, string xpath)
+	{
+		return SelectUInt32(node, xpath, 0);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a 32-bit unsigned integer,
+	/// or the given default value if the node could not be found or was empty.
+	/// </summary>
+	public static uint SelectUInt32(this XmlNode node, string xpath, uint defaultValue)
+	{
+		string stringValue = SelectValue(node, xpath);
+		return string.IsNullOrEmpty(stringValue) ? defaultValue : XmlConvert.ToUInt32(stringValue);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a 64-bit unsigned integer,
+	/// or 0 if the node could not be found or was empty.
+	/// </summary>
+	public static ulong SelectUInt64(this XmlNode node, string xpath)
+	{
+		return SelectUInt64(node, xpath, 0);
+	}
+
+	/// <summary>Returns the inner text of the node selected by the given XPath query as a 64-bit unsigned integer,
+	/// or the given default value if the node could not be found or was empty.
+	/// </summary>
+	public static ulong SelectUInt64(this XmlNode node, string xpath, ulong defaultValue)
+	{
+		string stringValue = SelectValue(node, xpath);
+		return string.IsNullOrEmpty(stringValue) ? defaultValue : XmlConvert.ToUInt64(stringValue);
+	}
+
+	/// <summary>Returns the trimmed inner text of the node selected by the given XPath query,
+	/// or null if the node could not be found.
+	/// </summary>
+	public static string SelectValue(this XmlNode node, string xpath)
+	{
+		return SelectValue(node, xpath, null);
+	}
+
+	/// <summary>Returns the trimmed inner text of the node selected by the given XPath query, or
+	/// the given default value if the node could not be found.
+	/// </summary>
+	public static string SelectValue(this XmlNode node, string xpath, string defaultValue)
+	{
+		if(node == null) return defaultValue;
+		XmlNode selectedNode = node.SelectSingleNode(xpath);
+		return selectedNode == null ? defaultValue : selectedNode.InnerText.Trim();
+	}
+
+	/// <summary>Gets the named <see cref="XmlAttribute"/> from the given node, or null if the node is null.</summary>
+	static XmlAttribute GetAttributeNode(this XmlNode node, string attrName)
+	{
+		return node == null || node.Attributes == null ? null : node.Attributes[attrName];
+	}
 }
+#endregion
+
+#region XmlUtility
+public static class XmlUtility
+{
+	/// <summary>Parses a string containing a whitespace-separated list of items into an array of strings containing the substrings
+	/// corresponding to the individual items.
+	/// </summary>
+	public static string[] ParseList(string listValue)
+	{
+		if(listValue != null) listValue = listValue.Trim();
+		return string.IsNullOrEmpty(listValue) ? new string[0] : split.Split(listValue);
+	}
+
+	/// <summary>Parses a string containing a whitespace-separated list of items into an array containing the corresponding items,
+	/// using the given converter to convert an item's string representation into its value.
+	/// </summary>
+	public static T[] ParseList<T>(string listValue, Converter<string, T> converter)
+	{
+		if(converter == null) throw new ArgumentNullException("converter");
+		if(listValue != null) listValue = listValue.Trim();
+		if(string.IsNullOrEmpty(listValue))
+		{
+			return new T[0];
+		}
+		else
+		{
+			string[] bits = split.Split(listValue);
+			T[] values = new T[bits.Length];
+			for(int i=0; i<values.Length; i++) values[i] = converter(bits[i]);
+			return values;
+		}
+	}
+
+	/// <summary>Encodes the given text for safe insertion into XML elements and attributes. This
+	/// method is not suitable for encoding XML element and attribute names. (To encode names,
+	/// you should use <see cref="XmlConvert.EncodeName"/> or <see cref="XmlConvert.EncodeLocalName"/>.)
+	/// </summary>
+	public static string XmlEncode(string text)
+	{
+		return XmlEncode(text, true);
+	}
+
+	/// <summary>Encodes the given text for safe insertion into XML elements and, if <paramref name="isAttributeText"/> is true,
+	/// attributes. This method is not suitable for encoding XML element and attribute names, but only content. (To encode names,
+	/// you should use <see cref="XmlConvert.EncodeName"/> or <see cref="XmlConvert.EncodeLocalName"/>.)
+	/// </summary>
+	/// <param name="isAttributeText">If true, additional characters (such as quotation marks, apostrophes, tabs, and newlines)
+	/// are encoded as well, allowing safe insertion into XML attributes. If false, the returned text may only be suitable for
+	/// insertion into elements.
+	/// </param>
+	public static string XmlEncode(string text, bool isAttributeText)
+	{
+		// if no characters need encoding, we'll just return the original string, so 'sb' will remain
+		// null until the character needs encoding.
+		StringBuilder sb = null;
+
+		if(text != null) // a null input string will be returned as null
+		{
+			for(int i=0; i<text.Length; i++)
+			{
+				string entity = null;
+				char c = text[i];
+				switch(c)
+				{
+					case '\t': case '\n': case '\r':
+						if(isAttributeText) entity = MakeHexEntity(c);
+						break;
+
+					case '"':
+						if(isAttributeText) entity = "&quot;";
+						break;
+
+					case '\'':
+						if(isAttributeText) entity = "&apos;";
+						break;
+
+					case '&':
+						entity = "&amp;";
+						break;
+
+					case '<':
+						entity = "&lt;";
+						break;
+					
+					case '>':
+						entity = "&gt;";
+						break;
+
+					default:
+						// all non-printable or non-ASCII characters will be encoded, except for those above
+						if(c < 32 || c > 126) entity = MakeHexEntity(c);
+						break;
+				}
+
+				if(entity != null) // if the character needs to be encoded...
+				{
+					if(sb == null) // then initialize the string builder if we haven't already
+					{
+						sb = new StringBuilder(text.Length + 100); // allocate enough room for the text, plus some entities
+						sb.Append(text, 0, i); // add the text so far (which didn't need encoding)
+					}
+					sb.Append(entity); // then add the entity for the current character
+				}
+				else if(sb != null) // the character doesn't need encoding. only add it if a previous character has needed encoding...
+				{
+					sb.Append(c);
+				}
+
+				// TODO: we should perhaps try to deal with unicode surrogates, but i think we can ignore them for now
+			}
+		}
+
+		return sb != null ? sb.ToString() : text;
+	}
+
+	/// <summary>Creates and returns an XML entity containing the character's hex code.</summary>
+	static string MakeHexEntity(char c)
+	{
+		return "&#x" + ((int)c).ToString("X", CultureInfo.InvariantCulture) + ";";
+	}
+
+	static readonly Regex split = new Regex(@"\s+", RegexOptions.Singleline);
+}
+#endregion
 
 } // namespace AdamMil.IO
