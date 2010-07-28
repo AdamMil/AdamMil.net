@@ -1,3 +1,23 @@
+/*
+AdamMil.Collections is a library that provides useful collection classes for
+the .NET framework.
+
+http://www.adammil.net/
+Copyright (C) 2007-2010 Adam Milazzo
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+*/
+
 using System;
 using System.Collections.Generic;
 
@@ -5,7 +25,7 @@ namespace AdamMil.Collections
 {
 
 #region ReadOnlyCollectionWrapper
-/// <summary>Represents a read-only wrapper around a list.</summary>
+/// <summary>Represents a read-only wrapper around a collection.</summary>
 public sealed class ReadOnlyCollectionWrapper<T> : IReadOnlyCollection<T>, ICollection<T>
 {
   /// <summary>Initializes a new <see cref="ReadOnlyCollectionWrapper{T}"/> around the given collection.</summary>
@@ -97,6 +117,88 @@ public sealed class ReadOnlyCollectionWrapper<T> : IReadOnlyCollection<T>, IColl
     throw new NotSupportedException("This collection is read-only.");
   }
   #endregion
+}
+#endregion
+
+#region ReadOnlyDictionaryWrapper
+/// <summary>Represents a read-only wrapper around a dictionary.</summary>
+public sealed class ReadOnlyDictionaryWrapper<K, V> : IReadOnlyDictionary<K, V>
+{
+  /// <summary>Initializes this <see cref="ReadOnlyDictionaryWrapper"/> with the given dictionary.</summary>
+  public ReadOnlyDictionaryWrapper(IDictionary<K, V> dictionary)
+  {
+    if(dictionary == null) throw new ArgumentNullException();
+    this.dictionary = dictionary;
+    Keys   = new ReadOnlyCollectionWrapper<K>(dictionary.Keys);
+    Values = new ReadOnlyCollectionWrapper<V>(dictionary.Values);
+  }
+
+  #region IReadOnlyDictionary<K,V> Members
+  public V this[K key]
+  {
+    get { return dictionary[key]; }
+  }
+
+  public IReadOnlyCollection<K> Keys
+  {
+    get; private set;
+  }
+
+  public IReadOnlyCollection<V> Values
+  {
+    get; private set;
+  }
+
+  public bool ContainsKey(K key)
+  {
+    return dictionary.ContainsKey(key);
+  }
+
+  public bool TryGetValue(K key, out V value)
+  {
+    return dictionary.TryGetValue(key, out value);
+  }
+  #endregion
+
+  #region IReadOnlyCollection<KeyValuePair<K,V>> Members
+  public int Count
+  {
+    get { return dictionary.Count; }
+  }
+
+  public bool Contains(KeyValuePair<K, V> item)
+  {
+    return dictionary.Contains(item);
+  }
+
+  public void CopyTo(KeyValuePair<K, V>[] array, int arrayIndex)
+  {
+    dictionary.CopyTo(array, arrayIndex);
+  }
+
+  public KeyValuePair<K, V>[] ToArray()
+  {
+    KeyValuePair<K, V>[] array = new KeyValuePair<K, V>[dictionary.Count];
+    dictionary.CopyTo(array, 0);
+    return array;
+  }
+  #endregion
+
+  #region IEnumerable<KeyValuePair<K,V>> Members
+  public IEnumerator<KeyValuePair<K, V>> GetEnumerator()
+  {
+    return dictionary.GetEnumerator();
+  }
+  #endregion
+
+  #region IEnumerable Members
+  System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+  {
+    return ((System.Collections.IEnumerable)dictionary).GetEnumerator();
+  }
+  #endregion
+
+  readonly IDictionary<K, V> dictionary;
 }
 #endregion
 

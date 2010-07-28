@@ -3,7 +3,7 @@ AdamMil.IO is a library that provides high performance and high level IO
 tools for the .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2007-2009 Adam Milazzo
+Copyright (C) 2007-2010 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License

@@ -1,4 +1,24 @@
-﻿using System;
+﻿/*
+AdamMil.Collections is a library that provides useful collection classes for
+the .NET framework.
+
+http://www.adammil.net/
+Copyright (C) 2007-2010 Adam Milazzo
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+*/
+
+using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using AdamMil.Mathematics.Matrices;
@@ -308,7 +328,7 @@ public static class Math2D
   public static bool Contains(ref Circle circle, Polygon poly)
   {
     // a circle contains a polygon if it contains all the polygon's vertices
-    for(int i=poly.Length-1; i>=0; i--)
+    for(int i=poly.PointCount-1; i>=0; i--)
     {
       Point point = poly[i];
       if(!Contains(ref circle, ref point)) return false;
@@ -360,7 +380,7 @@ public static class Math2D
   public static bool Contains(ref Rectangle rect, Polygon poly)
   {
     // a rectangle contains a polygon if it contains all the polygon's vertices
-    for(int i=poly.Length-1; i>=0; i--)
+    for(int i=poly.PointCount-1; i>=0; i--)
     {
       Point point = poly[i];
       if(!Contains(ref rect, ref point)) return false;
@@ -374,11 +394,11 @@ public static class Math2D
     // a convex polygon contains a circle if it contains the center point and the distance from the circle's center to
     // each bounding line is greater than or equal to the circle's radius.
 
-    if(convexPoly.Length < 3) return false; // degenerate polygons don't contain anything, we'll say.
+    if(convexPoly.PointCount < 3) return false; // degenerate polygons don't contain anything, we'll say.
 
     if(!Contains(convexPoly, ref circle.Center)) return false;
 
-    for(int i=convexPoly.Length; i>=0; i--)
+    for(int i=convexPoly.PointCount; i>=0; i--)
     {
       Line edge = convexPoly.GetEdge(i);
       // see Intersects(Circle, Line) for the explanation of the following
@@ -393,7 +413,7 @@ public static class Math2D
   public static bool Contains(Polygon convexPoly, ref Line line)
   {
     // a convex polygon contains a line segment if it contains both endpoints
-    if(convexPoly.Length < 3) return false; // degenerate polygons don't contain anything, we'll say.
+    if(convexPoly.PointCount < 3) return false; // degenerate polygons don't contain anything, we'll say.
     if(Contains(convexPoly, ref line.Start))
     {
       Point end = line.End;
@@ -416,10 +436,10 @@ public static class Math2D
     // clockwise or counter-clockwise, but if the point is contained, it will consistently be on the same side of each
     // line. if it's not contained, it will not be on the same side of each line.
 
-    if(convexPoly.Length < 3) return false; // degenerate polygons don't contain anything, we'll say.
+    if(convexPoly.PointCount < 3) return false; // degenerate polygons don't contain anything, we'll say.
 
     bool pos=false, neg=false; // these variables track which sides of the lines we've seen the point on.
-    for(int i=convexPoly.Length-1; i>=0; i--)
+    for(int i=convexPoly.PointCount-1; i>=0; i--)
     {
       double side = convexPoly.GetEdge(i).WhichSide(point);
       if(side<0) // it was on the negative side.
@@ -442,7 +462,7 @@ public static class Math2D
   public static bool Contains(Polygon convexPoly, ref Rectangle rect)
   {
     // a convex polygon contains a rectangle if it contains each corner
-    if(convexPoly.Length < 3) return false; // degenerate polygons don't contain anything, we'll say.
+    if(convexPoly.PointCount < 3) return false; // degenerate polygons don't contain anything, we'll say.
 
     Point point = rect.TopLeft;
     if(!Contains(convexPoly, ref point)) return false;
@@ -458,9 +478,9 @@ public static class Math2D
   public static bool Contains(Polygon convexPoly, Polygon poly)
   {
     // a convex polygon contains another polygon if it contains all the polygon's vertices.
-    if(convexPoly.Length < 3) return false; // degenerate polygons don't contain anything, we'll say.
+    if(convexPoly.PointCount < 3) return false; // degenerate polygons don't contain anything, we'll say.
 
-    for(int i=poly.Length-1; i>=0; i--)
+    for(int i=poly.PointCount-1; i>=0; i--)
     {
       Point point = poly[i];
       if(!Contains(convexPoly, ref point)) return false;
@@ -555,7 +575,7 @@ public static class Math2D
 
     if(Contains(poly, ref circle.Center)) return true;
 
-    for(int i=poly.Length-1; i>=0; i--)
+    for(int i=poly.PointCount-1; i>=0; i--)
     {
       Line edge = poly.GetEdge(i);
       if(SegmentIntersects(ref circle, ref edge)) return true;
@@ -627,7 +647,7 @@ public static class Math2D
   public static bool Intersects(ref Line line, Polygon poly)
   {
     // a line intersects a polygon if it intersects any of the polygon's edges
-    for(int i=poly.Length-1; i>=0; i--)
+    for(int i=poly.PointCount-1; i>=0; i--)
     {
       Line edge = poly.GetEdge(i);
       if(IntersectionInfo(ref line, ref edge).OnSecond) return true;
@@ -643,7 +663,7 @@ public static class Math2D
     // we only need to check one point to test for intersection
     if(Contains(convexPoly, ref segment.Start)) return true;
 
-    for(int i=convexPoly.Length-1; i>=0; i--) // the polygon doesn't fully contain the segment, so test the edges
+    for(int i=convexPoly.PointCount-1; i>=0; i--) // the polygon doesn't fully contain the segment, so test the edges
     {
       Line edge = convexPoly.GetEdge(i);
       if(SegmentIntersects(ref segment, ref edge)) return true;
@@ -665,7 +685,7 @@ public static class Math2D
     // a rectangle intersects a convex polygon if all corners of either object are contained within the other, or any
     // edge of either object intersect any edge of the other object.
 
-    if(convexPoly.Length == 0) return false;
+    if(convexPoly.PointCount == 0) return false;
 
     // if one point of either is inside the other, there's intersection.
     Point point = convexPoly[0];
@@ -691,7 +711,7 @@ public static class Math2D
     Point point = convexA[0];
     if(Contains(convexB, ref point)) return true;
 
-    for(int i=convexA.Length-1; i>=0; i--) // if it's not fully contained, then at least one edge must intersect
+    for(int i=convexA.PointCount-1; i>=0; i--) // if it's not fully contained, then at least one edge must intersect
     {
       Line edge = convexA.GetEdge(i);
       if(SegmentIntersects(ref edge, convexB)) return true;
@@ -784,7 +804,7 @@ public static class Math2D
     int pointIndex = 0;
 
     // test the intersection of the line with each edge, or until we find two intersection points
-    for(int i=convexPoly.Length; i>=0 && pointIndex<2; i--)
+    for(int i=convexPoly.PointCount; i>=0 && pointIndex<2; i--)
     {
       Line edge = convexPoly.GetEdge(i);
       LineIntersection info = IntersectionInfo(ref line, ref edge);
@@ -917,7 +937,7 @@ public static class Math2D
     int sign = convexPoly.IsClockwise() ? 1 : -1; // determine which side of the bounding lines is "outside"
 
     // for each polygon bounding line, clip the endpoints of the segment that lie "outside" the line to the line.
-    for(int i=convexPoly.Length; i>=0; i--)
+    for(int i=convexPoly.PointCount; i>=0; i--)
     {
       Line edge = convexPoly.GetEdge(i);
       bool startOutside = Math.Sign(edge.WhichSide(start)) == sign, // determine whether either of the endpoints are
@@ -2087,7 +2107,7 @@ public sealed class Polygon : ICloneable, ISerializable
   /// <param name="index">The index at which to begin copying.</param>
   public void CopyTo(Point[] array, int index) { Array.Copy(points, 0, array, index, length); }
   /// <summary>Gets the number of points in the polygon.</summary>
-  public int Length { get { return length; } }
+  public int PointCount { get { return length; } }
 
   #region ICloneable Members
   /// <summary>Returns a clone of this polygon.</summary>
@@ -2486,8 +2506,8 @@ public sealed class Polygon : ICloneable, ISerializable
               int edge = ci-1+ei;
               for(int sei=0; sei<poly.length; sei++) // test the edge with the intersection of every other edge
               {
-                if(edge==sei || edge==sei-1 || (sei==0 && edge==poly.Length-1)) continue; // don't try to intersect adjacent edges
-                else if(edge == 0 && sei == poly.Length-1) break;
+                if(edge==sei || edge==sei-1 || (sei==0 && edge==poly.PointCount-1)) continue; // don't try to intersect adjacent edges
+                else if(edge == 0 && sei == poly.PointCount-1) break;
                 LineIntersection lint = toExtend.GetIntersectionInfo(poly.GetEdge(sei));
                 // we don't want any points that are on the edge being extended (because it wouldn't be an extension)
                 // and we want to make sure the other point is actually on the line segment

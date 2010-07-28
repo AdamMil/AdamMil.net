@@ -1,3 +1,23 @@
+/*
+AdamMil.Collections is a library that provides useful collection classes for
+the .NET framework.
+
+http://www.adammil.net/
+Copyright (C) 2007-2010 Adam Milazzo
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+*/
+
 using System;
 using System.Collections.Generic;
 
@@ -42,6 +62,24 @@ public interface IReadOnlyList<T> : IReadOnlyCollection<T>
   /// the item could not be found.
   /// </summary>
   int IndexOf(T item);
+}
+
+/// <summary>An interface representing a dictionary that does not support being changed.</summary>
+public interface IReadOnlyDictionary<K, V> : IReadOnlyCollection<KeyValuePair<K, V>>
+{
+  /// <summary>Gets the value corresponding to the given key.</summary>
+  V this[K key] { get; }
+  /// <summary>Gets a collection containing the keys in this dictionary.</summary>
+  IReadOnlyCollection<K> Keys { get; }
+  /// <summary>Gets a collection containing the values in this dictionary.</summary>
+  IReadOnlyCollection<V> Values { get; }
+  /// <summary>Determines whether the dictionary contains the given key.</summary>
+  bool ContainsKey(K key);
+  /// <summary>Attempts to retrieve the value for the given key. If the value could be retrieved, it is placed in
+  /// <paramref name="value"/> and true is return. Otherwise, <paramref name="value"/> is set to the default value for
+  /// its type and false is returned.
+  /// </summary>
+  bool TryGetValue(K key, out V value);
 }
 
 } // namespace AdamMil.Collections
