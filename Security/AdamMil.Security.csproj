@@ -57,6 +57,7 @@
     <Compile Include="Exceptions.cs" />
     <Compile Include="GPG.cs" />
     <Compile Include="GPGMessages.cs" />
+    <Compile Include="Impersonation.cs" />
     <Compile Include="Options.cs" />
     <Compile Include="PGPSystem.cs" />
     <Compile Include="Keys.cs" />
@@ -80,6 +81,10 @@
     <ProjectReference Include="..\IO\AdamMil.IO.csproj">
       <Project>{CEB9BC77-B63F-40A1-BEDE-7C32E9B90D55}</Project>
       <Name>AdamMil.IO</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Utilities\AdamMil.Utilities.csproj">
+      <Project>{29134637-6D08-432C-8161-9DEEE13C955D}</Project>
+      <Name>AdamMil.Utilities</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

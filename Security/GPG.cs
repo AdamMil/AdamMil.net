@@ -1,7 +1,7 @@
 /*
 AdamMil.Security is a .NET library providing OpenPGP-based security.
 http://www.adammil.net/
-Copyright (C) 2008 Adam Milazzo
+Copyright (C) 2008-2010 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -24,11 +24,12 @@ using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using Microsoft.Win32.SafeHandles;
 using AdamMil.Collections;
 using AdamMil.IO;
 using AdamMil.Security.PGP.GPG.StatusMessages;
-using SecureString = System.Security.SecureString;
+using AdamMil.Utilities;
+using Microsoft.Win32.SafeHandles;
+using SecureString=System.Security.SecureString;
 
 namespace AdamMil.Security.PGP.GPG
 {
@@ -1744,17 +1745,8 @@ public class ExeGPG : GPG
     {
       if(!disposed)
       {
-        if(commandStream != null)
-        {
-          commandStream.Dispose();
-          commandStream = null;
-        }
-
-        if(commandPipe != null)
-        {
-          commandPipe.Dispose(); // and destroy the pipe
-          commandPipe = null;
-        }
+        Utility.Dispose(ref commandStream);
+        Utility.Dispose(ref commandPipe);
 
         if(process != null) Exit(process);
 

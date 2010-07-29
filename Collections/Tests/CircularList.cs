@@ -122,20 +122,20 @@ public class CircularListTest
     circ.Insert(0, oneToTen, 0, oneToTen.Length);
     int[] firstFive = new int[5];
     circ.RemoveFirst(firstFive, 0, 5);
-    CollectionHelpers.ArrayEquals(firstFive, 1, 2, 3, 4, 5);
+    TestHelpers.AssertArrayEquals(firstFive, 1, 2, 3, 4, 5);
     Compare(circ, 6, 7, 8, 9, 10);
 
     // test CopyTo
     Array.Clear(firstFive, 0, firstFive.Length);
     circ.CopyTo(firstFive, 0);
-    CollectionHelpers.ArrayEquals(firstFive, 6, 7, 8, 9, 10);
+    TestHelpers.AssertArrayEquals(firstFive, 6, 7, 8, 9, 10);
 
     // test RemoveLast(T[])
     circ.Clear();
     circ.Insert(0, oneToTen, 0, oneToTen.Length);
     int[] lastFive = new int[5];
     circ.RemoveLast(lastFive, 0, 5);
-    CollectionHelpers.ArrayEquals(lastFive, 6, 7, 8, 9, 10);
+    TestHelpers.AssertArrayEquals(lastFive, 6, 7, 8, 9, 10);
     Compare(circ, 1, 2, 3, 4, 5);
 
     // test RemoveRange()
@@ -190,7 +190,7 @@ public class CircularListTest
     // test CopyTo(int, T[])
     int[] dest = new int[8];
     circ.CopyTo(1, dest, 0, 8);
-    CollectionHelpers.ArrayEquals(dest, 2, 3, 4, 5, 6, 7, 8, 9);
+    TestHelpers.AssertArrayEquals(dest, 2, 3, 4, 5, 6, 7, 8, 9);
 
     // test the GetEnumerable
     list.Clear();
@@ -291,7 +291,7 @@ public class CircularListTest
     circ.RemoveFirst(8);
     circ.AddRange(oneToTen, 0, 5);
     circ.CopyTo(0, firstFive, 0, 5);
-    CollectionHelpers.ArrayEquals(firstFive, 9, 10, 1, 2, 3);
+    TestHelpers.AssertArrayEquals(firstFive, 9, 10, 1, 2, 3);
 
     // test IQueue<T> interface
     circ.Clear();

@@ -1,9 +1,9 @@
 /*
-AdamMil.IO is a library that provides high performance and high level IO
-tools for the .NET framework.
+AdamMil.Utilities is a library providing generally useful utilities for
+.NET devplopment.
 
 http://www.adammil.net/
-Copyright (C) 2007-2010 Adam Milazzo
+Copyright (C) 2010 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -24,7 +24,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
 
-namespace AdamMil.IO
+namespace AdamMil.Utilities
 {
 
 #region XmlNodeExtensions
@@ -808,4 +808,4 @@ public static class XmlUtility
 }
 #endregion
 
-} // namespace AdamMil.IO
+} // namespace AdamMil.Utilities

@@ -31,6 +31,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UI.Tests", "UI\Tests\UI.Tes
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AdamMil.UI.Sample", "UI\Sample\AdamMil.UI.Sample.csproj", "{56F2A5F8-01F4-4AA7-87BA-A7C6F3128CE9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AdamMil.Utilities", "Utilities\AdamMil.Utilities.csproj", "{29134637-6D08-432C-8161-9DEEE13C955D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Utilities.Tests", "Utilities\Tests\Utilities.Tests.csproj", "{49375935-95C1-46FE-AD47-3E366E428C5F}"
+EndProject
 Global
 	GlobalSection(SubversionScc) = preSolution
 		Svn-Managed = True
@@ -101,6 +105,14 @@ Global
 		{56F2A5F8-01F4-4AA7-87BA-A7C6F3128CE9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{56F2A5F8-01F4-4AA7-87BA-A7C6F3128CE9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{56F2A5F8-01F4-4AA7-87BA-A7C6F3128CE9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{29134637-6D08-432C-8161-9DEEE13C955D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{29134637-6D08-432C-8161-9DEEE13C955D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{29134637-6D08-432C-8161-9DEEE13C955D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{29134637-6D08-432C-8161-9DEEE13C955D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{49375935-95C1-46FE-AD47-3E366E428C5F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{49375935-95C1-46FE-AD47-3E366E428C5F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{49375935-95C1-46FE-AD47-3E366E428C5F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{49375935-95C1-46FE-AD47-3E366E428C5F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
