@@ -1,12 +1,24 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
 
 namespace AdamMil.Tests
 {
 
-public static class CollectionHelpers
+public static class TestHelpers
 {
+  public static void AssertArrayEquals<T>(T[] expected, params T[] actual)
+  {
+    if(expected == null && actual == null) return;
+    if(expected == null || actual == null) throw new ArgumentNullException();
+    Assert.AreEqual(expected.Length, actual.Length);
+    for(int i=0; i<expected.Length; i++)
+    {
+      Assert.AreEqual(actual[i], expected[i]);
+    }
+  }
+
   public static void ArrayEquals<T>(T[] a, params T[] b)
   {
     if(a == null && b == null) return;
@@ -18,18 +30,25 @@ public static class CollectionHelpers
     }
   }
 
-  public static T[] ToArray<T>(ICollection<T> collection)
+  public static void AssertPropertyEquals(string propertyName, object expected, object actual)
   {
-    if(collection == null) throw new ArgumentNullException();
-    T[] array = new T[collection.Count];
-    collection.CopyTo(array, 0);
-    return array;
+    object expectedValue = GetPropertyValue(expected, propertyName), actualValue = GetPropertyValue(actual, propertyName);
+    Assert.AreEqual(expectedValue, actualValue, "Expected property " + propertyName + " to be equal for " +
+		                expected + " and " + actual);
   }
-}
 
-public static class TestHelpers
-{
-  public delegate void CodeBlock();
+  static object GetPropertyValue(object obj, string propertyName)
+  {
+    Type type = obj.GetType();
+
+    PropertyInfo property = type.GetProperty(propertyName, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+    if(property != null) return property.GetValue(obj, null);
+
+    FieldInfo field = type.GetField(propertyName, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+    if(field != null) return field.GetValue(obj);
+
+    throw new ArgumentException("Expected " + obj.ToString() + " to have a property or field called \"" + propertyName + "\".");
+  }
 
   public static void TestEnumerator<T>(ICollection<T> collection)
   {
@@ -68,7 +87,7 @@ public static class TestHelpers
     collection.Clear();
   }
 
-  public static void TestException<T>(CodeBlock block) where T : Exception
+  public static void TestException<T>(Action block) where T : Exception
   {
     bool threw = false;
     try { block(); }

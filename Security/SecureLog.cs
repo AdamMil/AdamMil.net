@@ -340,8 +340,8 @@ public abstract class SecureLog
 #endregion
 
 #region SecureFileLog
-/*/// <summary>Represents a log to files on disk. The log supports </summary>
-public class SecureFileLog : SecureLog
+/// <summary>Represents a log to files on disk. The log supports </summary>
+/*public class SecureFileLog : SecureLog
 {
 }*/
 #endregion

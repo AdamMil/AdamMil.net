@@ -1,7 +1,7 @@
 /*
 AdamMil.Security.UI is a .NET library providing common user interface widgets
 for OpenPGP-based software.
-Copyright (C) 2008 Adam Milazzo (http://www.adammil.net/)
+Copyright (C) 2008-2010 Adam Milazzo (http://www.adammil.net/)
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -510,7 +510,7 @@ public static class PGPUI
   }
 
   /// <summary>Matches the local portion of an email (the portion before the @ sign).</summary>
-  static readonly Regex emailLocalRe = new Regex(@"^[\w\d!#$%/?|^{}`~&'+=-]+(?:\.[\w\d!#$%/?|^{}`~&'+=-])*$",
+  static readonly Regex emailLocalRe = new Regex(@"^[\w\d\.!#$%/?|^{}`~&'+=-]+(?:\.[\w\d\.!#$%/?|^{}`~&'+=-])*$",
                                                  RegexOptions.ECMAScript);
   /// <summary>Matches an email domain name (the portion of an email address after the @ sign).</summary>
   static readonly Regex domainRe = new Regex(@"^(?:[a-zA-Z\d]+(?:[\.\-][a-zA-Z\d]+)*|\[\d{1,3}(?:\.\d{1,3}){3}])$",

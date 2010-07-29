@@ -38,7 +38,7 @@ public class PipeTest
       }
 
       Assert.AreEqual(index, readBuffer.Length);
-      CollectionHelpers.ArrayEquals(writeBuffer, readBuffer);
+      TestHelpers.AssertArrayEquals(writeBuffer, readBuffer);
 
 
       Array.Clear(readBuffer, 0, readBuffer.Length);
@@ -53,7 +53,7 @@ public class PipeTest
       }
 
       Assert.AreEqual(index, readBuffer.Length);
-      CollectionHelpers.ArrayEquals(writeBuffer, readBuffer);
+      TestHelpers.AssertArrayEquals(writeBuffer, readBuffer);
     }
   }
 }
