@@ -1,6 +1,6 @@
 /*
 AdamMil.Utilities is a library providing generally useful utilities for
-.NET devplopment.
+.NET development.
 
 http://www.adammil.net/
 Copyright (C) 2010 Adam Milazzo
