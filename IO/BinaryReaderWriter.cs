@@ -22,6 +22,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using AdamMil.Utilities;
 
 namespace AdamMil.IO
 {
@@ -266,7 +267,7 @@ public abstract class BinaryReaderWriterBase : PinnedBuffer
 
   internal BinaryReaderWriterBase(byte[] array, int index, int length, bool littleEndian) : base(array)
   {
-    if(index < 0 || length < 0 || index+length > array.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(array, index, length);
     this.littleEndian   = littleEndian;
     this.externalBuffer = true;
   }
@@ -658,8 +659,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// <summary>Reads a number of two-byte characters from the stream.</summary>
   public void ReadByte(byte[] array, int index, int count)
   {
-    if(array == null) throw new ArgumentNullException();
-    if(index < 0 || index+count > array.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(array, index, count);
     fixed(byte* ptr=array) Read(ptr, count);
   }
 
@@ -675,8 +675,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// <summary>Reads a number of two-byte characters from the stream.</summary>
   public void ReadChar(char[] array, int index, int count)
   {
-    if(array == null) throw new ArgumentNullException();
-    if(index < 0 || index+count > array.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(array, index, count);
     fixed(char* ptr=array) ReadChar(ptr+index, count);
   }
 
@@ -697,8 +696,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// <summary>Reads an array of signed two-byte integers from the stream.</summary>
   public void ReadInt16(short[] array, int index, int count)
   {
-    if(array == null) throw new ArgumentNullException();
-    if(index < 0 || index+count > array.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(array, index, count);
     fixed(short* ptr=array) ReadInt16(ptr+index, count);
   }
 
@@ -719,8 +717,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// <summary>Reads an array of unsigned two-byte integers from the stream.</summary>
   public void ReadUInt16(ushort[] array, int index, int count)
   {
-    if(array == null) throw new ArgumentNullException();
-    if(index < 0 || index+count > array.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(array, index, count);
     fixed(ushort* ptr=array) ReadUInt16(ptr+index, count);
   }
 
@@ -743,8 +740,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// <summary>Reads an array of signed four-byte integers from the stream.</summary>
   public void ReadInt32(int[] array, int index, int count)
   {
-    if(array == null) throw new ArgumentNullException();
-    if(index < 0 || index+count > array.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(array, index, count);
     fixed(int* ptr=array) ReadInt32(ptr+index, count);
   }
 
@@ -765,8 +761,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// <summary>Reads an array of unsigned four-byte integers from the stream.</summary>
   public void ReadUInt32(uint[] array, int index, int count)
   {
-    if(array == null) throw new ArgumentNullException();
-    if(index < 0 || index+count > array.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(array, index, count);
     fixed(uint* ptr=array) ReadUInt32(ptr+index, count);
   }
 
@@ -789,8 +784,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// <summary>Reads an array of signed eight-byte integers from the stream.</summary>
   public void ReadInt64(long[] array, int index, int count)
   {
-    if(array == null) throw new ArgumentNullException();
-    if(index < 0 || index+count > array.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(array, index, count);
     fixed(long* ptr=array) ReadInt64(ptr+index, count);
   }
 
@@ -811,8 +805,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// <summary>Reads an array of unsigned eight-byte integers from the stream.</summary>
   public void ReadUInt64(ulong[] array, int index, int count)
   {
-    if(array == null) throw new ArgumentNullException();
-    if(index < 0 || index+count > array.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(array, index, count);
     fixed(ulong* ptr=array) ReadUInt64(ptr+index, count);
   }
 
@@ -835,8 +828,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// <summary>Reads an array of four-byte floats from the stream.</summary>
   public void ReadSingle(float[] array, int index, int count)
   {
-    if(array == null) throw new ArgumentNullException();
-    if(index < 0 || index+count > array.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(array, index, count);
     fixed(float* ptr=array) ReadSingle(ptr+index, count);
   }
 
@@ -858,8 +850,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// <summary>Reads an array of eight-byte floats from the stream.</summary>
   public void ReadDouble(double[] array, int index, int count)
   {
-    if(array == null) throw new ArgumentNullException();
-    if(index < 0 || index+count > array.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(array, index, count);
     fixed(double* ptr=array) ReadDouble(ptr+index, count);
   }
 
@@ -1291,8 +1282,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// <summary>Writes an array of bytes to the stream.</summary>
   public void Write(byte[] data, int index, int count)
   {
-    if(data == null) throw new ArgumentNullException();
-    if(index < 0 || index+count > data.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(data, index, count);
     fixed(byte* ptr=data) Write(ptr+index, count);
   }
 
@@ -1313,8 +1303,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// <summary>Writes an array of two-byte characters to the stream.</summary>
   public void Write(char[] data, int index, int count)
   {
-    if(data == null) throw new ArgumentNullException();
-    if(index < 0 || index+count > data.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(data, index, count);
     fixed(char* ptr=data) Write(ptr+index, count);
   }
 
@@ -1334,8 +1323,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// <summary>Writes an array of signed two-byte integers to the stream.</summary>
   public void Write(short[] data, int index, int count)
   {
-    if(data == null) throw new ArgumentNullException();
-    if(index < 0 || index+count > data.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(data, index, count);
     fixed(short* ptr=data) Write(ptr+index, count);
   }
 
@@ -1355,8 +1343,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// <summary>Writes an array of unsigned two-byte integers to the stream.</summary>
   public void Write(ushort[] data, int index, int count)
   {
-    if(data == null) throw new ArgumentNullException();
-    if(index < 0 || index+count > data.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(data, index, count);
     fixed(ushort* ptr=data) Write(ptr+index, count);
   }
 
@@ -1377,8 +1364,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// <summary>Writes an array of signed four-byte integers to the stream.</summary>
   public void Write(int[] data, int index, int count)
   {
-    if(data == null) throw new ArgumentNullException();
-    if(index < 0 || index+count > data.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(data, index, count);
     fixed(int* ptr=data) Write(ptr+index, count);
   }
 
@@ -1398,8 +1384,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// <summary>Writes an array of unsigned four-byte integers to the stream.</summary>
   public void Write(uint[] data, int index, int count)
   {
-    if(data == null) throw new ArgumentNullException();
-    if(index < 0 || index+count > data.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(data, index, count);
     fixed(uint* ptr=data) Write(ptr+index, count);
   }
 
@@ -1420,8 +1405,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// <summary>Writes an array of signed eight-byte integers to the stream.</summary>
   public void Write(long[] data, int index, int count)
   {
-    if(data == null) throw new ArgumentNullException();
-    if(index < 0 || index+count > data.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(data, index, count);
     fixed(long* ptr=data) Write(ptr+index, count);
   }
 
@@ -1441,8 +1425,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// <summary>Writes an array of unsigned eight-byte integers to the stream.</summary>
   public void Write(ulong[] data, int index, int count)
   {
-    if(data == null) throw new ArgumentNullException();
-    if(index < 0 || index+count > data.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(data, index, count);
     fixed(ulong* ptr=data) Write(ptr+index, count);
   }
 
@@ -1463,8 +1446,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// <summary>Writes an array of four-byte floats to the stream.</summary>
   public void Write(float[] data, int index, int count)
   {
-    if(data == null) throw new ArgumentNullException();
-    if(index < 0 || index+count > data.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(data, index, count);
     fixed(float* ptr=data) Write(ptr+index, count);
   }
 
@@ -1485,8 +1467,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// <summary>Writes an array of eight-byte floats to the stream.</summary>
   public void Write(double[] data, int index, int count)
   {
-    if(data == null) throw new ArgumentNullException();
-    if(index < 0 || index+count > data.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(data, index, count);
     fixed(double* ptr=data) Write(ptr+index, count);
   }
 

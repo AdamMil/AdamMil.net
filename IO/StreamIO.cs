@@ -20,81 +20,60 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 using System;
 using System.IO;
+using AdamMil.Utilities;
 
 namespace AdamMil.IO
 {
 
-/// <summary>This delegate is used by the <see cref="IOH.ProcessStream"/> method to process a stream in chunks. It is
-/// given a chunk of data to process and returns true if processing should continue or false if it should stop.
+/// <summary>This delegate is used by the <see cref="StreamExtensions.ProcessStream"/> method to process a stream in chunks.
+/// It is given a chunk of data to process and returns true if processing should continue or false if it should stop.
 /// </summary>
 /// <param name="buffer">The buffer containing the chunk of data.</param>
 /// <param name="dataLength">The number of bytes in the buffer.</param>
 /// <returns>Returns true if processing should continue or false if it should stop.</returns>
 public delegate bool StreamProcessor(byte[] buffer, int dataLength);
 
-#region IOH
+#region StreamExtensions
 /// <summary>This class provides methods and extension methods for reading and writing numeric and string values
 /// from/to streams with little or big endianness.
 /// </summary>
-public unsafe static partial class IOH
+public unsafe static partial class StreamExtensions
 {
-  #region CopyStream
   /// <summary>Copies a source stream into a destination stream and returns the number of bytes copied. The streams
   /// are not rewound or disposed.
   /// </summary>
-  public static int CopyStream(this Stream source, Stream dest) { return CopyStream(source, dest, false, false, 0); }
-
-  /// <summary>Copies a source stream into a destination stream and returns the number of bytes copied. The streams
-  /// are not rewound.
-  /// </summary>
-  public static int CopyStream(Stream source, Stream dest, bool disposeStreams)
-  {
-    return CopyStream(source, dest, disposeStreams, false, 0);
-  }
+  public static int CopyTo(this Stream source, Stream dest) { return CopyTo(source, dest, false, 0); }
 
   /// <summary>Copies a source stream into a destination stream and returns the number of bytes copied.</summary>
-  public static int CopyStream(Stream source, Stream dest, bool disposeStreams, bool rewindSource)
+  public static int CopyTo(this Stream source, Stream dest, bool rewindSource)
   {
-    return CopyStream(source, dest, disposeStreams, rewindSource, 0);
+    return CopyTo(source, dest, rewindSource, 0);
   }
 
   /// <summary>Copies a source stream into a destination stream and returns the number of bytes copied.</summary>
   /// <param name="source">The stream from which the source data will be copied.</param>
   /// <param name="dest">The stream into which the source data will be written.</param>
-  /// <param name="disposeStreams">If true, the source and destination streams will be disposed after the copy is made.</param>
   /// <param name="rewindSource">If true, the source stream's <see cref="Stream.Position"/> property will be set
   /// to 0 first to ensure that the entire source stream is copied.
   /// </param>
   /// <param name="bufferSize">The size of the buffer to use. Passing zero will use a default value.</param>
-  public static int CopyStream(Stream source, Stream dest, bool disposeStreams, bool rewindSource, int bufferSize)
+  public static int CopyTo(Stream source, Stream dest, bool rewindSource, int bufferSize)
   {
     if(source == null || dest == null) throw new ArgumentNullException();
     if(bufferSize < 0) throw new ArgumentOutOfRangeException("bufferSize");
     if(bufferSize == 0) bufferSize = 4096;
 
-    try
+    if(rewindSource) source.Position = 0;
+    byte[] buf = new byte[bufferSize];
+    int read, total = 0;
+    while(true)
     {
-      if(rewindSource) source.Position = 0;
-      byte[] buf = new byte[bufferSize];
-      int read, total = 0;
-      while(true)
-      {
-        read = source.Read(buf, 0, bufferSize);
-        if(read == 0) return total;
-        total += read;
-        dest.Write(buf, 0, read);
-      }
-    }
-    finally
-    {
-      if(disposeStreams)
-      {
-        source.Dispose();
-        dest.Dispose();
-      }
+      read = source.Read(buf, 0, bufferSize);
+      if(read == 0) return total;
+      total += read;
+      dest.Write(buf, 0, read);
     }
   }
-  #endregion
 
   /// <summary>Processes the given stream in chunks of the given size, using the given <see cref="StreamProcessor"/>.</summary>
   public static void Process(this Stream stream, StreamProcessor processor, int chunkSize)
@@ -108,35 +87,38 @@ public unsafe static partial class IOH
     while(read != 0 && processor(buffer, read));
   }
   
-  #region Reading
   /// <summary>Reads the given number of bytes from a stream.</summary>
   /// <returns>A byte array containing <paramref name="length"/> bytes of data.</returns>
-  public static byte[] Read(this Stream stream, int length)
+  public static byte[] Read(this Stream stream, int count)
   {
-    if(length < 0) throw new ArgumentOutOfRangeException();
-    byte[] buf = new byte[length];
-    Read(stream, buf, 0, length, true);
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    byte[] buf = new byte[count];
+    stream.ReadOrThrow(buf, 0, count);
     return buf;
   }
 
   /// <summary>Reads the given number of bytes from a stream into a buffer.</summary>
   /// <returns>The number of bytes read. This will always be equal to <paramref name="length"/>.</returns>
-  public static int ReadOrThrow(this Stream stream, byte[] buf, int index, int length)
+  public static int ReadOrThrow(this Stream stream, byte[] buf, int index, int count)
   {
-    return Read(stream, buf, index, length, true);
+    return Read(stream, buf, index, count, true);
   }
 
-  /// <summary>Tries to read the given number of bytes from a stream into a buffer.</summary>
+  /// <summary>Tries to read the given number of bytes from a stream into a buffer. This will always read the requested amount of
+  /// data if it exists within the stream. If not all the requested bytes could be read, the method will either return the number
+  /// of bytes actually read (if <paramref name="throwOnEOF"/> is false) or throw an <see cref="EndOfStreamException"/> (if
+  /// <paramref name="throwOnEOF"/> is true).
+  /// </summary>
   /// <returns>The number of bytes read.</returns>
-  public static int Read(this Stream stream, byte[] buf, int index, int length, bool throwOnEOF)
+  public static int Read(this Stream stream, byte[] buf, int index, int count, bool throwOnEOF)
   {
-    if(stream == null || buf == null) throw new ArgumentNullException();
-    if(index < 0 || length < 0 || index+length > buf.Length) throw new ArgumentOutOfRangeException();
+    if(stream == null) throw new ArgumentNullException();
+    Utility.ValidateRange(buf, index, count);
 
-    int read, total=0;
-    while(length != 0)
+    int total=0;
+    while(count != 0)
     {
-      read = stream.Read(buf, index, length);
+      int read = stream.Read(buf, index, count);
       total += read;
 
       if(read == 0)
@@ -145,8 +127,8 @@ public unsafe static partial class IOH
         else break;
       }
 
-      index  += read;
-      length -= read;
+      index += read;
+      count -= read;
     }
 
     return total;
@@ -199,7 +181,7 @@ public unsafe static partial class IOH
   /// <returns>The byte value read from the stream.</returns>
   /// <exception cref="EndOfStreamException">Thrown if the end of the stream was reached before the byte could be read.
   /// </exception>
-  public static byte ReadByteOrThrow(Stream stream)
+  public static byte ReadByteOrThrow(this Stream stream)
   {
     int i = stream.ReadByte();
     if(i == -1) throw new EndOfStreamException();
@@ -236,14 +218,14 @@ public unsafe static partial class IOH
   public static long ReadLE8(this Stream stream)
   {
     byte[] buf = Read(stream, 8);
-    return ReadLE4U(buf, 0) | ((long)ReadLE4(buf, 4)<<32);
+    return IOH.ReadLE4U(buf, 0) | ((long)IOH.ReadLE4(buf, 4)<<32);
   }
 
   /// <summary>Reads a big-endian long (8 bytes) from a stream.</summary>
   public static long ReadBE8(this Stream stream)
   {
     byte[] buf = Read(stream, 8);
-    return ((long)ReadBE4(buf, 0)<<32)|ReadBE4U(buf, 4);
+    return ((long)IOH.ReadBE4(buf, 0)<<32) | IOH.ReadBE4U(buf, 4);
   }
 
   /// <summary>Reads a little-endian unsigned short (2 bytes) from a stream.</summary>
@@ -276,14 +258,14 @@ public unsafe static partial class IOH
   public static ulong ReadLE8U(this Stream stream)
   {
     byte[] buf = Read(stream, 8);
-    return ReadLE4U(buf, 0)|((ulong)ReadLE4U(buf, 4)<<32);
+    return IOH.ReadLE4U(buf, 0) | ((ulong)IOH.ReadLE4U(buf, 4)<<32);
   }
 
   /// <summary>Reads a big-endian unsigned long (8 bytes) from a stream.</summary>
   public static ulong ReadBE8U(this Stream stream)
   {
     byte[] buf = Read(stream, 8);
-    return ((ulong)ReadBE4U(buf, 0)<<32)|ReadBE4U(buf, 4);
+    return ((ulong)IOH.ReadBE4U(buf, 0)<<32) | IOH.ReadBE4U(buf, 4);
   }
 
   /// <summary>Reads an IEEE754 float (4 bytes) from a stream.</summary>
@@ -303,9 +285,7 @@ public unsafe static partial class IOH
     byte[] buf = Read(stream, sizeof(double));
     fixed(byte* ptr=buf) return *(double*)ptr;
   }
-  #endregion
 
-  #region Skip
   /// <summary>Skips forward a number of bytes in a stream.</summary>
   /// <remarks>This method works on both seekable and non-seekable streams, but is more efficient with seekable ones.</remarks>
   public static void Skip(this Stream stream, long bytes)
@@ -319,7 +299,7 @@ public unsafe static partial class IOH
     else if(bytes <= 4)
     { 
       int b = (int)bytes; 
-      while(b-- > 0) ReadByteOrThrow(stream); 
+      while(b-- > 0) stream.ReadByteOrThrow(); 
     }
     else
     {
@@ -332,9 +312,7 @@ public unsafe static partial class IOH
       }
     }
   }
-  #endregion
 
-  #region Writing
   /// <summary>Writes an array of data to a stream.</summary>
   public static int Write(this Stream stream, byte[] data)
   {
@@ -473,7 +451,6 @@ public unsafe static partial class IOH
     fixed(byte* pbuf=buf) *(double*)pbuf = val;
     stream.Write(buf, 0, sizeof(double));
   }
-  #endregion
 }
 #endregion
 

@@ -28,33 +28,38 @@ namespace AdamMil.Collections
 /// <summary>Provides a flexible base class for new collections.</summary>
 public abstract class CollectionBase<T> : IList<T>
 {
-	public CollectionBase()
+	protected CollectionBase()
 	{
 		Items = new List<T>();
 	}
 
+  /// <summary>Gets or sets the item at the given index, which must be from 0 to <see cref="Count"/>-1.</summary>
 	public T this[int index]
 	{
 		get { return Items[index]; }
 		set { SetItem(index, value); }
 	}
 
+  /// <summary>Gets the number of items in the collection.</summary>
 	public int Count
 	{
 		get { return Items.Count; }
 	}
 
+  /// <summary>Gets whether the collection is read only.</summary>
 	public virtual bool IsReadOnly
 	{
 		get { return false; }
 	}
 
+  /// <summary>Adds the given item to the collection.</summary>
 	public void Add(T item)
 	{
 		AssertNotReadOnly();
 		InsertItem(Count, item);
 	}
 
+  /// <summary>Adds all of the given items to the collection.</summary>
 	public void AddRange(IEnumerable<T> items)
 	{
 		if(items == null) throw new ArgumentNullException();
@@ -78,11 +83,7 @@ public abstract class CollectionBase<T> : IList<T>
 	public virtual void Clear()
 	{
 		AssertNotReadOnly();
-		if(Items.Count != 0)
-		{
-			Items.Clear();
-			OnCollectionChanged();
-		}
+		if(Items.Count != 0) ClearItems();
 	}
 
 	public bool Contains(T item)
@@ -140,10 +141,20 @@ public abstract class CollectionBase<T> : IList<T>
 		return array;
 	}
 
-	protected List<T> Items
+	/// <summary>Gets a reference to the underlying list of items. Modifying this list will not trigger any events (e.g.
+  /// <see cref="ClearItems"/>, <see cref="InsertItem"/>, <see cref="RemoveItem"/>, <see cref="SetItem"/>, etc).
+  /// </summary>
+  protected List<T> Items
 	{
 		get; private set;
 	}
+
+  /// <summary>Called when the collection is being cleared. The base implementation actually clears the list.</summary>
+  protected virtual void ClearItems()
+  {
+    Items.Clear();
+    OnCollectionChanged();
+  }
 
 	/// <summary>Called when a new item is being inserted into the collection.
 	/// The base implementation actually performs the insertion.

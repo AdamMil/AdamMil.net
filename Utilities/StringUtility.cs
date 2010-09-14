@@ -106,6 +106,43 @@ public static class StringUtility
 		return sb.ToString();
 	}
 
+	/// <summary>Removes all instances of the given characters from the string.</summary>
+	public static string Remove(this string str, params char[] charsToRemove)
+	{
+		return str.Replace(charsToRemove, null);
+	}
+
+	/// <summary>Replaces each instance of the given characters with the given replacement string.</summary>
+	public static string Replace(this string str, char[] charsToReplace, string replacement)
+	{
+		if(str != null && charsToReplace != null && charsToReplace.Length != 0)
+		{
+			if(charsToReplace.Length == 1)
+			{
+				str = str.Replace(new string(charsToReplace[0], 1), replacement);
+			}
+			else
+			{
+				int index = str.IndexOfAny(charsToReplace);
+				if(index != -1)
+				{
+					StringBuilder sb = new StringBuilder(str.Length + (replacement == null || replacement.Length < 2 ? 0 : 100));
+					int position = 0;
+					do
+					{
+						sb.Append(str, position, index-position).Append(replacement);
+						position = index + 1;
+						index = str.IndexOfAny(charsToReplace, position);
+					} while(index != -1);
+					sb.Append(str, position, str.Length-position);
+					str = sb.ToString();
+				}
+			}
+		}
+
+		return str;
+	}
+
 	/// <summary>Splits the given string, passing each item through the conversion function before returning it.</summary>
 	public static string[] Split(this string str, char separator, Converter<string, string> converter)
 	{

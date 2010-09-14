@@ -403,7 +403,7 @@ public class ExeGPG : GPG
     {
       using(FileStream file = new FileStream(sigFileName, FileMode.Truncate, FileAccess.Write))
       {
-        IOH.CopyStream(signature, file);
+        signature.CopyTo(file);
       }
 
       return VerifyCore(sigFileName, signedData, options);
@@ -841,15 +841,14 @@ public class ExeGPG : GPG
       dbFile.Write(headerStart, 0, headerStart.Length);
 
       // the next four bytes are the big-endian creation timestamp in seconds since epoch
-      IOH.WriteBE4(dbFile, (int)((DateTime.Now - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds));
+      dbFile.WriteBE4((int)((DateTime.Now - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds));
     }
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRandomData/*"/>
   public override void GetRandomData(Randomness quality, byte[] buffer, int index, int count)
   {
-    if(buffer == null) throw new ArgumentNullException();
-    if(index < 0 || count < 0 || index+count > buffer.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(buffer, index, count);
     if(count == 0) return;
 
     // "gpg --gen-random QUALITY COUNT" writes random COUNT bytes to standard output. QUALITY is a value from 0 to 2
@@ -864,7 +863,7 @@ public class ExeGPG : GPG
     using(cmd)
     {
       cmd.Start();
-      count -= IOH.Read(cmd.Process.StandardOutput.BaseStream, buffer, 0, count, false);
+      count -= cmd.Process.StandardOutput.BaseStream.Read(buffer, 0, count, false);
       cmd.WaitForExit();
     }
 
@@ -1225,7 +1224,7 @@ public class ExeGPG : GPG
     {
       using(FileStream file = new FileStream(filename, FileMode.Open, FileAccess.Write))
       {
-        IOH.CopyStream(image, file);
+        image.CopyTo(file);
       }
       DoEdit(key, new AddPhotoCommand(filename, preferences)); 
     }
@@ -4058,7 +4057,7 @@ public class ExeGPG : GPG
     {
       cmd.StatusMessageReceived += delegate(StatusMessage msg) { DefaultStatusMessageHandler(msg, state); };
       cmd.Start(); // simply start GPG and copy the output to the destination stream
-      IOH.CopyStream(cmd.Process.StandardOutput.BaseStream, destination);
+      cmd.Process.StandardOutput.BaseStream.CopyTo(destination);
       cmd.WaitForExit();
     }
 
@@ -4111,7 +4110,7 @@ public class ExeGPG : GPG
       };
 
       cmd.Start();
-      IOH.CopyStream(cmd.Process.StandardOutput.BaseStream, destination);
+      cmd.Process.StandardOutput.BaseStream.CopyTo(destination);
       cmd.WaitForExit();
     }
 
@@ -4420,7 +4419,7 @@ public class ExeGPG : GPG
               DummyAttribute dummy = (DummyAttribute)key.Attributes[j];
               byte[] attrData = new byte[dummy.Message.Length];
 
-              if(IOH.Read(attrTempStream, attrData, 0, attrData.Length, false) != attrData.Length)
+              if(attrTempStream.Read(attrData, 0, attrData.Length, false) != attrData.Length)
               {
                 LogLine("Ignoring truncated attribute.");
               }

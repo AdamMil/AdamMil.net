@@ -26,6 +26,36 @@ using System.Threading;
 namespace AdamMil.Security
 {
 
+#region LoginType
+/// <summary>Determines how an impersonated user is logged onto the system.</summary>
+public enum LoginType
+{
+	/// <summary>The user will be logged on as a batch process. This is intended for use when processes may execute on behalf of the
+	/// user without their intervention. This creates a primary logon token that allows network access and the creation of new
+	/// processes, but requires permission to log onto the machine as a batch process.
+	/// </summary>
+	Batch,
+	/// <summary>The user will be logged on interactively. This is the slowest logon type, and requires permission to log onto the
+	/// machine interactively. It grants access to "interactive" resources, such as cmd.exe, which might otherwise be restricted.
+	/// This is only intended to be used when the user will be using the machine interactively.
+	/// </summary>
+	Interactive,
+	/// <summary>The user will be logged on as over a network. This is the fastest logon type, but does not create a primary logon
+	/// token for the user, does not grant the ability to run new processes as the user, and may not allow the user to access
+	/// network resources on other machines. However, it can succeed even if the user has not been granted the right to log onto
+	/// the machine.
+	/// </summary>
+	Network,
+	/// <summary>The user will be logged on as a system service. This provides a high degree of access and is faster than
+	/// <see cref="Interactive"/>, but requires permission to log on as a service.
+	/// </summary>
+	Service,
+	/// <summary>The same as <see cref="Network"/>.</summary>
+	Default=Network,
+}
+#endregion
+
+#region Impersonation
 /// <summary>Provides various methods of running code as a specific user. The typical usage of this class is to either call a
 /// static <see cref="RunWithImpersonation"/> method, or to instantiate the class with the user's credentials (which will begin
 /// impersonating the user), and end the impersonation by disposing the class.
@@ -48,38 +78,30 @@ public sealed class Impersonation : IDisposable
 	/// <summary>Impersonates the user with the given user name and password. The user name can be in either DOMAIN\user or
 	/// user@domain format. The impersonation ends when the class is disposed.
 	/// </summary>
-	/// <param name="allowNetworkAccess">If true, the user will be logged on with network access.
-	/// If false, the user will be logged on as a batch process.
-	/// </param>
-	public Impersonation(string userName, string password, bool allowNetworkAccess)
-		: this(GetDomain(userName), GetUserName(userName), password, allowNetworkAccess) { }
+	/// <param name="loginType">A <see cref="LoginType"/> value that determines how the user will be logged onto the machine.</param>
+	public Impersonation(string userName, string password, LoginType loginType)
+		: this(GetDomain(userName), GetUserName(userName), password, loginType) { }
 
 	/// <summary>Impersonates the user with the given domain, user name, and password.
 	/// The impersonation ends when the class is disposed.
 	/// </summary>
-	/// <param name="allowNetworkAccess">If true, the user will be logged on with network access.
-	/// If false, the user will be logged on as a batch process.
-	/// </param>
-	public Impersonation(string domain, string userName, string password, bool allowNetworkAccess)
-		: this(LogonUser(domain, userName, password, allowNetworkAccess), true) { }
+	/// <param name="loginType">A <see cref="LoginType"/> value that determines how the user will be logged onto the machine.</param>
+	public Impersonation(string domain, string userName, string password, LoginType loginType)
+		: this(LogonUser(domain, userName, password, loginType), true) { }
 
 	/// <summary>Impersonates the user with the given user name and password. The user name can be in either DOMAIN\user or
 	/// user@domain format. The impersonation ends when the class is disposed.
 	/// </summary>
-	/// <param name="allowNetworkAccess">If true, the user will be logged on with network access.
-	/// If false, the user will be logged on as a batch process.
-	/// </param>
-	public Impersonation(string userName, SecureString password, bool allowNetworkAccess)
-		: this(GetDomain(userName), GetUserName(userName), password, allowNetworkAccess) { }
+	/// <param name="loginType">A <see cref="LoginType"/> value that determines how the user will be logged onto the machine.</param>
+	public Impersonation(string userName, SecureString password, LoginType loginType)
+		: this(GetDomain(userName), GetUserName(userName), password, loginType) { }
 
 	/// <summary>Impersonates the user with the given domain, user name, and password.
 	/// The impersonation ends when the class is disposed.
 	/// </summary>
-	/// <param name="allowNetworkAccess">If true, the user will be logged on with network access.
-	/// If false, the user will be logged on as a batch process.
-	/// </param>
-	public Impersonation(string domain, string userName, SecureString password, bool allowNetworkAccess)
-		: this(LogonUser(domain, userName, password, allowNetworkAccess), true) { }
+	/// <param name="loginType">A <see cref="LoginType"/> value that determines how the user will be logged onto the machine.</param>
+	public Impersonation(string domain, string userName, SecureString password, LoginType loginType)
+		: this(LogonUser(domain, userName, password, loginType), true) { }
 
 	Impersonation(IntPtr userToken, bool ownToken)
 	{
@@ -117,49 +139,41 @@ public sealed class Impersonation : IDisposable
 	/// <summary>Runs the given delegate as the given user, optionally executing it in a new thread. The user name can be in either
 	/// DOMAIN\user or user@domain format.
 	/// </summary>
-	/// <param name="allowNetworkAccess">If true, the user will be logged on with network access.
-	/// If false, the user will be logged on as a batch process.
-	/// </param>
-	public static void RunWithImpersonation(string userName, string password, bool allowNetworkAccess, bool runInANewThread,
+	/// <param name="loginType">A <see cref="LoginType"/> value that determines how the user will be logged onto the machine.</param>
+	public static void RunWithImpersonation(string userName, string password, LoginType loginType, bool runInANewThread,
 	                                        ThreadStart code)
 	{
 		if(code == null) throw new ArgumentException();
-		Run(LogonUser(GetDomain(userName), GetUserName(userName), password, allowNetworkAccess), true, code, runInANewThread);
+		Run(LogonUser(GetDomain(userName), GetUserName(userName), password, loginType), true, code, runInANewThread);
 	}
 
 	/// <summary>Runs the given delegate as the given user, optionally executing it in a new thread. The user name can be in either
 	/// DOMAIN\user or user@domain format.
 	/// </summary>
-	/// <param name="allowNetworkAccess">If true, the user will be logged on with network access.
-	/// If false, the user will be logged on as a batch process.
-	/// </param>
-	public static void RunWithImpersonation(string userName, SecureString password, bool allowNetworkAccess, bool runInANewThread,
+	/// <param name="loginType">A <see cref="LoginType"/> value that determines how the user will be logged onto the machine.</param>
+	public static void RunWithImpersonation(string userName, SecureString password, LoginType loginType, bool runInANewThread,
 	                                        ThreadStart code)
 	{
 		if(code == null) throw new ArgumentException();
-		Run(LogonUser(GetDomain(userName), GetUserName(userName), password, allowNetworkAccess), true, code, runInANewThread);
+		Run(LogonUser(GetDomain(userName), GetUserName(userName), password, loginType), true, code, runInANewThread);
 	}
 
 	/// <summary>Runs the given delegate as the given user, optionally executing it in a new thread.</summary>
-	/// <param name="allowNetworkAccess">If true, the user will be logged on with network access.
-	/// If false, the user will be logged on as a batch process.
-	/// </param>
-	public static void RunWithImpersonation(string domain, string userName, string password, bool allowNetworkAccess,
+	/// <param name="loginType">A <see cref="LoginType"/> value that determines how the user will be logged onto the machine.</param>
+	public static void RunWithImpersonation(string domain, string userName, string password, LoginType loginType,
 	                                        bool runInANewThread, ThreadStart code)
 	{
 		if(code == null) throw new ArgumentException();
-		Run(LogonUser(domain, userName, password, allowNetworkAccess), true, code, runInANewThread);
+		Run(LogonUser(domain, userName, password, loginType), true, code, runInANewThread);
 	}
 
 	/// <summary>Runs the given delegate as the given user, optionally executing it in a new thread.</summary>
-	/// <param name="allowNetworkAccess">If true, the user will be logged on with network access.
-	/// If false, the user will be logged on as a batch process.
-	/// </param>
-	public static void RunWithImpersonation(string domain, string userName, SecureString password, bool allowNetworkAccess,
+	/// <param name="loginType">A <see cref="LoginType"/> value that determines how the user will be logged onto the machine.</param>
+	public static void RunWithImpersonation(string domain, string userName, SecureString password, LoginType loginType,
 	                                        bool runInANewThread, ThreadStart code)
 	{
 		if(code == null) throw new ArgumentException();
-		Run(LogonUser(domain, userName, password, allowNetworkAccess), true, code, runInANewThread);
+		Run(LogonUser(domain, userName, password, loginType), true, code, runInANewThread);
 	}
 
 	void Dispose(bool finalizing)
@@ -198,6 +212,19 @@ public sealed class Impersonation : IDisposable
 		throw new ArgumentException("Unable to determine the domain from the user name " + userName);
 	}
 
+	/// <summary>Converts a <see cref="LoginType"/> value into a value suitable for passing to <see cref="LogonUser"/>.</summary>
+	static int GetNTLogonType(LoginType type)
+	{
+		switch(type)
+		{
+			case LoginType.Batch: return LOGON32_LOGON_BATCH;
+			case LoginType.Interactive: return LOGON32_LOGON_INTERACTIVE;
+			case LoginType.Network: return LOGON32_LOGON_NETWORK;
+			case LoginType.Service: return LOGON32_LOGON_SERVICE;
+			default: throw new ArgumentException("Invalid login type: " + type.ToString());
+		}
+	}
+
 	/// <summary>Retrieves the user name from a user name in either user@domain or DOMAIN\user format, suitable for passing to
 	/// the <see cref="LogonUser"/> method.
 	/// </summary>
@@ -218,11 +245,11 @@ public sealed class Impersonation : IDisposable
 	}
 
 	/// <summary>Logs on the given user, returning the corresponding user token.</summary>
-	static IntPtr LogonUser(string domain, string userName, string password, bool allowNetworkAccess)
+	static IntPtr LogonUser(string domain, string userName, string password, LoginType loginType)
 	{
 		ValidateLogonArguments(domain, userName, password);
 		IntPtr handle;
-		int logonType = allowNetworkAccess ? LOGON32_LOGON_NETWORK : LOGON32_LOGON_BATCH;
+		int logonType = GetNTLogonType(loginType);
 		if(!LogonUser(userName, domain, password, logonType, LOGON32_PROVIDER_DEFAULT, out handle))
 		{
 			throw new Win32Exception();
@@ -231,11 +258,11 @@ public sealed class Impersonation : IDisposable
 	}
 
 	/// <summary>Logs on the given user, returning the corresponding user token.</summary>
-	static IntPtr LogonUser(string domain, string userName, SecureString password, bool allowNetworkAccess)
+	static IntPtr LogonUser(string domain, string userName, SecureString password, LoginType loginType)
 	{
 		ValidateLogonArguments(domain, userName, password);
 		IntPtr handle;
-		int logonType = allowNetworkAccess ? LOGON32_LOGON_NETWORK : LOGON32_LOGON_BATCH;
+		int logonType = GetNTLogonType(loginType);
 		if(!LogonUser(userName, domain, password, logonType, LOGON32_PROVIDER_DEFAULT, out handle))
 		{
 			throw new Win32Exception();
@@ -294,7 +321,8 @@ public sealed class Impersonation : IDisposable
 		}
 	}
 
-	const int LOGON32_LOGON_NETWORK = 3, LOGON32_LOGON_BATCH = 4, LOGON32_PROVIDER_DEFAULT = 0;
+	const int LOGON32_LOGON_INTERACTIVE = 2, LOGON32_LOGON_NETWORK = 3, LOGON32_LOGON_BATCH = 4, LOGON32_LOGON_SERVICE = 5;
+	const int LOGON32_PROVIDER_DEFAULT = 0;
 
 	[DllImport("advapi32.dll", SetLastError=true)]
 	static extern bool LogonUser(string userName, string domain, string password, int logonType, int logonProvider,
@@ -307,5 +335,6 @@ public sealed class Impersonation : IDisposable
 	[DllImport("kernel32.dll", ExactSpelling=true)]
 	static extern bool CloseHandle(IntPtr handle);
 }
+#endregion
 
 } // namespace AdamMil.Security

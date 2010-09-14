@@ -3,7 +3,7 @@ AdamMil.UI is a library that provides useful user interface controls for the
 .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2008 Adam Milazzo
+Copyright (C) 2008-2010 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -29,7 +29,7 @@ using AC = AdamMil.Collections;
 
 namespace AdamMil.UI.RichDocument
 {
-
+/*
 /// <summary>Implements a renderer and editor for rich documents, represented by <see cref="Document"/> objects.</summary>
 /// <remarks>The document editor maintains the concept of an index within the document, which is a position at which
 /// the text cursor can be placed. Each editable portion of each document node has an index assigned to it. For
@@ -2935,14 +2935,8 @@ public class DocumentEditor : Control
   protected override void Dispose(bool disposing)
   {
     base.Dispose(disposing);
-
     document.NodeChanged -= OnNodeChanged;
-
-    if(rootBlock != null)
-    {
-      rootBlock.Dispose();
-      rootBlock = null;
-    }
+    Utility.Dispose(ref rootBlock);
   }
 
   /// <summary>Updates the layout using the given graphics device if the layout is currently invalid.</summary>
@@ -3035,12 +3029,7 @@ public class DocumentEditor : Control
     for(int i=mouseOver.Count-1; i >= 0; i--) mouseOver[i].OnMouseLeave(this);
     mouseOver.Clear();
 
-    if(rootBlock != null)
-    {
-      rootBlock.Dispose();
-      rootBlock = null;
-    }
-    
+    Utility.Dispose(ref rootBlock);
     Invalidate(CanvasRectangle);
   }
 
@@ -4019,6 +4008,6 @@ public class DocumentEditor : Control
   static readonly bool PlatformIsWindows = Environment.OSVersion.Platform == PlatformID.Win32NT || 
                                            Environment.OSVersion.Platform == PlatformID.Win32Windows ||
                                            Environment.OSVersion.Platform == PlatformID.WinCE;
-}
+}*/
 
 } // namespace AdamMil.UI.RichDocument

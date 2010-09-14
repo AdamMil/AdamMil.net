@@ -3,7 +3,7 @@ AdamMil.UI is a library that provides useful user interface controls for the
 .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2008 Adam Milazzo
+Copyright (C) 2008-2010 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License

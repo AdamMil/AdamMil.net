@@ -43,6 +43,18 @@ public static class PathUtility
 		return directory + Path.GetFileNameWithoutExtension(filename) + suffix + Path.GetExtension(filename);
 	}
 
+  /// <summary>Removes invalid filename characters from the given string, and returns it.</summary>
+  public static string StripInvalidFileNameChars(string name)
+  {
+    return StringUtility.Remove(name, Path.GetInvalidFileNameChars());
+  }
+
+  /// <summary>Removes invalid path characters from the given string, and returns it.</summary>
+  public static string StripInvalidPathChars(string name)
+  {
+    return StringUtility.Remove(name, Path.GetInvalidPathChars());
+  }
+
 	static readonly char[] DirectorySeparatorChars = new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
 }
 
