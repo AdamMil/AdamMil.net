@@ -3,7 +3,7 @@ AdamMil.UI is a library that provides useful user interface controls for the
 .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2008 Adam Milazzo
+Copyright (C) 2008-2010 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 using System;
 using System.IO;
 using System.Text;
+using AdamMil.Utilities;
 
 namespace AdamMil.UI.TextEditing
 {
@@ -715,11 +716,8 @@ public class GapTextBuffer : EditableTextBuffer
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/CopyTo4/*"/>
   public override void CopyTo(int srcIndex, char[] destArray, int destIndex, int count)
   {
-    if(destArray == null) throw new ArgumentNullException();
-    if(srcIndex < 0 || destIndex < 0 || count < 0 || srcIndex + count > length || destIndex + count > destArray.Length)
-    {
-      throw new ArgumentOutOfRangeException();
-    }
+    Utility.ValidateRange(destArray, destIndex, count);
+    if(srcIndex < 0 || srcIndex + count > length) throw new ArgumentOutOfRangeException();
 
     // if the source index is before the gap, copy the text up to the gap
     if(srcIndex < gapStart)
@@ -792,11 +790,8 @@ public class GapTextBuffer : EditableTextBuffer
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertArray/*"/>
   public override void Insert(int destIndex, char[] srcArray, int srcIndex, int count)
   {
-    if(srcArray == null) throw new ArgumentNullException();
-    if(destIndex < 0 || destIndex > length || srcIndex < 0 || count < 0 || srcIndex+count > srcArray.Length)
-    {
-      throw new ArgumentOutOfRangeException();
-    }
+    Utility.ValidateRange(srcArray, srcIndex, count);
+    if(destIndex < 0 || destIndex > length) throw new ArgumentOutOfRangeException();
 
     MoveAndResizeGap(destIndex, count);
     Array.Copy(srcArray, srcIndex, buffer, gapStart, count);

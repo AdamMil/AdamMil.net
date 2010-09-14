@@ -48,6 +48,28 @@ public static class Utility
 			obj = default(T);
 		}
 	}
+
+  /// <summary>Enlarges the given array if it's too small to accommodate its current size and the new elements.</summary>
+  public static void EnlargeArray<T>(ref T[] array, int currentSize, int newElements)
+  {
+    if(array == null) throw new ArgumentNullException();
+    if(currentSize < 0 || currentSize > array.Length || newElements < 0) throw new ArgumentOutOfRangeException();
+
+    int newSize = currentSize + newElements;
+    if(array.Length < newSize)
+    {
+      T[] newArray = new T[Math.Max(array.Length*2, newSize)];
+      Array.Copy(array, newArray, currentSize);
+      array = newArray;
+    }
+  }
+
+  /// <summary>Validates that the given array is not null, and the given range exists within the array.</summary>
+  public static void ValidateRange(Array array, int index, int count)
+  {
+    if(array == null) throw new ArgumentNullException();
+    if(index < 0 || count < 0 || index + count > array.Length) throw new ArgumentOutOfRangeException();
+  }
 }
 
 } // namespace AdamMil.Utilities

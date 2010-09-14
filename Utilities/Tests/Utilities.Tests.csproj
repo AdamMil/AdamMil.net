@@ -38,6 +38,7 @@
     <UseVSHostingProcess>false</UseVSHostingProcess>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="ArrayTests.cs" />
     <Compile Include="PathTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="StringTests.cs" />

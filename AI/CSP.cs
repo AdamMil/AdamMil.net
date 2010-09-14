@@ -158,6 +158,12 @@ struct IntPair
     return (Value1 << 16) ^ Value2;
   }
 
+  /// <summary>Converts this <see cref="IntPair"/> into a string.</summary>
+  public override string ToString()
+  {
+    return Value1.ToString() + " " + Value2.ToString();
+  }
+
   /// <summary>The values in the <see cref="IntPair"/>.</summary>
   public readonly int Value1, Value2;
 }
@@ -1237,15 +1243,14 @@ public sealed class BacktrackingSolver<VarType> : SearchBase<Assignment,Assignme
         CurrentDomain currentDomain = currentDomains[variable];
         if(currentDomains[variable].CurrentCount > 1)
         {
-          FiniteDomain<VarType> domain = variables[variable].Domain;
           int value = assignment[variable];
-          for(int i=0; i<domain.Count; i++)
+          foreach(int currentValue in currentDomain.GetIndices())
           {
-            if(i != value) // don't remove the value we assigned, of course
+            if(currentValue != value) // don't remove the value we assigned, of course
             {
-              currentDomain.Remove(i);
+              currentDomain.Remove(currentValue);
               // add the removed values to the pruned list, so we can restore them later
-              pruned[variable].Add(new IntPair(variable, i));
+              pruned[variable].Add(new IntPair(variable, currentValue));
             }
           }
 
