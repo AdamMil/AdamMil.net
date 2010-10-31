@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 using System;
 using System.Collections.Generic;
 using AdamMil.Mathematics.Geometry.ThreeD;
+using AdamMil.Utilities;
 
 namespace AdamMil.Mathematics.Matrices
 {
@@ -28,17 +29,33 @@ namespace AdamMil.Mathematics.Matrices
 #region Matrix3
 [Serializable]
 public sealed class Matrix3
-{ public Matrix3() { M00=M11=M22=1; }
+{ 
+  public Matrix3() { M00=M11=M22=1; }
+  
   public unsafe Matrix3(double[] data)
-  { if(data.Length != Length) throw new ArgumentException("Expected an array of "+Length+" elements.");
-    fixed(double* src=data) fixed(double* dest=&M00) for(int i=0; i<Length; i++) dest[i]=src[i];
+  {
+    if(data == null) throw new ArgumentNullException();
+    if(data.Length != Length) throw new ArgumentException("Expected an array of 9 elements.");
+    fixed(double* src=data)
+    fixed(double* dest=&M00)
+    {
+      Unsafe.Copy(src, dest, Length*sizeof(double));
+    }
   }
+  
   public unsafe Matrix3(Matrix3 matrix)
-  { fixed(double* src=&matrix.M00) fixed(double* dest=&M00) for(int i=0; i<Length; i++) dest[i]=src[i];
+  {
+    if(matrix == null) throw new ArgumentNullException();
+    fixed(double* src=&matrix.M00)
+    fixed(double* dest=&M00)
+    {
+      Unsafe.Copy(src, dest, Length*sizeof(double));
+    }
   }
+
   internal Matrix3(bool dummy) { }
   
-  public const int Width=3, Height=3, Length=9;
+  public const int Width=3, Height=3, Length=Width*Height;
 
   public unsafe double this[int index]
   { get
@@ -94,6 +111,7 @@ public sealed class Matrix3
     return true;
   }
 
+  /// <include file="documentation.xml" path="//Common/GetHashCode/*"/>
   public unsafe override int GetHashCode()
   { int hash = 0;
     fixed(double* dp=&M00) { int* p=(int*)dp; for(int i=0; i<Length*2; i++) hash ^= p[i]; }
@@ -237,49 +255,67 @@ public sealed class Matrix3
     return ret;
   }
 
+  #pragma warning disable 1591
   public double M00, M01, M02,
                 M10, M11, M12,
                 M20, M21, M22;
+  #pragma warning restore 1591
 }
 #endregion
 
 #region Matrix4
 [Serializable]
 public sealed class Matrix4
-{ public Matrix4() { M00=M11=M22=M33=1; }
+{
+  public Matrix4() { M00=M11=M22=M33=1; }
+  
   public unsafe Matrix4(double[] data)
-  { if(data.Length != Length) throw new ArgumentException("Expected an array of "+Length+" elements.");
-    fixed(double* src=data) fixed(double* dest=&M00) for(int i=0; i<Length; i++) dest[i]=src[i];
+  {
+    if(data == null) throw new ArgumentNullException();
+    if(data.Length != Length) throw new ArgumentException("Expected an array of 16 elements.");
+    fixed(double* src=data)
+    fixed(double* dest=&M00)
+    {
+      Unsafe.Copy(src, dest, Length*sizeof(double));
+    }
   }
+
   public unsafe Matrix4(Matrix4 matrix)
-  { fixed(double* src=&matrix.M00) fixed(double* dest=&M00) for(int i=0; i<Length; i++) dest[i]=src[i];
+  {
+    if(matrix == null) throw new ArgumentNullException();
+    fixed(double* src=&matrix.M00)
+    fixed(double* dest=&M00)
+    {
+      Unsafe.Copy(src, dest, Length*sizeof(double));
+    }
   }
+
   internal Matrix4(bool dummy) { }
   
-  public const int Width=4, Height=4, Length=16;
+  public const int Width=4, Height=4, Length=Width*Height;
 
   public unsafe double this[int index]
   { get
-    { if(index<0 || index>=Length)
-        throw new ArgumentOutOfRangeException("index", index, "must be from 0 to "+(Length-1));
+    {
+      if(index<0 || index>=Length) throw new ArgumentOutOfRangeException();
       fixed(double* data=&M00) return data[index];
     }
     set
-    { if(index<0 || index>=Length)
-        throw new ArgumentOutOfRangeException("index", index, "must be from 0 to "+(Length-1));
+    {
+      if(index<0 || index>=Length) throw new ArgumentOutOfRangeException();
       fixed(double* data=&M00) data[index]=value;
     }
   }
 
   public unsafe double this[int i, int j]
   { get
-    { if(i<0 || i>=Height || j<0 || j>=Width)
-        throw new ArgumentOutOfRangeException("indices must range from 0 to "+(Width-1));
+    {
+      if(i<0 || i>=Height || j<0 || j>=Width) throw new ArgumentOutOfRangeException();
       fixed(double* data=&M00) return data[i*Height+j];
     }
     set
-    { if(i<0 || i>=Height || j<0 || j>=Width)
-        throw new ArgumentOutOfRangeException("indices must range from 0 to "+(Width-1));
+    {
+      if(i<0 || i>=Height || j<0 || j>=Width) throw new ArgumentOutOfRangeException();
       fixed(double* data=&M00) data[i*Height+j]=value;
     }
   }
@@ -315,8 +351,10 @@ public sealed class Matrix4
     return true;
   }
 
+  /// <include file="documentation.xml" path="//Common/GetHashCode/*"/>
   public unsafe override int GetHashCode()
-  { int hash = 0;
+  { 
+    int hash = 0;
     fixed(double* dp=&M00) { int* p=(int*)dp; for(int i=0; i<Length*2; i++) hash ^= p[i]; }
     return hash;
   }
@@ -474,10 +512,12 @@ public sealed class Matrix4
     return ret;
   }
 
+  #pragma warning disable 1591
   public double M00, M01, M02, M03,
                 M10, M11, M12, M13,
                 M20, M21, M22, M23,
                 M30, M31, M32, M33;
+  #pragma warning restore 1591
 }
 #endregion
 

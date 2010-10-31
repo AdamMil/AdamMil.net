@@ -28,6 +28,7 @@ namespace AdamMil.Collections
 /// <summary>Provides a flexible base class for new collections.</summary>
 public abstract class CollectionBase<T> : IList<T>
 {
+  /// <summary>Initializes a new <see cref="CollectionBase{T}"/>.</summary>
 	protected CollectionBase()
 	{
 		Items = new List<T>();
@@ -81,40 +82,47 @@ public abstract class CollectionBase<T> : IList<T>
 		foreach(T item in items) Add(item);
 	}
 
-	public virtual void Clear()
+  /// <include file="documentation.xml" path="//Common/Clear/*"/>
+  public virtual void Clear()
 	{
 		AssertNotReadOnly();
 		if(Items.Count != 0) ClearItems();
 	}
 
-	public bool Contains(T item)
+  /// <include file="documentation.xml" path="//Common/Contains/*"/>
+  public bool Contains(T item)
 	{
 		return IndexOf(item) != -1;
 	}
 
-	public void CopyTo(T[] array, int arrayIndex)
+  /// <include file="documentation.xml" path="//Common/CopyTo/*"/>
+  public void CopyTo(T[] array, int arrayIndex)
 	{
 		Items.CopyTo(array, arrayIndex);
 	}
 
-	public IEnumerator<T> GetEnumerator()
+  /// <include file="documentation.xml" path="//Common/GetEnumerator/*"/>
+  public IEnumerator<T> GetEnumerator()
 	{
 		return Items.GetEnumerator();
 	}
 
-	public virtual int IndexOf(T item)
+  /// <include file="documentation.xml" path="//Common/IndexOf/*"/>
+  public virtual int IndexOf(T item)
 	{
 		return Items.IndexOf(item);
 	}
 
-	public void Insert(int index, T item)
+  /// <include file="documentation.xml" path="//Common/Insert/*"/>
+  public void Insert(int index, T item)
 	{
 		if(index < 0 || index > Count) throw new ArgumentOutOfRangeException();
 		AssertNotReadOnly();
 		InsertItem(index, item);
 	}
 
-	public bool Remove(T item)
+  /// <include file="documentation.xml" path="//Common/Remove/*"/>
+  public bool Remove(T item)
 	{
 		AssertNotReadOnly();
 		int index = IndexOf(item);
@@ -129,13 +137,15 @@ public abstract class CollectionBase<T> : IList<T>
 		}
 	}
 
-	public void RemoveAt(int index)
+  /// <include file="documentation.xml" path="//Common/RemoveAt/*"/>
+  public void RemoveAt(int index)
 	{
 		AssertNotReadOnly();
 		RemoveItem(index, this[index]);
 	}
 
-	public T[] ToArray()
+  /// <include file="documentation.xml" path="//Common/ToArray/*"/>
+  public T[] ToArray()
 	{
 		T[] array = new T[Count];
 		CopyTo(array, 0);
@@ -150,43 +160,42 @@ public abstract class CollectionBase<T> : IList<T>
 		get; private set;
 	}
 
-  /// <summary>Called when the collection is being cleared. The base implementation actually clears the list.</summary>
+  /// <summary>Throws an exception if the collection is read-only.</summary>
+  protected void AssertNotReadOnly()
+  {
+    if(IsReadOnly) throw new InvalidOperationException("The collection is read-only.");
+  }
+
+  /// <include file="documentation.xml" path="//CollectionBase/ClearItems/*"/>
   protected virtual void ClearItems()
   {
     Items.Clear();
     OnCollectionChanged();
   }
 
-	/// <summary>Called when a new item is being inserted into the collection.
-	/// The base implementation actually performs the insertion.
-	/// </summary>
-	protected virtual void InsertItem(int index, T item)
+  /// <include file="documentation.xml" path="//CollectionBase/InsertItem/*"/>
+  protected virtual void InsertItem(int index, T item)
 	{
 		Items.Insert(index, item);
 		OnCollectionChanged();
 	}
 
-	/// <summary>Called when an item is being removed from the collection. The base implementation actually performs the removal.</summary>
-	protected virtual void RemoveItem(int index, T item)
+  /// <include file="documentation.xml" path="//CollectionBase/RemoveItem/*"/>
+  protected virtual void RemoveItem(int index, T item)
 	{
 		Items.RemoveAt(index);
 		OnCollectionChanged();
 	}
 
-	/// <summary>Called when an item in the collection is being assigned. The base implementation actually performs the assignment.</summary>
-	protected virtual void SetItem(int index, T item)
+  /// <include file="documentation.xml" path="//CollectionBase/SetItem/*"/>
+  protected virtual void SetItem(int index, T item)
 	{
 		Items[index] = item;
 		OnCollectionChanged();
 	}
 
-	protected void AssertNotReadOnly()
-	{
-		if(IsReadOnly) throw new InvalidOperationException("The collection is read-only.");
-	}
-
-	/// <summary>Called when the collection may have been changed by the user.</summary>
-	protected virtual void OnCollectionChanged()
+  /// <include file="documentation.xml" path="//CollectionBase/OnCollectionChanged/*"/>
+  protected virtual void OnCollectionChanged()
 	{
 	}
 
@@ -201,19 +210,22 @@ public abstract class CollectionBase<T> : IList<T>
 /// <summary>Represents a collection that validates the items being added.</summary>
 public abstract class ValidatedCollection<T> : CollectionBase<T>
 {
-	protected override void InsertItem(int index, T item)
+  /// <include file="documentation.xml" path="//CollectionBase/InsertItem/*"/>
+  protected override void InsertItem(int index, T item)
 	{
 		ValidateItem(item, index);
 		base.InsertItem(index, item);
 	}
 
-	protected override void SetItem(int index, T item)
+  /// <include file="documentation.xml" path="//CollectionBase/SetItem/*"/>
+  protected override void SetItem(int index, T item)
 	{
 		ValidateItem(item, index);
 		base.SetItem(index, item);
 	}
 
-	protected abstract void ValidateItem(T item, int index);
+  /// <include file="documentation.xml" path="//ValidatedCollection/ValidateItem/*"/>
+  protected abstract void ValidateItem(T item, int index);
 }
 #endregion
 
@@ -221,7 +233,8 @@ public abstract class ValidatedCollection<T> : CollectionBase<T>
 /// <summary>Represents a collection that validates the items being added to ensure that none are null.</summary>
 public class NonNullCollection<T> : ValidatedCollection<T> where T : class
 {
-	protected override void ValidateItem(T item, int index)
+  /// <include file="documentation.xml" path="//ValidatedCollection/ValidateItem/*"/>
+  protected override void ValidateItem(T item, int index)
 	{
 		if(item == null) throw new ArgumentNullException();
 	}
@@ -232,7 +245,8 @@ public class NonNullCollection<T> : ValidatedCollection<T> where T : class
 /// <summary>Represents a collection of strings that validates the items being added to ensure that none are null or empty.</summary>
 public class NonEmptyStringCollection : ValidatedCollection<string>
 {
-	protected override void ValidateItem(string item, int index)
+  /// <include file="documentation.xml" path="//ValidatedCollection/ValidateItem/*"/>
+  protected override void ValidateItem(string item, int index)
 	{
 		if(string.IsNullOrEmpty(item)) throw new ArgumentException();
 	}

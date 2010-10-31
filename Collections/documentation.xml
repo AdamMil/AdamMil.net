@@ -1,0 +1,114 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Collections>
+  <CollectionBase>
+    <ClearItems>
+      <summary>Called when the collection is being cleared. The base implementation actually clears the list.</summary>
+    </ClearItems>
+    <InsertItem>
+      <summary>
+        Called when a new item is being inserted into the collection. The base implementation actually performs the insertion.
+      </summary>
+    </InsertItem>
+    <RemoveItem>
+      <summary>
+        Called when an item is being removed from the collection. The base implementation actually performs the removal.
+      </summary>
+    </RemoveItem>
+    <SetItem>
+      <summary>
+        Called when an item in the collection is being assigned. The base implementation actually performs the assignment.
+      </summary>
+    </SetItem>
+    <OnCollectionChanged>
+      <summary>Called when the collection may have been changed by the user.</summary>
+    </OnCollectionChanged>
+  </CollectionBase>
+  
+  <Common>
+    <Clear>
+      <summary>Removes all items from the collection.</summary>
+    </Clear>
+    <Contains>
+      <summary>Determines whether the collection contains the given item.</summary>
+    </Contains>
+    <CopyTo>
+      <summary>Copies all items from the collection to the array at the given index.</summary>
+    </CopyTo>
+    <GetEnumerator>
+      <summary>Allocates and returns an <see cref="IEnumerator{T}" /> to iterate through the items in the collection.</summary>
+    </GetEnumerator>
+    <IndexOf>
+      <summary>Returns the first index of the given item, or -1 if the item does not exist in the collection.</summary>
+    </IndexOf>
+    <Indexer>
+      <summary>Gets the item from the list at the given index.</summary>
+    </Indexer>
+    <Insert>
+      <summary>Inserts an item into the collection at a given index.</summary>
+    </Insert>
+    <Remove>
+      <summary>
+        Removes the first instance of the given item from the collection if it exists. Returns true if an item was removed.
+      </summary>
+    </Remove>
+    <RemoveAt>
+      <summary>Removes the item at the given index.</summary>
+    </RemoveAt>
+    <ToArray>
+      <summary>Creates and returns an array containing all of the items in the collection.</summary>
+    </ToArray>
+  </Common>
+
+  <Dictionary>
+    <Contains>
+      <summary>Determines whether the dictionary contains the given <see cref="KeyValuePair{K,V}" />.</summary>
+    </Contains>
+    <ContainsKey>
+      <summary>Determines whether the dictionary contains the given key.</summary>
+    </ContainsKey>
+    <CopyTo>
+      <summary>
+        Copies all of the keys and values in the dictionary to an array in the form of <see cref="KeyValuePair{K,V}" /> objects.
+      </summary>
+    </CopyTo>
+    <GetEnumerator>
+      <summary>
+        Returns an enumerator that iterates through the keys and values in the dictionary, in the form of
+        <see cref="KeyValuePair{K,V}" /> objects.
+      </summary>
+    </GetEnumerator>
+    <Indexer>
+      <summary>Returns the item with the given key, or throws an exception if they key does not exist in the dictionary.</summary>
+    </Indexer>
+    <Keys>
+      <summary>Gets a collection containing the keys within the dictionary.</summary>
+    </Keys>
+    <ToArray>
+      <summary>
+        Returns an array containing all of the keys and values in the dictionary in the form of <see cref="KeyValuePair{K,V}" />
+        objects.
+      </summary>
+    </ToArray>
+    <TryGetValue>
+      <summary>
+        Attempts to retrieve the value with the given key. Returns true if the value could be retrieved and false if the key
+        does not exist in the dictionary.
+      </summary>
+    </TryGetValue>
+    <Values>
+      <summary>
+        Gets a collection containing the values within the dictionary. Values may be included in the collection multiple times,
+        if they are referenced by multiple keys.
+      </summary>
+    </Values>
+  </Dictionary>
+
+  <ValidatedCollection>
+    <ValidateItem>
+      <summary>
+        Called when an item is about to be inserted or set, to check the validity of the new item. The method should throw an
+        exception if the item is not valid.
+      </summary>
+    </ValidateItem>
+  </ValidatedCollection>
+</Collections>

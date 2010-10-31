@@ -261,29 +261,35 @@ public abstract class SecureLog
 
     SecureString hashKey = HashKey; // grab the hash key in case it's changed by another thread
     HMACSHA1 hmac = null;
-    if(hashKey == null || hashKey.Length == 0) // if no key was specified, just use the padding bytes as the key
+    try
     {
-      hmac = new HMACSHA1(keyPadding);
-    }
-    else
-    {
-      SecurityUtility.ProcessSecureString(hashKey, delegate(byte[] keyBytes)
+      if(hashKey == null || hashKey.Length == 0) // if no key was specified, just use the padding bytes as the key
       {
-        if(keyBytes.Length < 64) // if the key is shorter than 64 bytes, pad it until it becomes 64 bytes
+        hmac = new HMACSHA1(keyPadding);
+      }
+      else
+      {
+        SecurityUtility.ProcessSecureString(hashKey, delegate(byte[] keyBytes)
         {
-          byte[] key = new byte[64];
-          Array.Copy(keyBytes, key, keyBytes.Length);
-          Array.Copy(keyPadding, keyBytes.Length, key, keyBytes.Length, 64-keyBytes.Length);
-          keyBytes = key;
-        }
-        hmac = new HMACSHA1(keyBytes);
-        SecurityUtility.ZeroBuffer(keyBytes);
-      });
-    }
+          if(keyBytes.Length < 64) // if the key is shorter than 64 bytes, pad it until it becomes 64 bytes
+          {
+            byte[] key = new byte[64];
+            Array.Copy(keyBytes, key, keyBytes.Length);
+            Array.Copy(keyPadding, keyBytes.Length, key, keyBytes.Length, 64-keyBytes.Length);
+            keyBytes = key;
+          }
+          hmac = new HMACSHA1(keyBytes);
+          SecurityUtility.ZeroBuffer(keyBytes);
+        });
+      }
 
-    hmac.TransformBlock(dateBytes, 0, dateBytes.Length, null, 0);
-    hashBytes = hmac.TransformFinalBlock(msgBytes, 0, msgBytes.Length);
-    hmac.Clear(); // clear the internal buffers of the HMAC class, which contain the key
+      hmac.TransformBlock(dateBytes, 0, dateBytes.Length, null, 0);
+      hashBytes = hmac.TransformFinalBlock(msgBytes, 0, msgBytes.Length);
+    }
+    finally
+    {
+      if(hmac != null) hmac.Clear(); // clear the internal buffers, which contain the key
+    }
 
     try { WriteLogEntry(entry.Type, entry.Timestamp, hashBytes, msgBytes); }
     catch(Exception ex)
@@ -300,7 +306,7 @@ public abstract class SecureLog
   /// <summary>Sends an email to the administrator about a problem with the security log.</summary>
   protected void SendEmailToAdmin(string subject, string body)
   {
-    // TODO: add throttling / queuing
+    // TODO: add throttling / queuing (and possibly send on a separate thread)
     // TODO: add TLS support
     if(string.IsNullOrEmpty(subject)) subject = "Security Log Problem";
     if(string.IsNullOrEmpty(body)) throw new ArgumentException("The body must not be empty.");

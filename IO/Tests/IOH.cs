@@ -66,8 +66,8 @@ public class IOHTest
     Verify(array, value, size, bigEndian);
 
     // and test using the Stream interface
-    read  = typeof(IOH).GetMethod("Read"+testName, new Type[] { typeof(Stream) });
-    write = typeof(IOH).GetMethod("Write"+testName, new Type[] { typeof(Stream), valueObj.GetType() });
+    read  = typeof(StreamExtensions).GetMethod("Read"+testName, new Type[] { typeof(Stream) });
+    write = typeof(StreamExtensions).GetMethod("Write"+testName, new Type[] { typeof(Stream), valueObj.GetType() });
     MemoryStream ms = new MemoryStream(array, 0, array.Length, true, true);
     write.Invoke(null, new object[] { ms, valueObj });
     ms.Position = 0;
