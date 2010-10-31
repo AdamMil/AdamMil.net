@@ -155,4 +155,23 @@
      </Normal>
     </Vector>
   </Geometry>
+
+  <RNG>
+    <SeedSize>The number of uints that should be used to used to seed the random number generator.</SeedSize>
+    <GetDerivedState>
+      <summary>
+        Returns a serializable object containing the internal state of the random number generator, as implemented by
+        derived classes.
+      </summary>
+    </GetDerivedState>
+    <SetDerivedState>
+      <summary>
+        Sets the internal state of the random number generator, as implemented by derived classes, using a value
+        previously returned from <see cref="GetDerivedState"/>.
+      </summary>
+    </SetDerivedState>
+    <NextUint32>
+      <summary>Generates and returns a random 32-bit unsigned integer.</summary>
+    </NextUint32>
+  </RNG>
 </Math>

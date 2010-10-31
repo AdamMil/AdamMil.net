@@ -70,6 +70,7 @@ public abstract class CollectionBase<T> : IList<T>
 		if(collection != null)
 		{
 			int newCount = Items.Count + collection.Count, capacity = Items.Capacity;
+      if(capacity == 0) capacity = 4;
 			if(capacity < newCount)
 			{
 				do capacity *= 2; while(capacity < newCount);

@@ -27,11 +27,23 @@ namespace AdamMil.Utilities
 
 public static class StringUtility
 {
-	/// <summary>Determines whether the string contains another given string.</summary>
+  /// <summary>Determines whether a string contains a given character.</summary>
+  public static bool Contains(this string strToSearch, char charToSearchFor)
+  {
+    return strToSearch.IndexOf(charToSearchFor) != -1;
+  }
+
+	/// <summary>Determines whether a string contains another given string.</summary>
 	public static bool Contains(this string strToSearch, string strToSearchFor, StringComparison comparisonType)
 	{
 		return strToSearch.IndexOf(strToSearchFor, comparisonType) != -1;
 	}
+
+  /// <summary>Determines whether two strings are identical, using a case-sensitive ordinal comparison.</summary>
+  public static bool ExactlyEquals(this string string1, string string2)
+  {
+    return string.Equals(string1, string2, StringComparison.Ordinal);
+  }
 
 	/// <summary>Converts the given string, which is assumed to contain only hex digits, into the corresponding byte array.</summary>
 	public static byte[] FromHex(string hex)

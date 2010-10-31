@@ -22,10 +22,13 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using AdamMil.Utilities;
 
 namespace AdamMil.IO
 {
+
+// FIXME: make these work with non-seekable streams
 
 #region PinnedBuffer
 /// <summary>This class supports the <see cref="BinaryReader"/> and <see cref="BinaryWriter"/> classes and is not
@@ -41,7 +44,7 @@ public unsafe abstract class PinnedBuffer : IDisposable
     if(bufferSize < 0) throw new ArgumentOutOfRangeException();
     if(bufferSize == 0) bufferSize = 4096;
 
-    buffer = new byte[bufferSize];
+    Buffer = new byte[bufferSize];
     PinBuffer();
   }
 
@@ -49,9 +52,9 @@ public unsafe abstract class PinnedBuffer : IDisposable
   protected PinnedBuffer(byte[] array)
   {
     if(array == null) throw new ArgumentNullException();
-    buffer = array;
+    Buffer = array;
+    ExternalBuffer = true;
     PinBuffer();
-    noResize = true;
   }
 
   ~PinnedBuffer()
@@ -69,13 +72,19 @@ public unsafe abstract class PinnedBuffer : IDisposable
   /// <summary>Returns a safe reference to the underlying buffer.</summary>
   protected byte[] Buffer
   {
-    get { return buffer; }
+    get; private set;
   }
 
   /// <summary>Returns an unsafe pointer to the underlying buffer.</summary>
   protected byte* BufferPtr
   {
-    get { return bufferPtr; }
+    get; private set;
+  }
+
+  /// <summary>Gets whether the buffer was passed to the constructor and cannot be enlarged or reallocated.</summary>
+  protected bool ExternalBuffer
+  {
+    get; private set;
   }
 
   /// <summary>Creates the new buffer to be used when enlarging the IO buffer.</summary>
@@ -85,7 +94,7 @@ public unsafe abstract class PinnedBuffer : IDisposable
   protected virtual byte[] CreateResizeBuffer(int newSize)
   {
     byte[] newBuffer = new byte[newSize];
-    Array.Copy(buffer, newBuffer, buffer.Length);
+    Array.Copy(Buffer, newBuffer, Buffer.Length);
     return newBuffer;
   }
 
@@ -101,23 +110,17 @@ public unsafe abstract class PinnedBuffer : IDisposable
   /// <param name="capacity">The required capacity of the buffer.</param>
   protected void EnsureCapacity(int capacity)
   {
-    if(capacity > buffer.Length)
+    if(capacity > Buffer.Length)
     {
-      if(noResize) throw new InvalidOperationException("This buffer cannot be enlarged beyond its original size.");
+      if(ExternalBuffer) throw new InvalidOperationException("This buffer cannot be enlarged beyond its original size.");
 
-      int newSize = buffer.Length, add = 4096;
-
-      if((newSize & 0xFFF) != 0) // if the buffer size is not a multiple of 4096, grow the buffer in doubles
-      {
-        add = buffer.Length;
-      }
-
+      int newSize = Buffer.Length, add = 4096;
+      if((newSize & 0xFFF) != 0) add = Buffer.Length; // if the buffer size is not a multiple of 4096, grow the buffer in doubles
       do newSize += add; while(newSize < capacity);
 
       byte[] newBuffer = CreateResizeBuffer(newSize);
-
       FreeBuffer();
-      buffer = newBuffer;
+      Buffer = newBuffer;
       PinBuffer();
     }
   }
@@ -129,6 +132,7 @@ public unsafe abstract class PinnedBuffer : IDisposable
   protected static void Copy(byte* src, byte* dest, int nbytes)
   {
     // TODO: we should copy /aligned/ dwords.
+    // TODO: potentially use Unsafe.Copy()
     if(nbytes < 0) throw new ArgumentOutOfRangeException();
 
     if(nbytes >= 16)
@@ -234,19 +238,16 @@ public unsafe abstract class PinnedBuffer : IDisposable
   void FreeBuffer()
   {
     if(handle.IsAllocated) handle.Free();
-    bufferPtr = null;
+    BufferPtr = null;
   }
   
   void PinBuffer()
   {
-    handle    = GCHandle.Alloc(buffer, GCHandleType.Pinned);
-    bufferPtr = (byte*)handle.AddrOfPinnedObject().ToPointer();
+    handle    = GCHandle.Alloc(Buffer, GCHandleType.Pinned);
+    BufferPtr = (byte*)handle.AddrOfPinnedObject().ToPointer();
   }
 
-  byte[] buffer;
-  byte*  bufferPtr;
   GCHandle handle;
-  bool noResize;
 }
 #endregion
 
@@ -268,8 +269,7 @@ public abstract class BinaryReaderWriterBase : PinnedBuffer
   internal BinaryReaderWriterBase(byte[] array, int index, int length, bool littleEndian) : base(array)
   {
     Utility.ValidateRange(array, index, length);
-    this.littleEndian   = littleEndian;
-    this.externalBuffer = true;
+    this.littleEndian = littleEndian;
   }
 
   /// <summary>Returns a reference to the underlying stream.</summary>
@@ -278,7 +278,7 @@ public abstract class BinaryReaderWriterBase : PinnedBuffer
     get { return this.stream; }
   }
 
-  /// <summary>Gets or sets whether the data being read from or written to the stream is little endian.</summary>
+  /// <summary>Gets or sets whether integer data being read from or written to the stream is little endian.</summary>
   /// <remarks>If the endianness of the data does not match the endianness of the system, the bytes will be swapped as
   /// necessary.
   /// </remarks>
@@ -294,12 +294,6 @@ public abstract class BinaryReaderWriterBase : PinnedBuffer
   public bool Shared
   {
     get { return shared; }
-  }
-
-  /// <summary>Gets whether the buffer was passed to the constructor and cannot be enlarged or reallocated.</summary>
-  protected bool ExternalBuffer
-  {
-    get { return externalBuffer; }
   }
 
   /// <summary>Seeks the underlying stream to the expected position if necessary.</summary>
@@ -319,7 +313,7 @@ public abstract class BinaryReaderWriterBase : PinnedBuffer
 
   long lastStreamPosition;
   readonly Stream stream;
-  readonly bool shared, externalBuffer;
+  readonly bool shared;
   bool littleEndian;
 }
 #endregion
@@ -387,8 +381,24 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public BinaryReader(byte[] array, int index, int length, bool littleEndian)
     : base(array, index, length, littleEndian)
   {
-    this.tailIndex = this.startIndex = index;
-    this.headIndex = index+length;
+    this.tailIndex  = this.startIndex = index;
+    this.headIndex  = index+length;
+    DefaultEncoding = Encoding.UTF8;
+  }
+
+  /// <summary>Gets or sets the default encoding used to transform characters and strings into bytes and vice versa.</summary>
+  public Encoding DefaultEncoding
+  {
+    get { return encoding; }
+    set
+    {
+      if(value != DefaultEncoding)
+      {
+        if(value == null) throw new ArgumentNullException();
+        encoding = value;
+        decoder  = value.GetDecoder();
+      }
+    }
   }
 
   /// <summary>Gets or sets the current position of the reader within the underlying stream. This equal to the
@@ -527,10 +537,28 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     return (sbyte)ReadByte();
   }
 
-  /// <summary>Reads a two-byte character from the stream.</summary>
+  /// <summary>Reads a character from the stream using the default encoding.</summary>
   public char ReadChar()
   {
-    return (char)ReadUInt16();
+    return ReadChar(DefaultEncoding);
+  }
+
+  /// <summary>Reads a character from the stream using the given encoding.</summary>
+  public char ReadChar(Encoding encoding)
+  {
+    if(encoding == null) throw new ArgumentOutOfRangeException();
+
+    // TODO: make sure this works and doesn't throw an exception on multibyte characters or screw them up
+    // TODO: it seems like we should be trying to call GetChars() with flush==true, as well...
+    decoder.Reset(); // TODO: should we reset?
+    char value;
+    for(int i=0; i<16; i++)
+    {
+      byte byteValue = ReadByte();
+      if(decoder.GetChars(&byteValue, 1, &value, 1, false) != 0) return value;
+    }
+
+    throw new NotSupportedException();
   }
 
   /// <summary>Reads a variable-length signed integer from the stream.</summary>
@@ -663,26 +691,59 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     fixed(byte* ptr=array) Read(ptr, count);
   }
 
-  /// <summary>Reads an array of two-byte characters from the stream.</summary>
+  /// <summary>Reads an array of two-byte characters from the stream using the given encoding.</summary>
   public char[] ReadChar(int count)
   {
-    if(count < 0) throw new ArgumentOutOfRangeException();
-    char[] data = new char[count];
-    fixed(char* ptr=data) ReadChar(ptr, count);
-    return data;
+    return ReadChar(count, DefaultEncoding);
   }
 
-  /// <summary>Reads a number of two-byte characters from the stream.</summary>
-  public void ReadChar(char[] array, int index, int count)
+  /// <summary>Reads an array of two-byte characters from the stream using the given encoding.</summary>
+  public char[] ReadChar(int count, Encoding encoding)
+  {
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    char[] chars = new char[count];
+    fixed(char* charPtr=chars) ReadChar(charPtr, count, encoding);
+    return chars;
+  }
+
+  /// <summary>Reads a number of two-byte characters from the stream. Returns the number of bytes read from the stream.</summary>
+  public int ReadChar(char[] array, int index, int count)
+  {
+    return ReadChar(array, index, count, DefaultEncoding);
+  }
+
+  /// <summary>Reads a number of two-byte characters from the stream. Returns the number of bytes read from the stream.</summary>
+  public int ReadChar(char[] array, int index, int count, Encoding encoding)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(char* ptr=array) ReadChar(ptr+index, count);
+    fixed(char* ptr=array) return ReadChar(ptr+index, count, encoding);
   }
 
-  /// <summary>Reads a number of two-byte characters from the stream.</summary>
-  public void ReadChar(char* array, int count)
+  /// <summary>Reads a number of two-byte characters from the stream. Returns the number of bytes read from the stream.</summary>
+  public int ReadChar(char* array, int count)
   {
-    ReadUInt16((ushort*)array, count);
+    return ReadChar(array, count, DefaultEncoding);
+  }
+
+  /// <summary>Reads a number of two-byte characters from the stream. Returns the number of bytes read from the stream.</summary>
+  public int ReadChar(char* array, int count, Encoding encoding)
+  {
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    if(encoding == null) throw new ArgumentNullException();
+
+    Decoder decoder = encoding == DefaultEncoding ? this.decoder : encoding.GetDecoder();
+    int totalRead = 0;
+    while(count != 0)
+    {
+      EnsureContiguousData(1);
+      // NOTE: this assumes that each character is at least one byte (the built-in .NET BinaryReader makes the same assumption)
+      int bytesRead = Math.Min(count, ContiguousData), charsRead = decoder.GetChars(BufferPtr, bytesRead, array, count, false);
+      AdvanceTail(bytesRead);
+      totalRead += bytesRead;
+      array += charsRead;
+      count -= charsRead;
+    }
+    return totalRead;
   }
 
   /// <summary>Reads an array of signed two-byte integers from the stream.</summary>
@@ -861,26 +922,47 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     Read(array, count*sizeof(double));
   }
 
-  /// <summary>Reads a string stored as an array of two-byte characters from the stream.</summary>
-  /// <param name="nchars">The number of two-byte characters to read.</param>
-  /// <returns>A string of length <paramref name="nchars"/> containing the characters read from the stream.</returns>
-  public string ReadString(int nchars)
+  /// <summary>Reads a string stored as an array of encoded bytes from the stream.</summary>
+  /// <param name="nbytes">The number of bytes to read.</param>
+  /// <returns>A string containing the characters decoded from the stream.</returns>
+  public string ReadString(int nbytes)
   {
-    if(nchars < 0) throw new ArgumentOutOfRangeException();
-    if(nchars == 0) return string.Empty;
-    char* data = (char*)ReadContiguousData(nchars * sizeof(char));
-    MakeSystemEndian2(data, nchars);
-    return new string(data, 0, nchars);
+    return ReadString(nbytes, DefaultEncoding);
+  }
+
+  /// <summary>Reads a string stored as an array of encoded bytes from the stream.</summary>
+  /// <param name="nbytes">The number of bytes to read.</param>
+  /// <param name="encoding">The <see cref="Encoding"/> used to decode the bytes.</param>
+  /// <returns>A string containing the characters decoded from the stream.</returns>
+  public string ReadString(int nbytes, Encoding encoding)
+  {
+    if(encoding == null) throw new ArgumentNullException();
+    if(nbytes < 0) throw new ArgumentOutOfRangeException();
+    if(nbytes == 0) return string.Empty;
+
+    byte* byteSrc = ReadContiguousData(nbytes);
+    byte[] bytes = new byte[nbytes];
+    fixed(byte* byteDest=bytes) Copy(byteSrc, byteDest, nbytes);
+    return encoding.GetString(bytes);
   }
 
   /// <summary>Reads a string that was written by <see cref="BinaryWriter.WriteStringWithLength"/>.</summary>
-  /// <remarks>The string is stored as a variable-length integer holding the length, followed by that many two-byte
+  /// <remarks>The string is stored as a variable-length integer holding the length, followed by that many bytes encoding the
   /// characters. A null string is represented with a length of -1.
   /// </remarks>
   public string ReadStringWithLength()
   {
-    int nchars = ReadEncodedInt32();
-    return nchars == -1 ? null : ReadString(nchars);
+    return ReadStringWithLength(DefaultEncoding);
+  }
+
+  /// <summary>Reads a string that was written by <see cref="BinaryWriter.WriteStringWithLength"/>.</summary>
+  /// <remarks>The string is stored as a variable-length integer holding the length, followed by that many bytes encoding the
+  /// characters. A null string is represented with a length of -1.
+  /// </remarks>
+  public string ReadStringWithLength(Encoding encoding)
+  {
+    int nbytes = ReadEncodedInt32();
+    return nbytes == -1 ? null : ReadString(nbytes, encoding);
   }
 
   /// <summary>Advances the reader by the given number of bytes.</summary>
@@ -897,7 +979,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public void SkipStringWithLength()
   {
     int length = ReadEncodedInt32();
-    if(length > 0) Skip(length * sizeof(char));
+    if(length > 0) Skip(length);
   }
 
   /// <summary>
@@ -1067,6 +1149,8 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
 
   int headIndex, tailIndex;
   readonly int startIndex;
+  Encoding encoding;
+  Decoder decoder;
 }
 #endregion
 
@@ -1132,6 +1216,18 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   {
     this.startIndex   = this.writeIndex = index;
     this.bufferLength = length;
+    DefaultEncoding   = Encoding.UTF8;
+  }
+
+  /// <summary>Gets or sets the default encoding used to transform characters and strings into bytes.</summary>
+  public Encoding DefaultEncoding
+  {
+    get { return encoding; }
+    set
+    {
+      if(value == null) throw new ArgumentNullException();
+      encoding = value;
+    }
   }
 
   /// <summary>Gets or sets the position of the writer. This is equal to the position of the underlying stream, plus
@@ -1176,10 +1272,25 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     BufferPtr[writeIndex++] = value;
   }
 
-  /// <summary>Writes a two-byte character to the stream.</summary>
-  public void Write(char c)
+  /// <summary>Writes a character to the stream, using the default encoding. Returns the number of bytes written to the
+  /// stream.
+  /// </summary>
+  public int Write(char value)
   {
-    Write((ushort)c);
+    return Write(value, DefaultEncoding);
+  }
+
+  /// <summary>Writes a character to the stream, using the given encoding. Returns the number of bytes written to the stream.</summary>
+  public int Write(char value, Encoding encoding)
+  {
+    if(encoding == null) throw new ArgumentNullException();
+    if(char.IsSurrogate(value)) throw new ArgumentException();
+
+    // we assume that all characters can fit in 16 bytes (the built-in BinaryWriter makes the same assumption)
+    byte* buffer = stackalloc byte[16];
+    int bytes = encoding.GetBytes(&value, 1, buffer, 16);
+    WriteCore(buffer, bytes, 1);
+    return bytes;
   }
 
   /// <summary>Writes a signed two-byte integer to the stream.</summary>
@@ -1243,35 +1354,6 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     writeIndex += sizeof(double);
   }
 
-  /// <summary>Writes a string to the stream as an array of two-byte characters.</summary>
-  public void Write(string str)
-  {
-    if(str == null) throw new ArgumentNullException();
-    fixed(char* data=str) Write(data, str.Length);
-  }
-
-  /// <summary>Writes a string to the stream as an array of two-byte characters.</summary>
-  public void Write(string str, int index, int count)
-  {
-    if(str == null) throw new ArgumentNullException();
-    if(index < 0 || count < 0 || index+count > str.Length) throw new ArgumentOutOfRangeException();
-    fixed(char* data=str) Write(data+index, count);
-  }
-
-  /// <summary>Writes a string to the stream with its length prefixed. Null strings are also supported by this method.</summary>
-  public void WriteStringWithLength(string str)
-  {
-    if(str == null)
-    {
-      WriteEncoded(-1);
-    }
-    else
-    {
-      WriteEncoded(str.Length);
-      Write(str);
-    }
-  }
-
   /// <summary>Writes an array of bytes to the stream.</summary>
   public void Write(byte[] data)
   {
@@ -1290,27 +1372,90 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(byte* data, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
-    Write((void*)data, count, 1);
+    WriteCore(data, count);
   }
 
-  /// <summary>Writes an array of two-byte characters to the stream.</summary>
-  public void Write(char[] data)
+  /// <summary>Writes an array of characters to the stream, using the default encoding. Returns the number of bytes written to
+  /// the stream.
+  /// </summary>
+  public int Write(char[] chars)
   {
-    if(data == null) throw new ArgumentNullException();
-    fixed(char* ptr=data) Write(ptr, data.Length);
+    if(chars == null) throw new ArgumentNullException();
+    return Write(chars, 0, chars.Length, DefaultEncoding);
   }
 
-  /// <summary>Writes an array of two-byte characters to the stream.</summary>
-  public void Write(char[] data, int index, int count)
+  /// <summary>Writes an array of characters to the stream, with the given encoding. Returns the number of bytes written to
+  /// the stream.
+  /// </summary>
+  public int Write(char[] chars, Encoding encoding)
   {
-    Utility.ValidateRange(data, index, count);
-    fixed(char* ptr=data) Write(ptr+index, count);
+    if(chars == null || encoding == null) throw new ArgumentNullException();
+    return Write(chars, 0, chars.Length, encoding);
   }
 
-  /// <summary>Writes an array of two-byte characters to the stream.</summary>
-  public void Write(char* data, int count)
+  /// <summary>Writes an array of characters to the stream, using the default encoding. Returns the number of bytes written to
+  /// the stream.
+  /// </summary>
+  public int Write(char[] chars, int index, int count)
   {
-    Write((ushort*)data, count);
+    return Write(chars, index, count, DefaultEncoding);
+  }
+
+  /// <summary>Writes an array of characters to the stream, using the given encoding. Returns the number of bytes written to
+  /// the stream.
+  /// </summary>
+  public int Write(char[] chars, int index, int count, Encoding encoding)
+  {
+    if(encoding == null) throw new ArgumentNullException();
+    Utility.ValidateRange(chars, index, count);
+
+    int spaceNeeded = encoding.GetMaxByteCount(count);
+    if(spaceNeeded <= StackAllocThreshold)
+    {
+      byte* buffer = stackalloc byte[StackAllocThreshold];
+      fixed(char* charPtr=chars) spaceNeeded = encoding.GetBytes(charPtr+index, count, buffer, StackAllocThreshold);
+      WriteCore(buffer, spaceNeeded);
+    }
+    else
+    {
+      byte[] bytes = encoding.GetBytes(chars, index, count);
+      Write(bytes, 0, bytes.Length);
+      spaceNeeded = bytes.Length;
+    }
+    return spaceNeeded;
+  }
+
+  /// <summary>Writes an array of characters to the stream, using the default encoding. Returns the number of bytes written to
+  /// the stream.
+  /// </summary>
+  public int Write(char* data, int count)
+  {
+    return Write(data, count, DefaultEncoding);
+  }
+
+  /// <summary>Writes an array of characters to the stream, using the given encoding. Returns the number of bytes written to
+  /// the stream.
+  /// </summary>
+  public int Write(char* data, int count, Encoding encoding)
+  {
+    if(encoding == null) throw new ArgumentNullException();
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    int spaceNeeded = encoding.GetMaxByteCount(count);
+    if(spaceNeeded <= StackAllocThreshold)
+    {
+      byte* buffer = stackalloc byte[StackAllocThreshold];
+      spaceNeeded = encoding.GetBytes(data, count, buffer, StackAllocThreshold);
+      WriteCore(buffer, spaceNeeded);
+    }
+    else
+    {
+      char[] chars = new char[count];
+      fixed(char* charPtr=chars) Copy((byte*)data, (byte*)charPtr, count*sizeof(char));
+      byte[] bytes = encoding.GetBytes(chars);
+      Write(bytes);
+      spaceNeeded = bytes.Length;
+    }
+    return spaceNeeded;
   }
 
   /// <summary>Writes an array of signed two-byte integers to the stream.</summary>
@@ -1351,7 +1496,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(ushort* data, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
-    Write((void*)data, count, sizeof(ushort));
+    Write((byte*)data, count, sizeof(ushort));
   }
 
   /// <summary>Writes an array of signed four-byte integers to the stream.</summary>
@@ -1392,7 +1537,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(uint* data, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
-    Write((void*)data, count, sizeof(uint));
+    WriteCore((byte*)data, count, sizeof(uint));
   }
 
   /// <summary>Writes an array of signed eight-byte integers to the stream.</summary>
@@ -1433,7 +1578,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(ulong* data, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
-    Write((void*)data, count, sizeof(ulong));
+    WriteCore((byte*)data, count, sizeof(ulong));
   }
 
   /// <summary>Writes an array of four-byte floats to the stream.</summary>
@@ -1454,7 +1599,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(float* data, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
-    Write((void*)data, count*sizeof(float), 1);
+    WriteCore((byte*)data, count*sizeof(float));
   }
 
   /// <summary>Writes an array of eight-byte floats to the stream.</summary>
@@ -1475,14 +1620,41 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(double* data, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
-    Write((void*)data, count*sizeof(double), 1);
+    WriteCore((byte*)data, count*sizeof(double));
+  }
+
+  /// <summary>Writes a string to the stream, using the default encoding. Returns the number of bytes written to the stream.</summary>
+  public int Write(string str)
+  {
+    return Write(str, DefaultEncoding);
+  }
+
+  /// <summary>Writes a string to the stream, with the given encoding. Returns the number of bytes written to the stream.</summary>
+  public int Write(string str, Encoding encoding)
+  {
+    if(str == null) throw new ArgumentNullException();
+    fixed(char* chars=str) return Write(chars, str.Length, encoding);
+  }
+
+  /// <summary>Writes a substring to the stream, using the default encoding. Returns the number of bytes written to the stream.</summary>
+  public int Write(string str, int index, int count)
+  {
+    return Write(str, index, count, DefaultEncoding);
+  }
+
+  /// <summary>Writes a substring to the stream, using the given encoding. Returns the number of bytes written to the stream.</summary>
+  public int Write(string str, int index, int count, Encoding encoding)
+  {
+    if(str == null) throw new ArgumentNullException();
+    if(index < 0 || count < 0 || index+count > str.Length) throw new ArgumentOutOfRangeException();
+    fixed(char* chars=str) return Write(chars+index, count, encoding);
   }
 
   /// <summary>Writes data from the given region of memory to the stream.</summary>
   /// <param name="data">The location in memory of the data to write.</param>
   /// <param name="count">The number of items to write. Each item has a size of <paramref name="wordSize"/> bytes.</param>
   /// <param name="wordSize">The size of each item to copy. The bytes in each item will be swapped to ensure the
-  /// correct endianness. If you don't want any swapping to occur, use a value of one for the word size.
+  /// correct endianness. If you don't want any swapping to occur, use a value of 1 for the word size.
   /// </param>
   /// <remarks>This method will not enlarge the buffer unless it is smaller than <paramref name="wordSize"/>. Rather,
   /// it will fill and flush the buffer as many times as is necessary to write the data.
@@ -1490,36 +1662,13 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(void* data, int count, int wordSize)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
-    else if(count == 0) return; // return so we don't throw an exception if we're at the end of an external buffer
 
     if(wordSize != 1 && wordSize != 2 && wordSize != 4 && wordSize != 8)
     {
       throw new ArgumentOutOfRangeException("Word size must be 1, 2, 4, or 8.");
     }
 
-    EnsureSpace(wordSize); // make sure the buffer is big enough to hold at least one word
-    
-    int shift = wordSize == 4 ? 2 : wordSize == 8 ? 3 : wordSize-1; // the shift to divide or mulitply by the word size
-    byte* src = (byte*)data;
-    while(count != 0)
-    {
-      int toCopy = Math.Min(AvailableSpace>>shift, count), bytesWritten = toCopy<<shift;
-      if(toCopy == 0) RaiseFullError();
-      Copy(src, WritePtr, bytesWritten);
-
-      src        += bytesWritten;
-      writeIndex += bytesWritten;
-
-      if(wordSize != 1) // make sure the data in the buffer has the correct endianness
-      {
-        if(wordSize == 4) MakeDesiredEndian4(toCopy);
-        else if(wordSize == 2) MakeDesiredEndian2(toCopy);
-        else MakeDesiredEndian8(toCopy);
-      }
-
-      if(AvailableSpace < wordSize) FlushBuffer();
-      count -= toCopy;
-    }
+    WriteCore((byte*)data, count, wordSize);
   }
 
   /// <summary>Writes a signed integer with a variable-length format, taking from one to five bytes.</summary>
@@ -1603,6 +1752,49 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     }
   }
 
+  /// <summary>Writes a string to the stream, using the default encoding. Null strings are supported.</summary>
+  public void WriteStringWithLength(string str)
+  {
+    WriteStringWithLength(str, DefaultEncoding);
+  }
+
+  /// <summary>Writes a string to the stream, with the given encoding. Null strings are supported.</summary>
+  public void WriteStringWithLength(string str, Encoding encoding)
+  {
+    if(str == null) WriteEncoded(-1);
+    else WriteStringWithLength(str, 0, str.Length, encoding);
+  }
+
+  /// <summary>Writes a substring to the stream, using the default encoding.</summary>
+  public void WriteStringWithLength(string str, int index, int count)
+  {
+    Write(str, index, count, DefaultEncoding);
+  }
+
+  /// <summary>Writes a substring to the stream, using the given encoding.</summary>
+  public void WriteStringWithLength(string str, int index, int count, Encoding encoding)
+  {
+    if(str == null || encoding == null) throw new ArgumentNullException();
+    if(index < 0 || count < 0 || index+count > str.Length) throw new ArgumentOutOfRangeException();
+
+    int spaceNeeded = encoding.GetMaxByteCount(count);
+    if(spaceNeeded <= StackAllocThreshold)
+    {
+      byte* buffer = stackalloc byte[StackAllocThreshold];
+      fixed(char* chars=str) spaceNeeded = encoding.GetBytes(chars+index, count, buffer, StackAllocThreshold);
+      WriteEncoded(spaceNeeded);
+      WriteCore(buffer, spaceNeeded);
+    }
+    else
+    {
+      char[] chars = new char[count];
+      str.CopyTo(index, chars, 0, count);
+      byte[] bytes = encoding.GetBytes(chars);
+      WriteEncoded(bytes.Length);
+      Write(bytes);
+    }
+  }
+
   /// <summary>Writes the given number of zero bytes.</summary>
   public void WriteZeros(int count)
   {
@@ -1633,8 +1825,10 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     }
   }
 
-  /// <summary>Writes the data from the buffer to the underlying stream, but does not flush the underlying stream. (Use
-  /// <see cref="Flush"/> for that.)</summary>
+  /// <summary>Writes the data from the buffer to the underlying stream, but does not flush the underlying stream.
+  /// (Use <see cref="Flush"/> for that.)
+  /// <seealso cref="Flush"/>
+  /// </summary>
   public void FlushBuffer()
   {
     if(!ExternalBuffer)
@@ -1709,14 +1903,72 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     if(LittleEndian != BitConverter.IsLittleEndian) SwapEndian8(WritePtr-qwords*8, qwords);
   }
 
+  const int StackAllocThreshold = 1024;
+
   /// <summary>The amount of empty space in the buffer.</summary>
   int AvailableSpace
   {
     get { return ExternalBuffer ? bufferLength-writeIndex+startIndex : Buffer.Length-writeIndex; }
   }
 
+  void WriteCore(byte* data, int count)
+  {
+    if(count != 0)
+    {
+      do
+      {
+        int bytes = AvailableSpace;
+        if(bytes == 0)
+        {
+          FlushBuffer();
+          bytes = AvailableSpace;
+          if(bytes == 0) RaiseFullError();
+        }
+
+        if(count < bytes) bytes = count;
+        Copy(data, WritePtr, bytes);
+        data       += bytes;
+        writeIndex += bytes;
+        count      -= bytes;
+      } while(count != 0);
+    }
+  }
+
+  void WriteCore(byte* data, int count, int wordSize)
+  {
+    if(wordSize == 1) WriteCore(data, count);
+
+    if(count != 0)
+    {
+      int shift = wordSize == 4 ? 2 : wordSize == 8 ? 3 : wordSize-1; // the shift to divide or mulitply by the word size
+      do
+      {
+        int chunks = AvailableSpace>>shift;
+        if(chunks == 0)
+        {
+          FlushBuffer();
+          chunks = AvailableSpace>>shift;
+          if(chunks == 0) RaiseFullError();
+        }
+
+        if(count < chunks) chunks = count;
+        int bytes = chunks<<shift;
+        Copy(data, WritePtr, bytes);
+        data       += bytes;
+        writeIndex += bytes;
+
+        if(wordSize == 4) MakeDesiredEndian4(chunks);
+        else if(wordSize == 2) MakeDesiredEndian2(chunks);
+        else MakeDesiredEndian8(chunks);
+
+        count -= chunks;
+      } while(count != 0);
+    }
+  }
+
   int writeIndex;
   readonly int startIndex, bufferLength;
+  Encoding encoding;
 
   static void RaiseFullError()
   {

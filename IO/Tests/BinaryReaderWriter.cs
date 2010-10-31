@@ -6,6 +6,8 @@ using AdamMil.IO;
 namespace AdamMil.IO.Tests
 {
 
+// TODO: add tests for strings and chars
+
 [TestFixture]
 public class BinaryReaderWriterTest
 {
