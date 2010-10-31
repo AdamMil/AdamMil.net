@@ -19,10 +19,24 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using System.Collections.Generic;
 using AdamMil.Utilities;
 
 namespace AdamMil.Mathematics.Random
 {
+
+#region CollectionExtensions
+/// <summary>Implements useful extensions for .NET built-in collections.</summary>
+public static class CollectionExtensions
+{
+  /// <summary>Returns a random item from the list.</summary>
+  [CLSCompliant(false)]
+  public static T SelectRandom<T>(this IList<T> list, RandomNumberGenerator random)
+  {
+    return list[random.Next(list.Count)];
+  }
+}
+#endregion
 
 #region RandomNumberGenerator
 /// <summary>Provides a base class for random number generators.</summary>
@@ -116,10 +130,10 @@ public abstract class RandomNumberGenerator
     return (int)(NextUint32() >> 1);
   }
 
-  /// <summary>Generates and returns a random integer less than the given maximum, which must be non-negative.</summary>
+  /// <summary>Generates and returns a random integer less than the given maximum, which must be positive.</summary>
   public int Next(int exclusiveMaximum)
   {
-    if(exclusiveMaximum < 0) throw new ArgumentOutOfRangeException();
+    if(exclusiveMaximum <= 0) throw new ArgumentOutOfRangeException();
     return (int)(NextDouble() * exclusiveMaximum);
   }
 

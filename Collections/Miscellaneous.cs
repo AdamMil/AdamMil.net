@@ -124,7 +124,7 @@ public sealed class ReadOnlyCollectionWrapper<T> : IReadOnlyCollection<T>, IColl
 /// <summary>Represents a read-only wrapper around a dictionary.</summary>
 public sealed class ReadOnlyDictionaryWrapper<K, V> : IReadOnlyDictionary<K, V>
 {
-  /// <summary>Initializes this <see cref="ReadOnlyDictionaryWrapper"/> with the given dictionary.</summary>
+  /// <summary>Initializes this <see cref="ReadOnlyDictionaryWrapper{K,V}"/> with the given dictionary.</summary>
   public ReadOnlyDictionaryWrapper(IDictionary<K, V> dictionary)
   {
     if(dictionary == null) throw new ArgumentNullException();
@@ -134,26 +134,31 @@ public sealed class ReadOnlyDictionaryWrapper<K, V> : IReadOnlyDictionary<K, V>
   }
 
   #region IReadOnlyDictionary<K,V> Members
+  /// <include file="documentation.xml" path="//Dictionary/Indexer/*"/>
   public V this[K key]
   {
     get { return dictionary[key]; }
   }
 
+  /// <include file="documentation.xml" path="//Dictionary/Keys/*"/>
   public IReadOnlyCollection<K> Keys
   {
     get; private set;
   }
 
+  /// <include file="documentation.xml" path="//Dictionary/Values/*"/>
   public IReadOnlyCollection<V> Values
   {
     get; private set;
   }
 
+  /// <include file="documentation.xml" path="//Dictionary/ContainsKey/*"/>
   public bool ContainsKey(K key)
   {
     return dictionary.ContainsKey(key);
   }
 
+  /// <include file="documentation.xml" path="//Dictionary/TryGetValue/*"/>
   public bool TryGetValue(K key, out V value)
   {
     return dictionary.TryGetValue(key, out value);
@@ -161,21 +166,25 @@ public sealed class ReadOnlyDictionaryWrapper<K, V> : IReadOnlyDictionary<K, V>
   #endregion
 
   #region IReadOnlyCollection<KeyValuePair<K,V>> Members
+  /// <include file="documentation.xml" path="//Common/Count/*"/>
   public int Count
   {
     get { return dictionary.Count; }
   }
 
+  /// <include file="documentation.xml" path="//Dictionary/Contains/*"/>
   public bool Contains(KeyValuePair<K, V> item)
   {
     return dictionary.Contains(item);
   }
 
+  /// <include file="documentation.xml" path="//Dictionary/CopyTo/*"/>
   public void CopyTo(KeyValuePair<K, V>[] array, int arrayIndex)
   {
     dictionary.CopyTo(array, arrayIndex);
   }
 
+  /// <include file="documentation.xml" path="//Dictionary/ToArray/*"/>
   public KeyValuePair<K, V>[] ToArray()
   {
     KeyValuePair<K, V>[] array = new KeyValuePair<K, V>[dictionary.Count];
@@ -185,6 +194,7 @@ public sealed class ReadOnlyDictionaryWrapper<K, V> : IReadOnlyDictionary<K, V>
   #endregion
 
   #region IEnumerable<KeyValuePair<K,V>> Members
+  /// <include file="documentation.xml" path="//Dictionary/GetEnumerator/*"/>
   public IEnumerator<KeyValuePair<K, V>> GetEnumerator()
   {
     return dictionary.GetEnumerator();
@@ -213,45 +223,43 @@ public sealed class ReadOnlyListWrapper<T> : IReadOnlyList<T>, IList<T>
     this.list = list;
   }
 
-  /// <summary>Gets the item from the list at the given index.</summary>
+  /// <include file="documentation.xml" path="//Common/Indexer/*"/>
   public T this[int index]
   {
     get { return list[index]; }
   }
 
-  /// <summary>Gets the number of items in the list.</summary>
+  /// <include file="documentation.xml" path="//Common/Count/*"/>
   public int Count
   {
     get { return list.Count; }
   }
 
-  /// <summary>Returns true if the list contains the given item.</summary>
+  /// <include file="documentation.xml" path="//Common/Contains/*"/>
   public bool Contains(T item)
   {
     return list.Contains(item);
   }
 
-  /// <summary>Copies the items from the list to the given array, starting at the given index.</summary>
+  /// <include file="documentation.xml" path="//Common/CopyTo/*"/>
   public void CopyTo(T[] array, int arrayIndex)
   {
     list.CopyTo(array, arrayIndex);
   }
 
-  /// <summary>Returns an enumerator that enumerates the items in the list.</summary>
+  /// <include file="documentation.xml" path="//Common/GetEnumerator/*"/>
   public IEnumerator<T> GetEnumerator()
   {
     return list.GetEnumerator();
   }
 
-  /// <summary>Returns the index of the first item in the list equal to the given item, or -1 if the item could not
-  /// be found.
-  /// </summary>
+  /// <include file="documentation.xml" path="//Common/IndexOf/*"/>
   public int IndexOf(T item)
   {
     return list.IndexOf(item);
   }
 
-  /// <summary>Copies all of the items from the collection to a new array and returns it.</summary>
+  /// <include file="documentation.xml" path="//Common/ToArray/*"/>
   public T[] ToArray()
   {
     T[] array = new T[list.Count];

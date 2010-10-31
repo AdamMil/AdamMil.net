@@ -1,12 +1,11 @@
-using System;
+﻿using System;
 using System.IO;
 using NUnit.Framework;
 using AdamMil.IO;
+using AdamMil.Tests;
 
 namespace AdamMil.IO.Tests
 {
-
-// TODO: add tests for strings and chars
 
 [TestFixture]
 public class BinaryReaderWriterTest
@@ -30,7 +29,31 @@ public class BinaryReaderWriterTest
   }
 
   [Test]
-  public void TestEncoded()
+  public void TestCharsAndStrings()
+  {
+    MemoryStream ms = new MemoryStream();
+    using(BinaryWriter bw = new BinaryWriter(ms))
+    {
+      bw.Write('H');
+      bw.Write('吉');
+      bw.WriteStringWithLength("Hello, world.吉吉");
+      bw.WriteStringWithLength(new string('吉', 4096)); // write a really long string
+      bw.Write(new char[] { 'H', 'o', 'p', 'e', '吉' });
+    }
+
+    ms.Position = 0;
+    using(BinaryReader br = new BinaryReader(ms))
+    {
+      Assert.AreEqual('H', br.ReadChar());
+      Assert.AreEqual('吉', br.ReadChar());
+      Assert.AreEqual("Hello, world.吉吉", br.ReadStringWithLength());
+      Assert.AreEqual(new string('吉', 4096), br.ReadStringWithLength());
+      TestHelpers.AssertArrayEquals(new char[] { 'H', 'o', 'p', 'e', '吉' }, br.ReadChar(5));
+    }
+  }
+
+  [Test]
+  public void TestEncodedInts()
   {
     MemoryStream ms = new MemoryStream();
     int[] testInts = { 1, -1, 100, -100, 10000, -10000, 1000000, -1000000, int.MaxValue, int.MinValue };

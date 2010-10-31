@@ -19,17 +19,6 @@ public static class TestHelpers
     }
   }
 
-  public static void ArrayEquals<T>(T[] a, params T[] b)
-  {
-    if(a == null && b == null) return;
-    if(a == null || b == null) throw new ArgumentNullException();
-    Assert.AreEqual(a.Length, b.Length);
-    for(int i=0; i<a.Length; i++)
-    {
-      Assert.AreEqual(b[i], a[i]);
-    }
-  }
-
   public static void AssertPropertyEquals(string propertyName, object expected, object actual)
   {
     object expectedValue = GetPropertyValue(expected, propertyName), actualValue = GetPropertyValue(actual, propertyName);

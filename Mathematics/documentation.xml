@@ -23,6 +23,10 @@
     </AboutSimplex>
   </CoherentNoise>
 
+  <Common>
+    <GetHashCode>Returns a hash code for the object.</GetHashCode>
+  </Common>
+
   <Geometry>
     <Math2D>
       <AngleBetween>

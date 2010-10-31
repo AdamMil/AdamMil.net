@@ -40,7 +40,6 @@ public static class CollectionExtensions
   public static T SelectRandom<T>(this IList<T> list, Random random)
   {
     return list[random.Next(list.Count)];
-    list.Last();
   }
 }
 
