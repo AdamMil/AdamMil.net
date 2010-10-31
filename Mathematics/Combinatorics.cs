@@ -1,6 +1,6 @@
 /*
-AdamMil.Collections is a library that provides useful collection classes for
-the .NET framework.
+AdamMil.Mathematics is a library that provides some useful mathematics classes
+for the .NET framework.
 
 http://www.adammil.net/
 Copyright (C) 2007-2010 Adam Milazzo
@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 using System;
 using System.Collections.Generic;
+using AdamMil.Mathematics.Random;
 
 namespace AdamMil.Mathematics.Combinatorics
 {
@@ -28,27 +29,43 @@ namespace AdamMil.Mathematics.Combinatorics
 public static class Permutations
 {
   /// <summary>Randomly permutes the given list in-place, using a new random number generator.</summary>
-  public static void RandomlyPermute<T>(IList<T> list)
+  public static void RandomlyPermute<T>(this IList<T> list)
   {
     if(list == null) throw new ArgumentNullException();
-    RandomlyPermute(list, 0, list.Count, new System.Random());
+    RandomlyPermute(list, 0, list.Count, RandomNumberGenerator.CreateFastest());
   }
 
   /// <summary>Randomly permutes the given list in-place, using the given random number generator.</summary>
-  public static void RandomlyPermute<T>(IList<T> list, System.Random random)
+  [CLSCompliant(false)]
+  public static void RandomlyPermute<T>(this IList<T> list, RandomNumberGenerator random)
+  {
+    if(list == null) throw new ArgumentNullException();
+    RandomlyPermute(list, 0, list.Count, random);
+  }
+
+  /// <summary>Randomly permutes the given list in-place, using the given random number generator.</summary>
+  public static void RandomlyPermute<T>(this IList<T> list, System.Random random)
   {
     if(list == null) throw new ArgumentNullException();
     RandomlyPermute(list, 0, list.Count, random);
   }
 
   /// <summary>Randomly permutes the given portion of the list in-place, using a new random number generator.</summary>
-  public static void RandomlyPermute<T>(IList<T> list, int start, int count)
+  public static void RandomlyPermute<T>(this IList<T> list, int start, int count)
   {
-    RandomlyPermute(list, start, count, new System.Random());
+    RandomlyPermute(list, start, count, RandomNumberGenerator.CreateFastest());
   }
 
   /// <summary>Randomly permutes the given portion of the list in-place, using the given random number generator.</summary>
-  public static void RandomlyPermute<T>(IList<T> list, int start, int count, System.Random random)
+  public static void RandomlyPermute<T>(this IList<T> list, int start, int count, System.Random random)
+  {
+    if(list == null) throw new ArgumentNullException();
+    for(int end=start+count; start < end; start++) Swap(list, start, random.Next(start, end));
+  }
+
+  /// <summary>Randomly permutes the given portion of the list in-place, using the given random number generator.</summary>
+  [CLSCompliant(false)]
+  public static void RandomlyPermute<T>(this IList<T> list, int start, int count, RandomNumberGenerator random)
   {
     if(list == null) throw new ArgumentNullException();
     for(int end=start+count; start < end; start++) Swap(list, start, random.Next(start, end));

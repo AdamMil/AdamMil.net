@@ -36,6 +36,7 @@ public sealed class Stack<T> : IQueue<T>, IReadOnlyList<T>
   {
     if(capacity < 0) throw new ArgumentOutOfRangeException("capacity", capacity, "capacity must not be negative");
     this.array = new T[capacity == 0 ? 16 : capacity];
+    this.mustClear = !typeof(T).UnderlyingSystemType.IsPrimitive; // primitive types don't need to be cleared
   }
   /// <summary>Initializes a new instance of the <see cref="Stack{T}"/> class, filled with items from the given object.</summary>
   /// <param name="items">An <see cref="IEnumerable{T}"/> containing objects to add to the stack.</param>
@@ -54,6 +55,8 @@ public sealed class Stack<T> : IQueue<T>, IReadOnlyList<T>
       array = new T[16];
       foreach(T item in items) Push(item);
     }
+
+    this.mustClear = !typeof(T).UnderlyingSystemType.IsPrimitive; // primitive types don't need to be cleared
   }
 
   /// <summary>Gets or sets an item in the stack.</summary>
@@ -118,6 +121,15 @@ public sealed class Stack<T> : IQueue<T>, IReadOnlyList<T>
     return item;
   }
 
+  /// <summary>Removes the given number of items from the top of the stack.</summary>
+  public void Pop(int count)
+  {
+    if(count < 0 || count > Count) throw new ArgumentOutOfRangeException();
+    this.count -= count;
+    if(mustClear) Array.Clear(array, Count, count);
+    version++;
+  }
+
   /// <summary>Adds an item to the stack.</summary>
   /// <param name="item">The item to add to the stack.</param>
   public void Push(T item)
@@ -165,7 +177,7 @@ public sealed class Stack<T> : IQueue<T>, IReadOnlyList<T>
   /// <summary>Removes all elements from the stack.</summary>
   public void Clear()
   {
-    Array.Clear(array, 0, count);
+    if(mustClear) Array.Clear(array, 0, count);
     count = 0;
     version++;
   }
@@ -271,6 +283,7 @@ public sealed class Stack<T> : IQueue<T>, IReadOnlyList<T>
 
   T[] array;
   int count, version;
+  bool mustClear;
 }
 
 } // namespace AdamMil.Collections

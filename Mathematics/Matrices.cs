@@ -1,6 +1,6 @@
 ﻿/*
-AdamMil.Collections is a library that provides useful collection classes for
-the .NET framework.
+AdamMil.Mathematics is a library that provides some useful mathematics classes
+for the .NET framework.
 
 http://www.adammil.net/
 Copyright (C) 2007-2010 Adam Milazzo
