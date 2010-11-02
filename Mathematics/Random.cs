@@ -21,6 +21,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 using System;
 using System.Collections.Generic;
 using AdamMil.Utilities;
+using System.IO;
+using BinaryReader = AdamMil.IO.BinaryReader;
+using BinaryWriter = AdamMil.IO.BinaryWriter;
 
 namespace AdamMil.Mathematics.Random
 {
@@ -41,7 +44,7 @@ public static class CollectionExtensions
 #region RandomNumberGenerator
 /// <summary>Provides a base class for random number generators.</summary>
 /// <remarks>
-/// Comparison of included RNGs:
+/// Comparison of included RNGs (speed is a factor relative to XorShift128, so 0.5 means half the speed of XorShift128):
 /// <list type="table">
 /// <listheader>
 ///   <term>RNG</term>
@@ -53,7 +56,7 @@ public static class CollectionExtensions
 /// </listheader>
 /// <item>
 ///   <term>AWCKISS</term>
-///   <description>1.60</description>
+///   <description>0.63</description>
 ///   <description>Minimal</description>
 ///   <description>2^121</description>
 ///   <description>Good</description>
@@ -61,23 +64,23 @@ public static class CollectionExtensions
 /// </item>
 /// <item>
 ///   <term>CMWC4096</term>
-///   <description>2.10</description>
+///   <description>0.48</description>
 ///   <description>16 kb</description>
 ///   <description>2^131086</description>
 ///   <description>Good</description>
-///   <description>Huge period</description>
+///   <description>Huge period. Significant startup time</description>
 /// </item>
 /// <item>
 ///   <term>ISAAC</term>
-///   <description>2.74</description>
+///   <description>0.36</description>
 ///   <description>2 kb</description>
 ///   <description>Depends on seed (2^8295 average, 2^40 minimum)</description>
 ///   <description>Best</description>
-///   <description>Best randomness</description>
+///   <description>Best randomness. Significant startup time</description>
 /// </item>
 /// <item>
 ///   <term>KISS</term>
-///   <description>2.07</description>
+///   <description>0.48</description>
 ///   <description>Minimal</description>
 ///   <description>2^125</description>
 ///   <description>Great</description>
@@ -85,11 +88,11 @@ public static class CollectionExtensions
 /// </item>
 /// <item>
 ///   <term>MWC256</term>
-///   <description>1.84</description>
+///   <description>0.54</description>
 ///   <description>1 kb</description>
 ///   <description>2^8222</description>
 ///   <description>Good</description>
-///   <description>Large period</description>
+///   <description>Large period. Significant startup time</description>
 /// </item>
 /// <item>
 ///   <term>XorShift128</term>
@@ -102,25 +105,55 @@ public static class CollectionExtensions
 /// </list>
 /// </remarks>
 [CLSCompliant(false)]
+[Serializable]
 public abstract class RandomNumberGenerator
 {
-  /// <summary>Returns a serializable object containing the internal state of the random number generator. This object can later
+  /// <summary>Returns a byte array containing the internal state of the random number generator. This array can later
   /// be passed to <see cref="SetState"/> to restore the generator state.
   /// </summary>
-  public object GetState()
+  public byte[] GetState()
   {
-    return new State(GetDerivedState(), bitBuffer, bits);
+    using(MemoryStream ms = new MemoryStream())
+    {
+      SaveState(ms);
+      return ms.ToArray();
+    }
   }
 
-  /// <summary>Restores the generator state from an object retrieved by calling <see cref="GetState"/>.</summary>
-  public void SetState(object state)
+  /// <summary>Loads the generator state from a stream.</summary>
+  public void LoadState(Stream stream)
   {
-    State stateObj = state as State;
-    if(stateObj == null) throw new ArgumentException();
+    using(BinaryReader reader = new BinaryReader(stream)) LoadState(reader);
+  }
 
-    SetDerivedState(stateObj.DerivedState);
-    bitBuffer = stateObj.BitBuffer;
-    bits      = stateObj.Bits;
+  /// <summary>Loads the generator state from a <see cref="BinaryReader"/>.</summary>
+  public void LoadState(BinaryReader reader)
+  {
+    if(reader == null) throw new ArgumentNullException();
+    bitBuffer = reader.ReadUInt32();
+    bits      = reader.ReadByte();
+    LoadStateCore(reader);
+  }
+
+  /// <summary>Saves the generator state to a stream.</summary>
+  public void SaveState(Stream stream)
+  {
+    using(BinaryWriter writer = new BinaryWriter(stream)) SaveState(writer);
+  }
+
+  /// <summary>Saves the generator state to a <see cref="BinaryWriter"/>.</summary>
+  public void SaveState(BinaryWriter writer)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.Write(bitBuffer);
+    writer.Write(bits);
+    SaveStateCore(writer);
+  }
+
+  /// <summary>Restores the generator state from an array retrieved by calling <see cref="GetState"/>.</summary>
+  public void SetState(byte[] state)
+  {
+    using(MemoryStream ms = new MemoryStream(state)) LoadState(ms);
   }
 
   /// <summary>Generates and returns a random non-negative integer.</summary>
@@ -256,38 +289,34 @@ public abstract class RandomNumberGenerator
     return new XorShift128RNG();
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/GetDerivedState/*"/>
-  protected abstract object GetDerivedState();
+  /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/*"/>
+  protected abstract void LoadStateCore(BinaryReader reader);
 
-  /// <include file="documentation.xml" path="//Math/RNG/SetDerivedState/*"/>
-  protected abstract void SetDerivedState(object state);
+  /// <include file="documentation.xml" path="//Math/RNG/SaveStateCore/*"/>
+  protected abstract void SaveStateCore(BinaryWriter writer);
 
-  /// <summary>Returns a 64-bit seed based on the current time, as an array of two uints.</summary>
+  /// <summary>Returns a 64-bit seed based on the current time (both real-world time and an internal timer), as an array of four
+  /// uints.
+  /// </summary>
   protected static uint[] MakeTimeBasedSeed()
   {
-    long ticks = DateTime.Now.Ticks;
-    return new uint[] { (uint)(ticks>>32), (uint)ticks };
-  }
-
-  #region State
-  [Serializable]
-  sealed class State
-  {
-    internal State(object derivedState, uint bitBuffer, byte bits)
+    if(timer == null)
     {
-      DerivedState = derivedState;
-      BitBuffer    = bitBuffer;
-      Bits         = bits;
+      System.Diagnostics.Stopwatch t = new System.Diagnostics.Stopwatch();
+      t.Start();
+      timer = t;
     }
 
-    internal readonly object DerivedState;
-    internal readonly uint BitBuffer;
-    internal readonly byte Bits;
+    long dateTicks = DateTime.Now.Ticks, timerTicks = timer.ElapsedTicks;
+    // add constants to the timer tick values to prevent them from being too small (especially zero) shortly after startup.
+    // the timer may not be thread-safe, but it shouldn't crash and we don't really need accuracy, only rapid change in value
+    return new uint[] { (uint)timerTicks+123456789, (uint)(timerTicks>>32)+678912345, (uint)(dateTicks>>32), (uint)dateTicks };
   }
-  #endregion
 
   uint bitBuffer;
   byte bits;
+
+  static System.Diagnostics.Stopwatch timer;
 }
 #endregion
 
@@ -298,6 +327,7 @@ public abstract class RandomNumberGenerator
 /// constant time per number and uses very little memory, while maintaining fairly good quality. It has a period of about 2^121.
 /// </summary>
 [CLSCompliant(false)]
+[Serializable]
 public sealed class AWCKISSRNG : RandomNumberGenerator
 {
   // adapted from http://www.cs.ucl.ac.uk/staff/d.jones/GoodPracticeRNG.pdf
@@ -314,57 +344,58 @@ public sealed class AWCKISSRNG : RandomNumberGenerator
   /// </summary>
   public AWCKISSRNG(uint[] seed)
   {
-    s.X = 123456789;
-    s.Y = 234567891;
-    s.Z = 345678912;
-    s.W = 456789123;
+    X = 123456789;
+    Y = 234567891;
+    Z = 345678912;
+    W = 456789123;
 
     if(seed != null)
     {
-      if(seed.Length != 0) s.X = seed[0];
-      if(seed.Length > 1 && seed[1] != 0) s.Y = seed[1]; // avoid Y = 0
-      if(seed.Length > 2) s.Z = seed[2];
-      if(seed.Length > 3 && (s.Z != 0 || seed[3] != 0)) s.W = seed[3]; // avoid Z = W = 0
+      if(seed.Length != 0) X = seed[0];
+      if(seed.Length > 1 && seed[1] != 0) Y = seed[1]; // avoid Y = 0
+      if(seed.Length > 2) Z = seed[2];
+      if(seed.Length > 3 && (Z != 0 || seed[3] != 0)) W = seed[3]; // avoid Z = W = 0
     }
   }
 
   /// <include file="documentation.xml" path="//Math/RNG/NextUint32/*"/>
   public override uint NextUint32()
   {
-    s.X += 1411392427;
+    X += 1411392427;
 
-    s.Y ^= s.Y<<5;
-    s.Y ^= s.Y>>7;
-    s.Y ^= s.Y<<22;
+    Y ^= Y<<5;
+    Y ^= Y>>7;
+    Y ^= Y<<22;
 
-    uint t = s.Z + s.W + s.C;
-    s.Z  = s.W;
-    s.C  = t >> 31; // s.C = (int)t < 0 ? 1 : 0
-    s.W  = t & 0x7FFFFFFF; 
+    uint t = Z + W + C;
+    Z  = W;
+    C  = t >> 31; // C = (int)t < 0 ? 1 : 0
+    W  = t & 0x7FFFFFFF;
 
-    return s.X + s.Y + s.W; 
+    return X + Y + W;
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/GetDerivedState/*"/>
-  protected override object GetDerivedState()
+  /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/*"/>
+  protected override void LoadStateCore(BinaryReader reader)
   {
-    return s;
+    X = reader.ReadUInt32();
+    Y = reader.ReadUInt32();
+    Z = reader.ReadUInt32();
+    W = reader.ReadUInt32();
+    C = reader.ReadUInt32();
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/SetDerivedState/*"/>
-  protected override void SetDerivedState(object state)
+  /// <include file="documentation.xml" path="//Math/RNG/SaveStateCore/*"/>
+  protected override void SaveStateCore(BinaryWriter writer)
   {
-    if(!(state is State)) throw new ArgumentException();
-    s = (State)state;
+    writer.Write(X);
+    writer.Write(Y);
+    writer.Write(Z);
+    writer.Write(W);
+    writer.Write(C);
   }
 
-  [Serializable]
-  struct State
-  {
-    internal uint X, Y, Z, W, C;
-  }
-
-  State s;
+  uint X, Y, Z, W, C;
 }
 #endregion
 
@@ -374,6 +405,7 @@ public sealed class AWCKISSRNG : RandomNumberGenerator
 /// this generator is its huge period of 2^131086.
 /// </summary>
 [CLSCompliant(false)]
+[Serializable]
 public sealed class CMWC4096RNG : RandomNumberGenerator
 {
   // adapted from http://groups.google.com/group/comp.soft-sys.math.mathematica/msg/95a94c3b2aa5f077
@@ -392,62 +424,56 @@ public sealed class CMWC4096RNG : RandomNumberGenerator
   /// </summary>
   public CMWC4096RNG(uint[] seed)
   {
-    s.Q = new uint[4096];
-    s.C = 362436;
-    s.I = 4095;
+    Q = new uint[4096];
+    C = 362436;
+    I = 4095;
 
-    if(seed != null && seed.Length >= s.Q.Length)
+    if(seed != null && seed.Length >= Q.Length)
     {
-      Array.Copy(seed, s.Q, s.Q.Length);
+      Array.Copy(seed, Q, Q.Length);
     }
     else
     {
       // fill the elements with random numbers from the XorShiftRNG generator (the fastest choice of the other RNGs)
       XorShift128RNG rng = new XorShift128RNG(seed);
-      for(int i=0; i<s.Q.Length; i++) s.Q[i] = rng.NextUint32();
+      for(int i=0; i<Q.Length; i++) Q[i] = rng.NextUint32();
     }
   }
 
   /// <include file="documentation.xml" path="//Math/RNG/NextUint32/*"/>
   public override uint NextUint32()
   {
-    s.I = (s.I+1) & 4095;
-    ulong t = (ulong)18782*s.Q[s.I] + s.C;
-    s.C = (uint)(t>>32);
-    uint x = (uint)t + s.C;
-    if(x < s.C)
+    I = (I+1) & 4095;
+    ulong t = (ulong)18782*Q[I] + C;
+    C = (uint)(t>>32);
+    uint x = (uint)t + C;
+    if(x < C)
     {
       x++;
-      s.C++;
+      C++;
     }
-    return s.Q[s.I] = 0XFFFFFFFE - x;
+    return Q[I] = 0XFFFFFFFE - x;
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/GetDerivedState/*"/>
-  protected override object GetDerivedState()
+  /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/*"/>
+  protected override void LoadStateCore(BinaryReader reader)
   {
-    State stateCopy = s;
-    stateCopy.Q = (uint[])stateCopy.Q.Clone();
-    return stateCopy;
+    Q = reader.ReadUInt32(4096);
+    C = reader.ReadUInt32();
+    I = reader.ReadInt32();
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/SetDerivedState/*"/>
-  protected override void SetDerivedState(object state)
+  /// <include file="documentation.xml" path="//Math/RNG/SaveStateCore/*"/>
+  protected override void SaveStateCore(BinaryWriter writer)
   {
-    if(!(state is State)) throw new ArgumentException();
-    s = (State)state;
-    s.Q = (uint[])s.Q.Clone();
+    writer.Write(Q);
+    writer.Write(C);
+    writer.Write(I);
   }
 
-  [Serializable]
-  struct State
-  {
-    internal uint[] Q;
-    internal uint C;
-    internal int I;
-  }
-
-  State s;
+  uint[] Q;
+  uint C;
+  int I;
 }
 #endregion
 
@@ -457,9 +483,10 @@ public sealed class CMWC4096RNG : RandomNumberGenerator
 /// depending on whether a new batch needs to be generated. It requires about 2 kb of memory. Note that although ISAAC was
 /// designed for cryptography, it is only secure if initialized with a secure seed. A secure seed is an array of 256 random uint
 /// values, perhaps obtained by encrypting an unpredictable value with a strong block cipher. The default constructor does not
-/// seed the generator securely, since it uses a seed based on the current time.
+/// seed the generator securely, since it uses a small seed based on the current time.
 /// </summary>
 [CLSCompliant(false)]
+[Serializable]
 public sealed class ISAACRNG : RandomNumberGenerator
 {
   // adapted from http://burtleburtle.net/bob/rand/isaacafa.html
@@ -475,46 +502,42 @@ public sealed class ISAACRNG : RandomNumberGenerator
   /// </summary>
   public ISAACRNG(uint[] seed)
   {
-    s.results = new uint[Size];
-    s.state   = new uint[Size];
-    if(seed != null) Array.Copy(seed, s.results, Math.Min(Size, seed.Length));
+    results = new uint[Size];
+    state   = new uint[Size];
+    if(seed != null) Array.Copy(seed, results, Math.Min(Size, seed.Length));
     Initialize(seed != null);
   }
 
   /// <include file="documentation.xml" path="//Math/RNG/NextUint32/*"/>
   public override uint NextUint32()
   {
-    if(s.resultIndex == Size) Isaac();
-    return s.results[s.resultIndex++];
+    if(resultIndex == Size) Isaac();
+    return results[resultIndex++];
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/GetDerivedState/*"/>
-  protected override object GetDerivedState()
+  /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/*"/>
+  protected override void LoadStateCore(BinaryReader reader)
   {
-    State stateCopy = s;
-    stateCopy.results = (uint[])s.results.Clone();
-    stateCopy.state   = (uint[])s.state.Clone();
-    return stateCopy;
+    results     = reader.ReadUInt32(256);
+    state       = reader.ReadUInt32(256);
+    resultIndex = reader.ReadInt32();
+    accumulator = reader.ReadUInt32();
+    lastResult  = reader.ReadUInt32();
+    counter     = reader.ReadUInt32();
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/SetDerivedState/*"/>
-  protected override void SetDerivedState(object state)
+  /// <include file="documentation.xml" path="//Math/RNG/SaveStateCore/*"/>
+  protected override void SaveStateCore(BinaryWriter writer)
   {
-    if(!(state is State)) throw new ArgumentException();
-    s = (State)state;
-    s.results = (uint[])s.results.Clone();
-    s.state   = (uint[])s.state.Clone();
+    writer.Write(results);
+    writer.Write(state);
+    writer.Write(resultIndex);
+    writer.Write(accumulator);
+    writer.Write(lastResult);
+    writer.Write(counter);
   }
 
   const int LogSize = 8, Size = 1<<LogSize, Mask = (Size-1)<<2;
-
-  [Serializable]
-  struct State
-  {
-    internal uint[] results, state;
-    internal int resultIndex;
-    internal uint accumulator, lastResult, counter;
-  }
 
   void DoInitializationRound(uint[] array, uint i, ref uint a, ref uint b, ref uint c, ref uint d,
                              ref uint e, ref uint f, ref uint g, ref uint h)
@@ -525,37 +548,37 @@ public sealed class ISAACRNG : RandomNumberGenerator
       e+=array[i+4]; f+=array[i+5]; g+=array[i+6]; h+=array[i+7];
     }
     Shuffle(ref a, ref b, ref c, ref d, ref e, ref f, ref g, ref h);
-    s.state[i]=a;   s.state[i+1]=b; s.state[i+2]=c; s.state[i+3]=d;
-    s.state[i+4]=e; s.state[i+5]=f; s.state[i+6]=g; s.state[i+7]=h;
+    state[i]=a;   state[i+1]=b; state[i+2]=c; state[i+3]=d;
+    state[i+4]=e; state[i+5]=f; state[i+6]=g; state[i+7]=h;
   }
 
   void DoIsaacRound(ref uint iref, ref uint jref)
   {
     uint i=iref, j=jref, x, y;
 
-    x = s.state[i];
-    s.accumulator ^= s.accumulator << 13;
-    s.accumulator += s.state[j++];
-    s.state[i] = y = s.state[(x&Mask)>>2] + s.accumulator + s.lastResult;
-    s.results[i++] = s.lastResult = s.state[((y>>LogSize)&Mask)>>2] + x;
+    x = state[i];
+    accumulator ^= accumulator << 13;
+    accumulator += state[j++];
+    state[i] = y = state[(x&Mask)>>2] + accumulator + lastResult;
+    results[i++] = lastResult = state[((y>>LogSize)&Mask)>>2] + x;
 
-    x = s.state[i];
-    s.accumulator ^= s.accumulator >> 6;
-    s.accumulator += s.state[j++];
-    s.state[i] = y = s.state[(x&Mask)>>2] + s.accumulator + s.lastResult;
-    s.results[i++] = s.lastResult = s.state[((y>>LogSize)&Mask)>>2] + x;
+    x = state[i];
+    accumulator ^= accumulator >> 6;
+    accumulator += state[j++];
+    state[i] = y = state[(x&Mask)>>2] + accumulator + lastResult;
+    results[i++] = lastResult = state[((y>>LogSize)&Mask)>>2] + x;
 
-    x = s.state[i];
-    s.accumulator ^= s.accumulator << 2;
-    s.accumulator += s.state[j++];
-    s.state[i] = y = s.state[(x&Mask)>>2] + s.accumulator + s.lastResult;
-    s.results[i++] = s.lastResult = s.state[((y>>LogSize)&Mask)>>2] + x;
+    x = state[i];
+    accumulator ^= accumulator << 2;
+    accumulator += state[j++];
+    state[i] = y = state[(x&Mask)>>2] + accumulator + lastResult;
+    results[i++] = lastResult = state[((y>>LogSize)&Mask)>>2] + x;
 
-    x = s.state[i];
-    s.accumulator ^= s.accumulator >> 16;
-    s.accumulator += s.state[j++];
-    s.state[i] = y = s.state[(x&Mask)>>2] + s.accumulator + s.lastResult;
-    s.results[i++] = s.lastResult = s.state[((y>>LogSize)&Mask)>>2] + x;
+    x = state[i];
+    accumulator ^= accumulator >> 16;
+    accumulator += state[j++];
+    state[i] = y = state[(x&Mask)>>2] + accumulator + lastResult;
+    results[i++] = lastResult = state[((y>>LogSize)&Mask)>>2] + x;
 
     iref = i;
     jref = j;
@@ -568,12 +591,12 @@ public sealed class ISAACRNG : RandomNumberGenerator
 
     for(i=0; i<4; i++) Shuffle(ref a, ref b, ref c, ref d, ref e, ref f, ref g, ref h);
 
-    uint[] seedArray = hasSeed ? s.results : null;
+    uint[] seedArray = hasSeed ? results : null;
     for(i=0; i<Size; i+=8) DoInitializationRound(seedArray, i, ref a, ref b, ref c, ref d, ref e, ref f, ref g, ref h);
 
     if(hasSeed)
     {
-      for(i=0; i<Size; i+=8) DoInitializationRound(s.state, i, ref a, ref b, ref c, ref d, ref e, ref f, ref g, ref h);
+      for(i=0; i<Size; i+=8) DoInitializationRound(state, i, ref a, ref b, ref c, ref d, ref e, ref f, ref g, ref h);
     }
 
     Isaac();
@@ -581,15 +604,17 @@ public sealed class ISAACRNG : RandomNumberGenerator
 
   void Isaac()
   {
-    s.lastResult += ++s.counter;
+    lastResult += ++counter;
 
     uint i, j;
     for(i=0, j=Size/2; i<Size/2;) DoIsaacRound(ref i, ref j);
     for(j=0; j<Size/2;) DoIsaacRound(ref i, ref j);
-    s.resultIndex = 0;
+    resultIndex = 0;
   }
 
-  State s;
+  uint[] results, state;
+  int resultIndex;
+  uint accumulator, lastResult, counter;
 
   static void Shuffle(ref uint a, ref uint b, ref uint c, ref uint d, ref uint e, ref uint f, ref uint g, ref uint h)
   {
@@ -613,6 +638,7 @@ public sealed class ISAACRNG : RandomNumberGenerator
 /// <see cref="AWCKISSRNG"/> is somewhat faster than KISS, but also somewhat poorer quality.
 /// </summary>
 [CLSCompliant(false)]
+[Serializable]
 public sealed class KISSRNG : RandomNumberGenerator
 {
   // adapted from http://www.cs.ucl.ac.uk/staff/d.jones/GoodPracticeRNG.pdf
@@ -629,54 +655,53 @@ public sealed class KISSRNG : RandomNumberGenerator
   /// </summary>
   public KISSRNG(uint[] seed)
   {
-    s.X = 123456789;
-    s.Y = 362436000;
-    s.Z = 521288629;
-    s.C = 7654321;
+    X = 123456789;
+    Y = 362436000;
+    Z = 521288629;
+    C = 7654321;
 
     if(seed != null)
     {
-      if(seed.Length != 0) s.X = seed[0];
-      if(seed.Length > 1 && seed[1] != 0) s.Y = seed[1]; // avoid Y = 0
-      if(seed.Length > 2) s.Z = seed[2];
-      if(seed.Length > 3) s.C = seed[3] % 698769068 + 1; // C should be less than 698769069. add 1 to avoid Z = C = 0
+      if(seed.Length != 0) X = seed[0];
+      if(seed.Length > 1 && seed[1] != 0) Y = seed[1]; // avoid Y = 0
+      if(seed.Length > 2) Z = seed[2];
+      if(seed.Length > 3) C = seed[3] % 698769068 + 1; // C should be less than 698769069. add 1 to avoid Z = C = 0
     }
   }
 
   /// <include file="documentation.xml" path="//Math/RNG/NextUint32/*"/>
   public override uint NextUint32()
   {
-    s.X  = 69069*s.X + 12345;
-    s.Y ^= s.Y<<13;
-    s.Y ^= s.Y>>17;
-    s.Y ^= s.Y<<5; 
+    X  = 69069*X + 12345;
+    Y ^= Y<<13;
+    Y ^= Y>>17;
+    Y ^= Y<<5; 
 
-    ulong t = (ulong)698769069*s.Z + s.C;
-    s.C = (uint)(t>>32);
-    s.Z = (uint)t;
-    return s.X + s.Y + s.Z;
+    ulong t = (ulong)698769069*Z + C;
+    C = (uint)(t>>32);
+    Z = (uint)t;
+    return X + Y + Z;
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/GetDerivedState/*"/>
-  protected override object GetDerivedState()
+  /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/*"/>
+  protected override void LoadStateCore(BinaryReader reader)
   {
-    return s;
+    X = reader.ReadUInt32();
+    Y = reader.ReadUInt32();
+    Z = reader.ReadUInt32();
+    C = reader.ReadUInt32();
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/SetDerivedState/*"/>
-  protected override void SetDerivedState(object state)
+  /// <include file="documentation.xml" path="//Math/RNG/SaveStateCore/*"/>
+  protected override void SaveStateCore(BinaryWriter writer)
   {
-    if(!(state is State)) throw new ArgumentException();
-    s = (State)state;
+    writer.Write(X);
+    writer.Write(Y);
+    writer.Write(Z);
+    writer.Write(C);
   }
 
-  [Serializable]
-  struct State
-  {
-    internal uint X, Y, Z, C;
-  }
-
-  State s;
+  uint X, Y, Z, C;
 }
 #endregion
 
@@ -686,6 +711,7 @@ public sealed class KISSRNG : RandomNumberGenerator
 /// is its large period of 2^8222.
 /// </summary>
 [CLSCompliant(false)]
+[Serializable]
 public sealed class MWC256RNG : RandomNumberGenerator
 {
   // adapted from http://www.cs.ucl.ac.uk/staff/d.jones/GoodPracticeRNG.pdf
@@ -704,56 +730,50 @@ public sealed class MWC256RNG : RandomNumberGenerator
   /// </summary>
   public MWC256RNG(uint[] seed)
   {
-    s.Q = new uint[256];
-    s.C = 362436;
-    s.I = 255;
+    Q = new uint[256];
+    C = 362436;
+    I = 255;
 
-    if(seed != null && seed.Length >= s.Q.Length)
+    if(seed != null && seed.Length >= Q.Length)
     {
-      Array.Copy(seed, s.Q, s.Q.Length);
+      Array.Copy(seed, Q, Q.Length);
     }
     else
     {
       // fill the elements with random numbers from the XorShiftRNG generator (the fastest choice of the other RNGs)
       XorShift128RNG rng = new XorShift128RNG(seed);
-      for(int i=0; i<s.Q.Length; i++) s.Q[i] = rng.NextUint32();
+      for(int i=0; i<Q.Length; i++) Q[i] = rng.NextUint32();
     }
   }
 
   /// <include file="documentation.xml" path="//Math/RNG/NextUint32/*"/>
   public override uint NextUint32()
   {
-    s.I++;
-    ulong t = (ulong)809430660*s.Q[s.I] + s.C; 
-    s.C = (uint)(t>>32);
-    return s.Q[s.I] = (uint)t;
+    I++;
+    ulong t = (ulong)809430660*Q[I] + C; 
+    C = (uint)(t>>32);
+    return Q[I] = (uint)t;
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/GetDerivedState/*"/>
-  protected override object GetDerivedState()
+  /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/*"/>
+  protected override void LoadStateCore(BinaryReader reader)
   {
-    State stateCopy = s;
-    stateCopy.Q = (uint[])stateCopy.Q.Clone();
-    return stateCopy;
+    Q = reader.ReadUInt32(256);
+    C = reader.ReadUInt32();
+    I = reader.ReadByte();
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/SetDerivedState/*"/>
-  protected override void SetDerivedState(object state)
+  /// <include file="documentation.xml" path="//Math/RNG/SaveStateCore/*"/>
+  protected override void SaveStateCore(BinaryWriter writer)
   {
-    if(!(state is State)) throw new ArgumentException();
-    s = (State)state;
-    s.Q = (uint[])s.Q.Clone();
+    writer.Write(Q);
+    writer.Write(C);
+    writer.Write(I);
   }
 
-  [Serializable]
-  struct State
-  {
-    internal uint[] Q;
-    internal uint C;
-    internal byte I;
-  }
-
-  State s;
+  uint[] Q;
+  uint C;
+  byte I;
 }
 #endregion
 
@@ -763,6 +783,7 @@ public sealed class MWC256RNG : RandomNumberGenerator
 /// constant amount of time, uses a very small amount of memory, and has a period of about 2^128.
 /// </summary>
 [CLSCompliant(false)]
+[Serializable]
 public sealed class XorShift128RNG : RandomNumberGenerator
 {
   // adapted from Marsaglia (July 2003). "Xorshift RNGs". Journal of Statistical Software Vol. 8 (Issue  14)
@@ -780,50 +801,49 @@ public sealed class XorShift128RNG : RandomNumberGenerator
   /// </summary>
   public XorShift128RNG(uint[] seed)
   {
-    s.X = 123456789;
-    s.Y = 362436069;
-    s.Z = 521288629;
-    s.W = 88675123;
+    X = 123456789;
+    Y = 362436069;
+    Z = 521288629;
+    W = 88675123;
 
     if(seed != null)
     {
-      if(seed.Length > 0) s.X = seed[0];
-      if(seed.Length > 1) s.Y = seed[1];
-      if(seed.Length > 2) s.Z = seed[2];
-      if(seed.Length > 3 && (seed[0] != 0 || seed[1] != 0 || seed[2] != 0 || seed[3] != 0)) s.W = seed[3]; // avoid all zeroes
+      if(seed.Length > 0) X = seed[0];
+      if(seed.Length > 1) Y = seed[1];
+      if(seed.Length > 2) Z = seed[2];
+      if(seed.Length > 3 && (seed[0] != 0 || seed[1] != 0 || seed[2] != 0 || seed[3] != 0)) W = seed[3]; // avoid all zeroes
     }
   }
 
   /// <include file="documentation.xml" path="//Math/RNG/NextUint32/*"/>
   public override uint NextUint32()
   {
-    uint t = s.X ^ (s.X << 11);
-    s.X = s.Y;
-    s.Y = s.Z;
-    s.Z = s.W;
-    return s.W = s.W ^ (s.W >> 19) ^ t ^ (t >> 8);
+    uint t = X ^ (X << 11);
+    X = Y;
+    Y = Z;
+    Z = W;
+    return W = W ^ (W >> 19) ^ t ^ (t >> 8);
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/GetDerivedState/*"/>
-  protected override object GetDerivedState()
+  /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/*"/>
+  protected override void LoadStateCore(BinaryReader reader)
   {
-    return s;
+    X = reader.ReadUInt32();
+    Y = reader.ReadUInt32();
+    Z = reader.ReadUInt32();
+    W = reader.ReadUInt32();
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/SetDerivedState/*"/>
-  protected override void SetDerivedState(object state)
+  /// <include file="documentation.xml" path="//Math/RNG/SaveStateCore/*"/>
+  protected override void SaveStateCore(BinaryWriter writer)
   {
-    if(!(state is State)) throw new ArgumentException();
-    s = (State)state;
+    writer.Write(X);
+    writer.Write(Y);
+    writer.Write(Z);
+    writer.Write(W);
   }
 
-  [Serializable]
-  struct State
-  {
-    internal uint X, Y, Z, W;
-  }
-
-  State s;
+  uint X, Y, Z, W;
 }
 #endregion
 

@@ -23,9 +23,12 @@ using System.Collections.Generic;
 using AdamMil.Mathematics.Geometry.ThreeD;
 using AdamMil.Utilities;
 
+#warning Document matrices!
+
 namespace AdamMil.Mathematics.Matrices
 {
 
+#pragma warning disable 1591
 #region Matrix3
 [Serializable]
 public sealed class Matrix3
@@ -263,6 +266,7 @@ public sealed class Matrix3
 }
 #endregion
 
+#pragma warning disable 1591
 #region Matrix4
 [Serializable]
 public sealed class Matrix4
