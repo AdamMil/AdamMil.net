@@ -49,7 +49,7 @@ public static class Utility
 		}
 	}
 
-  /// <summary>Enlarges the given array if it's too small to accommodate its current size and the new elements.</summary>
+  /// <summary>Enlarges the given array if it's too small to accommodate its current size plus the new elements.</summary>
   public static void EnlargeArray<T>(ref T[] array, int currentSize, int newElements)
   {
     if(array == null) throw new ArgumentNullException();
@@ -64,11 +64,25 @@ public static class Utility
     }
   }
 
+  /// <summary>Validates that the given list is not null, and the given range exists within the list.</summary>
+  public static void ValidateRange(System.Collections.IList list, int index, int count)
+  {
+    if(list == null) throw new ArgumentNullException();
+    if(index < 0 || count < 0 || index + count > list.Count) throw new ArgumentOutOfRangeException();
+  }
+
   /// <summary>Validates that the given array is not null, and the given range exists within the array.</summary>
   public static void ValidateRange(Array array, int index, int count)
   {
     if(array == null) throw new ArgumentNullException();
     if(index < 0 || count < 0 || index + count > array.Length) throw new ArgumentOutOfRangeException();
+  }
+
+  /// <summary>Validates that the given string is not null, and the given range exists within the string.</summary>
+  public static void ValidateRange(string str, int index, int count)
+  {
+    if(str == null) throw new ArgumentNullException();
+    if(index < 0 || count < 0 || index + count > str.Length) throw new ArgumentOutOfRangeException();
   }
 }
 

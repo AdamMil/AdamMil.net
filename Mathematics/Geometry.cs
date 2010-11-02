@@ -28,6 +28,8 @@ using SysPointF     = System.Drawing.PointF;
 using SysRectangle  = System.Drawing.Rectangle;
 using SysRectangleF = System.Drawing.RectangleF;
 
+#warning Document quaternions!
+
 namespace AdamMil.Mathematics.Geometry
 {
 
@@ -3026,6 +3028,7 @@ public struct Sphere
 }
 #endregion
 
+#pragma warning disable 1591
 #region Quaternion
 [Serializable]
 public struct Quaternion
@@ -3125,6 +3128,7 @@ public struct Quaternion
   public static Quaternion operator/(Quaternion a, double b) { return new Quaternion(a.W/b, a.V/b); }
 }
 #endregion
+#pragma warning restore 1591
 
 } // namespace AdamMil.Mathematics.Geometry.ThreeD
 #endregion

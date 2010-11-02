@@ -162,18 +162,12 @@
 
   <RNG>
     <SeedSize>The number of uints that should be used to used to seed the random number generator.</SeedSize>
-    <GetDerivedState>
-      <summary>
-        Returns a serializable object containing the internal state of the random number generator, as implemented by
-        derived classes.
-      </summary>
-    </GetDerivedState>
-    <SetDerivedState>
-      <summary>
-        Sets the internal state of the random number generator, as implemented by derived classes, using a value
-        previously returned from <see cref="GetDerivedState"/>.
-      </summary>
-    </SetDerivedState>
+    <LoadStateCore>
+      <summary>Loads the state of the generator, as implemented by derived classes, from a <see cref="BinaryReader" />.</summary>
+    </LoadStateCore>
+    <SaveStateCore>
+      <summary>Saves the state of the generator, as implemented by derived classes, to a <see cref="BinaryWriter" />.</summary>
+    </SaveStateCore>
     <NextUint32>
       <summary>Generates and returns a random 32-bit unsigned integer.</summary>
     </NextUint32>

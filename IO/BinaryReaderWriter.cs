@@ -229,7 +229,7 @@ public abstract class BinaryReaderWriterBase : PinnedBuffer
 
   /// <summary>Gets or sets whether integer data being read from or written to the stream is little endian.</summary>
   /// <remarks>If the endianness of the data does not match the endianness of the system, the bytes will be swapped as
-  /// necessary.
+  /// necessary. The default is true.
   /// </remarks>
   public bool LittleEndian
   {
@@ -353,7 +353,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     }
   }
 
-  /// <summary>Gets or sets the current position of the reader within the underlying stream. This equal to the
+  /// <summary>Gets or sets the current position of the reader within the underlying stream or external buffer. This equal to the
   /// underlying stream's position, minus the amount of data available in the reader's buffer.
   /// </summary>
   /// <remarks>Note that setting the position may cause data to be discarded from the buffer. This inefficiency can be
@@ -1606,8 +1606,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// <summary>Writes a substring to the stream, using the given encoding. Returns the number of bytes written to the stream.</summary>
   public int Write(string str, int index, int count, Encoding encoding)
   {
-    if(str == null) throw new ArgumentNullException();
-    if(index < 0 || count < 0 || index+count > str.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(str);
     fixed(char* chars=str) return Write(chars+index, count, encoding);
   }
 
@@ -1727,22 +1726,22 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes a substring to the stream, using the default encoding.</summary>
-  public void WriteStringWithLength(string str, int index, int count)
+  public void WriteStringWithLength(string str, int index, int length)
   {
-    Write(str, index, count, DefaultEncoding);
+    Write(str, index, length, DefaultEncoding);
   }
 
   /// <summary>Writes a substring to the stream, using the given encoding.</summary>
-  public void WriteStringWithLength(string str, int index, int count, Encoding encoding)
+  public void WriteStringWithLength(string str, int index, int length, Encoding encoding)
   {
-    if(str == null || encoding == null) throw new ArgumentNullException();
-    if(index < 0 || count < 0 || index+count > str.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(str, index, length);
+    if(encoding == null) throw new ArgumentNullException();
 
-    int spaceNeeded = encoding.GetMaxByteCount(count);
+    int spaceNeeded = encoding.GetMaxByteCount(length);
     if(spaceNeeded <= StackAllocThreshold)
     {
       byte* buffer = stackalloc byte[spaceNeeded];
-      fixed(char* chars=str) spaceNeeded = encoding.GetBytes(chars+index, count, buffer, spaceNeeded);
+      fixed(char* chars=str) spaceNeeded = encoding.GetBytes(chars+index, length, buffer, spaceNeeded);
       WriteEncoded(spaceNeeded);
       WriteCore(buffer, spaceNeeded);
     }
@@ -1750,8 +1749,8 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     {
       fixed(char* chars=str)
       {
-        WriteEncoded(encoding.GetByteCount(chars+index, count));
-        Write(chars+index, count, encoding);
+        WriteEncoded(encoding.GetByteCount(chars+index, length));
+        Write(chars+index, length, encoding);
       }
     }
   }
@@ -1792,7 +1791,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// </summary>
   public void FlushBuffer()
   {
-    if(!ExternalBuffer)
+    if(!ExternalBuffer && writeIndex != 0)
     {
       BaseStream.Write(Buffer, 0, writeIndex);
       writeIndex = 0;
