@@ -166,6 +166,13 @@ public static class XmlNodeExtensions
 		return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToGuid(attrValue);
 	}
 
+  /// <summary>Returns the trimmed value of the node's inner text, or the given default value if the value is empty.</summary>
+  public static string GetInnerText(this XmlNode node, string defaultValue)
+  {
+    string innerText = node.InnerText.Trim();
+    return string.IsNullOrEmpty(innerText) ? defaultValue : innerText;
+  }
+
 	/// <summary>Returns the value of the named attribute as a 16-bit signed integer, or 0 if the attribute was unspecified or empty.</summary>
 	public static short GetInt16Attribute(this XmlNode node, string attrName)
 	{
@@ -370,6 +377,13 @@ public static class XmlNodeExtensions
 	{
 		return XmlUtility.ParseList(GetAttributeValue(node, attrName), converter);
 	}
+
+  /// <summary>Removes all the child nodes of the given node.</summary>
+  public static void RemoveChildren(this XmlNode node)
+  {
+    if(node == null) throw new ArgumentNullException();
+    while(node.FirstChild != null) node.RemoveChild(node.FirstChild);
+  }
 
 	/// <summary>Returns the inner text of the node selected by the given XPath query as a boolean,
 	/// or false if the node could not be found or was empty.

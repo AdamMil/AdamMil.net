@@ -39,14 +39,14 @@ public static class Unsafe
 
 	/// <summary>This method copies a block of memory to another location.</summary>
 	/// <param name="src">A pointer to the beginning of the source block of memory.</param>
-	/// <param name="dest">The destination into which the source data will be copied.</param>
+	/// <param name="dest">The destination where the source data will be copied.</param>
 	/// <param name="length">The number of bytes to copy.</param>
 	public static unsafe void Copy(void* src, void* dest, int count)
 	{
     if(count < 0) throw new ArgumentOutOfRangeException();
 
-    // tests show that this method much faster than both RtlMoveMemory (i.e. memcpy) and the cpblk IL opcode,
-    // though i'm not sure why...
+    // tests show that this method is much faster than both RtlMoveMemory (i.e. memcpy) and the cpblk IL opcode,
+    // though i'm not sure why those are so slow...
 
     // this doesn't check for all overlaps, only for overlaps that would impact the main copy algorithm (i.e. when the source
     // comes before the destination in memory)
@@ -71,11 +71,12 @@ public static class Unsafe
     {
       if(count >= 16)
       {
-        // try to align the writes if possible
-        int offset = (int)src & 3;
-        if(offset != 0 && offset == ((int)dest & 3))
+        // try to align the writes if possible (if the pointers are misaligned by different amounts, we'll only be able to align
+        // one of them, and we'll assume aligned writes are more important than aligned reads)
+        int offset = (int)dest & 3;
+        if(offset != 0)
         {
-          offset = 4-offset;
+          offset = 4-offset; // figure out how many bytes we need to copy to align them
           count -= offset;
           do
           {
@@ -86,7 +87,7 @@ public static class Unsafe
           if(count < 16) goto lastBytes; // if there's not enough space left to do the unrolled version, don't
         }
 
-        do
+        do // copy as many 16 byte blocks as we can
         {
           *(uint*)dest = *(uint*)src;
           *(uint*)((byte*)dest+4)  = *(uint*)((byte*)src+4);
@@ -99,7 +100,7 @@ public static class Unsafe
       }
 
       lastBytes:
-      if(count != 0)
+      if(count != 0) // now copy whatever bytes remain
       {
         if((count & 8) != 0)
         {
@@ -157,7 +158,7 @@ public static class Unsafe
         if(count < 16) goto lastBytes; // if there's not enough space left to do the unrolled version, don't
       }
 
-      do
+      do // fill as many 16-byte blocks as possible
       {
         *(uint*)dest = value;
         *(uint*)((byte*)dest+4)  = value;
@@ -169,7 +170,7 @@ public static class Unsafe
     }
 
     lastBytes:
-    if(count != 0)
+    if(count != 0) // now fill whatever bytes are left
     {
       if((count & 8) != 0)
       {

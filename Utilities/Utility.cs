@@ -52,14 +52,17 @@ public static class Utility
   /// <summary>Enlarges the given array if it's too small to accommodate its current size plus the new elements.</summary>
   public static void EnlargeArray<T>(ref T[] array, int currentSize, int newElements)
   {
-    if(array == null) throw new ArgumentNullException();
-    if(currentSize < 0 || currentSize > array.Length || newElements < 0) throw new ArgumentOutOfRangeException();
-
-    int newSize = currentSize + newElements;
-    if(array.Length < newSize)
+    if(currentSize < 0 || newElements < 0 || array != null && currentSize > array.Length)
     {
-      T[] newArray = new T[Math.Max(array.Length*2, newSize)];
-      Array.Copy(array, newArray, currentSize);
+      throw new ArgumentOutOfRangeException();
+    }
+
+    int currentCapacity = array == null ? 0 : array.Length, newSize = currentSize + newElements;
+    if(currentCapacity < newSize)
+    {
+      if(newSize < 4) newSize = 4;
+      T[] newArray = new T[Math.Max(currentCapacity*2, newSize)];
+      if(currentSize != 0) Array.Copy(array, newArray, currentSize);
       array = newArray;
     }
   }
