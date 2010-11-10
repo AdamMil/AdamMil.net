@@ -24,12 +24,23 @@ using System.Collections.Generic;
 namespace AdamMil.Collections
 {
 
+#region ReadOnlyCollectionWrapperBase
+/// <summary>Provides a base class for read-only collection wrappers.</summary>
+public abstract class ReadOnlyCollectionWrapperBase
+{
+  /// <summary>Returns a <see cref="NotSupportedException"/> with a message stating that the collection is read-only.</summary>
+  protected static NotSupportedException ReadOnlyException()
+  {
+    throw new NotSupportedException("This collection is read-only.");
+  }
+}
+#endregion
+
 #region ReadOnlyCollectionWrapper
 /// <summary>Represents a read-only wrapper around a collection.</summary>
-public sealed class ReadOnlyCollectionWrapper<T> : IReadOnlyCollection<T>, ICollection<T>
+public sealed class ReadOnlyCollectionWrapper<T> : ReadOnlyCollectionWrapperBase, IReadOnlyCollection<T>, ICollection<T>
 {
   /// <summary>Initializes a new <see cref="ReadOnlyCollectionWrapper{T}"/> around the given collection.</summary>
-  /// <param name="collection"></param>
   public ReadOnlyCollectionWrapper(ICollection<T> collection)
   {
     if(collection == null) throw new ArgumentNullException();
@@ -73,8 +84,6 @@ public sealed class ReadOnlyCollectionWrapper<T> : IReadOnlyCollection<T>, IColl
     return ((System.Collections.IEnumerable)collection).GetEnumerator();
   }
 
-  readonly ICollection<T> collection;
-
   #region ICollection<T>
   int ICollection<T>.Count
   {
@@ -88,12 +97,12 @@ public sealed class ReadOnlyCollectionWrapper<T> : IReadOnlyCollection<T>, IColl
 
   void ICollection<T>.Add(T item)
   {
-    ThrowReadOnlyException();
+    throw ReadOnlyException();
   }
 
   void ICollection<T>.Clear()
   {
-    ThrowReadOnlyException();
+    throw ReadOnlyException();
   }
 
   bool ICollection<T>.Contains(T item)
@@ -108,21 +117,17 @@ public sealed class ReadOnlyCollectionWrapper<T> : IReadOnlyCollection<T>, IColl
 
   bool ICollection<T>.Remove(T item)
   {
-    ThrowReadOnlyException();
-    return false;
-  }
-
-  static void ThrowReadOnlyException()
-  {
-    throw new NotSupportedException("This collection is read-only.");
+    throw ReadOnlyException();
   }
   #endregion
+
+  readonly ICollection<T> collection;
 }
 #endregion
 
 #region ReadOnlyDictionaryWrapper
 /// <summary>Represents a read-only wrapper around a dictionary.</summary>
-public sealed class ReadOnlyDictionaryWrapper<K, V> : IReadOnlyDictionary<K, V>
+public sealed class ReadOnlyDictionaryWrapper<K, V> : ReadOnlyCollectionWrapperBase, IReadOnlyDictionary<K, V>, IDictionary<K, V>
 {
   /// <summary>Initializes this <see cref="ReadOnlyDictionaryWrapper{K,V}"/> with the given dictionary.</summary>
   public ReadOnlyDictionaryWrapper(IDictionary<K, V> dictionary)
@@ -132,6 +137,124 @@ public sealed class ReadOnlyDictionaryWrapper<K, V> : IReadOnlyDictionary<K, V>
     Keys   = new ReadOnlyCollectionWrapper<K>(dictionary.Keys);
     Values = new ReadOnlyCollectionWrapper<V>(dictionary.Values);
   }
+
+  #region ICollection<KeyValuePair<K,V>> Members
+  int ICollection<KeyValuePair<K, V>>.Count
+  {
+    get { return dictionary.Count; }
+  }
+
+  bool ICollection<KeyValuePair<K, V>>.IsReadOnly
+  {
+    get { return true; }
+  }
+
+  void ICollection<KeyValuePair<K, V>>.Add(KeyValuePair<K, V> item)
+  {
+    throw ReadOnlyException();
+  }
+
+  void ICollection<KeyValuePair<K, V>>.Clear()
+  {
+    throw ReadOnlyException();
+  }
+
+  bool ICollection<KeyValuePair<K, V>>.Contains(KeyValuePair<K, V> item)
+  {
+    return dictionary.Contains(item);
+  }
+
+  void ICollection<KeyValuePair<K, V>>.CopyTo(KeyValuePair<K, V>[] array, int arrayIndex)
+  {
+    dictionary.CopyTo(array, arrayIndex);
+  }
+
+  bool ICollection<KeyValuePair<K, V>>.Remove(KeyValuePair<K, V> item)
+  {
+    throw ReadOnlyException();
+  }
+  #endregion
+
+  #region IDictionary<K,V> Members
+  V IDictionary<K, V>.this[K key]
+  {
+    get { return this[key]; }
+    set { throw ReadOnlyException(); }
+  }
+
+  ICollection<K> IDictionary<K, V>.Keys
+  {
+    get { return dictionary.Keys; }
+  }
+
+  ICollection<V> IDictionary<K, V>.Values
+  {
+    get { return dictionary.Values; }
+  }
+
+  void IDictionary<K, V>.Add(K key, V value)
+  {
+    throw ReadOnlyException();
+  }
+
+  bool IDictionary<K, V>.ContainsKey(K key)
+  {
+    return dictionary.ContainsKey(key);
+  }
+
+  bool IDictionary<K, V>.Remove(K key)
+  {
+    throw ReadOnlyException();
+  }
+
+  bool IDictionary<K, V>.TryGetValue(K key, out V value)
+  {
+    return dictionary.TryGetValue(key, out value);
+  }
+  #endregion
+
+  #region IEnumerable Members
+  System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+  {
+    return ((System.Collections.IEnumerable)dictionary).GetEnumerator();
+  }
+  #endregion
+
+  #region IEnumerable<KeyValuePair<K,V>> Members
+  /// <include file="documentation.xml" path="//Dictionary/GetEnumerator/*"/>
+  public IEnumerator<KeyValuePair<K, V>> GetEnumerator()
+  {
+    return dictionary.GetEnumerator();
+  }
+  #endregion
+
+  #region IReadOnlyCollection<KeyValuePair<K,V>> Members
+  /// <include file="documentation.xml" path="//Common/Count/*"/>
+  public int Count
+  {
+    get { return dictionary.Count; }
+  }
+
+  /// <include file="documentation.xml" path="//Dictionary/Contains/*"/>
+  public bool Contains(KeyValuePair<K, V> item)
+  {
+    return dictionary.Contains(item);
+  }
+
+  /// <include file="documentation.xml" path="//Dictionary/CopyTo/*"/>
+  public void CopyTo(KeyValuePair<K, V>[] array, int arrayIndex)
+  {
+    dictionary.CopyTo(array, arrayIndex);
+  }
+
+  /// <include file="documentation.xml" path="//Dictionary/ToArray/*"/>
+  public KeyValuePair<K, V>[] ToArray()
+  {
+    KeyValuePair<K, V>[] array = new KeyValuePair<K, V>[dictionary.Count];
+    dictionary.CopyTo(array, 0);
+    return array;
+  }
+  #endregion
 
   #region IReadOnlyDictionary<K,V> Members
   /// <include file="documentation.xml" path="//Dictionary/Indexer/*"/>
@@ -165,56 +288,13 @@ public sealed class ReadOnlyDictionaryWrapper<K, V> : IReadOnlyDictionary<K, V>
   }
   #endregion
 
-  #region IReadOnlyCollection<KeyValuePair<K,V>> Members
-  /// <include file="documentation.xml" path="//Common/Count/*"/>
-  public int Count
-  {
-    get { return dictionary.Count; }
-  }
-
-  /// <include file="documentation.xml" path="//Dictionary/Contains/*"/>
-  public bool Contains(KeyValuePair<K, V> item)
-  {
-    return dictionary.Contains(item);
-  }
-
-  /// <include file="documentation.xml" path="//Dictionary/CopyTo/*"/>
-  public void CopyTo(KeyValuePair<K, V>[] array, int arrayIndex)
-  {
-    dictionary.CopyTo(array, arrayIndex);
-  }
-
-  /// <include file="documentation.xml" path="//Dictionary/ToArray/*"/>
-  public KeyValuePair<K, V>[] ToArray()
-  {
-    KeyValuePair<K, V>[] array = new KeyValuePair<K, V>[dictionary.Count];
-    dictionary.CopyTo(array, 0);
-    return array;
-  }
-  #endregion
-
-  #region IEnumerable<KeyValuePair<K,V>> Members
-  /// <include file="documentation.xml" path="//Dictionary/GetEnumerator/*"/>
-  public IEnumerator<KeyValuePair<K, V>> GetEnumerator()
-  {
-    return dictionary.GetEnumerator();
-  }
-  #endregion
-
-  #region IEnumerable Members
-  System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-  {
-    return ((System.Collections.IEnumerable)dictionary).GetEnumerator();
-  }
-  #endregion
-
   readonly IDictionary<K, V> dictionary;
 }
 #endregion
 
 #region ReadOnlyListWrapper
 /// <summary>Represents a read-only wrapper around a list.</summary>
-public sealed class ReadOnlyListWrapper<T> : IReadOnlyList<T>, IList<T>
+public sealed class ReadOnlyListWrapper<T> : ReadOnlyCollectionWrapperBase, IReadOnlyList<T>, IList<T>
 {
   /// <summary>Initializes a new <see cref="ReadOnlyListWrapper{T}"/> around the given list.</summary>
   public ReadOnlyListWrapper(IList<T> list)
@@ -272,8 +352,6 @@ public sealed class ReadOnlyListWrapper<T> : IReadOnlyList<T>, IList<T>
     return ((System.Collections.IEnumerable)list).GetEnumerator();
   }
 
-  readonly IList<T> list;
-
   #region ICollection<T>
   int ICollection<T>.Count
   {
@@ -287,12 +365,12 @@ public sealed class ReadOnlyListWrapper<T> : IReadOnlyList<T>, IList<T>
 
   void ICollection<T>.Add(T item)
   {
-    ThrowReadOnlyException();
+    throw ReadOnlyException();
   }
 
   void ICollection<T>.Clear()
   {
-    ThrowReadOnlyException();
+    throw ReadOnlyException();
   }
 
   bool ICollection<T>.Contains(T item)
@@ -307,13 +385,7 @@ public sealed class ReadOnlyListWrapper<T> : IReadOnlyList<T>, IList<T>
 
   bool ICollection<T>.Remove(T item)
   {
-    ThrowReadOnlyException();
-    return false;
-  }
-
-  static void ThrowReadOnlyException()
-  {
-    throw new NotSupportedException("This collection is read-only.");
+    throw ReadOnlyException();
   }
   #endregion
 
@@ -321,7 +393,7 @@ public sealed class ReadOnlyListWrapper<T> : IReadOnlyList<T>, IList<T>
   T IList<T>.this[int index]
   {
     get { return list[index]; }
-    set { ThrowReadOnlyException(); }
+    set { throw ReadOnlyException(); }
   }
 
   int IList<T>.IndexOf(T item)
@@ -331,14 +403,16 @@ public sealed class ReadOnlyListWrapper<T> : IReadOnlyList<T>, IList<T>
 
   void IList<T>.Insert(int index, T item)
   {
-    ThrowReadOnlyException();
+    throw ReadOnlyException();
   }
 
   void IList<T>.RemoveAt(int index)
   {
-    ThrowReadOnlyException();
+    throw ReadOnlyException();
   }
   #endregion
+
+  readonly IList<T> list;
 }
 #endregion
 

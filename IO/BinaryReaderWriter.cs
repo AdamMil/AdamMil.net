@@ -589,7 +589,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public ushort ReadUInt16()
   {
     byte* data = ReadContiguousData(sizeof(ushort));
-    return LittleEndian ? IOH.ReadLE2U(data, 0) : IOH.ReadBE2U(data, 0);
+    return LittleEndian == BitConverter.IsLittleEndian ? *(ushort*)data : LittleEndian ? IOH.ReadLE2U(data) : IOH.ReadBE2U(data);
   }
 
   /// <summary>Reads a signed four-byte integer from the stream.</summary>
@@ -602,7 +602,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public uint ReadUInt32()
   {
     byte* data = ReadContiguousData(sizeof(uint));
-    return LittleEndian ? IOH.ReadLE4U(data, 0) : IOH.ReadBE4U(data, 0);
+    return LittleEndian == BitConverter.IsLittleEndian ? *(uint*)data : LittleEndian ? IOH.ReadLE4U(data) : IOH.ReadBE4U(data);
   }
 
   /// <summary>Reads a signed eight-byte integer from the stream.</summary>
@@ -615,7 +615,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public ulong ReadUInt64()
   {
     byte* data = ReadContiguousData(sizeof(ulong));
-    return LittleEndian ? IOH.ReadLE8U(data, 0) : IOH.ReadBE8U(data, 0);
+    return LittleEndian == BitConverter.IsLittleEndian ? *(ulong*)data : LittleEndian ? IOH.ReadLE8U(data) : IOH.ReadBE8U(data);
   }
 
   /// <summary>Reads a four-byte float from the stream.</summary>
@@ -1262,8 +1262,9 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(ushort value)
   {
     EnsureSpace(sizeof(ushort));
-    if(LittleEndian) IOH.WriteLE2U(BufferPtr, writeIndex, value);
-    else IOH.WriteBE2U(BufferPtr, writeIndex, value);
+    if(LittleEndian == BitConverter.IsLittleEndian) *(ushort*)WritePtr = value;
+    else if(LittleEndian) IOH.WriteLE2U(WritePtr, value);
+    else IOH.WriteBE2U(WritePtr, value);
     writeIndex += sizeof(ushort);
   }
 
@@ -1277,8 +1278,9 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(uint value)
   {
     EnsureSpace(sizeof(uint));
-    if(LittleEndian) IOH.WriteLE4U(BufferPtr, writeIndex, value);
-    else IOH.WriteBE4U(BufferPtr, writeIndex, value);
+    if(LittleEndian == BitConverter.IsLittleEndian) *(uint*)WritePtr = value;
+    else if(LittleEndian) IOH.WriteLE4U(WritePtr, value);
+    else IOH.WriteBE4U(WritePtr, value);
     writeIndex += sizeof(uint);
   }
 
@@ -1292,8 +1294,9 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(ulong value)
   {
     EnsureSpace(sizeof(ulong));
-    if(LittleEndian) IOH.WriteLE8U(BufferPtr, writeIndex, value);
-    else IOH.WriteBE8U(BufferPtr, writeIndex, value);
+    if(LittleEndian == BitConverter.IsLittleEndian) *(ulong*)WritePtr = value;
+    else if(LittleEndian) IOH.WriteLE8U(WritePtr, value);
+    else IOH.WriteBE8U(WritePtr, value);
     writeIndex += sizeof(ulong);
   }
 
@@ -1301,7 +1304,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(float value)
   {
     EnsureSpace(sizeof(float));
-    IOH.WriteFloat(BufferPtr, writeIndex, value);
+    *(float*)WritePtr = value;
     writeIndex += sizeof(float);
   }
 
@@ -1309,7 +1312,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(double value)
   {
     EnsureSpace(sizeof(double));
-    IOH.WriteDouble(BufferPtr, writeIndex, value);
+    *(double*)WritePtr = value;
     writeIndex += sizeof(double);
   }
 
@@ -1606,7 +1609,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// <summary>Writes a substring to the stream, using the given encoding. Returns the number of bytes written to the stream.</summary>
   public int Write(string str, int index, int count, Encoding encoding)
   {
-    Utility.ValidateRange(str);
+    Utility.ValidateRange(str, index, count);
     fixed(char* chars=str) return Write(chars+index, count, encoding);
   }
 

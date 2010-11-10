@@ -30,28 +30,28 @@ namespace AdamMil.Security
 /// <summary>Determines how an impersonated user is logged onto the system.</summary>
 public enum LoginType
 {
-	/// <summary>The user will be logged on as a batch process. This is intended for use when processes may execute on behalf of the
-	/// user without their intervention. This creates a primary logon token that allows network access and the creation of new
-	/// processes, but requires permission to log onto the machine as a batch process.
-	/// </summary>
-	Batch,
-	/// <summary>The user will be logged on interactively. This is the slowest logon type, and requires permission to log onto the
-	/// machine interactively. It grants access to "interactive" resources, such as cmd.exe, which might otherwise be restricted.
-	/// This is only intended to be used when the user will be using the machine interactively.
-	/// </summary>
-	Interactive,
-	/// <summary>The user will be logged on as over a network. This is the fastest logon type, but does not create a primary logon
-	/// token for the user, does not grant the ability to run new processes as the user, and may not allow the user to access
-	/// network resources on other machines. However, it can succeed even if the user has not been granted the right to log onto
-	/// the machine.
-	/// </summary>
-	Network,
-	/// <summary>The user will be logged on as a system service. This provides a high degree of access and is faster than
-	/// <see cref="Interactive"/>, but requires permission to log on as a service.
-	/// </summary>
-	Service,
-	/// <summary>The same as <see cref="Network"/>.</summary>
-	Default=Network,
+  /// <summary>The user will be logged on as a batch process. This is intended for use when processes may execute on behalf of the
+  /// user without their intervention. This creates a primary logon token that allows network access and the creation of new
+  /// processes, but requires permission to log onto the machine as a batch process.
+  /// </summary>
+  Batch,
+  /// <summary>The user will be logged on interactively. This is the slowest logon type, and requires permission to log onto the
+  /// machine interactively. It grants access to "interactive" resources, such as cmd.exe, which might otherwise be restricted.
+  /// This is only intended to be used when the user will be using the machine interactively.
+  /// </summary>
+  Interactive,
+  /// <summary>The user will be logged on as over a network. This is the fastest logon type, but does not create a primary logon
+  /// token for the user, does not grant the ability to run new processes as the user, and may not allow the user to access
+  /// network resources on other machines. However, it can succeed even if the user has not been granted the right to log onto
+  /// the machine.
+  /// </summary>
+  Network,
+  /// <summary>The user will be logged on as a system service. This provides a high degree of access and is faster than
+  /// <see cref="Interactive"/>, but requires permission to log on as a service.
+  /// </summary>
+  Service,
+  /// <summary>The same as <see cref="Network"/>.</summary>
+  Default=Network,
 }
 #endregion
 
@@ -62,278 +62,272 @@ public enum LoginType
 /// </summary>
 public sealed class Impersonation : IDisposable
 {
-	/// <summary>A user token that can be used to run code as the user who started the process.</summary>
-	public static readonly IntPtr RevertToSelf = IntPtr.Zero;
+  /// <summary>A user token that can be used to run code as the user who started the process.</summary>
+  public static readonly IntPtr RevertToSelf = IntPtr.Zero;
 
-	/// <summary>Impersonates the user referenced by the given user token, as returned from operating system API calls.</summary>
-	public Impersonation(IntPtr userToken) : this(userToken, false) { }
+  /// <summary>Impersonates the user referenced by the given user token, as returned from operating system API calls.</summary>
+  public Impersonation(IntPtr userToken) : this(userToken, false) { }
 
-	/// <summary>Impersonates the user referenced by the given <see cref="WindowsIdentity"/>.</summary>
-	public Impersonation(WindowsIdentity user)
-	{
-		if(user == null) throw new ArgumentNullException();
-		context = user.Impersonate();
-	}
+  /// <summary>Impersonates the user referenced by the given <see cref="WindowsIdentity"/>.</summary>
+  public Impersonation(WindowsIdentity user)
+  {
+    if(user == null) throw new ArgumentNullException();
+    context = user.Impersonate();
+  }
 
-	/// <summary>Impersonates the user with the given user name and password. The user name can be in either DOMAIN\user or
-	/// user@domain format. The impersonation ends when the class is disposed.
-	/// </summary>
-	/// <param name="loginType">A <see cref="LoginType"/> value that determines how the user will be logged onto the machine.</param>
-	public Impersonation(string userName, string password, LoginType loginType)
-		: this(GetDomain(userName), GetUserName(userName), password, loginType) { }
+  /// <summary>Impersonates the user with the given user name and password. The user name can be in either DOMAIN\user or
+  /// user@domain format. The impersonation ends when the class is disposed.
+  /// </summary>
+  public Impersonation(string userName, string password, LoginType loginType)
+    : this(GetDomain(userName), GetUserName(userName), password, loginType) { }
 
-	/// <summary>Impersonates the user with the given domain, user name, and password.
-	/// The impersonation ends when the class is disposed.
-	/// </summary>
-	/// <param name="loginType">A <see cref="LoginType"/> value that determines how the user will be logged onto the machine.</param>
-	public Impersonation(string domain, string userName, string password, LoginType loginType)
-		: this(LogonUser(domain, userName, password, loginType), true) { }
+  /// <summary>Impersonates the user with the given domain, user name, and password.
+  /// The impersonation ends when the class is disposed.
+  /// </summary>
+  public Impersonation(string domain, string userName, string password, LoginType loginType)
+    : this(LogonUser(domain, userName, password, loginType), true) { }
 
-	/// <summary>Impersonates the user with the given user name and password. The user name can be in either DOMAIN\user or
-	/// user@domain format. The impersonation ends when the class is disposed.
-	/// </summary>
-	/// <param name="loginType">A <see cref="LoginType"/> value that determines how the user will be logged onto the machine.</param>
-	public Impersonation(string userName, SecureString password, LoginType loginType)
-		: this(GetDomain(userName), GetUserName(userName), password, loginType) { }
+  /// <summary>Impersonates the user with the given user name and password. The user name can be in either DOMAIN\user or
+  /// user@domain format. The impersonation ends when the class is disposed.
+  /// </summary>
+  public Impersonation(string userName, SecureString password, LoginType loginType)
+    : this(GetDomain(userName), GetUserName(userName), password, loginType) { }
 
-	/// <summary>Impersonates the user with the given domain, user name, and password.
-	/// The impersonation ends when the class is disposed.
-	/// </summary>
-	/// <param name="loginType">A <see cref="LoginType"/> value that determines how the user will be logged onto the machine.</param>
-	public Impersonation(string domain, string userName, SecureString password, LoginType loginType)
-		: this(LogonUser(domain, userName, password, loginType), true) { }
+  /// <summary>Impersonates the user with the given domain, user name, and password.
+  /// The impersonation ends when the class is disposed.
+  /// </summary>
+  public Impersonation(string domain, string userName, SecureString password, LoginType loginType)
+    : this(LogonUser(domain, userName, password, loginType), true) { }
 
-	Impersonation(IntPtr userToken, bool ownToken)
-	{
-		if(ownToken) ownedToken = userToken;
-		context = WindowsIdentity.Impersonate(userToken);
-	}
+  Impersonation(IntPtr userToken, bool ownToken)
+  {
+    if(ownToken) ownedToken = userToken;
+    context = WindowsIdentity.Impersonate(userToken);
+  }
 
-	~Impersonation()
-	{
-		Dispose(true);
-	}
+  /// <summary>Releases all unmanaged resources used by this object.</summary>
+  ~Impersonation()
+  {
+    Dispose(true);
+  }
 
-	public void Dispose()
-	{
-		Dispose(false);
-		GC.SuppressFinalize(this);
-	}
+  /// <summary>Releases all unmanaged resources used by this object.</summary>
+  public void Dispose()
+  {
+    Dispose(false);
+    GC.SuppressFinalize(this);
+  }
 
-	/// <summary>Runs the given delegate as the user referenced by the given user token, optionally executing it in a new thread.</summary>
-	public static void RunWithImpersonation(IntPtr userToken, bool runInANewThread, ThreadStart code)
-	{
-		if(code == null) throw new ArgumentException();
-		Run(userToken, false, code, runInANewThread);
-	}
+  /// <summary>Runs the given delegate as the user referenced by the given user token, optionally executing it in a new thread.</summary>
+  public static void RunWithImpersonation(IntPtr userToken, bool runInANewThread, ThreadStart code)
+  {
+    if(code == null) throw new ArgumentException();
+    Run(userToken, false, code, runInANewThread);
+  }
 
-	/// <summary>Runs the given delegate as the user referenced by the given <see cref="WindowsIdentity"/>, optionally executing it
-	/// in a new thread.
-	/// </summary>
-	public static void RunWithImpersonation(WindowsIdentity user, bool runInANewThread, ThreadStart code)
-	{
-		if(code == null) throw new ArgumentException();
-		Run(user, code, runInANewThread);
-	}
+  /// <summary>Runs the given delegate as the user referenced by the given <see cref="WindowsIdentity"/>, optionally executing it
+  /// in a new thread.
+  /// </summary>
+  public static void RunWithImpersonation(WindowsIdentity user, bool runInANewThread, ThreadStart code)
+  {
+    if(code == null) throw new ArgumentException();
+    Run(user, code, runInANewThread);
+  }
 
-	/// <summary>Runs the given delegate as the given user, optionally executing it in a new thread. The user name can be in either
-	/// DOMAIN\user or user@domain format.
-	/// </summary>
-	/// <param name="loginType">A <see cref="LoginType"/> value that determines how the user will be logged onto the machine.</param>
-	public static void RunWithImpersonation(string userName, string password, LoginType loginType, bool runInANewThread,
-	                                        ThreadStart code)
-	{
-		if(code == null) throw new ArgumentException();
-		Run(LogonUser(GetDomain(userName), GetUserName(userName), password, loginType), true, code, runInANewThread);
-	}
+  /// <summary>Runs the given delegate as the given user, optionally executing it in a new thread. The user name can be in either
+  /// DOMAIN\user or user@domain format.
+  /// </summary>
+  public static void RunWithImpersonation(string userName, string password, LoginType loginType, bool runInANewThread,
+                                          ThreadStart code)
+  {
+    if(code == null) throw new ArgumentException();
+    Run(LogonUser(GetDomain(userName), GetUserName(userName), password, loginType), true, code, runInANewThread);
+  }
 
-	/// <summary>Runs the given delegate as the given user, optionally executing it in a new thread. The user name can be in either
-	/// DOMAIN\user or user@domain format.
-	/// </summary>
-	/// <param name="loginType">A <see cref="LoginType"/> value that determines how the user will be logged onto the machine.</param>
-	public static void RunWithImpersonation(string userName, SecureString password, LoginType loginType, bool runInANewThread,
-	                                        ThreadStart code)
-	{
-		if(code == null) throw new ArgumentException();
-		Run(LogonUser(GetDomain(userName), GetUserName(userName), password, loginType), true, code, runInANewThread);
-	}
+  /// <summary>Runs the given delegate as the given user, optionally executing it in a new thread. The user name can be in either
+  /// DOMAIN\user or user@domain format.
+  /// </summary>
+  public static void RunWithImpersonation(string userName, SecureString password, LoginType loginType, bool runInANewThread,
+                                          ThreadStart code)
+  {
+    if(code == null) throw new ArgumentException();
+    Run(LogonUser(GetDomain(userName), GetUserName(userName), password, loginType), true, code, runInANewThread);
+  }
 
-	/// <summary>Runs the given delegate as the given user, optionally executing it in a new thread.</summary>
-	/// <param name="loginType">A <see cref="LoginType"/> value that determines how the user will be logged onto the machine.</param>
-	public static void RunWithImpersonation(string domain, string userName, string password, LoginType loginType,
-	                                        bool runInANewThread, ThreadStart code)
-	{
-		if(code == null) throw new ArgumentException();
-		Run(LogonUser(domain, userName, password, loginType), true, code, runInANewThread);
-	}
+  /// <summary>Runs the given delegate as the given user, optionally executing it in a new thread.</summary>
+  public static void RunWithImpersonation(string domain, string userName, string password, LoginType loginType,
+                                          bool runInANewThread, ThreadStart code)
+  {
+    if(code == null) throw new ArgumentException();
+    Run(LogonUser(domain, userName, password, loginType), true, code, runInANewThread);
+  }
 
-	/// <summary>Runs the given delegate as the given user, optionally executing it in a new thread.</summary>
-	/// <param name="loginType">A <see cref="LoginType"/> value that determines how the user will be logged onto the machine.</param>
-	public static void RunWithImpersonation(string domain, string userName, SecureString password, LoginType loginType,
-	                                        bool runInANewThread, ThreadStart code)
-	{
-		if(code == null) throw new ArgumentException();
-		Run(LogonUser(domain, userName, password, loginType), true, code, runInANewThread);
-	}
+  /// <summary>Runs the given delegate as the given user, optionally executing it in a new thread.</summary>
+  public static void RunWithImpersonation(string domain, string userName, SecureString password, LoginType loginType,
+                                          bool runInANewThread, ThreadStart code)
+  {
+    if(code == null) throw new ArgumentException();
+    Run(LogonUser(domain, userName, password, loginType), true, code, runInANewThread);
+  }
 
-	void Dispose(bool finalizing)
-	{
-		if(context != null)
-		{
-			context.Undo();
-			context = null;
-		}
+  void Dispose(bool finalizing)
+  {
+    if(context != null)
+    {
+      context.Undo();
+      context = null;
+    }
 
-		if(ownedToken != IntPtr.Zero)
-		{
-			CloseHandle(ownedToken);
-			ownedToken = IntPtr.Zero;
-		}
-	}
+    if(ownedToken != IntPtr.Zero)
+    {
+      CloseHandle(ownedToken);
+      ownedToken = IntPtr.Zero;
+    }
+  }
 
-	WindowsImpersonationContext context;
-	IntPtr ownedToken;
+  WindowsImpersonationContext context;
+  IntPtr ownedToken;
 
-	delegate Impersonation ImpersonationMaker();
+  delegate Impersonation ImpersonationMaker();
 
-	/// <summary>Retrieves the domain name from a user name in either user@domain or DOMAIN\user format, suitable for passing to
-	/// the <see cref="LogonUser"/> method.
-	/// </summary>
-	static string GetDomain(string userName)
-	{
-		if(userName == null) throw new ArgumentNullException();
+  /// <summary>Retrieves the domain name from a user name in either user@domain or DOMAIN\user format, suitable for passing to
+  /// the <see cref="LogonUser"/> method.
+  /// </summary>
+  static string GetDomain(string userName)
+  {
+    if(userName == null) throw new ArgumentNullException();
 
-		// if the name appears to be in UPN (name@domain) format, we must pass NULL for the domain
-		if(IsUPN(userName)) return null;
+    // if the name appears to be in UPN (name@domain) format, we must pass NULL for the domain
+    if(IsUPN(userName)) return null;
 
-		int slash = userName.IndexOf('\\');
-		if(slash != -1) return userName.Substring(0, slash); // if the name appears to be in DOMAIN\user format, grab the domain
+    int slash = userName.IndexOf('\\');
+    if(slash != -1) return userName.Substring(0, slash); // if the name appears to be in DOMAIN\user format, grab the domain
 
-		throw new ArgumentException("Unable to determine the domain from the user name " + userName);
-	}
+    throw new ArgumentException("Unable to determine the domain from the user name " + userName);
+  }
 
-	/// <summary>Converts a <see cref="LoginType"/> value into a value suitable for passing to <see cref="LogonUser"/>.</summary>
-	static int GetNTLogonType(LoginType type)
-	{
-		switch(type)
-		{
-			case LoginType.Batch: return LOGON32_LOGON_BATCH;
-			case LoginType.Interactive: return LOGON32_LOGON_INTERACTIVE;
-			case LoginType.Network: return LOGON32_LOGON_NETWORK;
-			case LoginType.Service: return LOGON32_LOGON_SERVICE;
-			default: throw new ArgumentException("Invalid login type: " + type.ToString());
-		}
-	}
+  /// <summary>Converts a <see cref="LoginType"/> value into a value suitable for passing to <see cref="LogonUser"/>.</summary>
+  static int GetNTLogonType(LoginType type)
+  {
+    switch(type)
+    {
+      case LoginType.Batch: return LOGON32_LOGON_BATCH;
+      case LoginType.Interactive: return LOGON32_LOGON_INTERACTIVE;
+      case LoginType.Network: return LOGON32_LOGON_NETWORK;
+      case LoginType.Service: return LOGON32_LOGON_SERVICE;
+      default: throw new ArgumentException("Invalid login type: " + type.ToString());
+    }
+  }
 
-	/// <summary>Retrieves the user name from a user name in either user@domain or DOMAIN\user format, suitable for passing to
-	/// the <see cref="LogonUser"/> method.
-	/// </summary>
-	static string GetUserName(string userName)
-	{
-		if(userName == null) throw new ArgumentNullException();
+  /// <summary>Retrieves the user name from a user name in either user@domain or DOMAIN\user format, suitable for passing to
+  /// the <see cref="LogonUser"/> method.
+  /// </summary>
+  static string GetUserName(string userName)
+  {
+    if(userName == null) throw new ArgumentNullException();
 
-		int slash = userName.IndexOf('\\');
-		if(slash != -1) return userName.Substring(slash+1); // if the name appears to be in DOMAIN\user format, grab the user name
+    int slash = userName.IndexOf('\\');
+    if(slash != -1) return userName.Substring(slash+1); // if the name appears to be in DOMAIN\user format, grab the user name
 
-		return userName;
-	}
+    return userName;
+  }
 
-	/// <summary>Determines whether the given user name is in UPN (user@domain) format.</summary>
-	static bool IsUPN(string userName)
-	{
-		return userName.IndexOf('@') != -1;
-	}
+  /// <summary>Determines whether the given user name is in UPN (user@domain) format.</summary>
+  static bool IsUPN(string userName)
+  {
+    return userName.IndexOf('@') != -1;
+  }
 
-	/// <summary>Logs on the given user, returning the corresponding user token.</summary>
-	static IntPtr LogonUser(string domain, string userName, string password, LoginType loginType)
-	{
-		ValidateLogonArguments(domain, userName, password);
-		IntPtr handle;
-		int logonType = GetNTLogonType(loginType);
-		if(!LogonUser(userName, domain, password, logonType, LOGON32_PROVIDER_DEFAULT, out handle))
-		{
-			throw new Win32Exception();
-		}
-		return handle;
-	}
+  /// <summary>Logs on the given user, returning the corresponding user token.</summary>
+  static IntPtr LogonUser(string domain, string userName, string password, LoginType loginType)
+  {
+    ValidateLogonArguments(domain, userName, password);
+    IntPtr handle;
+    int logonType = GetNTLogonType(loginType);
+    if(!LogonUser(userName, domain, password, logonType, LOGON32_PROVIDER_DEFAULT, out handle))
+    {
+      throw new Win32Exception();
+    }
+    return handle;
+  }
 
-	/// <summary>Logs on the given user, returning the corresponding user token.</summary>
-	static IntPtr LogonUser(string domain, string userName, SecureString password, LoginType loginType)
-	{
-		ValidateLogonArguments(domain, userName, password);
-		IntPtr handle;
-		int logonType = GetNTLogonType(loginType);
-		if(!LogonUser(userName, domain, password, logonType, LOGON32_PROVIDER_DEFAULT, out handle))
-		{
-			throw new Win32Exception();
-		}
-		return handle;
-	}
+  /// <summary>Logs on the given user, returning the corresponding user token.</summary>
+  static IntPtr LogonUser(string domain, string userName, SecureString password, LoginType loginType)
+  {
+    ValidateLogonArguments(domain, userName, password);
+    IntPtr handle;
+    int logonType = GetNTLogonType(loginType);
+    if(!LogonUser(userName, domain, password, logonType, LOGON32_PROVIDER_DEFAULT, out handle))
+    {
+      throw new Win32Exception();
+    }
+    return handle;
+  }
 
-	static void Run(WindowsIdentity identity, ThreadStart code, bool runInANewThread)
-	{
-		Run(delegate { return new Impersonation(identity); }, code, runInANewThread);
-	}
+  static void Run(WindowsIdentity identity, ThreadStart code, bool runInANewThread)
+  {
+    Run(delegate { return new Impersonation(identity); }, code, runInANewThread);
+  }
 
-	static void Run(IntPtr token, bool ownToken, ThreadStart code, bool runInANewThread)
-	{
-		Run(delegate { return new Impersonation(token, ownToken); }, code, runInANewThread);
-	}
+  static void Run(IntPtr token, bool ownToken, ThreadStart code, bool runInANewThread)
+  {
+    Run(delegate { return new Impersonation(token, ownToken); }, code, runInANewThread);
+  }
 
-	static void Run(ImpersonationMaker impersonationMaker, ThreadStart code, bool runInANewThread)
-	{
-		if(!runInANewThread)
-		{
-			// this try/catch block is required for security, to prevent an exception filter from executing with elevated privileges
-			try { using(impersonationMaker()) code(); }
-			catch { throw; }
-		}
-		else
-		{
-			Exception exception = null;
+  static void Run(ImpersonationMaker impersonationMaker, ThreadStart code, bool runInANewThread)
+  {
+    if(!runInANewThread)
+    {
+      // this try/catch block is required for security, to prevent an exception filter from executing with elevated privileges
+      try { using(impersonationMaker()) code(); }
+      catch { throw; }
+    }
+    else
+    {
+      Exception exception = null;
 
-			Thread thread = new Thread((ThreadStart)delegate
-				{
-					try { using(impersonationMaker()) code(); } // this try/catch block exists to propagate the exception to the calling thread
-					catch(Exception ex) { exception = ex; }
-				});
-			thread.Start();
-			thread.Join();
+      Thread thread = new Thread((ThreadStart)delegate
+        {
+          try { using(impersonationMaker()) code(); } // this try/catch block exists to propagate the exception to the calling thread
+          catch(Exception ex) { exception = ex; }
+        });
+      thread.Start();
+      thread.Join();
 
-			if(exception != null) throw exception;
-		}
-	}
+      if(exception != null) throw exception;
+    }
+  }
 
-	static void ValidateLogonArguments(string domain, string userName, object password)
-	{
-		if(userName == null || password == null) throw new ArgumentNullException();
+  static void ValidateLogonArguments(string domain, string userName, object password)
+  {
+    if(userName == null || password == null) throw new ArgumentNullException();
 
-		if(string.IsNullOrEmpty(domain)) domain = null;
-		if(string.IsNullOrEmpty(userName)) throw new ArgumentException("The user name was empty.");
+    if(string.IsNullOrEmpty(domain)) domain = null;
+    if(string.IsNullOrEmpty(userName)) throw new ArgumentException("The user name was empty.");
 
-		if(domain == null && !IsUPN(userName))
-		{
-			throw new ArgumentException("If no domain is specified, the user name must be given in UPN format.");
-		}
-		else if(domain != null && IsUPN(userName))
-		{
-			throw new ArgumentException("If a domain is specified, the user name must not be given in UPN format.");
-		}
-	}
+    if(domain == null && !IsUPN(userName))
+    {
+      throw new ArgumentException("If no domain is specified, the user name must be given in UPN format.");
+    }
+    else if(domain != null && IsUPN(userName))
+    {
+      throw new ArgumentException("If a domain is specified, the user name must not be given in UPN format.");
+    }
+  }
 
-	const int LOGON32_LOGON_INTERACTIVE = 2, LOGON32_LOGON_NETWORK = 3, LOGON32_LOGON_BATCH = 4, LOGON32_LOGON_SERVICE = 5;
-	const int LOGON32_PROVIDER_DEFAULT = 0;
+  const int LOGON32_LOGON_INTERACTIVE = 2, LOGON32_LOGON_NETWORK = 3, LOGON32_LOGON_BATCH = 4, LOGON32_LOGON_SERVICE = 5;
+  const int LOGON32_PROVIDER_DEFAULT = 0;
 
-	[DllImport("advapi32.dll", SetLastError=true)]
-	static extern bool LogonUser(string userName, string domain, string password, int logonType, int logonProvider,
-	                             out IntPtr userToken);
+  [DllImport("advapi32.dll", SetLastError=true)]
+  static extern bool LogonUser(string userName, string domain, string password, int logonType, int logonProvider,
+                               out IntPtr userToken);
 
-	[DllImport("advapi32.dll", SetLastError=true)]
-	static extern bool LogonUser(string userName, string domain, SecureString password, int logonType, int logonProvider,
-	                             out IntPtr userToken);
+  [DllImport("advapi32.dll", SetLastError=true)]
+  static extern bool LogonUser(string userName, string domain, SecureString password, int logonType, int logonProvider,
+                               out IntPtr userToken);
 
-	[DllImport("kernel32.dll", ExactSpelling=true)]
-	static extern bool CloseHandle(IntPtr handle);
+  [DllImport("kernel32.dll", ExactSpelling=true)]
+  static extern bool CloseHandle(IntPtr handle);
 }
 #endregion
 

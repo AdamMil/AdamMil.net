@@ -36,6 +36,8 @@ public static class CollectionExtensions
   [CLSCompliant(false)]
   public static T SelectRandom<T>(this IList<T> list, RandomNumberGenerator random)
   {
+    if(list == null || random == null) throw new ArgumentNullException();
+    if(list.Count == 0) throw new ArgumentException("The collection is empty.");
     return list[random.Next(list.Count)];
   }
 }

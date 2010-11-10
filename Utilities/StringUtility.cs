@@ -39,13 +39,20 @@ public static class StringUtility
 		return strToSearch.IndexOf(strToSearchFor, comparisonType) != -1;
 	}
 
-  /// <summary>Determines whether two strings are identical, using a case-sensitive ordinal comparison.</summary>
-  public static bool ExactlyEquals(this string string1, string string2)
+  /// <summary>Determines whether two strings are identical, using a case-sensitive comparison with the current culture.</summary>
+  public static bool CulturallyEquals(this string string1, string string2)
   {
-    return string.Equals(string1, string2, StringComparison.Ordinal);
+    return string.Equals(string1, string2, StringComparison.CurrentCulture);
   }
 
-	/// <summary>Converts the given string, which is assumed to contain only hex digits, into the corresponding byte array.</summary>
+  /// <summary>Determines whether two strings are identical, using a comparison with the current culture.</summary>
+  public static bool CulturallyEquals(this string string1, string string2, bool ignoreCase)
+  {
+    return string.Equals(string1, string2,
+                         ignoreCase ? StringComparison.CurrentCultureIgnoreCase : StringComparison.CurrentCulture);
+  }
+
+  /// <summary>Converts the given string, which is assumed to contain only hex digits, into the corresponding byte array.</summary>
 	public static byte[] FromHex(string hex)
 	{
 		if(hex == null) throw new ArgumentNullException();
@@ -59,6 +66,18 @@ public static class StringUtility
 		}
 		return data;
 	}
+
+  /// <summary>Determines whether two strings are identical, using a case-sensitive ordinal comparison.</summary>
+  public static bool OrdinalEquals(this string string1, string string2)
+  {
+    return string.Equals(string1, string2, StringComparison.Ordinal);
+  }
+
+  /// <summary>Determines whether two strings are identical, using an ordinal comparison.</summary>
+  public static bool OrdinalEquals(this string string1, string string2, bool ignoreCase)
+  {
+    return string.Equals(string1, string2, ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+  }
 
 	/// <summary>Converts the given byte value into a corresponding two-digit hex string.</summary>
 	public static string ToHex(byte value)

@@ -22,6 +22,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using AdamMil.Mathematics.Matrices;
+using AdamMil.Utilities;
 using Size          = System.Drawing.Size;
 using SysPoint      = System.Drawing.Point;
 using SysPointF     = System.Drawing.PointF;
@@ -1570,26 +1571,29 @@ public sealed class Polygon : ICloneable, ISerializable
 {
   /// <summary>Initializes this polygon with no points.</summary>
   public Polygon() { points=new Point[4]; }
+
   /// <summary>Initializes this polygon with three given points.</summary>
   /// <param name="p1">The first <see cref="Point"/>.</param>
   /// <param name="p2">The second <see cref="Point"/>.</param>
   /// <param name="p3">The third <see cref="Point"/>.</param>
-  public Polygon(Point p1, Point p2, Point p3) { points = new Point[3] { p1, p2, p3 }; length=3; }
+  public Polygon(Point p1, Point p2, Point p3) { points = new Point[3] { p1, p2, p3 }; pointCount=3; }
+
   /// <summary>Initializes this polygon from an array of points.</summary>
   /// <param name="points">The array containing the points to use.</param>
   public Polygon(IList<Point> points) : this(points.Count) { AddPoints(points); }
+
   /// <summary>Initializes this polygon from an array of points.</summary>
-  /// <param name="points">The array containing the points to use.</param>
-  /// <param name="nPoints">The number of points to read from the array.</param>
-  public Polygon(Point[] points, int nPoints) : this(nPoints) { AddPoints(points, nPoints); }
+  public Polygon(Point[] points, int index, int count) : this(count) { AddPoints(points, index, count); }
+
   /// <summary>Initializes this polygon with the given starting capacity.</summary>
   /// <param name="capacity">The number of points the polygon can initially hold.</param>
   /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="capacity"/> is negative.</exception>
   public Polygon(int capacity)
   {
-    if(capacity<0) throw new ArgumentOutOfRangeException("capacity", capacity, "must not be negative");
+    if(capacity < 0) throw new ArgumentOutOfRangeException("capacity", capacity, "must not be negative");
     points = new Point[Math.Max(3, capacity)];
   }
+
   /// <summary>Deserializes this polygon.</summary>
   /// <param name="info">A <see cref="SerializationInfo"/> object.</param>
   /// <param name="context">A <see cref="StreamingContext"/> object.</param>
@@ -1598,10 +1602,11 @@ public sealed class Polygon : ICloneable, ISerializable
   /// </remarks>
   private Polygon(SerializationInfo info, StreamingContext context)
   {
-    length = info.GetInt32("length");
-    points = new Point[Math.Max(3, length)];
-    for(int i=0; i<length; i++) points[i] = (Point)info.GetValue(i.ToString(), typeof(Point));
+    pointCount = info.GetInt32("length");
+    points = new Point[Math.Max(3, pointCount)];
+    for(int i=0; i<pointCount; i++) points[i] = (Point)info.GetValue(i.ToString(), typeof(Point));
   }
+
   /// <summary>Gets or sets one of the polygon's points.</summary>
   /// <param name="index">The index of the point to get or set.</param>
   /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="index"/> is less than zero or greater
@@ -1611,15 +1616,16 @@ public sealed class Polygon : ICloneable, ISerializable
   {
     get
     {
-      if(index<0 || index>=length) throw new ArgumentOutOfRangeException();
+      if(index<0 || index>=pointCount) throw new ArgumentOutOfRangeException();
       return points[index];
     }
     set
     {
-      if(index<0 || index>=length) throw new ArgumentOutOfRangeException();
+      if(index<0 || index>=pointCount) throw new ArgumentOutOfRangeException();
       points[index]=value;
     }
   }
+
   /// <summary>Gets or sets the number of points that this polygon is capable of holding without reallocating memory.</summary>
   /// <exception cref="ArgumentOutOfRangeException">Thrown if you try to set the capacity to a value less than
   /// <see cref="PointCount"/>.
@@ -1629,26 +1635,32 @@ public sealed class Polygon : ICloneable, ISerializable
     get { return points.Length; }
     set
     {
-      if(value<length)
-        throw new ArgumentOutOfRangeException("value", value, "The capacity cannot be less than Length.");
-      if(value<3) value = 3;
-      if(value==points.Length) return;
-      Point[] narr = new Point[value];
-      Array.Copy(points, narr, length);
-      points = narr;
+      if(value < pointCount)
+      {
+        throw new ArgumentOutOfRangeException("value", value, "The capacity cannot be less than PointCount.");
+      }
+      if(value < 3) value = 3;
+      if(value != points.Length)
+      {
+        Point[] newArray = new Point[value];
+        Array.Copy(points, newArray, pointCount);
+        points = newArray;
+      }
     }
   }
+
   /// <summary>Copies the points from this polygon into an array.</summary>
   /// <param name="array">The array to copy into.</param>
   /// <param name="index">The index at which to begin copying.</param>
-  public void CopyTo(Point[] array, int index) { Array.Copy(points, 0, array, index, length); }
+  public void CopyTo(Point[] array, int index) { Array.Copy(points, 0, array, index, pointCount); }
+
   /// <summary>Gets the number of points in the polygon.</summary>
-  public int PointCount { get { return length; } }
+  public int PointCount { get { return pointCount; } }
 
   #region ICloneable Members
   /// <summary>Returns a clone of this polygon.</summary>
   /// <returns>Returns a new <see cref="Polygon"/> with the same points as this one.</returns>
-  public Polygon Clone() { return new Polygon(points, length); }
+  public Polygon Clone() { return new Polygon(points, 0, pointCount); }
 
   object ICloneable.Clone() { return Clone(); }
   #endregion
@@ -1660,8 +1672,8 @@ public sealed class Polygon : ICloneable, ISerializable
   /// <remarks>This method is used to serialize a polygon, and generally does not need to be called from user code.</remarks>
   public void GetObjectData(SerializationInfo info, StreamingContext context)
   {
-    info.AddValue("length", length);
-    for(int i=0; i<length; i++) info.AddValue(i.ToString(), points[i]);
+    info.AddValue("length", pointCount);
+    for(int i=0; i<pointCount; i++) info.AddValue(i.ToString(), points[i]);
   }
   #endregion
 
@@ -1670,38 +1682,43 @@ public sealed class Polygon : ICloneable, ISerializable
   /// <param name="y">The Y coordinate of the point.</param>
   /// <returns>Returns the index of the new point.</returns>
   public int AddPoint(double x, double y) { return AddPoint(new Point(x, y)); }
+
   /// <summary>Adds a new point to the polygon.</summary>
   /// <param name="point">The <see cref="Point"/> to add.</param>
   /// <returns>Returns the index of the new point.</returns>
   public int AddPoint(Point point)
   {
-    if(length==points.Length) ResizeTo(length+1);
-    points[length] = point;
-    return length++;
+    if(pointCount == points.Length) EnlargeArray(1);
+    points[pointCount] = point;
+    return pointCount++;
   }
+
   /// <summary>Adds a list of points to the polygon.</summary>
   /// <param name="points">An array of points that will be added to the polygon.</param>
   public void AddPoints(IList<Point> points)
   {
-    ResizeTo(length+points.Count);
-    for(int i=0, len=points.Count; i<len; i++) this.points[length++] = points[i];
+    if(points == null) throw new ArgumentNullException();
+    EnlargeArray(points.Count);
+    for(int i=0, len=points.Count; i<len; i++) this.points[pointCount++] = points[i];
   }
+
   /// <summary>Adds a list of points to the polygon.</summary>
-  /// <param name="points">An array of points.</param>
-  /// <param name="nPoints">The number of points to read from the array.</param>
-  public void AddPoints(Point[] points, int nPoints)
+  public void AddPoints(Point[] points, int index, int count)
   {
-    ResizeTo(length+nPoints);
-    for(int i=0; i<nPoints; i++) this.points[length++] = points[i];
+    Utility.ValidateRange(points, index, count);
+    EnlargeArray(count);
+    for(int end=index+count; index<end; pointCount++,index++) this.points[pointCount] = points[index];
   }
+
   /// <summary>Asserts that this is a valid polygon.</summary>
   /// <exception cref="InvalidOperationException">Thrown if the polygon contains less than three points.</exception>
   public void AssertValid()
   {
-    if(length<3) throw new InvalidOperationException("Not a valid polygon [not enough points]!");
+    if(pointCount<3) throw new InvalidOperationException("Not a valid polygon [not enough points]!");
   }
+
   /// <summary>Removes all points from the polygon.</summary>
-  public void Clear() { length = 0; }
+  public void Clear() { pointCount = 0; }
 
   /// <summary>Returns true if the given circle is fully contained within this convex polygon.</summary>
   /// <remarks>The result of calling this method on a nonconvex polygon is undefined.</remarks>
@@ -1798,10 +1815,11 @@ public sealed class Polygon : ICloneable, ISerializable
     AssertValid();
     double area=0;
     int i;
-    for(i=0; i<length-1; i++) area += points[i].X*points[i+1].Y - points[i+1].X*points[i].Y;
+    for(i=0; i<pointCount-1; i++) area += points[i].X*points[i+1].Y - points[i+1].X*points[i].Y;
     area += points[i].X*points[0].Y - points[0].X*points[i].Y;
     return Math.Abs(area)/2;
   }
+
   /// <summary>Calculates and returns this polygon's bounding box.</summary>
   /// <returns>The smallest rectangle that contains this polygon.</returns>
   public Rectangle GetBounds()
@@ -1809,7 +1827,7 @@ public sealed class Polygon : ICloneable, ISerializable
     AssertValid();
     Rectangle ret = new Rectangle(double.MaxValue, double.MaxValue, 0, 0);
     double x2=double.MinValue, y2=double.MinValue;
-    for(int i=0; i<length; i++)
+    for(int i=0; i<pointCount; i++)
     {
       if(points[i].X<ret.X) ret.X = points[i].X;
       if(points[i].X>x2) x2 = points[i].X;
@@ -1820,6 +1838,7 @@ public sealed class Polygon : ICloneable, ISerializable
     ret.Height = y2-ret.Y;
     return ret;
   }
+
   /// <summary>Calculates and returns the polygon's centroid.</summary>
   /// <returns>The centroid of the polygon.</returns>
   /// <remarks>The centroid of a polygon is its center of mass (assuming it is uniformly dense).</remarks>
@@ -1827,9 +1846,9 @@ public sealed class Polygon : ICloneable, ISerializable
   {
     AssertValid();
     double area=0, x=0, y=0, d;
-    for(int i=0, j; i<length; i++)
+    for(int i=0, j; i<pointCount; i++)
     {
-      j = i+1==length ? 0 : i+1;
+      j = i+1==pointCount ? 0 : i+1;
       d = points[i].X*points[j].Y - points[j].X*points[i].Y;
       x += (points[i].X+points[j].X)*d;
       y += (points[i].Y+points[j].Y)*d;
@@ -1839,6 +1858,7 @@ public sealed class Polygon : ICloneable, ISerializable
     area *= 3;
     return new Point(x/area, y/area);
   }
+
   /// <summary>Gets the specified corner of the polygon.</summary>
   /// <param name="index">The index of the corner to retrieve, from 0 to <see cref="PointCount"/>-1.</param>
   /// <returns>A <see cref="Corner"/> representing the requested corner.</returns>
@@ -1851,6 +1871,7 @@ public sealed class Polygon : ICloneable, ISerializable
     c.Vector1 = GetPoint(index+1) - c.Point;
     return c;
   }
+
   /// <summary>Gets the specified edge of the polygon.</summary>
   /// <param name="index">The index of the edge to retrieve, from 0 to <see cref="PointCount"/>-1.</param>
   /// <returns>A <see cref="Line"/> segment representing the requested edge, built from the vertex at the given index
@@ -1858,9 +1879,10 @@ public sealed class Polygon : ICloneable, ISerializable
   /// </returns>
   public Line GetEdge(int index)
   {
-    if(length<2) throw new InvalidOperationException("Polygon has no edges [not enough points]!");
+    if(pointCount<2) throw new InvalidOperationException("Polygon has no edges [not enough points]!");
     return new Line(this[index], GetPoint(index+1));
   }
+
   /// <summary>Gets the specified point of the polygon.</summary>
   /// <param name="index">The index of the point to retrieve, from -<see cref="PointCount"/> to <see cref="PointCount"/>*2-1.</param>
   /// <returns>The requested <see cref="Point"/>.</returns>
@@ -1871,18 +1893,20 @@ public sealed class Polygon : ICloneable, ISerializable
   /// </remarks>
   public Point GetPoint(int index)
   {
-    return index<0 ? this[length+index] : index>=length ? this[index-length] : this[index];
+    return index<0 ? this[pointCount+index] : index>=pointCount ? this[index-pointCount] : this[index];
   }
+
   /// <summary>Inserts a point into the polygon.</summary>
   /// <param name="point">The <see cref="Point"/> to insert.</param>
   /// <param name="index">The index at which the point should be inserted.</param>
   public void InsertPoint(Point point, int index)
   {
-    if(length==points.Length) ResizeTo(length+1);
-    if(index<length) for(int i=length; i>index; i--) points[i] = points[i-1];
-    length++;
+    if(pointCount == points.Length) EnlargeArray(1);
+    if(index<pointCount) for(int i=pointCount; i>index; i--) points[i] = points[i-1];
+    pointCount++;
     this[index] = point;
   }
+
   /// <summary>Determines whether the polygon was defined in a clockwise or counter-clockwise manner.</summary>
   /// <returns>True if the polygon points are defined in a clockwise manner and false otherwise.</returns>
   /// <remarks>This method only makes sense for convex polygons. The result of calling this method on a nonconvex
@@ -1890,7 +1914,7 @@ public sealed class Polygon : ICloneable, ISerializable
   /// </remarks>
   public bool IsClockwise()
   {
-    for(int i=0; i<length; i++)
+    for(int i=0; i<pointCount; i++)
     {
       int sign = Math.Sign(GetCorner(i).CrossZ);
       if(sign==1) return true;
@@ -1898,12 +1922,13 @@ public sealed class Polygon : ICloneable, ISerializable
     }
     return true;
   }
+
   /// <summary>Determines whether the polygon is convex.</summary>
   /// <returns>True if the polygon is convex and false otherwise.</returns>
   public bool IsConvex()
   {
     bool neg=false, pos=false;
-    for(int i=0; i<length; i++)
+    for(int i=0; i<pointCount; i++)
     {
       double z = GetCorner(i).CrossZ;
       if(z<0)
@@ -1919,13 +1944,16 @@ public sealed class Polygon : ICloneable, ISerializable
     }
     return true;
   }
+
   /// <summary>Offsets the polygon by the given amount by offsetting all the points.</summary>
   /// <param name="offset">A <see cref="Vector"/> containing the offset.</param>
   public void Offset(Vector offset) { Offset(offset.X, offset.Y); }
+
   /// <summary>Offsets the polygon by the given amount by offsetting all the points.</summary>
   /// <param name="xd">The distance to offset along the X axis.</param>
   /// <param name="yd">The distance to offset along the Y axis.</param>
-  public void Offset(double xd, double yd) { for(int i=0; i<length; i++) points[i].Offset(xd, yd); }
+  public void Offset(double xd, double yd) { for(int i=0; i<pointCount; i++) points[i].Offset(xd, yd); }
+
   /// <summary>Removes a point from the polygon.</summary>
   /// <param name="index">The index of the point to remove.</param>
   /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="index"/> is less than zero or greater
@@ -1933,9 +1961,10 @@ public sealed class Polygon : ICloneable, ISerializable
   /// </exception>
   public void RemovePoint(int index)
   {
-    if(index<0 || index>=length) throw new ArgumentOutOfRangeException("index");
-    if(index != --length) for(int i=index; i<length; i++) points[i]=points[i+1];
+    if(index<0 || index>=pointCount) throw new ArgumentOutOfRangeException("index");
+    if(index != --pointCount) for(int i=index; i<pointCount; i++) points[i]=points[i+1];
   }
+
   /// <summary>Removes a range of points from the polygon.</summary>
   /// <param name="start">The index of the first point to remove.</param>
   /// <param name="length">The number of points to remove.</param>
@@ -1945,59 +1974,66 @@ public sealed class Polygon : ICloneable, ISerializable
   {
     if(length==0) return;
     int end = start+length;
-    if(start<0 || end<0 || end>this.length || start>=this.length) throw new ArgumentOutOfRangeException();
-    for(; end<this.length; end++) points[end-length]=points[end];
-    this.length -= length;
+    if(start<0 || end<0 || end>this.pointCount || start>=this.pointCount) throw new ArgumentOutOfRangeException();
+    for(; end<this.pointCount; end++) points[end-length]=points[end];
+    this.pointCount -= length;
   }
+
   /// <summary>Reverses the order of this polygon's points.</summary>
   /// <remarks>This can be used to convert a convex polygon to and from clockwise ordering.</remarks>
   public void Reverse()
   {
     Point pt;
-    for(int i=0, j=length-1, len=length/2; i<len; j--, i++) { pt = points[i]; points[i] = points[j]; points[j] = pt; }
+    for(int i=0, j=pointCount-1, len=pointCount/2; i<len; j--, i++) { pt = points[i]; points[i] = points[j]; points[j] = pt; }
   }
+
   /// <summary>Returns a copy of this polygon, with the points in reversed order.</summary>
   /// <returns>A copy of this polygon, with the points reversed.</returns>
   /// <remarks>This can be used to convert a convex polygon to and from clockwise ordering.</remarks>
   public Polygon Reversed()
   {
-    Polygon newPoly = new Polygon(length);
-    for(int i=length-1; i>=0; i--) newPoly.AddPoint(points[i]);
+    Polygon newPoly = new Polygon(pointCount);
+    for(int i=pointCount-1; i>=0; i--) newPoly.AddPoint(points[i]);
     return newPoly;
   }
+
   /// <summary>Rotates the points in this polygon around the origin (0,0).</summary>
   /// <param name="angle">The angle by which to rotate, in degrees.</param>
-  public void Rotate(double angle) { Math2D.Rotate(points, 0, length, angle); }
+  public void Rotate(double angle) { Math2D.Rotate(points, 0, pointCount, angle); }
+
   /// <summary>Returns a copy of this polygon, with the points rotated around the origin (0,0).</summary>
   /// <param name="angle">The angle by which to rotate, in degrees.</param>
   /// <returns>A copy of this polygon, with the points rotated.</returns>
   public Polygon Rotated(double angle)
   {
-    Polygon poly = new Polygon(points, length);
+    Polygon poly = Clone();
     poly.Rotate(angle);
     return poly;
   }
+
   /// <summary>Scales the points in this polygon by the given factors.</summary>
   /// <param name="xScale">The factor by which to multiply the X coordinates.</param>
   /// <param name="yScale">The factor by which to multiply the Y coordinates.</param>
   public void Scale(double xScale, double yScale)
   {
-    for(int i=0; i<length; i++)
+    for(int i=0; i<pointCount; i++)
     {
       points[i].X *= xScale;
       points[i].Y *= yScale;
     }
   }
+
   /// <summary>Returns a copy of this polygon, with the points scaled by the given factors.</summary>
   /// <param name="xScale">The factor by which to multiply the X coordinates.</param>
   /// <param name="yScale">The factor by which to multiply the Y coordinates.</param>
   /// <returns>A copy of this polygon, with the points scaled.</returns>
   public Polygon Scaled(double xScale, double yScale)
   {
-    Polygon poly = new Polygon(points, length);
+    Polygon poly = Clone();
     poly.Scale(xScale, yScale);
     return poly;
   }
+
   /// <summary>Splits a non-convex polygon into convex polygons.</summary>
   /// <returns>An array of convex polygons that, together, make up the original polygon.</returns>
   /// <remarks>This method is only valid if the edges of the polygon do not overlap.</remarks>
@@ -2008,7 +2044,7 @@ public sealed class Polygon : ICloneable, ISerializable
     Polygon[] test = new Polygon[4], done = new Polygon[4];
     int tlen=1, dlen=0;
 
-    test[0] = new Polygon(points, length);
+    test[0] = Clone();
     do
     {
       for(int pi=0, len=tlen; pi<len; pi++)
@@ -2020,13 +2056,13 @@ public sealed class Polygon : ICloneable, ISerializable
           if(tlen<len) { pi--; len--; }
         }
 
-        if(poly.length<3) continue;
+        if(poly.pointCount<3) continue;
         // remove corners with coincident/parallel edges.
-        for(int ci=poly.length-2; ci>=1; ci--) if(poly.GetCorner(ci).CrossZ==0) poly.RemovePoint(ci);
-        if(poly.length<3) continue;
+        for(int ci=poly.pointCount-2; ci>=1; ci--) if(poly.GetCorner(ci).CrossZ==0) poly.RemovePoint(ci);
+        if(poly.pointCount<3) continue;
 
         int sign = Math.Sign(poly.GetCorner(0).CrossZ);
-        for(int ci=1; ci<poly.length; ci++)
+        for(int ci=1; ci<poly.pointCount; ci++)
         {
           Corner c = poly.GetCorner(ci);
           // if the sign is different, then the polygon is not convex, and splitting at this corner will result in
@@ -2040,7 +2076,7 @@ public sealed class Polygon : ICloneable, ISerializable
             {
               Line toExtend = c.GetEdge(ei);
               int edge = ci-1+ei;
-              for(int sei=0; sei<poly.length; sei++) // test the edge with the intersection of every other edge
+              for(int sei=0; sei<poly.pointCount; sei++) // test the edge with the intersection of every other edge
               {
                 if(edge==sei || edge==sei-1 || (sei==0 && edge==poly.PointCount-1)) continue; // don't try to intersect adjacent edges
                 else if(edge == 0 && sei == poly.PointCount-1) break;
@@ -2074,12 +2110,12 @@ public sealed class Polygon : ICloneable, ISerializable
                   new1.AddPoint(poly.points[npi]);
                   // if this polygon contains the edge being extended, then it must not contain the point being extended
                   if(npi==other) other=-1;
-                  if(++npi>=poly.length) npi-=poly.length;
+                  if(++npi>=poly.pointCount) npi-=poly.pointCount;
                 } while(npi != extended);
                 if(other!=-1) new1.AddPoint(poly.points[npi++]); // add the extended point to the appropriate polygon
                 do // continue circling, adding points to the other polygon, and end by adding the split point again
                 {
-                  if(npi>=poly.length) npi-=poly.length;
+                  if(npi>=poly.pointCount) npi-=poly.pointCount;
                   new2.AddPoint(poly.points[npi]);
                 } while(npi++ != splitEdge);
                 test = AddPoly(new1, test, tlen++); // add the two polygons
@@ -2103,25 +2139,20 @@ public sealed class Polygon : ICloneable, ISerializable
       return narr;
     }
   }
+
   /// <summary>Sets the <see cref="Capacity"/> of the polygon to the actual number of points.</summary>
-  void TrimExcess() { Capacity = length; }
+  void TrimExcess() { Capacity = pointCount; }
 
   int Clip(int index)
   {
-    if(index<0) index += length;
-    else if(index>=length) index -= length;
+    if(index<0) index += pointCount;
+    else if(index>=pointCount) index -= pointCount;
     return index;
   }
 
-  void ResizeTo(int capacity)
+  void EnlargeArray(int newElements)
   {
-    int clen = points==null ? 0 : points.Length;
-    if(clen<capacity)
-    {
-      Point[] narr = new Point[Math.Max(capacity, clen*2)];
-      if(length>0) Array.Copy(points, narr, length);
-      points = narr;
-    }
+    if(points.Length < pointCount+newElements) Utility.EnlargeArray(ref points, pointCount, newElements);
   }
 
   static Polygon[] AddPoly(Polygon poly, Polygon[] array, int index)
@@ -2137,7 +2168,7 @@ public sealed class Polygon : ICloneable, ISerializable
   }
 
   Point[] points;
-  int length;
+  int pointCount;
 }
 #endregion
 
@@ -2384,6 +2415,20 @@ public struct Rectangle
   /// <param name="vect">A <see cref="Vector"/> specifying the offset.</param>
   /// <remarks>This has the effect of offsetting <see cref="X"/> and <see cref="Y"/>.</remarks>
   public void Offset(Vector vect) { X+=vect.X; Y+=vect.Y; }
+
+  /// <summary>Converts this rectangle into the smallest <see cref="SysRectangle"/> that fully contains this rectangle.</summary>
+  public SysRectangle ToRectangle()
+  {
+    int x = (int)X, y = (int)Y;
+    return new SysRectangle(x, y, (int)Math.Ceiling(Right) - x, (int)Math.Ceiling(Bottom) - y);
+  }
+
+  /// <summary>Converts this rectangle into a <see cref="SysRectangleF"/>.</summary>
+  public SysRectangleF ToRectangleF()
+  {
+    return new SysRectangleF((float)X, (float)Y, (float)Width, (float)Height);
+  }
+
   /// <summary>Converts this rectangle into human-readable string.</summary>
   /// <returns>A human-readable string representation of this rectangle.</returns>
   public override string ToString()
@@ -2391,9 +2436,9 @@ public struct Rectangle
     return string.Format("X={0:F2} Y={1:F2} Width={2:F2} Height={3:F2}", X, Y, Width, Height);
   }
   /// <include file="documentation.xml" path="//Common/GetHashCode/*"/>
-  public unsafe override int GetHashCode()
+  public override int GetHashCode()
   {
-    fixed(double* dp=&X) { int* p=(int*)dp; return *p ^ *(p+4) ^ *(p+8) ^ *(p+12); }
+    return X.GetHashCode() ^ Y.GetHashCode() ^ Width.GetHashCode() ^ Height.GetHashCode();
   }
   /// <summary>Initializes a rectangle from two points and returns it.</summary>
   /// <param name="x1">The X coordinate of one corner of the rectangle.</param>

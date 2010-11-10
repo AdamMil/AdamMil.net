@@ -56,12 +56,12 @@ public class IOHTest
     Verify(array, value, size, bigEndian);
 
     // and test using the byte* interface
-    read  = typeof(IOH).GetMethod("Read"+testName, new Type[] { typeof(byte*), typeof(int) });
-    write = typeof(IOH).GetMethod("Write"+testName, new Type[] { typeof(byte*), typeof(int), valueObj.GetType() });
+    read  = typeof(IOH).GetMethod("Read"+testName, new Type[] { typeof(byte*) });
+    write = typeof(IOH).GetMethod("Write"+testName, new Type[] { typeof(byte*), valueObj.GetType() });
     fixed(byte* ptr = array)
     {
-      write.Invoke(null, new object[] { new IntPtr(ptr), 0, valueObj });
-      Assert.AreEqual(read.Invoke(null, new object[] { new IntPtr(ptr), 0 }), valueObj);
+      write.Invoke(null, new object[] { new IntPtr(ptr), valueObj });
+      Assert.AreEqual(read.Invoke(null, new object[] { new IntPtr(ptr) }), valueObj);
     }
     Verify(array, value, size, bigEndian);
 

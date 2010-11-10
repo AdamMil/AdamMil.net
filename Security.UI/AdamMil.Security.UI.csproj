@@ -188,6 +188,7 @@
     <Compile Include="ProgressForm.Designer.cs">
       <DependentUpon>ProgressForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RecipientList.cs">
       <SubType>Component</SubType>
     </Compile>
