@@ -46,7 +46,7 @@ public partial class NewSubkeyForm : Form
   public int KeyLength
   {
     get
-    { 
+    {
       return keyLength.SelectedIndex == -1 ?
         int.Parse(keyLength.Text) : ((ListItem<int>)keyLength.SelectedItem).Value;
     }

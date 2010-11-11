@@ -46,7 +46,7 @@ public partial class ExportForm : Form
     options.Items.Add(new ListItem<ExportOptions>(ExportOptions.MinimizeKeys, "Minimize Exported Keys"));
     options.Items.Add(new ListItem<ExportOptions>(ExportOptions.ClobberPrimarySecretKey, "Clobber Exported Primary Secret Key"));
     options.Items.Add(new ListItem<ExportOptions>(ExportOptions.ResetSubkeyPassword, "Reset Secret Subkey Passwords"));
-    
+
     options.SetItemChecked(0, true); // export public keys by default
   }
 
@@ -94,7 +94,7 @@ public partial class ExportForm : Form
                                  OutputFormat.ASCII : OutputFormat.Binary);
     }
   }
-  
+
   /// <summary>Initializes the form with the given list of keys to export. If the list is null or empty, it is assumed
   /// that all relevant keys will be exported.
   /// </summary>

@@ -35,18 +35,18 @@ namespace Sample
       this.button1 = new System.Windows.Forms.Button();
       this.primaryKeyList1 = new AdamMil.Security.UI.KeyManagementList();
       this.SuspendLayout();
-      // 
+      //
       // imageList1
-      // 
+      //
       this.imageList1.ImageStream = ((System.Windows.Forms.ImageListStreamer)(resources.GetObject("imageList1.ImageStream")));
       this.imageList1.TransparentColor = System.Drawing.Color.Magenta;
       this.imageList1.Images.SetKeyName(0, "minus.gif");
       this.imageList1.Images.SetKeyName(1, "plus.gif");
       this.imageList1.Images.SetKeyName(2, "indent.gif");
       this.imageList1.Images.SetKeyName(3, "corner.gif");
-      // 
+      //
       // btnDownload
-      // 
+      //
       this.btnDownload.Location = new System.Drawing.Point(15, 346);
       this.btnDownload.Name = "btnDownload";
       this.btnDownload.Size = new System.Drawing.Size(136, 23);
@@ -54,9 +54,9 @@ namespace Sample
       this.btnDownload.Text = "Download key";
       this.btnDownload.UseVisualStyleBackColor = true;
       this.btnDownload.Click += new System.EventHandler(this.btnDownload_Click);
-      // 
+      //
       // button1
-      // 
+      //
       this.button1.Location = new System.Drawing.Point(170, 346);
       this.button1.Name = "button1";
       this.button1.Size = new System.Drawing.Size(87, 23);
@@ -64,9 +64,9 @@ namespace Sample
       this.button1.Text = "button1";
       this.button1.UseVisualStyleBackColor = true;
       this.button1.Click += new System.EventHandler(this.button1_Click);
-      // 
+      //
       // primaryKeyList1
-      // 
+      //
       this.primaryKeyList1.AllowColumnReorder = true;
       this.primaryKeyList1.DisplayRevokers = true;
       this.primaryKeyList1.DisplaySubkeys = true;
@@ -79,9 +79,9 @@ namespace Sample
       this.primaryKeyList1.TabIndex = 0;
       this.primaryKeyList1.UseCompatibleStateImageBehavior = false;
       this.primaryKeyList1.View = System.Windows.Forms.View.Details;
-      // 
+      //
       // MainForm
-      // 
+      //
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.ClientSize = new System.Drawing.Size(880, 435);

@@ -26,28 +26,28 @@ namespace AdamMil.Utilities
 /// <summary>Provides very general utilities to aid .NET development.</summary>
 public static class Utility
 {
-	/// <summary>Disposes the given object if it's not null.</summary>
-	public static void Dispose(IDisposable obj)
-	{
-		if(obj != null) obj.Dispose();
-	}
+  /// <summary>Disposes the given object if it's not null.</summary>
+  public static void Dispose(IDisposable obj)
+  {
+    if(obj != null) obj.Dispose();
+  }
 
-	/// <summary>Disposes the given object if it's disposable and not null.</summary>
-	public static void Dispose(object obj)
-	{
-		IDisposable disposable = obj as IDisposable;
-		if(disposable != null) disposable.Dispose();
-	}
+  /// <summary>Disposes the given object if it's disposable and not null.</summary>
+  public static void Dispose(object obj)
+  {
+    IDisposable disposable = obj as IDisposable;
+    if(disposable != null) disposable.Dispose();
+  }
 
-	/// <summary>Disposes the given object if it's not null, and sets it to null.</summary>
-	public static void Dispose<T>(ref T obj) where T : IDisposable
-	{
-		if(obj != null)
-		{
-			obj.Dispose();
-			obj = default(T);
-		}
-	}
+  /// <summary>Disposes the given object if it's not null, and sets it to null.</summary>
+  public static void Dispose<T>(ref T obj) where T : IDisposable
+  {
+    if(obj != null)
+    {
+      obj.Dispose();
+      obj = default(T);
+    }
+  }
 
   /// <summary>Enlarges the given array if it's too small to accommodate its current size plus the new elements.</summary>
   public static void EnlargeArray<T>(ref T[] array, int currentSize, int newElements)
@@ -65,6 +65,18 @@ public static class Utility
       if(currentSize != 0) Array.Copy(array, newArray, currentSize);
       array = newArray;
     }
+  }
+
+  /// <summary>Parses the string representation of an enumeration name or value.</summary>
+  public static T ParseEnum<T>(string value)
+  {
+    return (T)Enum.Parse(typeof(T), value);
+  }
+
+  /// <summary>Parses the string representation of an enumeration name or value.</summary>
+  public static T ParseEnum<T>(string value, bool ignoreCase)
+  {
+    return (T)Enum.Parse(typeof(T), value, ignoreCase);
   }
 
   /// <summary>Validates that the given list is not null, and the given range exists within the list.</summary>

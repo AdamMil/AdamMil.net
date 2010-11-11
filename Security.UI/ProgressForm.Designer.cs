@@ -51,24 +51,24 @@ namespace AdamMil.Security.UI
       this.btnCancel = new System.Windows.Forms.Button();
       progressBar = new System.Windows.Forms.ProgressBar();
       this.SuspendLayout();
-      // 
+      //
       // progressBar
-      // 
+      //
       progressBar.Location = new System.Drawing.Point(7, 55);
       progressBar.Name = "progressBar";
       progressBar.Size = new System.Drawing.Size(432, 23);
       progressBar.Style = System.Windows.Forms.ProgressBarStyle.Marquee;
       progressBar.TabIndex = 1;
-      // 
+      //
       // lblDescription
-      // 
+      //
       this.lblDescription.Location = new System.Drawing.Point(6, 5);
       this.lblDescription.Name = "lblDescription";
       this.lblDescription.Size = new System.Drawing.Size(435, 44);
       this.lblDescription.TabIndex = 0;
-      // 
+      //
       // btnCancel
-      // 
+      //
       this.btnCancel.Location = new System.Drawing.Point(180, 86);
       this.btnCancel.Name = "btnCancel";
       this.btnCancel.Size = new System.Drawing.Size(87, 23);
@@ -76,9 +76,9 @@ namespace AdamMil.Security.UI
       this.btnCancel.Text = "Cancel";
       this.btnCancel.UseVisualStyleBackColor = true;
       this.btnCancel.Click += new System.EventHandler(this.btnCancel_Click);
-      // 
+      //
       // ProgressForm
-      // 
+      //
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.ClientSize = new System.Drawing.Size(447, 114);

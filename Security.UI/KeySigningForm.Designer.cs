@@ -68,20 +68,20 @@ namespace AdamMil.Security.UI
       btnCancel = new System.Windows.Forms.Button();
       groupBox.SuspendLayout();
       this.SuspendLayout();
-      // 
+      //
       // lblHelp
-      // 
-      lblHelp.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      lblHelp.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       lblHelp.Location = new System.Drawing.Point(5, 7);
       lblHelp.Name = "lblHelp";
       lblHelp.Size = new System.Drawing.Size(560, 60);
       lblHelp.TabIndex = 0;
       lblHelp.Text = resources.GetString("lblHelp.Text");
-      // 
+      //
       // lblKeysSigned
-      // 
-      lblKeysSigned.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      lblKeysSigned.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       lblKeysSigned.Location = new System.Drawing.Point(5, 67);
       lblKeysSigned.Name = "lblKeysSigned";
@@ -89,10 +89,10 @@ namespace AdamMil.Security.UI
       lblKeysSigned.TabIndex = 1;
       lblKeysSigned.Text = "Keys being signed:";
       lblKeysSigned.TextAlign = System.Drawing.ContentAlignment.BottomLeft;
-      // 
+      //
       // lblSigningKey
-      // 
-      lblSigningKey.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      lblSigningKey.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       lblSigningKey.Location = new System.Drawing.Point(5, 160);
       lblSigningKey.Name = "lblSigningKey";
@@ -100,10 +100,10 @@ namespace AdamMil.Security.UI
       lblSigningKey.TabIndex = 3;
       lblSigningKey.Text = "Which of your keys will you use to sign the keys above?";
       lblSigningKey.TextAlign = System.Drawing.ContentAlignment.BottomLeft;
-      // 
+      //
       // groupBox
-      // 
-      groupBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      groupBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       groupBox.Controls.Add(this.rbNone);
       groupBox.Controls.Add(this.rbRigorous);
@@ -116,10 +116,10 @@ namespace AdamMil.Security.UI
       groupBox.TabStop = false;
       groupBox.Text = "How carefully have you verified that the keys actually belong to the people named" +
     " above?";
-      // 
+      //
       // rbNone
-      // 
-      this.rbNone.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.rbNone.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbNone.Location = new System.Drawing.Point(10, 43);
       this.rbNone.Name = "rbNone";
@@ -128,10 +128,10 @@ namespace AdamMil.Security.UI
       this.rbNone.Text = "I have not checked at all.";
       this.rbNone.UseVisualStyleBackColor = true;
       this.rbNone.CheckedChanged += new System.EventHandler(this.rbPoor_CheckedChanged);
-      // 
+      //
       // rbRigorous
-      // 
-      this.rbRigorous.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.rbRigorous.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbRigorous.Location = new System.Drawing.Point(10, 89);
       this.rbRigorous.Name = "rbRigorous";
@@ -139,10 +139,10 @@ namespace AdamMil.Security.UI
       this.rbRigorous.TabIndex = 9;
       this.rbRigorous.Text = "I have rigorously verified the owners\' identities.";
       this.rbRigorous.UseVisualStyleBackColor = true;
-      // 
+      //
       // rbCasual
-      // 
-      this.rbCasual.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.rbCasual.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbCasual.Location = new System.Drawing.Point(10, 66);
       this.rbCasual.Name = "rbCasual";
@@ -150,10 +150,10 @@ namespace AdamMil.Security.UI
       this.rbCasual.TabIndex = 8;
       this.rbCasual.Text = "I have done casual checking.";
       this.rbCasual.UseVisualStyleBackColor = true;
-      // 
+      //
       // rbNoAnswer
-      // 
-      this.rbNoAnswer.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.rbNoAnswer.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbNoAnswer.Checked = true;
       this.rbNoAnswer.Location = new System.Drawing.Point(10, 20);
@@ -164,9 +164,9 @@ namespace AdamMil.Security.UI
       this.rbNoAnswer.Text = "I will not answer.";
       this.rbNoAnswer.UseVisualStyleBackColor = true;
       this.rbNoAnswer.CheckedChanged += new System.EventHandler(this.rbPoor_CheckedChanged);
-      // 
+      //
       // btnOK
-      // 
+      //
       btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnOK.DialogResult = System.Windows.Forms.DialogResult.OK;
       btnOK.Location = new System.Drawing.Point(409, 331);
@@ -175,9 +175,9 @@ namespace AdamMil.Security.UI
       btnOK.TabIndex = 11;
       btnOK.Text = "&OK";
       btnOK.UseVisualStyleBackColor = true;
-      // 
+      //
       // btnCancel
-      // 
+      //
       btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
       btnCancel.Location = new System.Drawing.Point(490, 331);
@@ -186,10 +186,10 @@ namespace AdamMil.Security.UI
       btnCancel.TabIndex = 12;
       btnCancel.Text = "&Cancel";
       btnCancel.UseVisualStyleBackColor = true;
-      // 
+      //
       // signedKeys
-      // 
-      this.signedKeys.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.signedKeys.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.signedKeys.FormattingEnabled = true;
       this.signedKeys.Location = new System.Drawing.Point(9, 87);
@@ -197,10 +197,10 @@ namespace AdamMil.Security.UI
       this.signedKeys.SelectionMode = System.Windows.Forms.SelectionMode.None;
       this.signedKeys.Size = new System.Drawing.Size(557, 69);
       this.signedKeys.TabIndex = 2;
-      // 
+      //
       // signingKeys
-      // 
-      this.signingKeys.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.signingKeys.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.signingKeys.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
       this.signingKeys.FormattingEnabled = true;
@@ -208,10 +208,10 @@ namespace AdamMil.Security.UI
       this.signingKeys.Name = "signingKeys";
       this.signingKeys.Size = new System.Drawing.Size(557, 21);
       this.signingKeys.TabIndex = 4;
-      // 
+      //
       // chkLocal
-      // 
-      this.chkLocal.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.chkLocal.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.chkLocal.Checked = true;
       this.chkLocal.CheckState = System.Windows.Forms.CheckState.Checked;
@@ -221,9 +221,9 @@ namespace AdamMil.Security.UI
       this.chkLocal.TabIndex = 10;
       this.chkLocal.Text = "Local signature (will not be exported)";
       this.chkLocal.UseVisualStyleBackColor = true;
-      // 
+      //
       // KeySigningForm
-      // 
+      //
       this.AcceptButton = btnOK;
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;

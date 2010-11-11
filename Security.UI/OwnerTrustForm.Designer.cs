@@ -65,20 +65,20 @@ namespace AdamMil.Security.UI
       lblKeys = new System.Windows.Forms.Label();
       groupBox.SuspendLayout();
       this.SuspendLayout();
-      // 
+      //
       // lblDescription
-      // 
-      lblDescription.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      lblDescription.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       lblDescription.Location = new System.Drawing.Point(12, 9);
       lblDescription.Name = "lblDescription";
       lblDescription.Size = new System.Drawing.Size(423, 70);
       lblDescription.TabIndex = 0;
       lblDescription.Text = resources.GetString("lblDescription.Text");
-      // 
+      //
       // groupBox
-      // 
-      groupBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      groupBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       groupBox.Controls.Add(this.rbDontTrust);
       groupBox.Controls.Add(this.rbCasual);
@@ -91,10 +91,10 @@ namespace AdamMil.Security.UI
       groupBox.TabIndex = 3;
       groupBox.TabStop = false;
       groupBox.Text = "How rigorously do the owners validate others\' keys?";
-      // 
+      //
       // rbDontTrust
-      // 
-      this.rbDontTrust.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.rbDontTrust.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbDontTrust.Location = new System.Drawing.Point(7, 44);
       this.rbDontTrust.Name = "rbDontTrust";
@@ -102,10 +102,10 @@ namespace AdamMil.Security.UI
       this.rbDontTrust.TabIndex = 5;
       this.rbDontTrust.Text = "I do NOT trust them to properly and reliably validate others\' keys.";
       this.rbDontTrust.UseVisualStyleBackColor = true;
-      // 
+      //
       // rbCasual
-      // 
-      this.rbCasual.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.rbCasual.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbCasual.Location = new System.Drawing.Point(7, 68);
       this.rbCasual.Name = "rbCasual";
@@ -113,10 +113,10 @@ namespace AdamMil.Security.UI
       this.rbCasual.TabIndex = 6;
       this.rbCasual.Text = "I trust them to do casual verification of every key they sign.";
       this.rbCasual.UseVisualStyleBackColor = true;
-      // 
+      //
       // rbUltimate
-      // 
-      this.rbUltimate.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.rbUltimate.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbUltimate.Location = new System.Drawing.Point(7, 114);
       this.rbUltimate.Name = "rbUltimate";
@@ -124,10 +124,10 @@ namespace AdamMil.Security.UI
       this.rbUltimate.TabIndex = 8;
       this.rbUltimate.Text = "I own these keys, or I trust their owners blindly and completely.";
       this.rbUltimate.UseVisualStyleBackColor = true;
-      // 
+      //
       // rbFull
-      // 
-      this.rbFull.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.rbFull.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbFull.Location = new System.Drawing.Point(7, 91);
       this.rbFull.Name = "rbFull";
@@ -135,10 +135,10 @@ namespace AdamMil.Security.UI
       this.rbFull.TabIndex = 7;
       this.rbFull.Text = "I trust them to do rigorous, full verification of every key they sign.";
       this.rbFull.UseVisualStyleBackColor = true;
-      // 
+      //
       // rbDontKnow
-      // 
-      this.rbDontKnow.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.rbDontKnow.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbDontKnow.Checked = true;
       this.rbDontKnow.Location = new System.Drawing.Point(7, 21);
@@ -148,9 +148,9 @@ namespace AdamMil.Security.UI
       this.rbDontKnow.TabStop = true;
       this.rbDontKnow.Text = "I don\'t know or won\'t say.";
       this.rbDontKnow.UseVisualStyleBackColor = true;
-      // 
+      //
       // btnCancel
-      // 
+      //
       btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
       btnCancel.Location = new System.Drawing.Point(360, 323);
@@ -159,9 +159,9 @@ namespace AdamMil.Security.UI
       btnCancel.TabIndex = 10;
       btnCancel.Text = "&Cancel";
       btnCancel.UseVisualStyleBackColor = true;
-      // 
+      //
       // btnOK
-      // 
+      //
       btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnOK.DialogResult = System.Windows.Forms.DialogResult.OK;
       btnOK.Location = new System.Drawing.Point(279, 323);
@@ -170,11 +170,11 @@ namespace AdamMil.Security.UI
       btnOK.TabIndex = 9;
       btnOK.Text = "&OK";
       btnOK.UseVisualStyleBackColor = true;
-      // 
+      //
       // lblKeys
-      // 
-      lblKeys.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      lblKeys.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       lblKeys.Location = new System.Drawing.Point(12, 79);
       lblKeys.Name = "lblKeys";
@@ -182,11 +182,11 @@ namespace AdamMil.Security.UI
       lblKeys.TabIndex = 1;
       lblKeys.Text = "You are setting the owner trust of these keys:";
       lblKeys.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-      // 
+      //
       // trustedKeys
-      // 
-      this.trustedKeys.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.trustedKeys.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.trustedKeys.FormattingEnabled = true;
       this.trustedKeys.Location = new System.Drawing.Point(15, 97);
@@ -194,9 +194,9 @@ namespace AdamMil.Security.UI
       this.trustedKeys.SelectionMode = System.Windows.Forms.SelectionMode.None;
       this.trustedKeys.Size = new System.Drawing.Size(420, 69);
       this.trustedKeys.TabIndex = 2;
-      // 
+      //
       // OwnerTrustForm
-      // 
+      //
       this.AcceptButton = btnOK;
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;

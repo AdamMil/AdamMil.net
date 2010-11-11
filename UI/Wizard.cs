@@ -108,7 +108,7 @@ public class Wizard : Control
       if(item != this[index])
       {
         ValidateItem(item);
-        
+
         OnRemove(this[index]);
         base.SetItem(index, item);
         OnAdded(item, index);

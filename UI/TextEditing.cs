@@ -235,7 +235,7 @@ public sealed class ArrayLineStorage : LineStorage
   {
     int capacity = 16;
     while(capacity < count) capacity *= 2;
-    
+
     if(capacity < lineLengths.Length)
     {
       int[] newLengths = new int[capacity];
@@ -322,7 +322,7 @@ public sealed class TreeLineStorage : LineStorage
     length = array[nodeIndex];          // the length of the line is stored there.
 
     offset = 0;
-    
+
     // we can use the bitwise structure of the node index to tell us which nodes to add to generate the offset.
     // imagine a tree containing information about 8 lines (numbered 0 through 7). then there are interior nodes
     // containing the sums (0+1), (2+3), (4+5), (6+7), (0+1+2+3), and (4+5+6+7), where those numbers represent line
@@ -609,15 +609,15 @@ public abstract class EditableTextBuffer
   {
     Capacity = Length;
   }
-  
+
   /// <summary>Creates an empty editable text buffer using the default implementation.</summary>
   public static EditableTextBuffer Create() { return Create(null, 0); }
-  
+
   /// <summary>Creates an editable text buffer using the default implementation, initialized with text from the given
   /// <see cref="TextReader"/>.
   /// </summary>
   public static EditableTextBuffer Create(TextReader initialText) { return Create(initialText, 0); }
-  
+
   /// <summary>Creates an empty editable text buffer using the default implementation and the given capacity.</summary>
   public static EditableTextBuffer Create(int capacity) { return Create(null, capacity); }
 
@@ -649,7 +649,7 @@ public class GapTextBuffer : EditableTextBuffer
   const int SmallGapSize = 8, BigGapSize = 256;
   /// <summary>The default capacity of the buffer, in characters.</summary>
   const int DefaultCapacity = 32;
-  
+
   /// <summary>Initializes an empty <see cref="GapTextBuffer"/> with the default capacity.</summary>
   public GapTextBuffer() : this(null, 0) { }
 
@@ -657,7 +657,7 @@ public class GapTextBuffer : EditableTextBuffer
   /// and the default capacity.
   /// </summary>
   public GapTextBuffer(TextReader reader) : this(reader, 0) { }
-  
+
   /// <summary>Initializes a <see cref="GapTextBuffer"/> with the given capacity.</summary>
   /// <param name="capacity">The initial capacity, or zero to use the default capacity.</param>
   public GapTextBuffer(int capacity) : this(null, capacity) { }
@@ -897,7 +897,7 @@ public class TextDocument
 
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Indexer/*"/>
   public char this[int index]
-  { 
+  {
     get { return textBuffer[index]; }
     set
     {
@@ -992,7 +992,7 @@ public class TextDocument
     {
       int nextNewlineAt = textBuffer.FindNext('\n', newlineAt);
       if(nextNewlineAt >= end || nextNewlineAt == -1) break;
-      
+
       // a newline is being deleted, so first delete the remainder of the first line, and then join the second line to
       // it and continue
       lineStorage.SetLength(line, column + lineStorage.GetLineLength(line+1));

@@ -59,9 +59,9 @@ namespace AdamMil.Security.UI
       this.btnRevoke = new System.Windows.Forms.Button();
       nameColumn = new System.Windows.Forms.ColumnHeader();
       this.SuspendLayout();
-      // 
+      //
       // btnAddUserId
-      // 
+      //
       this.btnAddUserId.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.btnAddUserId.Location = new System.Drawing.Point(8, 233);
       this.btnAddUserId.Name = "btnAddUserId";
@@ -70,9 +70,9 @@ namespace AdamMil.Security.UI
       this.btnAddUserId.Text = "&Add User ID";
       this.btnAddUserId.UseVisualStyleBackColor = true;
       this.btnAddUserId.Click += new System.EventHandler(this.btnAddUserId_Click);
-      // 
+      //
       // btnAddPhotoId
-      // 
+      //
       this.btnAddPhotoId.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.btnAddPhotoId.Location = new System.Drawing.Point(107, 233);
       this.btnAddPhotoId.Name = "btnAddPhotoId";
@@ -81,24 +81,24 @@ namespace AdamMil.Security.UI
       this.btnAddPhotoId.Text = "Add &Photo ID";
       this.btnAddPhotoId.UseVisualStyleBackColor = true;
       this.btnAddPhotoId.Click += new System.EventHandler(this.btnAddPhotoId_Click);
-      // 
+      //
       // nameColumn
-      // 
+      //
       nameColumn.Width = 460;
-      // 
+      //
       // lblDescription
-      // 
-      this.lblDescription.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.lblDescription.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.lblDescription.Location = new System.Drawing.Point(5, 8);
       this.lblDescription.Name = "lblDescription";
       this.lblDescription.Size = new System.Drawing.Size(484, 120);
       this.lblDescription.TabIndex = 0;
       this.lblDescription.Text = resources.GetString("lblDescription.Text");
-      // 
+      //
       // userIds
-      // 
-      this.userIds.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.userIds.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.userIds.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
             nameColumn});
@@ -114,17 +114,17 @@ namespace AdamMil.Security.UI
       this.userIds.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.userIds_MouseDoubleClick);
       this.userIds.SelectedIndexChanged += new System.EventHandler(this.userIds_SelectedIndexChanged);
       this.userIds.KeyDown += new System.Windows.Forms.KeyEventHandler(this.userIds_KeyDown);
-      // 
+      //
       // imageList
-      // 
+      //
       this.imageList.ImageStream = ((System.Windows.Forms.ImageListStreamer)(resources.GetObject("imageList.ImageStream")));
       this.imageList.TransparentColor = System.Drawing.Color.Magenta;
       this.imageList.Images.SetKeyName(0, "userid.gif");
       this.imageList.Images.SetKeyName(1, "photoId.gif");
       this.imageList.Images.SetKeyName(2, "unknown.gif");
-      // 
+      //
       // btnSetPrimary
-      // 
+      //
       this.btnSetPrimary.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.btnSetPrimary.Enabled = false;
       this.btnSetPrimary.Location = new System.Drawing.Point(206, 233);
@@ -134,9 +134,9 @@ namespace AdamMil.Security.UI
       this.btnSetPrimary.Text = "&Set as Primary ID";
       this.btnSetPrimary.UseVisualStyleBackColor = true;
       this.btnSetPrimary.Click += new System.EventHandler(this.btnSetPrimary_Click);
-      // 
+      //
       // btnDelete
-      // 
+      //
       this.btnDelete.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.btnDelete.Enabled = false;
       this.btnDelete.Location = new System.Drawing.Point(333, 233);
@@ -146,9 +146,9 @@ namespace AdamMil.Security.UI
       this.btnDelete.Text = "&Delete";
       this.btnDelete.UseVisualStyleBackColor = true;
       this.btnDelete.Click += new System.EventHandler(this.btnDelete_Click);
-      // 
+      //
       // btnRevoke
-      // 
+      //
       this.btnRevoke.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.btnRevoke.Enabled = false;
       this.btnRevoke.Location = new System.Drawing.Point(414, 233);
@@ -158,9 +158,9 @@ namespace AdamMil.Security.UI
       this.btnRevoke.Text = "&Revoke";
       this.btnRevoke.UseVisualStyleBackColor = true;
       this.btnRevoke.Click += new System.EventHandler(this.btnRevoke_Click);
-      // 
+      //
       // UserIdManagerForm
-      // 
+      //
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.ClientSize = new System.Drawing.Size(497, 262);

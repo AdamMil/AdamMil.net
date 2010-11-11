@@ -496,7 +496,7 @@ public class KeySigningOptions
       {
         throw new ArgumentException("TrustLevel can only be Unknown, Marginal, or Full.");
       }
-      trustLevel = value; 
+      trustLevel = value;
     }
   }
 
@@ -652,7 +652,7 @@ public class NewKeyOptions
   /// specifies that a default key type will be used. If set to <see cref="PGP.KeyType.None"/>, no subkey will be
   /// created.
   /// </summary>
-  /// <remarks>Multiple subkeys can be associated with a primary key. If set to a value other than 
+  /// <remarks>Multiple subkeys can be associated with a primary key. If set to a value other than
   /// <see cref="PGP.KeyType.None"/>, this property causes a subkey to be created along with the primary key.
   /// </remarks>
   public string SubkeyType

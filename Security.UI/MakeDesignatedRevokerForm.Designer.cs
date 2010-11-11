@@ -56,10 +56,10 @@ namespace AdamMil.Security.UI
       lblRevokedKey = new System.Windows.Forms.Label();
       btnCancel = new System.Windows.Forms.Button();
       this.SuspendLayout();
-      // 
+      //
       // lblHelp
-      // 
-      lblHelp.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      lblHelp.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       lblHelp.Location = new System.Drawing.Point(5, 7);
       lblHelp.Name = "lblHelp";
@@ -67,19 +67,19 @@ namespace AdamMil.Security.UI
       lblHelp.TabIndex = 0;
       lblHelp.Text = "A designated revoker is a key that has permission to revoke another key. Adding a" +
     " designated revoker cannot be undone!";
-      // 
+      //
       // lblRevokedKey
-      // 
-      lblRevokedKey.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      lblRevokedKey.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       lblRevokedKey.Location = new System.Drawing.Point(5, 88);
       lblRevokedKey.Name = "lblRevokedKey";
       lblRevokedKey.Size = new System.Drawing.Size(447, 13);
       lblRevokedKey.TabIndex = 2;
       lblRevokedKey.Text = "Which of your keys is the above key allowed to revoke?";
-      // 
+      //
       // btnCancel
-      // 
+      //
       btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
       btnCancel.Location = new System.Drawing.Point(381, 131);
@@ -88,28 +88,28 @@ namespace AdamMil.Security.UI
       btnCancel.TabIndex = 4;
       btnCancel.Text = "&Cancel";
       btnCancel.UseVisualStyleBackColor = true;
-      // 
+      //
       // lblRevokingKey
-      // 
-      this.lblRevokingKey.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.lblRevokingKey.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.lblRevokingKey.Location = new System.Drawing.Point(5, 41);
       this.lblRevokingKey.Name = "lblRevokingKey";
       this.lblRevokingKey.Size = new System.Drawing.Size(451, 47);
       this.lblRevokingKey.TabIndex = 1;
       this.lblRevokingKey.Text = "You are making this key a designated revoker:";
-      // 
+      //
       // ownedKeys
-      // 
+      //
       this.ownedKeys.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
       this.ownedKeys.FormattingEnabled = true;
       this.ownedKeys.Location = new System.Drawing.Point(8, 104);
       this.ownedKeys.Name = "ownedKeys";
       this.ownedKeys.Size = new System.Drawing.Size(448, 21);
       this.ownedKeys.TabIndex = 3;
-      // 
+      //
       // btnOK
-      // 
+      //
       this.btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       this.btnOK.DialogResult = System.Windows.Forms.DialogResult.OK;
       this.btnOK.Location = new System.Drawing.Point(300, 131);
@@ -118,9 +118,9 @@ namespace AdamMil.Security.UI
       this.btnOK.TabIndex = 5;
       this.btnOK.Text = "&OK";
       this.btnOK.UseVisualStyleBackColor = true;
-      // 
+      //
       // MakeDesignatedRevokerForm
-      // 
+      //
       this.AcceptButton = this.btnOK;
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;

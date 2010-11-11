@@ -67,9 +67,9 @@ namespace AdamMil.Security.UI
       whereBox.SuspendLayout();
       grpHow.SuspendLayout();
       this.SuspendLayout();
-      // 
+      //
       // btnImport
-      // 
+      //
       this.btnImport.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       this.btnImport.Location = new System.Drawing.Point(251, 245);
       this.btnImport.Name = "btnImport";
@@ -78,9 +78,9 @@ namespace AdamMil.Security.UI
       this.btnImport.Text = "&Import";
       this.btnImport.UseVisualStyleBackColor = true;
       this.btnImport.Click += new System.EventHandler(this.btnImport_Click);
-      // 
+      //
       // btnCancel
-      // 
+      //
       btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
       btnCancel.Location = new System.Drawing.Point(332, 245);
@@ -89,10 +89,10 @@ namespace AdamMil.Security.UI
       btnCancel.TabIndex = 3;
       btnCancel.Text = "&Cancel";
       btnCancel.UseVisualStyleBackColor = true;
-      // 
+      //
       // whereBox
-      // 
-      whereBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      whereBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       whereBox.Controls.Add(this.btnBrowse);
       whereBox.Controls.Add(this.txtFile);
@@ -104,9 +104,9 @@ namespace AdamMil.Security.UI
       whereBox.TabIndex = 1;
       whereBox.TabStop = false;
       whereBox.Text = "&Where are the keys located?";
-      // 
+      //
       // btnBrowse
-      // 
+      //
       this.btnBrowse.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
       this.btnBrowse.Location = new System.Drawing.Point(322, 68);
       this.btnBrowse.Name = "btnBrowse";
@@ -115,19 +115,19 @@ namespace AdamMil.Security.UI
       this.btnBrowse.Text = "&Browse";
       this.btnBrowse.UseVisualStyleBackColor = true;
       this.btnBrowse.Click += new System.EventHandler(this.btnBrowse_Click);
-      // 
+      //
       // txtFile
-      // 
-      this.txtFile.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.txtFile.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.txtFile.Location = new System.Drawing.Point(9, 68);
       this.txtFile.Name = "txtFile";
       this.txtFile.Size = new System.Drawing.Size(307, 21);
       this.txtFile.TabIndex = 2;
-      // 
+      //
       // rbFile
-      // 
-      this.rbFile.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.rbFile.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbFile.Checked = true;
       this.rbFile.Location = new System.Drawing.Point(9, 44);
@@ -138,10 +138,10 @@ namespace AdamMil.Security.UI
       this.rbFile.Text = "They are in a file:";
       this.rbFile.UseVisualStyleBackColor = true;
       this.rbFile.CheckedChanged += new System.EventHandler(this.rbFile_CheckedChanged);
-      // 
+      //
       // rbClipboard
-      // 
-      this.rbClipboard.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.rbClipboard.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbClipboard.Location = new System.Drawing.Point(9, 21);
       this.rbClipboard.Name = "rbClipboard";
@@ -149,10 +149,10 @@ namespace AdamMil.Security.UI
       this.rbClipboard.TabIndex = 0;
       this.rbClipboard.Text = "They are on the &clipboard.";
       this.rbClipboard.UseVisualStyleBackColor = true;
-      // 
+      //
       // grpHow
-      // 
-      grpHow.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      grpHow.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       grpHow.Controls.Add(btnUpdate);
       grpHow.Controls.Add(btnBackup);
@@ -164,10 +164,10 @@ namespace AdamMil.Security.UI
       grpHow.TabIndex = 0;
       grpHow.TabStop = false;
       grpHow.Text = "&How should the keys be imported?";
-      // 
+      //
       // options
-      // 
-      this.options.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.options.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.options.CheckOnClick = true;
       this.options.FormattingEnabled = true;
@@ -175,9 +175,9 @@ namespace AdamMil.Security.UI
       this.options.Name = "options";
       this.options.Size = new System.Drawing.Size(379, 68);
       this.options.TabIndex = 0;
-      // 
+      //
       // btnBackup
-      // 
+      //
       btnBackup.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       btnBackup.Location = new System.Drawing.Point(260, 94);
       btnBackup.Name = "btnBackup";
@@ -186,9 +186,9 @@ namespace AdamMil.Security.UI
       btnBackup.Text = "&Restore a Backup";
       btnBackup.UseVisualStyleBackColor = true;
       btnBackup.Click += new System.EventHandler(this.btnBackup_Click);
-      // 
+      //
       // btnDefaults
-      // 
+      //
       btnDefaults.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       btnDefaults.Location = new System.Drawing.Point(10, 94);
       btnDefaults.Name = "btnDefaults";
@@ -197,9 +197,9 @@ namespace AdamMil.Security.UI
       btnDefaults.Text = "Import &Public Keys";
       btnDefaults.UseVisualStyleBackColor = true;
       btnDefaults.Click += new System.EventHandler(this.btnDefaults_Click);
-      // 
+      //
       // btnUpdate
-      // 
+      //
       btnUpdate.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       btnUpdate.Location = new System.Drawing.Point(150, 94);
       btnUpdate.Name = "btnUpdate";
@@ -208,9 +208,9 @@ namespace AdamMil.Security.UI
       btnUpdate.Text = "&Update Keys";
       btnUpdate.UseVisualStyleBackColor = true;
       btnUpdate.Click += new System.EventHandler(this.btnUpdate_Click);
-      // 
+      //
       // ImportForm
-      // 
+      //
       this.AcceptButton = this.btnImport;
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;

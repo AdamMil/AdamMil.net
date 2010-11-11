@@ -53,7 +53,7 @@ public class CycleException : ArgumentException
 public static partial class CollectionExtensions
 {
   /// <summary>Returns a new list containing the items in topologically sorted order, where each item comes after its
-  /// dependencies. A <see cref="CycleException"/> will be thrown if a cycle is detected.
+  /// dependencies. A <see cref="CycleException"/> will be thrown if a dependency cycle exists.
   /// </summary>
   public static List<T> GetTopologicalSort<T>(this IEnumerable<T> items, Converter<T, IEnumerable<T>> getDependencies)
   {
@@ -68,11 +68,31 @@ public static partial class CollectionExtensions
     return newList;
   }
 
+  /// <summary>Enumerates the items in sets, where no item in any set depends on any other item in the same set, and items come
+  /// in a set after the set in which their dependencies are contained. A <see cref="CycleException"/> will be thrown if a
+  /// dependency cycle exists.
+  /// </summary>
+  /// <remarks>The utility of this method is that all items in each set can be processed in parallel, as they have no
+  /// dependencies on each other.
+  /// </remarks>
+  public static List<List<T>> GetTopologicalSortSets<T>(this IEnumerable<T> items, Converter<T, IEnumerable<T>> getDependencies)
+  {
+    if(items == null || getDependencies == null) throw new ArgumentNullException();
+
+    ICollection<T> collection = items as ICollection<T>;
+    int capacity = collection == null ? 16 : collection.Count;
+
+    List<List<T>> sets = new List<List<T>>();
+    Dictionary<T, int> itemHeights = new Dictionary<T, int>(capacity);
+    foreach(T item in items) Visit(item, getDependencies, sets, itemHeights);
+    return sets;
+  }
+
   /// <summary>Enumerates the items in topologically sorted order, where each item comes after its dependencies. A
-  /// <see cref="CycleException"/> will be thrown if a cycle is detected.
+  /// <see cref="CycleException"/> will be thrown if a dependency cycle exists.
   /// </summary>
   /// <remarks>This method enumerates items lazily, but has reduced performance.</remarks>
-  public static IEnumerable<T> TopologicalSort<T>(this IEnumerable<T> items, Converter<T,IEnumerable<T>> getDependencies)
+  public static IEnumerable<T> OrderTopologically<T>(this IEnumerable<T> items, Converter<T,IEnumerable<T>> getDependencies)
   {
     if(items == null || getDependencies == null) throw new ArgumentNullException();
 
@@ -82,12 +102,15 @@ public static partial class CollectionExtensions
     Dictionary<T, bool> itemsProcessed = new Dictionary<T, bool>(capacity);
     foreach(T item in items)
     {
-      foreach(T orderedItem in Visit(item, getDependencies, itemsProcessed)) yield return orderedItem;
+      if(IsUnprocessed(item, itemsProcessed))
+      {
+        foreach(T orderedItem in Visit(item, getDependencies, itemsProcessed)) yield return orderedItem;
+      }
     }
   }
 
   /// <summary>Sorts the list items topologically, so that each item comes after its dependencies. A <see cref="CycleException"/>
-  /// will be thrown if a cycle is detected.
+  /// will be thrown if a dependency cycle exists.
   /// </summary>
   public static void TopologicalSort<T>(this IList<T> items, Converter<T, IEnumerable<T>> getDependencies)
   {
@@ -107,39 +130,23 @@ public static partial class CollectionExtensions
     }
   }
 
-  /// <summary>Enumerates the items in topologically sorted sets, where no item in any set depends on any other item in the same
-  /// set, and items come in a set after the set in which theihr dependencies are contained. A <see cref="CycleException"/> will
-  /// be thrown if a cycle is detected.
-  /// </summary>
-  /// <remarks>The utility of this method is that all items in a set can be processed in parallel, as they have no dependencies
-  /// on each other.
-  /// </remarks>
-  public static List<List<T>> TopologicalSortSets<T>(this IEnumerable<T> items, Converter<T, IEnumerable<T>> getDependencies)
+  static bool IsUnprocessed<T>(T item, Dictionary<T, bool> itemsProcessed)
   {
-    if(items == null || getDependencies == null) throw new ArgumentNullException();
-
-    ICollection<T> collection = items as ICollection<T>;
-    int capacity = collection == null ? 16 : collection.Count;
-
-    List<List<T>> sets = new List<List<T>>();
-    Dictionary<T, int> itemHeights = new Dictionary<T, int>(capacity);
-    foreach(T item in items) Visit(item, getDependencies, sets, itemHeights);
-    return sets;
+    bool isProcessed;
+    if(itemsProcessed.TryGetValue(item, out isProcessed) && !isProcessed) throw new CycleException(item);
+    return !isProcessed;
   }
 
   static IEnumerable<T> Visit<T>(T item, Converter<T, IEnumerable<T>> getDependencies, Dictionary<T, bool> itemsProcessed)
   {
-    bool isProcessed;
-    if(itemsProcessed.TryGetValue(item, out isProcessed))
-    {
-      if(isProcessed) yield break;
-      else throw new CycleException(item);
-    }
-
+    // we put IsUnprocessed inside the loop to avoid allocating more generators than we need via additional calls to Visit()
     itemsProcessed[item] = false;
     foreach(T dependency in getDependencies(item))
     {
-      foreach(T orderedItem in Visit(dependency, getDependencies, itemsProcessed)) yield return orderedItem;
+      if(IsUnprocessed(dependency, itemsProcessed))
+      {
+        foreach(T orderedItem in Visit(dependency, getDependencies, itemsProcessed)) yield return orderedItem;
+      }
     }
     itemsProcessed[item] = true;
 
@@ -149,18 +156,13 @@ public static partial class CollectionExtensions
   static void Visit<T>(T item, Converter<T, IEnumerable<T>> getDependencies, List<T> orderedList,
                        Dictionary<T, bool> itemsProcessed)
   {
-    bool isProcessed;
-    if(itemsProcessed.TryGetValue(item, out isProcessed))
+    if(IsUnprocessed(item, itemsProcessed))
     {
-      if(isProcessed) return;
-      else throw new CycleException(item);
+      itemsProcessed[item] = false;
+      foreach(T dependency in getDependencies(item)) Visit(dependency, getDependencies, orderedList, itemsProcessed);
+      itemsProcessed[item] = true;
+      orderedList.Add(item);
     }
-
-    itemsProcessed[item] = false;
-    foreach(T dependency in getDependencies(item)) Visit(dependency, getDependencies, orderedList, itemsProcessed);
-    itemsProcessed[item] = true;
-
-    orderedList.Add(item);
   }
 
   static int Visit<T>(T item, Converter<T, IEnumerable<T>> getDependencies, List<List<T>> sets,
@@ -176,18 +178,19 @@ public static partial class CollectionExtensions
     }
 
     itemHeights[item] = Processing;
-    // calculate the height of an item, which is the length of the longest chain of dependencies. items with no dependencies have
-    // a height of one.
+    // calculate the height of an item, which is one plus the length of the longest chain of dependencies
     height = 0;
     foreach(T dependency in getDependencies(item))
     {
       height = Math.Max(height, Visit(dependency, getDependencies, sets, itemHeights));
     }
+
+    // since we go depth-first, we should never encounter a height more than one greater than the maximum seen so far
+    if(height == sets.Count) sets.Add(new List<T>());
+    sets[height].Add(item);
+
     height++;
     itemHeights[item] = height;
-
-    if(height > sets.Count) sets.Add(new List<T>());
-    sets[height-1].Add(item);
     return height;
   }
 }

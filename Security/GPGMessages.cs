@@ -29,8 +29,8 @@ enum StatusMessageType
   NewSig, GoodSig, ExpiredSig, ExpiredKeySig, RevokedKeySig, BadSig, ErrorSig, ValidSig, EncTo, NoData, UnexpectedData,
   TrustUndefined, TrustNever, TrustMarginal, TrustFully, TrustUltimate, PKATrustGood, PKATrustBad, KeyExpired,
   KeyRevoked, BadArmor, NeedKeyPassphrase, NeedCipherPassphrase, NeedPin, MissingPassphrase, BadPassphrase,
-  GoodPassphrase, DecryptionFailed, DecryptionOkay, NoPublicKey, NoSecretKey, Imported, ImportOkay, ImportProblem, 
-  ImportResult, FileStart, FileDone, BeginDecryption, EndDecryption, BeginEncryption, EndEncryption, BeginSigning, 
+  GoodPassphrase, DecryptionFailed, DecryptionOkay, NoPublicKey, NoSecretKey, Imported, ImportOkay, ImportProblem,
+  ImportResult, FileStart, FileDone, BeginDecryption, EndDecryption, BeginEncryption, EndEncryption, BeginSigning,
   DeleteFailed, Progress, SigCreated, KeyCreated, KeyNotCreated, SessionKey, UserIdHint, InvalidRecipient,
   NoRecipients, Error, CardControl, BackupKeyCreated, GoodMDC, GetBool, GetLine, GetHidden, Attribute,
 }
@@ -97,7 +97,7 @@ enum ImportFailureReason
 /// <summary>A message that gives key ID and the signer name of the key signature just imported.</summary>
 sealed class KeySigImportedMessage : StatusMessage
 {
-  public KeySigImportedMessage(string[] arguments) : base(StatusMessageType.Imported) 
+  public KeySigImportedMessage(string[] arguments) : base(StatusMessageType.Imported)
   {
     keyId    = arguments[0].ToUpperInvariant();
     userName = arguments[1];
@@ -596,7 +596,7 @@ sealed class AttributeMessage : StatusMessage
 /// <summary>Indicates that the previously-requested password was wrong.</summary>
 sealed class BadPassphraseMessage : StatusMessage
 {
-  public BadPassphraseMessage(string[] arguments) : base(StatusMessageType.BadPassphrase) 
+  public BadPassphraseMessage(string[] arguments) : base(StatusMessageType.BadPassphrase)
   {
     keyId = arguments[0].ToUpperInvariant();
   }
@@ -793,7 +793,7 @@ sealed class NeedKeyPassphraseMessage : StatusMessage
   {
     get { return keyId; }
   }
-  
+
   /// <summary>Gets the ID of the primary key that owns the key for which the password is needed.</summary>
   public string PrimaryKeyId
   {

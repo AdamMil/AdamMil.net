@@ -100,7 +100,7 @@ public abstract class ChangeEvent : IDisposable
   protected void ValidateVersionForDo(Document document)
   {
     ValidateDocument(document);
-    
+
     if(document != null && document.Version != expectedVersion) throw new InvalidOperationException(StateChangedError);
   }
 
@@ -575,7 +575,7 @@ public class ClearDocumentChange : ChangeEvent
 #region Text changes
 #region DeleteTextChange
 /// <summary>Represents a change that deletes text from a <see cref="TextNode"/>.</summary>
-/// <remarks>You shouldn't have to use this change event directly. Instead, you can use the members of 
+/// <remarks>You shouldn't have to use this change event directly. Instead, you can use the members of
 /// <see cref="TextNode"/>, which generate the necessary <see cref="ChangeEvent"/> objects implicitly.
 /// </remarks>
 public class DeleteTextChange : ChangeEvent
@@ -626,7 +626,7 @@ public class DeleteTextChange : ChangeEvent
 
 #region InsertTextChange
 /// <summary>Represents a change that inserts text into a <see cref="TextNode"/>.</summary>
-/// <remarks>You shouldn't have to use this change event directly. Instead, you can use the members of 
+/// <remarks>You shouldn't have to use this change event directly. Instead, you can use the members of
 /// <see cref="TextNode"/>, which generate the necessary <see cref="ChangeEvent"/> objects implicitly.
 /// </remarks>
 public class InsertTextChange : ChangeEvent
@@ -678,7 +678,7 @@ public class InsertTextChange : ChangeEvent
 
 #region ReplaceTextChange
 /// <summary>Represents a change that replaces text within a <see cref="TextNode"/>.</summary>
-/// <remarks>You shouldn't have to use this change event directly. Instead, you can use the members of 
+/// <remarks>You shouldn't have to use this change event directly. Instead, you can use the members of
 /// <see cref="TextNode"/>, which generate the necessary <see cref="ChangeEvent"/> objects implicitly.
 /// </remarks>
 public class ReplaceTextChange : ChangeEvent

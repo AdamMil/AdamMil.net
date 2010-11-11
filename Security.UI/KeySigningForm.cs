@@ -49,7 +49,7 @@ public partial class KeySigningForm : Form
   [Browsable(false)]
   public KeySigningOptions KeySigningOptions
   {
-    get 
+    get
     {
       CertificationLevel certLevel;
       if(rbNone.Checked) certLevel = CertificationLevel.None;
@@ -57,7 +57,7 @@ public partial class KeySigningForm : Form
       else if(rbRigorous.Checked) certLevel = CertificationLevel.Rigorous;
       else certLevel = CertificationLevel.Undisclosed;
 
-      return new KeySigningOptions(certLevel, !chkLocal.Checked); 
+      return new KeySigningOptions(certLevel, !chkLocal.Checked);
     }
   }
 

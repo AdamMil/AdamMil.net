@@ -40,7 +40,7 @@ public class RecipientList : KeyListBase
   public void FilterItems(string[] keywords)
   {
     if(keys == null) throw new InvalidOperationException("ShowKeyring has not been called.");
-    
+
     if(keywords == null || keywords.Length == 0 || keywords.Length == 1 && string.IsNullOrEmpty(keywords[0]))
     {
       AddKeyItems(keys);

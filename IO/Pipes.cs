@@ -33,7 +33,7 @@ namespace AdamMil.IO
 /// end of the pipe controlled by the current process is called the server end, and is accessed via the
 /// <see cref="ServerHandle"/>, while the end of the pipe controlled by a child process is called the client end, and
 /// is accessed via the <see cref="ClientHandle"/>. The client handle value is typically passed to the child process
-/// on its command line. To convert a handle into a 
+/// on its command line. To convert a handle into a
 /// </para>
 /// <para>To convert a handle into a <see cref="Stream"/>, use a <see cref="FileStream"/>. First create a
 /// <see cref="SafeFileHandle"/>, passing false so that the pipe handle is not owned by the

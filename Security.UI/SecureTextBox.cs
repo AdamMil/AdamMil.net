@@ -48,7 +48,7 @@ public class SecureTextBox : TextBox
     get { return restrictToAscii; }
     set { restrictToAscii = value; }
   }
-  
+
   /// <summary>Gets a dummy string, not the text entered by the user. This property only exists because it exists on
   /// the base class. Attempting to set this property will cause an exception to be thrown.
   /// </summary>
@@ -110,7 +110,7 @@ public class SecureTextBox : TextBox
       }
       // for modified keys, only allow cursor movement, alt-keys, and shifted characters
       else if(!(e.KeyCode == Keys.Left || e.KeyCode == Keys.Right || e.KeyCode == Keys.Home || e.KeyCode == Keys.End ||
-                e.Modifiers == Keys.Alt ||   
+                e.Modifiers == Keys.Alt ||
                 (e.Modifiers == Keys.Shift &&
                  e.KeyCode != Keys.Insert && e.KeyCode != Keys.Delete && e.KeyCode != Keys.Back)))
       {

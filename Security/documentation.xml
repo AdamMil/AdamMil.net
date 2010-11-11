@@ -20,7 +20,7 @@
       <ConsBF>
         <summary>Initializes a new operation failure exception with the given base message and failure reasons.</summary>
       </ConsBF>
-      
+
       <ConsF>
         <summary>Initializes a new exception with the given failure reasons.</summary>
         <param name="reasons">A <see cref="FailureReason"/> value that indicates potential causes for the failure.</param>
@@ -35,7 +35,7 @@
 
     <ToString>Converts the object to a human-readable string.</ToString>
   </Common>
-  
+
   <ReadOnlyClass>
     <MakeReadOnly>
       <summary>
@@ -135,7 +135,7 @@
       <summary>Creates a new, empty trust database in the given file.</summary>
       <remarks>The default implementation simply creates a zero-length file.</remarks>
     </CreateTrustDatabase>
-    
+
     <Decrypt>
       <summary>
         Takes the given ciphertext or embedded signature and writes the original plaintext to the given
@@ -148,7 +148,7 @@
       <summary>Deletes the given attributes from their owning keys.</summary>
       <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </DeleteAttributes>
-    
+
     <DeleteKeys>
       <summary>Deletes the given primary keys, or a part of them, from their keyrings.</summary>
       <param name="keys">The primary keys to delete.</param>
@@ -165,7 +165,7 @@
       <summary>Deletes the given subkeys from their owning keys.</summary>
       <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </DeleteSubkeys>
-    
+
     <DisableKeys>
       <summary>
         Disables the given primary keys. Disabling a key is a local operation that does not change the key for
@@ -185,11 +185,11 @@
     <Encrypt>
       <summary>Encrypts the given source data, writing the result to the given destination.</summary>
     </Encrypt>
-    
+
     <ExportKeys>
       <summary>Exports the given public keys to the given stream.</summary>
     </ExportKeys>
-    
+
     <ExportKeys2>
       <summary>Exports all keys in the given keyring files and/or the default keyring to the given stream.</summary>
       <param name="keyrings">
@@ -203,7 +203,7 @@
       <param name="exportOptions">Options controlling how the keys should be exported.</param>
       <param name="outputOptions">Options that control the output format.</param>
     </ExportKeys2>
-    
+
     <FindKeysOnServer>
       <summary>Searches for keys on the given key server.</summary>
       <param name="keyServer">The key server that will be searched for keys.</param>
@@ -271,7 +271,7 @@
     <GetPreferences>
       <summary>Returns the preferences for the given user id or attribute.</summary>
     </GetPreferences>
-    
+
     <GetRandomData>
       <summary>Generates random data and writes it to the given buffer.</summary>
       <param name="quality">
@@ -296,7 +296,7 @@
         that doesn't have one yet.
       </summary>
     </GetDecryptionPassword>
-    
+
     <GetKeyPassword>
       <summary>Gets the password for the secret key named in the given password hint.</summary>
       <param name="keyId">The ID of the key whose password is sought.</param>
@@ -322,7 +322,7 @@
       </param>
       <param name="options">Options controlling how keys should be returned.</param>
     </GetKeys>
-    
+
     <GetSupportedCiphers>
       <summary>
         Gets a list of the cipher algorithms supported by the PGP system. You can use them case-insensitively to
@@ -350,7 +350,7 @@
         whether a given key type is supported.
       </summary>
     </GetSupportedKeyTypes>
-    
+
     <Hash>
       <summary>Generates a hash of the given data, using the given hash algorithm.</summary>
       <param name="hashAlgorithm">
@@ -365,7 +365,7 @@
     <ImportKeys2>
       <summary>Imports keys from the given source into the default keyring.</summary>
     </ImportKeys2>
-    
+
     <ImportKeys3>
       <summary>Imports keys from the given source into the given keyring.</summary>
     </ImportKeys3>
@@ -375,7 +375,7 @@
         and imports them into the given keyring.
       </summary>
     </ImportKeysFromServer>
-    
+
     <MinimizeKeys>
       <summary>
         Minimizes the given keys by removing all signatures except the most recent self-signature, and removes
@@ -383,7 +383,7 @@
       </summary>
       <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </MinimizeKeys>
-    
+
     <OnInvalidPassword>
       <summary>
         Called when the password for the given key is invalid, to allow client applications to flush their
@@ -410,7 +410,7 @@
       </param>
       <param name="keys">The keys to refresh.</param>
     </RefreshKeysFromServer>
-    
+
     <RevokeAttributes>
       <summary>Revokes the given attributes from their owning keys.</summary>
       <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>

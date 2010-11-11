@@ -18,7 +18,7 @@ public class BinaryReaderWriterTest
     {
       ms.WriteByte((byte)(i%256));
     }
-    
+
     ms.Position = 50;
     using(BinaryReader br = new BinaryReader(ms))
     {

@@ -2540,7 +2540,7 @@ public class RectanglePacker
   public SysPoint? TryAdd(int width, int height)
   {
     if(width < 0 || height < 0) throw new ArgumentOutOfRangeException();
-    
+
     SysPoint? pt;
     if(width == 0 || height == 0)
     {

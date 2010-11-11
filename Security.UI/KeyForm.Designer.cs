@@ -37,10 +37,10 @@ namespace AdamMil.Security.UI
       btnOK = new System.Windows.Forms.Button();
       lblKeyServer = new System.Windows.Forms.Label();
       this.SuspendLayout();
-      // 
+      //
       // keys
-      // 
-      this.keys.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.keys.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.keys.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
       this.keys.FormattingEnabled = true;
@@ -48,9 +48,9 @@ namespace AdamMil.Security.UI
       this.keys.Name = "keys";
       this.keys.Size = new System.Drawing.Size(420, 21);
       this.keys.TabIndex = 2;
-      // 
+      //
       // btnCancel
-      // 
+      //
       btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
       btnCancel.Location = new System.Drawing.Point(436, 63);
@@ -59,9 +59,9 @@ namespace AdamMil.Security.UI
       btnCancel.TabIndex = 4;
       btnCancel.Text = "Cancel";
       btnCancel.UseVisualStyleBackColor = true;
-      // 
+      //
       // btnOK
-      // 
+      //
       btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnOK.DialogResult = System.Windows.Forms.DialogResult.OK;
       btnOK.Location = new System.Drawing.Point(355, 63);
@@ -70,9 +70,9 @@ namespace AdamMil.Security.UI
       btnOK.TabIndex = 3;
       btnOK.Text = "OK";
       btnOK.UseVisualStyleBackColor = true;
-      // 
+      //
       // lblKeyServer
-      // 
+      //
       lblKeyServer.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       lblKeyServer.Location = new System.Drawing.Point(0, 33);
       lblKeyServer.Name = "lblKeyServer";
@@ -80,17 +80,17 @@ namespace AdamMil.Security.UI
       lblKeyServer.TabIndex = 1;
       lblKeyServer.Text = "Select key:";
       lblKeyServer.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-      // 
+      //
       // lblDescription
-      // 
+      //
       this.lblDescription.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.lblDescription.Location = new System.Drawing.Point(8, 3);
       this.lblDescription.Name = "lblDescription";
       this.lblDescription.Size = new System.Drawing.Size(503, 28);
       this.lblDescription.TabIndex = 0;
-      // 
+      //
       // KeyForm
-      // 
+      //
       this.AcceptButton = btnOK;
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;

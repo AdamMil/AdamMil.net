@@ -30,9 +30,9 @@ namespace Sample
     {
       this.documentEditor1 = new AdamMil.UI.RichDocument.DocumentEditor();
       this.SuspendLayout();
-      // 
+      //
       // documentEditor1
-      // 
+      //
       this.documentEditor1.BackColor = System.Drawing.SystemColors.Window;
       this.documentEditor1.CursorIndex = 0;
       this.documentEditor1.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -45,9 +45,9 @@ namespace Sample
       this.documentEditor1.Size = new System.Drawing.Size(292, 273);
       this.documentEditor1.TabIndex = 0;
       this.documentEditor1.Text = "In grid-fitted rendering (the default), font hinting usually changes the width of glyphs. When a sequence of glyphs all increase significantly in width GDI+ may have to close up the text to remain resolution independent. In pathological cases (such as a long run of bold lower case 'l's in 8 pt Microsoft Sans Serif on a 96 dpi display), the space between some letters can disappear completely.\n\nthisisoneverylongwordthatshouldn'tbreaksoeasily";
-      // 
+      //
       // MainForm
-      // 
+      //
       this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.ClientSize = new System.Drawing.Size(292, 273);

@@ -18,16 +18,16 @@
       <summary>Called to change an item in the list.</summary>
     </SetItem>
   </Collection>
-  
+
   <Common>
     <DefaultSize>
       <summary>Gets the default size of the control.</summary>
     </DefaultSize>
-    
+
     <Dispose>
       <summary>Releases unmanaged resources held by the object.</summary>
     </Dispose>
-    
+
     <Dispose1>
       <summary>Releases unmanaged resources held by the object.</summary>
       <param name="finalizing">Indicates whether the object is currently being finalized.</param>
@@ -36,15 +36,15 @@
     <Equals>
       <summary>Returns true if the given object is equal to this one, and false if not.</summary>
     </Equals>
-    
+
     <GetHashCode>
-      <summary>Gets a hash code for the object.</summary>  
+      <summary>Gets a hash code for the object.</summary>
     </GetHashCode>
 
     <OnPaint>
       <summary>Renders the control.</summary>
     </OnPaint>
-    
+
     <OpEquals>
       <summary>Returns true if the two objects are equal, and false if not.</summary>
     </OpEquals>
@@ -79,14 +79,14 @@
       </exception>
     </Undo>
   </ChangeEvent>
-  
+
   <Document>
     <OnNodeChanged>
       <summary>
         Called when a node (or one of the node's descendants) that belongs to this document has changed
         such that it may need to be rerendered.
       </summary>
-    </OnNodeChanged>  
+    </OnNodeChanged>
   </Document>
 
   <DocumentEditor>
@@ -132,7 +132,7 @@
           should be returned.
         </summary>
       </GetPixelOffset>
-      
+
       <GetNode>
         <summary>Gets the <see cref="DocumentNode"/> rendered by this region, or null if the node is not directly
           correlated with any document node.
@@ -150,7 +150,7 @@
         <summary>
           Called when the mouse is clicked within the region. If the region does not handle the click, it should
           call its parent's implementation.
-        </summary>  
+        </summary>
       </OnClick>
 
       <OnDoubleClick>
@@ -194,7 +194,7 @@
       <LineCount>
         <summary>Gets the number of lines within the node's content, without considering the effects of line wrapping.</summary>
       </LineCount>
-      
+
       <CreateNew>
         <summary>
           Returns a new <see cref="LayoutSpan"/> of the same type as this,
@@ -216,7 +216,7 @@
       </Split>
     </LayoutSpan>
   </DocumentEditor>
-  
+
   <DocumentNode>
     <GetDescription>
       <summary>Gets a short description of this node.</summary>
@@ -240,7 +240,7 @@
       </summary>
     </Parse>
   </DocumentParser>
-  
+
   <EditableTextBuffer>
     <Indexer>
       <summary>Gets or sets the character at the given index.</summary>
@@ -353,7 +353,7 @@
     <GetLineLengths>
       <summary>Returns an array containing the lengths of all lines.</summary>
     </GetLineLengths>
-    
+
     <AddLine>
       <summary>Inserts a line at the end of the document with the given length.</summary>
     </AddLine>
@@ -395,7 +395,7 @@
         returned.
       </param>
     </GetOption>
-    
+
     <SetOption>
       <summary>Sets or clears the local value of the given option.</summary>
       <typeparam name="T">The type of the option value.</typeparam>

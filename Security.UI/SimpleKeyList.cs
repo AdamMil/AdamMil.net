@@ -32,7 +32,7 @@ public class SimpleKeyList : KeyListBase
   {
     InitializeControl();
   }
-  
+
   /// <summary>Adds a key to the list.</summary>
   public void AddKey(Key key)
   {

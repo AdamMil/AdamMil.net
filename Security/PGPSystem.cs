@@ -141,13 +141,13 @@ public static class SymmetricCipher
   public static readonly string IDEA = "IDEA";
   /// <summary>Serpent was an AES finalist, and was deemed to have the highest security. Its poor performance was its
   /// primary failing. Serpent is rarely supported.
-  /// </summary>  
+  /// </summary>
   public static readonly string Serpent = "SERPENT";
   /// <summary>The most widely-supported algorithm, but also the oldest and probably the weakest.</summary>
   public static readonly string TripleDES = "3DES";
   /// <summary>Twofish was an AES finalist, and was deemed to have higher security than the winning <see cref="AES"/>
   /// algorithm, Rijndael, (though lower than <see cref="Serpent"/>). Its poor performance was its primary failing.
-  /// </summary>  
+  /// </summary>
   public static readonly string Twofish = "TWOFISH";
 }
 #endregion
@@ -339,7 +339,7 @@ public enum OpenPGPSignatureType
 
 #region Command return types
 #region ImportedKey
-/// <summary>Represents a key that was processed during a key import. The key was not necessarily imported 
+/// <summary>Represents a key that was processed during a key import. The key was not necessarily imported
 /// successfully.
 /// </summary>
 public class ImportedKey : ReadOnlyClass
@@ -354,10 +354,10 @@ public class ImportedKey : ReadOnlyClass
   public string Fingerprint
   {
     get { return fingerprint; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      fingerprint = value; 
+      fingerprint = value;
     }
   }
 
@@ -365,10 +365,10 @@ public class ImportedKey : ReadOnlyClass
   public string KeyId
   {
     get { return keyId; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      keyId = value; 
+      keyId = value;
     }
   }
 
@@ -376,10 +376,10 @@ public class ImportedKey : ReadOnlyClass
   public string KeyType
   {
     get { return keyType; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      keyType = value; 
+      keyType = value;
     }
   }
 
@@ -398,10 +398,10 @@ public class ImportedKey : ReadOnlyClass
   public bool Successful
   {
     get { return successful; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      successful = value; 
+      successful = value;
     }
   }
 
@@ -409,10 +409,10 @@ public class ImportedKey : ReadOnlyClass
   public string UserId
   {
     get { return userId; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      userId = value; 
+      userId = value;
     }
   }
 
@@ -576,10 +576,10 @@ public class Signature : SignatureBase
   public DateTime? Expiration
   {
     get { return expiration; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      expiration = value; 
+      expiration = value;
     }
   }
 
@@ -589,10 +589,10 @@ public class Signature : SignatureBase
   public string HashAlgorithm
   {
     get { return hashAlgorithm; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      hashAlgorithm = value; 
+      hashAlgorithm = value;
     }
   }
 
@@ -602,10 +602,10 @@ public class Signature : SignatureBase
   public string KeyType
   {
     get { return keyType; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      keyType = value; 
+      keyType = value;
     }
   }
 
@@ -613,10 +613,10 @@ public class Signature : SignatureBase
   public string PrimaryKeyFingerprint
   {
     get { return primaryKeyFingerprint; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      primaryKeyFingerprint = value; 
+      primaryKeyFingerprint = value;
     }
   }
 
@@ -767,13 +767,13 @@ public abstract class PGPSystem
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedCiphers/*"/>
   public abstract string[] GetSupportedCiphers();
-  
+
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedCompressions/*"/>
   public abstract string[] GetSupportedCompressions();
-  
+
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedHashes/*"/>
   public abstract string[] GetSupportedHashes();
-  
+
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedKeyTypes/*"/>
   public abstract string[] GetSupportedKeyTypes();
   #endregion
@@ -845,7 +845,7 @@ public abstract class PGPSystem
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/Verify2/*"/>
   public abstract Signature[] Verify(Stream signedData, VerificationOptions options);
-  
+
   /// <include file="documentation.xml" path="/Security/PGPSystem/Verify3/*"/>
   public abstract Signature[] Verify(Stream signedData, Stream signature, VerificationOptions options);
   #endregion

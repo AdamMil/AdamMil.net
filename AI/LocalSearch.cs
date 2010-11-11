@@ -372,7 +372,7 @@ public class GeneticAlgorithmSearch<StateType> : LocalSearchBase<StateType, IGen
   {
     // otherwise, generate a new population and calculate the new best solution
     StateValuePair<StateType>[] newPopulation = new StateValuePair<StateType>[populationSize];
-    
+
     // ensure that the current best member is propogated to the next generation unchanged
     newPopulation[0] = population[bestMember];
     bestMember = 0;
@@ -395,7 +395,7 @@ public class GeneticAlgorithmSearch<StateType> : LocalSearchBase<StateType, IGen
       {
         newPopulation[index] = population[SelectRandomMember(populationWeights)];
       }
-      
+
       // potentially apply a random mutation
       if(tryMutation && Random.NextDouble() < mutationChance)
       {
@@ -485,7 +485,7 @@ public class GeneticAlgorithmSearch<StateType> : LocalSearchBase<StateType, IGen
   void MakeInitialPopulation(StateValuePair<StateType> initialState)
   {
     population = new StateValuePair<StateType>[populationSize];
-    
+
     // add the initial state to the population (to the 0th index)
     AddInitialMember(0, initialState);
 
@@ -497,7 +497,7 @@ public class GeneticAlgorithmSearch<StateType> : LocalSearchBase<StateType, IGen
     {
       List<StateValuePair<StateType>> successors =
         new List<StateValuePair<StateType>>(climbable.GetSuccessors(initialState));
-      
+
       // if there are more successors than the population size, permute them to get a random sample
       if(successors.Count > populationSize-1) Permutations.RandomlyPermute(successors, Random);
 
@@ -977,7 +977,7 @@ public class SimulatedAnnealingSearch<StateType> : LocalSearchBase<StateType,ILo
         solution : new StateValuePair<StateType>(solution.State, bestPreStunValue));
 
     float nextValue = TunnelValue(next.Value), valueDelta = nextValue - solution.Value;
-    
+
     // always accept uphill moves and accept downhill moves with a probability that depends on the temperature
     if(valueDelta > 0 || Random.NextDouble() < Math.Exp(valueDelta / temperature))
     {

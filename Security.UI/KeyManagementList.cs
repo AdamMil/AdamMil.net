@@ -82,7 +82,7 @@ public class KeyManagementList : KeyListBase
   public bool DisplayUserIds
   {
     get { return displayUserIds; }
-    set 
+    set
     {
       if(value != DisplayUserIds)
       {
@@ -261,14 +261,14 @@ public class KeyManagementList : KeyListBase
       if(a == b) return 0;
 
       PrimaryKeyItem pa = List.GetPrimaryItem(a), pb = List.GetPrimaryItem(b);
-      
+
       // if the two items don't belong to the same primary item, then sort them based on the primary items
       if(pa != pb) return Compare(pa, pb);
 
       // one may be primary and another not. in that case, the primary comes first
       if(pa == a) return -1; // a is primary
       else if(pb == b) return 1; // b is primary
-      
+
       // the two items belong to the same primary, so sort them within the primary. put user IDs first, then user
       // attributes, subkeys, and finally designated revokers. sort user IDs by name, attributes by creation date, and
       // subkeys by key ID, and revokers by fingerprint
@@ -276,7 +276,7 @@ public class KeyManagementList : KeyListBase
       if(aai != null)
       {
         if(bai == null) return -1;
-        
+
         UserId aid = aai.Attribute as UserId, bid = bai.Attribute as UserId;
         if(aid != null)
         {
@@ -586,7 +586,7 @@ public class KeyManagementList : KeyListBase
 
     bool signing = key.HasCapabilities(KeyCapabilities.Sign);
     bool encryption = key.HasCapabilities(KeyCapabilities.Encrypt);
-    
+
     string text = signing && encryption ? "Signing/encryption" :
                     signing ? "Signing" : encryption ? "Encryption" : "Other";
 
@@ -775,7 +775,7 @@ public class KeyManagementList : KeyListBase
     {
       // add the items. the sorting may change the order
       for(int i=item.relatedItems.Length-1; i >= 0; i--) Items.Insert(item.Index+1, item.relatedItems[i]);
-      
+
       // now that they've been added and are in order, set the icons
       for(int i=0; i < item.relatedItems.Length; i++)
       {
@@ -1174,7 +1174,7 @@ public class KeyManagementList : KeyListBase
   protected void ImportKeysFromKeyServer()
   {
     AssertPGPSystem();
-    
+
     KeyServerSearchForm form = new KeyServerSearchForm(PGP, keyring);
 
     form.ImportCompleted += delegate(object sender, ImportedKey[] results)

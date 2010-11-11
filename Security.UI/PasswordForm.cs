@@ -55,7 +55,7 @@ public partial class PasswordForm : Form
     set
     {
       if(!chkRemember.Enabled) throw new InvalidOperationException("EnableRememberPassword is currently false.");
-      chkRemember.Checked = value; 
+      chkRemember.Checked = value;
     }
   }
 

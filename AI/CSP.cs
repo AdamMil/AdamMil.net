@@ -338,7 +338,7 @@ public class FiniteDomainCSP<VarType> : IFiniteDomainCSP<VarType>
   void IFiniteDomainCSP<VarType>.GetVariables(out SimpleVariable<VarType>[] variables, out INeighborList neighbors)
   {
     variables = this.variables.ToArray();
-    
+
     if(this.neighbors == null)
     {
       int[][] neighborArray = new int[variables.Length][];
@@ -353,7 +353,7 @@ public class FiniteDomainCSP<VarType> : IFiniteDomainCSP<VarType>
 
       // then allocate the arrays for each variable, given the counts
       for(int i=0; i<neighborArray.Length; i++) neighborArray[i] = new int[neighborCounts[i]];
-      
+
       // repurpose neighborCounts to hold how many indices are currently in each array
       Array.Clear(neighborCounts, 0, neighborCounts.Length);
 
@@ -372,7 +372,7 @@ public class FiniteDomainCSP<VarType> : IFiniteDomainCSP<VarType>
 
   readonly List<SimpleVariable<VarType>> variables = new List<SimpleVariable<VarType>>();
   readonly Dictionary<IntPair, BinaryConstraint<VarType>> constraints = new Dictionary<IntPair, BinaryConstraint<VarType>>();
-  
+
   /// <summary>A cached copy of the list of neighbors of each variable.</summary>
   NeighborArrayList neighbors;
 }
@@ -900,7 +900,7 @@ public sealed class BacktrackingSolver<VarType> : SearchBase<Assignment,Assignme
   bool AC3_MAC(Assignment assignment, int variable)
   {
     Stack<IntPair> queue = new Stack<IntPair>(128);
-    
+
     foreach(int neighbor in neighbors[variable]) // add the unassigned neighbors of the altered variable to the queue.
     {                                            // the assigned neighbors are already known to be consistent
       if(!assignment.IsAssigned(neighbor)) queue.Push(new IntPair(neighbor, variable));
@@ -918,7 +918,7 @@ public sealed class BacktrackingSolver<VarType> : SearchBase<Assignment,Assignme
         // if the domain was reduced to nothing, we immediately know that the current assignment is inconsistent, so
         // return a value indicating that
         if(currentDomains[pair.Value1].CurrentCount == 0) return false;
-        
+
         // add any unassigned variables connected to var1 by a constraint back on the queue, because the value
         // supporting them may have been the one that was removed
         foreach(int i in neighbors[pair.Value1])
@@ -1365,7 +1365,7 @@ public sealed class BacktrackingSolver<VarType> : SearchBase<Assignment,Assignme
   /// search. If null, backjumping is disabled.
   /// </summary>
   Set[] conflictSets;
-  
+
   SearchLimiter limiter;
 
   /// <summary>The constraint propagation method to be used.</summary>
@@ -1419,7 +1419,7 @@ public class LocalSearchSolver<VarType> : IterativeSearchBase<Assignment,Assignm
     set
     {
       DisallowChangeDuringSearch();
-      cacheConflicts = value; 
+      cacheConflicts = value;
     }
   }
 
@@ -1679,7 +1679,7 @@ public class LocalSearchSolver<VarType> : IterativeSearchBase<Assignment,Assignm
   {
     return Array.BinarySearch(conflictedVarIndices, 0, numConflictedVars, variable) >= 0;
   }
-  
+
   /// <summary>Removes the given variable from the list of conflicted variables.</summary>
   void RemoveConflictedVariable(int variable)
   {
@@ -1706,7 +1706,7 @@ public class LocalSearchSolver<VarType> : IterativeSearchBase<Assignment,Assignm
     int fewestConflicts = CountConflictingVariables(variable, valueIndex, conflicts == null ? null : conflicts[0]);
     valueIndices.Clear();
     valueIndices.Add(valueIndex);
-    
+
     for(FiniteDomain<VarType> domain = variables[variable].Domain; valueIndex<domain.Count; valueIndex++)
     {
       if(valueIndex == assignment[variable]) continue; // there's no point in assigning the same value twice
@@ -1717,7 +1717,7 @@ public class LocalSearchSolver<VarType> : IterativeSearchBase<Assignment,Assignm
       // find out how many neighbors this value conflicts with, and get the neighbors if we're doing that
       int numConflicts = CountConflictingVariables(variable, valueIndex,
                                                    conflicts == null ? null : conflicts[valueIndices.Count]);
-      
+
       // we'll accumulate a list of values tied for the fewest conflicts
       if(numConflicts < fewestConflicts) // if this value has fewer conflicts than the current best...
       {
@@ -1755,7 +1755,7 @@ public class LocalSearchSolver<VarType> : IterativeSearchBase<Assignment,Assignm
 
   SimpleVariable<VarType>[] variables;
   INeighborList neighbors;
-  
+
   /// <summary>The random number generator used during the search.</summary>
   Random random;
   /// <summary>A sorted array that contains the indices of variables involved in conflicts.</summary>

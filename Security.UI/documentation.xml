@@ -10,9 +10,9 @@
     </Equals>
 
     <GetHashCode>
-      <summary>Calculates a hash code for this object.</summary>  
+      <summary>Calculates a hash code for this object.</summary>
     </GetHashCode>
-    
+
     <OnClosing>
       <summary>Called when the form is about to be closed.</summary>
     </OnClosing>
@@ -36,7 +36,7 @@
     <OnKeyPress>
       <summary>Called when an input key is pressed, forming an input character.</summary>
     </OnKeyPress>
-    
+
     <OnLoad>
       <summary>Called before the form is displayed.</summary>
     </OnLoad>
@@ -54,9 +54,9 @@
     </OnMouseUp>
 
     <OnNotifyMessage>
-      <summary>Notifies the control of messages from the windowing system.</summary>  
+      <summary>Notifies the control of messages from the windowing system.</summary>
     </OnNotifyMessage>
-    
+
     <OnShown>
       <summary>Called when the form has been shown.</summary>
     </OnShown>
@@ -90,7 +90,7 @@
     <ActivateItem>
       <summary>Called to activate a list, for instance when the user double-clicks on it.</summary>
     </ActivateItem>
-    
+
     <ClearCachedFonts>
       <summary>
         Called when any <see cref="System.Drawing.Font"/> objects that have been cached by the list need to be
@@ -112,7 +112,7 @@
         the key it is allowed to revoke.
       </summary>
     </CreateDesignatedRevokerItem>
-    
+
     <CreateFont>
       <summary>Returns a font and color to display an item with the given status.</summary>
       <param name="type">An <see cref="ItemStatus"/> representing the status of the item.</param>
@@ -122,7 +122,7 @@
         given status.
       </param>
     </CreateFont>
-    
+
     <CreateKeyItem>
       <summary>
         Creates a new <see cref="PGPListViewItem"/> (either a <see cref="PrimaryKeyItem"/> or
@@ -133,7 +133,7 @@
     <CreatePrimaryKeyItem>
       <summary>Creates a new <see cref="PrimaryKeyItem"/> to represent the given primary key.</summary>
     </CreatePrimaryKeyItem>
-    
+
     <CreateSignatureItem>
       <summary>Creates a <see cref="KeySignatureItem"/> to represent the given signature.</summary>
     </CreateSignatureItem>
@@ -145,13 +145,13 @@
     <RecreateItems>
       <summary>Recreates the items in the list, after the criteria used to display them have changed.</summary>
     </RecreateItems>
-    
+
     <SetAttributeItemFont>
       <summary>Sets the font of an <see cref="AttributeItem"/>, based on the <see cref="UserAttribute"/> it represents.</summary>
     </SetAttributeItemFont>
 
     <SetSourceItemFont>
-      <summary>Sets the font of a <see cref="ListViewItem"/>, based on the overall status of the source data it 
+      <summary>Sets the font of a <see cref="ListViewItem"/>, based on the overall status of the source data it
         represents.
       </summary>
     </SetSourceItemFont>

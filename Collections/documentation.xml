@@ -23,7 +23,7 @@
       <summary>Called when the collection may have been changed by the user.</summary>
     </OnCollectionChanged>
   </CollectionBase>
-  
+
   <Common>
     <Clear>
       <summary>Removes all items from the collection.</summary>

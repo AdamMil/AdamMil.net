@@ -183,7 +183,7 @@ public class DocumentEditor : Control
     set
     {
       Layout();
-      
+
       if(value.X < 0 || value.Y < 0 ||
          value.X > (hScrollBar == null ? 0 : hScrollBar.Maximum) ||
          value.Y > (vScrollBar == null ? 0 : vScrollBar.Maximum))
@@ -383,7 +383,7 @@ public class DocumentEditor : Control
     Paste(span, null);
   }
 
-  /// <summary>Converts the content of the clipboard to the given format, and then pastes it over the content at the 
+  /// <summary>Converts the content of the clipboard to the given format, and then pastes it over the content at the
   /// given span within the document.
   /// </summary>
   /// <param name="span">The span within the document that will be overwritten with the clipboard data.</param>
@@ -685,17 +685,17 @@ public class DocumentEditor : Control
     /// <summary>Gets the width of the left border, margin, and padding.</summary>
     public int LeftPBM
     {
-      get 
+      get
       {
         return NodePart == NodePart.Full || NodePart == NodePart.Start ?
-          Border.Width + Margin.Left + Padding.Left : 0; 
+          Border.Width + Margin.Left + Padding.Left : 0;
       }
     }
 
     /// <summary>Gets the width of the right border, margin, and padding.</summary>
     public int RightPBM
     {
-      get 
+      get
       {
         return NodePart == NodePart.Full || NodePart == NodePart.End ? Border.Width + Margin.Right + Padding.Right : 0;
       }
@@ -704,7 +704,7 @@ public class DocumentEditor : Control
     /// <summary>Gets the width of the top border, margin, and padding.</summary>
     public int TopPBM
     {
-      get 
+      get
       {
         int thickness = Border.Height + Padding.Top;
         if(NodePart == NodePart.Full || NodePart == NodePart.Start) thickness += Margin.Top;
@@ -715,7 +715,7 @@ public class DocumentEditor : Control
     /// <summary>Gets the width of the bottom border, margin, and padding.</summary>
     public int BottomPBM
     {
-      get 
+      get
       {
         int thickness = Border.Height + Padding.Bottom;
         if(NodePart == NodePart.Full || NodePart == NodePart.End) thickness += Margin.Bottom;
@@ -808,7 +808,7 @@ public class DocumentEditor : Control
       else if(regionPt.Y >= paddingArea.Bottom) return end;
       else if(regionPt.X < paddingArea.Left) return Start;
       else if(regionPt.X >= paddingArea.Right) return end;
- 
+
       // the point is contained within this region, so find the child node closest to the point
       LayoutRegion closestChild = null;
       uint minDistance = uint.MaxValue;
@@ -1000,7 +1000,7 @@ public class DocumentEditor : Control
           : node.Style.BorderColor ?? node.Style.EffectiveForeColor ?? data.Editor.ForeColor;
         if(borderStyle != RichDocument.BorderStyle.None && color.A != 0)
         {
-          using(Pen pen = new Pen(color)) 
+          using(Pen pen = new Pen(color))
           {
             switch(borderStyle)
             {
@@ -1036,7 +1036,7 @@ public class DocumentEditor : Control
 
               // square the end caps so that the lines join together
               pen.StartCap = pen.EndCap = System.Drawing.Drawing2D.LineCap.Square;
-              
+
               // TODO: i tried rewriting the whole layout engine to use inches rather than pixels, to enable using
               // DrawRectangle with a device-independent PageUnit, but that just ended up being very ugly because of
               // GDI+ bugs that screw up the dash style even more than usual when using non-integer dimensions
@@ -1533,7 +1533,7 @@ public class DocumentEditor : Control
 
       regionPt.X -= LeftPBM; // account for the border, margin, and padding
 
-      int fitWidth = TextRenderer.MeasureText(gdi, text, Font, 
+      int fitWidth = TextRenderer.MeasureText(gdi, text, Font,
                        new Size(regionPt.X + cachedEllipsisWidth, int.MaxValue),
                        MeasureFlags | TextFormatFlags.ModifyString | TextFormatFlags.EndEllipsis).Width;
 
@@ -1752,7 +1752,7 @@ public class DocumentEditor : Control
   #endregion
 
   #region PieceEnumerator
-  /// <summary>A class that takes a list of node trees and returns lists of <see cref="SplitPiece"/> objects 
+  /// <summary>A class that takes a list of node trees and returns lists of <see cref="SplitPiece"/> objects
   /// corresponding to the natural line breaks within the content.
   /// </summary>
   sealed class PieceEnumerator
@@ -1836,7 +1836,7 @@ public class DocumentEditor : Control
 
   /// <summary>Applies the given horizontal alignment value to the region's children.</summary>
   void ApplyHorizontalAlignment(HorizontalAlignment alignment, LayoutRegion region)
-  { 
+  {
     // we only handle right and center because things are left-aligned by default
     if(alignment == HorizontalAlignment.Right)
     {
@@ -1872,7 +1872,7 @@ public class DocumentEditor : Control
 
     // calculate the horizontal margin and padding
     Size shrinkage = SetBorderMarginAndPadding(gdi, node, newBlock, available);
-    
+
     // calculate the size available for child controls. the available height doesn't shrink the same way as the width
     // because we can always make the document taller, but we don't want to make it wider.
     Size shrunkSize = new Size(available.Width - shrinkage.Width, available.Height);
@@ -2183,7 +2183,7 @@ public class DocumentEditor : Control
           if(startNewLine) // if we need to finish the current line before adding the new pieces
           {
             FinishLine(gdi, lines, spans, span, nodeSpans, ref startIndex, ref lineSize); // then do so
-            
+
             span = ResetSpan(span, startIndex, nodeIndex); // and reset the current span so it doesn't include content
                                                            // from the previous line
 
@@ -2215,7 +2215,7 @@ public class DocumentEditor : Control
           lineSize  = new Size(lineSize.Width + spaceNeeded.Width, Math.Max(lineSize.Height, spaceNeeded.Height));
           span.Size = new Size(span.Width + spaceNeeded.Width, Math.Max(span.Height, spaceNeeded.Height));
           availableWidth -= spaceNeeded.Width;
-          
+
           // update the content and document spans, as well as the starting index
           span.ContentLength += docLength;
           span.Length        += docLength;
@@ -2310,7 +2310,7 @@ public class DocumentEditor : Control
     return shrinkage;
   }
 
-  /// <summary>Finishes a line by adding the final span, grouping spans into a tree, cloning the spans, 
+  /// <summary>Finishes a line by adding the final span, grouping spans into a tree, cloning the spans,
   /// calculating their span and content length, adding extra document indices where desired, adding all new spans to
   /// the given node spans dictionary, and finally creating and adding a new <see cref="Line"/> to contain the new span
   /// tree.
@@ -3528,7 +3528,7 @@ public class DocumentEditor : Control
   int BorderWidth
   {
     get
-    { 
+    {
       // TODO: we probably shouldn't be making assumptions about how the border will be drawn...
       return BorderStyle == System.Windows.Forms.BorderStyle.Fixed3D ?
         2 : BorderStyle == System.Windows.Forms.BorderStyle.FixedSingle ? 1 : 0;
@@ -4005,7 +4005,7 @@ public class DocumentEditor : Control
     }
   }
 
-  static readonly bool PlatformIsWindows = Environment.OSVersion.Platform == PlatformID.Win32NT || 
+  static readonly bool PlatformIsWindows = Environment.OSVersion.Platform == PlatformID.Win32NT ||
                                            Environment.OSVersion.Platform == PlatformID.Win32Windows ||
                                            Environment.OSVersion.Platform == PlatformID.WinCE;
 }*/
