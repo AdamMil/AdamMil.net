@@ -54,9 +54,9 @@ namespace AdamMil.Security.UI
       this.lblDescription = new System.Windows.Forms.Label();
       this.subkeys = new AdamMil.Security.UI.SimpleKeyList();
       this.SuspendLayout();
-      // 
+      //
       // btnAdd
-      // 
+      //
       this.btnAdd.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.btnAdd.Location = new System.Drawing.Point(9, 233);
       this.btnAdd.Name = "btnAdd";
@@ -65,9 +65,9 @@ namespace AdamMil.Security.UI
       this.btnAdd.Text = "&Add Subkey";
       this.btnAdd.UseVisualStyleBackColor = true;
       this.btnAdd.Click += new System.EventHandler(this.btnAdd_Click);
-      // 
+      //
       // btnRevoke
-      // 
+      //
       this.btnRevoke.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.btnRevoke.Enabled = false;
       this.btnRevoke.Location = new System.Drawing.Point(189, 233);
@@ -77,9 +77,9 @@ namespace AdamMil.Security.UI
       this.btnRevoke.Text = "&Revoke";
       this.btnRevoke.UseVisualStyleBackColor = true;
       this.btnRevoke.Click += new System.EventHandler(this.btnRevoke_Click);
-      // 
+      //
       // btnDelete
-      // 
+      //
       this.btnDelete.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.btnDelete.Enabled = false;
       this.btnDelete.Location = new System.Drawing.Point(108, 233);
@@ -89,19 +89,19 @@ namespace AdamMil.Security.UI
       this.btnDelete.Text = "&Delete";
       this.btnDelete.UseVisualStyleBackColor = true;
       this.btnDelete.Click += new System.EventHandler(this.btnDelete_Click);
-      // 
+      //
       // lblDescription
-      // 
-      this.lblDescription.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.lblDescription.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.lblDescription.Location = new System.Drawing.Point(6, 6);
       this.lblDescription.Name = "lblDescription";
       this.lblDescription.Size = new System.Drawing.Size(504, 120);
       this.lblDescription.TabIndex = 0;
       this.lblDescription.Text = resources.GetString("lblDescription.Text");
-      // 
+      //
       // subkeys
-      // 
+      //
       this.subkeys.AllowColumnReorder = true;
       this.subkeys.Font = new System.Drawing.Font("Arial", 8F);
       this.subkeys.FullRowSelect = true;
@@ -113,9 +113,9 @@ namespace AdamMil.Security.UI
       this.subkeys.UseCompatibleStateImageBehavior = false;
       this.subkeys.View = System.Windows.Forms.View.Details;
       this.subkeys.SelectedIndexChanged += new System.EventHandler(this.subkeys_SelectedIndexChanged);
-      // 
+      //
       // SubkeyManagerForm
-      // 
+      //
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.ClientSize = new System.Drawing.Size(517, 260);

@@ -103,7 +103,7 @@ public unsafe abstract class PinnedBuffer : IDisposable
   {
     FreeBuffer();
   }
-  
+
   /// <summary>Ensures that the buffer has at least the given capacity. This method will resize the buffer if
   /// necessary, which will invalidate any pointers to the buffer.
   /// </summary>
@@ -188,7 +188,7 @@ public unsafe abstract class PinnedBuffer : IDisposable
     if(handle.IsAllocated) handle.Free();
     BufferPtr = null;
   }
-  
+
   void PinBuffer()
   {
     handle    = GCHandle.Alloc(Buffer, GCHandleType.Pinned);
@@ -407,7 +407,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public void Read(void* dest, int nbytes)
   {
     if(nbytes < 0) throw new ArgumentOutOfRangeException();
-    
+
     byte* ptr = (byte*)dest;
 
     // attempt to satisfy the request with the contiguous data starting from the tail
@@ -956,10 +956,10 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
       Array.Copy(Buffer, tailIndex, newBuffer, 0, Buffer.Length - tailIndex);
       Array.Copy(Buffer, 0, newBuffer, tailIndex, headIndex);
     }
-    
+
     tailIndex = 0; // fixup the indices to reflect that the data has been moved to the beginning
     headIndex = availableData;
-    
+
     return newBuffer;
   }
 
@@ -978,7 +978,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   {
     get { return tailIndex <= headIndex ? headIndex - tailIndex : headIndex + Buffer.Length-tailIndex; }
   }
-  
+
   /// <summary>Gets the amount of contiguous data available at the front of the circular array.</summary>
   protected int ContiguousData
   {
@@ -991,7 +991,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     if(ContiguousData < nbytes) // if there's not enough contiguous data, read more data and/or shift existing data
     {
       if(ExternalBuffer) throw new EndOfStreamException(); // with an external buffer, there's no more data to read
-      
+
       if(Buffer.Length < nbytes) // if the buffer simply isn't big enough, we'll first enlarge it
       {
         EnsureCapacity(nbytes);
@@ -1017,10 +1017,10 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
         }
         headIndex = AvailableData; // update the pointers to indicate that the data has been defragmented
         tailIndex = 0;
-        
+
         availableContiguousSpace = Buffer.Length; // now we have a contiguous region the size of the whole buffer
       }
-      
+
       EnsureStreamPositioned();
 
       int toRead = availableContiguousSpace - headIndex; // fill the entire contiguous region
@@ -1035,7 +1035,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
         headIndex += read;
         toRead -= read;
       } while(toRead != 0);
-      
+
       StoreStreamPosition();
     }
   }
@@ -1081,7 +1081,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Advances the tail by the given number of bytes. It's assumed that this is not greater than
-  /// <see cref="ContiguousData"/>. 
+  /// <see cref="ContiguousData"/>.
   /// </summary>
   void AdvanceTail(int nbytes)
   {
@@ -1123,7 +1123,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// an override that takes a 'shared' parameter, and pass <c>true</c>.
   /// </remarks>
   public BinaryWriter(Stream stream) : this(stream, true) { }
-  
+
   /// <summary>Initializes this <see cref="BinaryWriter"/> with the default buffer size and the
   /// assumption that the stream will not be accessed by any other classes while this writer is in use.
   /// </summary>

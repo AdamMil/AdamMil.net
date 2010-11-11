@@ -64,10 +64,10 @@ namespace AdamMil.Security.UI
       btnRevoke = new System.Windows.Forms.Button();
       codeGroup.SuspendLayout();
       this.SuspendLayout();
-      // 
+      //
       // lblDescription
-      // 
-      lblDescription.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      lblDescription.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       lblDescription.Location = new System.Drawing.Point(5, 5);
       lblDescription.Name = "lblDescription";
@@ -75,10 +75,10 @@ namespace AdamMil.Security.UI
       lblDescription.TabIndex = 0;
       lblDescription.Text = "Revoking a user ID is a statement that the user ID no longer valid or no longer u" +
     "sed with this key. Once distributed, a revoked user ID cannot be restored.";
-      // 
+      //
       // codeGroup
-      // 
-      codeGroup.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      codeGroup.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       codeGroup.Controls.Add(this.rbInvalid);
       codeGroup.Controls.Add(this.rbNoReason);
@@ -88,10 +88,10 @@ namespace AdamMil.Security.UI
       codeGroup.TabIndex = 3;
       codeGroup.TabStop = false;
       codeGroup.Text = "What is the reason for the revocation?";
-      // 
+      //
       // rbInvalid
-      // 
-      this.rbInvalid.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.rbInvalid.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbInvalid.Location = new System.Drawing.Point(7, 42);
       this.rbInvalid.Name = "rbInvalid";
@@ -99,10 +99,10 @@ namespace AdamMil.Security.UI
       this.rbInvalid.TabIndex = 5;
       this.rbInvalid.Text = "The user IDs are no longer valid.";
       this.rbInvalid.UseVisualStyleBackColor = true;
-      // 
+      //
       // rbNoReason
-      // 
-      this.rbNoReason.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.rbNoReason.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbNoReason.Checked = true;
       this.rbNoReason.Location = new System.Drawing.Point(7, 19);
@@ -112,10 +112,10 @@ namespace AdamMil.Security.UI
       this.rbNoReason.TabStop = true;
       this.rbNoReason.Text = "No reason given.";
       this.rbNoReason.UseVisualStyleBackColor = true;
-      // 
+      //
       // lblUserIds
-      // 
-      lblUserIds.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      lblUserIds.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       lblUserIds.Location = new System.Drawing.Point(6, 57);
       lblUserIds.Name = "lblUserIds";
@@ -123,10 +123,10 @@ namespace AdamMil.Security.UI
       lblUserIds.TabIndex = 1;
       lblUserIds.Text = "You are about to revoke these user IDs:";
       lblUserIds.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-      // 
+      //
       // label1
-      // 
-      label1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      label1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       label1.Location = new System.Drawing.Point(5, 213);
       label1.Name = "label1";
@@ -134,9 +134,9 @@ namespace AdamMil.Security.UI
       label1.TabIndex = 5;
       label1.Text = "Short explanation (optional):";
       label1.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-      // 
+      //
       // btnCancel
-      // 
+      //
       btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
       btnCancel.Location = new System.Drawing.Point(247, 300);
@@ -145,9 +145,9 @@ namespace AdamMil.Security.UI
       btnCancel.TabIndex = 8;
       btnCancel.Text = "&Cancel";
       btnCancel.UseVisualStyleBackColor = true;
-      // 
+      //
       // btnRevoke
-      // 
+      //
       btnRevoke.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnRevoke.DialogResult = System.Windows.Forms.DialogResult.OK;
       btnRevoke.Location = new System.Drawing.Point(166, 300);
@@ -156,10 +156,10 @@ namespace AdamMil.Security.UI
       btnRevoke.TabIndex = 7;
       btnRevoke.Text = "&Revoke";
       btnRevoke.UseVisualStyleBackColor = true;
-      // 
+      //
       // ids
-      // 
-      this.ids.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.ids.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.ids.FormattingEnabled = true;
       this.ids.Location = new System.Drawing.Point(8, 76);
@@ -167,11 +167,11 @@ namespace AdamMil.Security.UI
       this.ids.SelectionMode = System.Windows.Forms.SelectionMode.None;
       this.ids.Size = new System.Drawing.Size(315, 56);
       this.ids.TabIndex = 2;
-      // 
+      //
       // txtExplanation
-      // 
-      this.txtExplanation.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.txtExplanation.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.txtExplanation.Location = new System.Drawing.Point(8, 228);
       this.txtExplanation.MaxLength = 255;
@@ -179,9 +179,9 @@ namespace AdamMil.Security.UI
       this.txtExplanation.Name = "txtExplanation";
       this.txtExplanation.Size = new System.Drawing.Size(314, 65);
       this.txtExplanation.TabIndex = 6;
-      // 
+      //
       // UserRevocationForm
-      // 
+      //
       this.AcceptButton = btnRevoke;
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;

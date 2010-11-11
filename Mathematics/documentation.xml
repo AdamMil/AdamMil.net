@@ -15,7 +15,7 @@
 
     <AboutSimplex>
       <remarks>
-        Simplex noise was coherent, pseudo-random noise source developed by Ken Perlin in 2001 to address the flaws in
+        Simplex noise is a coherent, pseudo-random noise source developed by Ken Perlin in 2001 to address the flaws in
         his earlier Perlin noise algorithm. Simplex noise is substantially faster than Perlin noise above 3 dimensions,
         is visually isotropic, and is easy to implement in hardware. It can be used for the same tasks to which Perlin
         noise is typically applied.

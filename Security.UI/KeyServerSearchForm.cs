@@ -104,7 +104,7 @@ public partial class KeyServerSearchForm : Form
     if(string.IsNullOrEmpty(terms)) throw new ArgumentException("No search terms were provided.");
 
     progressBar.Style = ProgressBarStyle.Marquee;
-    
+
     results.Items.Clear();
     searchServer = keyServer; // save the server used for the search so we know from what server to import the keys
 
@@ -179,7 +179,7 @@ public partial class KeyServerSearchForm : Form
   void ImportKeys(string[] ids, Uri keyServer)
   {
     if(TaskInProgress) throw new InvalidOperationException("A search or import is in progress.");
-    
+
     thread = new Thread((ThreadStart)delegate
     {
       ImportedKey[] results;

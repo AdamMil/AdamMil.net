@@ -128,7 +128,7 @@ public class KeySignature : SignatureBase
     else str = "Unverified ";
 
     str += type.ToString() + " signature";
-    
+
     if(!string.IsNullOrEmpty(SignerName) || !string.IsNullOrEmpty(KeyId))
     {
       str += " by "+SignerName;
@@ -322,10 +322,10 @@ public class UserId : UserAttribute
   public string Name
   {
     get { return name; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      name = value; 
+      name = value;
     }
   }
 
@@ -432,10 +432,10 @@ public abstract class Key : ReadOnlyClass
   public TrustLevel CalculatedTrust
   {
     get { return calculatedTrust; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      calculatedTrust = value; 
+      calculatedTrust = value;
     }
   }
 
@@ -445,10 +445,10 @@ public abstract class Key : ReadOnlyClass
   public KeyCapabilities Capabilities
   {
     get { return capabilities; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      capabilities = value; 
+      capabilities = value;
     }
   }
 
@@ -456,10 +456,10 @@ public abstract class Key : ReadOnlyClass
   public DateTime CreationTime
   {
     get { return creationTime; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      creationTime = value; 
+      creationTime = value;
     }
   }
 
@@ -477,10 +477,10 @@ public abstract class Key : ReadOnlyClass
   public DateTime? ExpirationTime
   {
     get { return expirationTime; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      expirationTime = value; 
+      expirationTime = value;
     }
   }
 
@@ -488,10 +488,10 @@ public abstract class Key : ReadOnlyClass
   public bool Expired
   {
     get { return expired; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      expired = value; 
+      expired = value;
     }
   }
 
@@ -501,10 +501,10 @@ public abstract class Key : ReadOnlyClass
   public string Fingerprint
   {
     get { return fingerprint; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      fingerprint = value; 
+      fingerprint = value;
     }
   }
 
@@ -512,10 +512,10 @@ public abstract class Key : ReadOnlyClass
   public bool Invalid
   {
     get { return invalid; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      invalid = value; 
+      invalid = value;
     }
   }
 
@@ -537,10 +537,10 @@ public abstract class Key : ReadOnlyClass
       }
       else return null;
     }
-    set 
+    set
     {
       AssertNotReadOnly();
-      keyId = value; 
+      keyId = value;
     }
   }
 
@@ -548,10 +548,10 @@ public abstract class Key : ReadOnlyClass
   public string KeyType
   {
     get { return keyType; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      keyType = value; 
+      keyType = value;
     }
   }
 
@@ -565,10 +565,10 @@ public abstract class Key : ReadOnlyClass
   public int Length
   {
     get { return length; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      length = value; 
+      length = value;
     }
   }
 
@@ -576,10 +576,10 @@ public abstract class Key : ReadOnlyClass
   public bool Revoked
   {
     get { return revoked; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      revoked = value; 
+      revoked = value;
     }
   }
 
@@ -623,7 +623,7 @@ public abstract class Key : ReadOnlyClass
   public override void MakeReadOnly()
   {
     if(sigs == null) throw new InvalidOperationException("The Signatures property has not been set.");
-    
+
     foreach(KeySignature sig in sigs)
     {
       if(sig == null) throw new InvalidOperationException("A key signature was null.");
@@ -879,10 +879,10 @@ public class Subkey : Key, ISignableObject
   public PrimaryKey PrimaryKey
   {
     get { return primaryKey; }
-    set 
+    set
     {
       AssertNotReadOnly();
-      primaryKey = value; 
+      primaryKey = value;
     }
   }
 
@@ -924,7 +924,7 @@ public class KeyCollection<KeyType> : Collection<KeyType> where KeyType : Key
 {
   /// <summary>Initializes a new <see cref="KeyCollection{T}"/> with no required key capabilities.</summary>
   public KeyCollection() { }
-  
+
   /// <summary>Initializes a new <see cref="KeyCollection{T}"/> with the given set of required key capabilities.</summary>
   public KeyCollection(KeyCapabilities requiredCapabilities)
   {

@@ -29,20 +29,20 @@ namespace AdamMil.Utilities
 /// <summary>This class provides methods to help when working with unsafe code.</summary>
 public static class Unsafe
 {
-	/// <summary>This method fills a block of memory with zeros.</summary>
-	/// <param name="dest">A pointer to the beginning of the block of memory.</param>
-	/// <param name="length">The number of bytes to fill with zeros.</param>
-	public static unsafe void Clear(void* dest, int length)
-	{
+  /// <summary>This method fills a block of memory with zeros.</summary>
+  /// <param name="dest">A pointer to the beginning of the block of memory.</param>
+  /// <param name="length">The number of bytes to fill with zeros.</param>
+  public static unsafe void Clear(void* dest, int length)
+  {
     FillCore(dest, 0, length);
-	}
+  }
 
-	/// <summary>This method copies a block of memory to another location.</summary>
-	/// <param name="src">A pointer to the beginning of the source block of memory.</param>
-	/// <param name="dest">The destination where the source data will be copied.</param>
-	/// <param name="length">The number of bytes to copy.</param>
-	public static unsafe void Copy(void* src, void* dest, int count)
-	{
+  /// <summary>This method copies a block of memory to another location.</summary>
+  /// <param name="src">A pointer to the beginning of the source block of memory.</param>
+  /// <param name="dest">The destination where the source data will be copied.</param>
+  /// <param name="length">The number of bytes to copy.</param>
+  public static unsafe void Copy(void* src, void* dest, int count)
+  {
     if(count < 0) throw new ArgumentOutOfRangeException();
 
     // tests show that this method is much faster than both RtlMoveMemory (i.e. memcpy) and the cpblk IL opcode,
@@ -127,16 +127,16 @@ public static class Unsafe
         }
       }
     }
-	}
+  }
 
-	/// <summary>This method fills a block of memory with a specified byte value.</summary>
-	/// <param name="dest">The pointer to the memory region that will be filled.</param>
-	/// <param name="value">The byte value with which the memory region will be filled.</param>
-	/// <param name="length">The number of bytes to fill.</param>
-	public static unsafe void Fill(void* dest, byte value, int count)
-	{
+  /// <summary>This method fills a block of memory with a specified byte value.</summary>
+  /// <param name="dest">The pointer to the memory region that will be filled.</param>
+  /// <param name="value">The byte value with which the memory region will be filled.</param>
+  /// <param name="length">The number of bytes to fill.</param>
+  public static unsafe void Fill(void* dest, byte value, int count)
+  {
     FillCore(dest, (uint)((value<<24) | (value<<16) | (value<<8) | value), count);
-	}
+  }
 
   static unsafe void FillCore(void* dest, uint value, int count)
   {

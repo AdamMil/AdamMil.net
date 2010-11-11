@@ -62,7 +62,7 @@ public partial class PhotoIdForm : Form
   protected override void OnKeyDown(KeyEventArgs e)
   {
     base.OnKeyDown(e);
-    
+
     if(!e.Handled && PGPUI.IsCloseKey(e))
     {
       Close();
@@ -93,7 +93,7 @@ public partial class PhotoIdForm : Form
         picture.SizeMode = PictureBoxSizeMode.CenterImage;
         picture.Size     = imageSize;
       }
-      
+
       // in any case, center the picture box
       picture.Location = new Point((maxCtlSize.Width - picture.Width) / 2 + horizontalSpace, topSpace);
     }

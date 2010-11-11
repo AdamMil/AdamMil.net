@@ -27,21 +27,21 @@ namespace AdamMil.Utilities
 /// <summary>Provides utilities to manipulate file paths.</summary>
 public static class PathUtility
 {
-	/// <summary>Appends the to the portion of the filename before the extension. For instance, if the
-	/// filename is "C:\foo.txt" and the suffix is "-2", the return value will be "C:\foo-2.txt".
-	/// </summary>
-	public static string AppendToFileName(string filename, string suffix)
-	{
-		// we use this code rather than Path.GetDirectoryName() and Path.Combine() to avoid changing the path separator character
-		string directory = null;
-		int dirSlash = filename.LastIndexOfAny(DirectorySeparatorChars);
-		if(dirSlash != -1)
-		{
-			directory = filename.Substring(0, dirSlash+1);
-			filename  = filename.Substring(dirSlash+1);
-		}
-		return directory + Path.GetFileNameWithoutExtension(filename) + suffix + Path.GetExtension(filename);
-	}
+  /// <summary>Appends the to the portion of the filename before the extension. For instance, if the
+  /// filename is "C:\foo.txt" and the suffix is "-2", the return value will be "C:\foo-2.txt".
+  /// </summary>
+  public static string AppendToFileName(string filename, string suffix)
+  {
+    // we use this code rather than Path.GetDirectoryName() and Path.Combine() to avoid changing the path separator character
+    string directory = null;
+    int dirSlash = filename.LastIndexOfAny(DirectorySeparatorChars);
+    if(dirSlash != -1)
+    {
+      directory = filename.Substring(0, dirSlash+1);
+      filename  = filename.Substring(dirSlash+1);
+    }
+    return directory + Path.GetFileNameWithoutExtension(filename) + suffix + Path.GetExtension(filename);
+  }
 
   /// <summary>Removes invalid filename characters from the given string, and returns it.</summary>
   public static string StripInvalidFileNameChars(string name)
@@ -55,7 +55,7 @@ public static class PathUtility
     return StringUtility.Remove(name, Path.GetInvalidPathChars());
   }
 
-	static readonly char[] DirectorySeparatorChars = new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
+  static readonly char[] DirectorySeparatorChars = new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
 }
 
 } // namespace AdamMil.Utilities

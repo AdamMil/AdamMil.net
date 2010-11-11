@@ -453,7 +453,7 @@ public abstract class SingleQueueSearchBase<StateType, ActionType> : GraphSearch
                                                    Dictionary<StateType,Node<StateType,ActionType>> statesSeen,
                                                    bool reversed)
   {
-    IEnumerable<StateActionPair<StateType,ActionType>> statePairs = 
+    IEnumerable<StateActionPair<StateType,ActionType>> statePairs =
       reversed ? BidiProblem.GetPredecessors(parent.State) : Problem.GetSuccessors(parent.State);
     return statesSeen == null ? GetNodes(parent, statePairs)
                               : GetNonDuplicatedNodes(parent, statePairs, statesSeen);
@@ -720,7 +720,7 @@ public sealed class IterativeDeepeningSearch<StateType, ActionType> : DepthBased
 
     for(DepthLimit=1; limiter == null || !limiter.LimitReached; DepthLimit++)
     {
-      SearchResult result = bidirectional ? 
+      SearchResult result = bidirectional ?
         base.FinishBidirectionalSearch(initialState, limiter, out solution) :
         base.FinishSearch(initialState, limiter, out solution);
 

@@ -52,7 +52,7 @@ sealed class WizardActionList : DesignerActionList
   public override DesignerActionItemCollection GetSortedActionItems()
   {
     Wizard wizard = GetWizard();
-    
+
     DesignerActionItemCollection actions = new DesignerActionItemCollection();
     actions.Add(new DesignerActionHeaderItem("Wizard Steps"));
     actions.Add(new DesignerActionPropertyItem("Steps", "Edit Steps", "Wizard Steps"));
@@ -142,7 +142,7 @@ sealed class WizardDesigner : ParentControlDesigner
       service.SelectionChanged -= service_SelectionChanged; // make sure only one handler is added
       service.SelectionChanged += service_SelectionChanged;
     }
-    
+
     actions = new DesignerActionListCollection(new DesignerActionList[] { new WizardActionList(Control) });
   }
 
@@ -344,7 +344,7 @@ sealed class WizardStepDesigner : ParentControlDesigner
           actions = new DesignerActionListCollection(new DesignerActionList[] { new WizardActionList(wizard) });
         }
       }
-     
+
       return actions;
     }
   }
@@ -454,7 +454,7 @@ sealed class WizardStepTypeConverter : TypeConverter
         if(step != instance) otherSteps.Add(step.Name);
       }
     }
-    
+
     return new StandardValuesCollection(otherSteps);
   }
 

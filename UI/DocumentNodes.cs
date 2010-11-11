@@ -125,7 +125,7 @@ public class DocumentNode
     {
       // fix up the indices of the items after the position where the new one is being inserted
       for(int i=index; i<Count; i++) this[i].index++;
-      
+
       base.InsertItem(index, item);
       item.OnAdded(owner, index);
       owner.OnNodeChanged();
@@ -274,7 +274,7 @@ public class DocumentNode
   protected void DoChange(ChangeEvent change)
   {
     if(change == null) throw new ArgumentNullException();
-    
+
     if(locked)
     {
       change.Dispose();
@@ -420,7 +420,7 @@ public class LinkNode : DocumentNode
     if(linkUri == null) throw new ArgumentNullException();
     if(!string.IsNullOrEmpty(linkText)) Children.Add(new TextNode(linkText));
   }
-  
+
   /// <summary>This event is raised when the link is activated.</summary>
   public DocumentNodeEvent Activated;
 

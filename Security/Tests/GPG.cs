@@ -119,7 +119,7 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
   {
     byte[] hash = gpg.Hash(new MemoryStream(Encoding.ASCII.GetBytes("The quick brown fox jumps over the lazy dog")),
                            HashAlgorithm.SHA1);
-    CollectionAssert.AreEqual(new byte[] { 
+    CollectionAssert.AreEqual(new byte[] {
       0x2f, 0xd4, 0xe1, 0xc6, 0x7a, 0x2d, 0x28, 0xfc, 0xed, 0x84,
       0x9e, 0xe1, 0xbb, 0x76, 0xe7, 0x39, 0x1b, 0x93, 0xeb, 0x12 }, hash);
   }
@@ -141,7 +141,7 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
     DecryptionOptions decryptOptions = new DecryptionOptions();
     decryptOptions.AdditionalKeyrings.Add(keyring);
     decryptOptions.IgnoreDefaultKeyring = true;
-    
+
     MemoryStream plaintext = new MemoryStream(Encoding.UTF8.GetBytes(PlainString)), signature = new MemoryStream();
 
     // we'll use only the test keyring
@@ -262,7 +262,7 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
   public void T06_Export()
   {
     EnsureImported();
-    
+
     // test ascii armored public keys
     MemoryStream output = new MemoryStream();
     gpg.ExportKey(keys[Encrypter], output, ExportOptions.Default, new OutputOptions(OutputFormat.ASCII, "Woot"));
@@ -349,7 +349,7 @@ w9cVnzO6kNgEJ/H+Rn+hx2xlsGiEWZWnmJZJe5xhbZY0rjqTSrjEMiRhXexeYD+1MfSgkNKnfoVEO5Dd
     UserImage imageAttr = (UserImage)(keys[Encrypter].Attributes[0]);
 
     CollectionAssert.AreEqual(new byte[] { 0xed, 0xe6, 0x05, 0xf4, 0xff, 0x4b, 0x84, 0xca, 0xf7, 0x73,
-                                           0xa2, 0x2b, 0x37, 0x19, 0xf1, 0x94, 0x71, 0x90, 0x7e, 0xd6 }, 
+                                           0xa2, 0x2b, 0x37, 0x19, 0xf1, 0x94, 0x71, 0x90, 0x7e, 0xd6 },
                               gpg.Hash(imageAttr.GetSubpacketStream(), HashAlgorithm.SHA1));
 
     using(System.Drawing.Bitmap bitmap = imageAttr.GetBitmap())

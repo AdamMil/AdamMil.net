@@ -86,7 +86,7 @@ public unsafe static partial class StreamExtensions
     do read = stream.Read(buffer, 0, chunkSize);
     while(read != 0 && processor(buffer, read));
   }
-  
+
   /// <summary>Reads the given number of bytes from a stream.</summary>
   /// <returns>A byte array containing <paramref name="length"/> bytes of data.</returns>
   public static byte[] Read(this Stream stream, int count)
@@ -292,14 +292,14 @@ public unsafe static partial class StreamExtensions
   {
     if(bytes < 0) throw new ArgumentException("cannot be negative", "bytes");
 
-    if(stream.CanSeek) 
+    if(stream.CanSeek)
     {
       stream.Position += bytes;
     }
     else if(bytes <= 4)
-    { 
-      int b = (int)bytes; 
-      while(b-- > 0) stream.ReadByteOrThrow(); 
+    {
+      int b = (int)bytes;
+      while(b-- > 0) stream.ReadByteOrThrow();
     }
     else
     {

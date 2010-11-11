@@ -29,136 +29,136 @@ namespace AdamMil.Collections
 public abstract class CollectionBase<T> : IList<T>
 {
   /// <summary>Initializes a new <see cref="CollectionBase{T}"/>.</summary>
-	protected CollectionBase()
-	{
-		Items = new List<T>();
-	}
+  protected CollectionBase()
+  {
+    Items = new List<T>();
+  }
 
   /// <summary>Gets or sets the item at the given index, which must be from 0 to <see cref="Count"/>-1.</summary>
-	public T this[int index]
-	{
-		get { return Items[index]; }
-		set { SetItem(index, value); }
-	}
+  public T this[int index]
+  {
+    get { return Items[index]; }
+    set { SetItem(index, value); }
+  }
 
   /// <summary>Gets the number of items in the collection.</summary>
-	public int Count
-	{
-		get { return Items.Count; }
-	}
+  public int Count
+  {
+    get { return Items.Count; }
+  }
 
   /// <summary>Gets whether the collection is read only.</summary>
-	public virtual bool IsReadOnly
-	{
-		get { return false; }
-	}
+  public virtual bool IsReadOnly
+  {
+    get { return false; }
+  }
 
   /// <summary>Adds the given item to the collection.</summary>
-	public void Add(T item)
-	{
-		AssertNotReadOnly();
-		InsertItem(Count, item);
-	}
+  public void Add(T item)
+  {
+    AssertNotReadOnly();
+    InsertItem(Count, item);
+  }
 
   /// <summary>Adds all of the given items to the collection.</summary>
-	public void AddRange(IEnumerable<T> items)
-	{
-		if(items == null) throw new ArgumentNullException();
-		AssertNotReadOnly();
-		
-		// if we know how many items there are, use that knowledge to preallocate space within the collection
-		ICollection<T> collection = items as ICollection<T>;
-		if(collection != null)
-		{
-			int newCount = Items.Count + collection.Count, capacity = Items.Capacity;
-      if(capacity == 0) capacity = 4;
-			if(capacity < newCount)
-			{
-				do capacity *= 2; while(capacity < newCount);
-				Items.Capacity = capacity;
-			}
-		}
+  public void AddRange(IEnumerable<T> items)
+  {
+    if(items == null) throw new ArgumentNullException();
+    AssertNotReadOnly();
 
-		foreach(T item in items) Add(item);
-	}
+    // if we know how many items there are, use that knowledge to preallocate space within the collection
+    ICollection<T> collection = items as ICollection<T>;
+    if(collection != null)
+    {
+      int newCount = Items.Count + collection.Count, capacity = Items.Capacity;
+      if(capacity == 0) capacity = 4;
+      if(capacity < newCount)
+      {
+        do capacity *= 2; while(capacity < newCount);
+        Items.Capacity = capacity;
+      }
+    }
+
+    foreach(T item in items) Add(item);
+  }
 
   /// <include file="documentation.xml" path="//Common/Clear/*"/>
   public virtual void Clear()
-	{
-		AssertNotReadOnly();
-		if(Items.Count != 0) ClearItems();
-	}
+  {
+    AssertNotReadOnly();
+    if(Items.Count != 0) ClearItems();
+  }
 
   /// <include file="documentation.xml" path="//Common/Contains/*"/>
   public bool Contains(T item)
-	{
-		return IndexOf(item) != -1;
-	}
+  {
+    return IndexOf(item) != -1;
+  }
 
   /// <include file="documentation.xml" path="//Common/CopyTo/*"/>
   public void CopyTo(T[] array, int arrayIndex)
-	{
-		Items.CopyTo(array, arrayIndex);
-	}
+  {
+    Items.CopyTo(array, arrayIndex);
+  }
 
   /// <include file="documentation.xml" path="//Common/GetEnumerator/*"/>
   public IEnumerator<T> GetEnumerator()
-	{
-		return Items.GetEnumerator();
-	}
+  {
+    return Items.GetEnumerator();
+  }
 
   /// <include file="documentation.xml" path="//Common/IndexOf/*"/>
   public virtual int IndexOf(T item)
-	{
-		return Items.IndexOf(item);
-	}
+  {
+    return Items.IndexOf(item);
+  }
 
   /// <include file="documentation.xml" path="//Common/Insert/*"/>
   public void Insert(int index, T item)
-	{
-		if(index < 0 || index > Count) throw new ArgumentOutOfRangeException();
-		AssertNotReadOnly();
-		InsertItem(index, item);
-	}
+  {
+    if(index < 0 || index > Count) throw new ArgumentOutOfRangeException();
+    AssertNotReadOnly();
+    InsertItem(index, item);
+  }
 
   /// <include file="documentation.xml" path="//Common/Remove/*"/>
   public bool Remove(T item)
-	{
-		AssertNotReadOnly();
-		int index = IndexOf(item);
-		if(index == -1)
-		{
-			return false;
-		}
-		else
-		{
-			RemoveAt(index);
-			return true;
-		}
-	}
+  {
+    AssertNotReadOnly();
+    int index = IndexOf(item);
+    if(index == -1)
+    {
+      return false;
+    }
+    else
+    {
+      RemoveAt(index);
+      return true;
+    }
+  }
 
   /// <include file="documentation.xml" path="//Common/RemoveAt/*"/>
   public void RemoveAt(int index)
-	{
-		AssertNotReadOnly();
-		RemoveItem(index, this[index]);
-	}
+  {
+    AssertNotReadOnly();
+    RemoveItem(index, this[index]);
+  }
 
   /// <include file="documentation.xml" path="//Common/ToArray/*"/>
   public T[] ToArray()
-	{
-		T[] array = new T[Count];
-		CopyTo(array, 0);
-		return array;
-	}
+  {
+    T[] array = new T[Count];
+    CopyTo(array, 0);
+    return array;
+  }
 
-	/// <summary>Gets a reference to the underlying list of items. Modifying this list will not trigger any events (e.g.
+  /// <summary>Gets a reference to the underlying list of items. Modifying this list will not trigger any events (e.g.
   /// <see cref="ClearItems"/>, <see cref="InsertItem"/>, <see cref="RemoveItem"/>, <see cref="SetItem"/>, etc).
   /// </summary>
   protected List<T> Items
-	{
-		get; private set;
-	}
+  {
+    get; private set;
+  }
 
   /// <summary>Throws an exception if the collection is read-only.</summary>
   protected void AssertNotReadOnly()
@@ -175,34 +175,34 @@ public abstract class CollectionBase<T> : IList<T>
 
   /// <include file="documentation.xml" path="//CollectionBase/InsertItem/*"/>
   protected virtual void InsertItem(int index, T item)
-	{
-		Items.Insert(index, item);
-		OnCollectionChanged();
-	}
+  {
+    Items.Insert(index, item);
+    OnCollectionChanged();
+  }
 
   /// <include file="documentation.xml" path="//CollectionBase/RemoveItem/*"/>
   protected virtual void RemoveItem(int index, T item)
-	{
-		Items.RemoveAt(index);
-		OnCollectionChanged();
-	}
+  {
+    Items.RemoveAt(index);
+    OnCollectionChanged();
+  }
 
   /// <include file="documentation.xml" path="//CollectionBase/SetItem/*"/>
   protected virtual void SetItem(int index, T item)
-	{
-		Items[index] = item;
-		OnCollectionChanged();
-	}
+  {
+    Items[index] = item;
+    OnCollectionChanged();
+  }
 
   /// <include file="documentation.xml" path="//CollectionBase/OnCollectionChanged/*"/>
   protected virtual void OnCollectionChanged()
-	{
-	}
+  {
+  }
 
-	System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-	{
-		return GetEnumerator();
-	}
+  System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+  {
+    return GetEnumerator();
+  }
 }
 #endregion
 
@@ -212,17 +212,17 @@ public abstract class ValidatedCollection<T> : CollectionBase<T>
 {
   /// <include file="documentation.xml" path="//CollectionBase/InsertItem/*"/>
   protected override void InsertItem(int index, T item)
-	{
-		ValidateItem(item, index);
-		base.InsertItem(index, item);
-	}
+  {
+    ValidateItem(item, index);
+    base.InsertItem(index, item);
+  }
 
   /// <include file="documentation.xml" path="//CollectionBase/SetItem/*"/>
   protected override void SetItem(int index, T item)
-	{
-		ValidateItem(item, index);
-		base.SetItem(index, item);
-	}
+  {
+    ValidateItem(item, index);
+    base.SetItem(index, item);
+  }
 
   /// <include file="documentation.xml" path="//ValidatedCollection/ValidateItem/*"/>
   protected abstract void ValidateItem(T item, int index);
@@ -235,9 +235,9 @@ public class NonNullCollection<T> : ValidatedCollection<T> where T : class
 {
   /// <include file="documentation.xml" path="//ValidatedCollection/ValidateItem/*"/>
   protected override void ValidateItem(T item, int index)
-	{
-		if(item == null) throw new ArgumentNullException();
-	}
+  {
+    if(item == null) throw new ArgumentNullException();
+  }
 }
 #endregion
 
@@ -247,9 +247,9 @@ public class NonEmptyStringCollection : ValidatedCollection<string>
 {
   /// <include file="documentation.xml" path="//ValidatedCollection/ValidateItem/*"/>
   protected override void ValidateItem(string item, int index)
-	{
-		if(string.IsNullOrEmpty(item)) throw new ArgumentException();
-	}
+  {
+    if(string.IsNullOrEmpty(item)) throw new ArgumentException();
+  }
 }
 #endregion
 

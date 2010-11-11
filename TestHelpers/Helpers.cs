@@ -23,7 +23,7 @@ public static class TestHelpers
   {
     object expectedValue = GetPropertyValue(expected, propertyName), actualValue = GetPropertyValue(actual, propertyName);
     Assert.AreEqual(expectedValue, actualValue, "Expected property " + propertyName + " to be equal for " +
-		                expected + " and " + actual);
+                    expected + " and " + actual);
   }
 
   static object GetPropertyValue(object obj, string propertyName)

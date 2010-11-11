@@ -53,32 +53,32 @@ namespace AdamMil.Security.UI
       this.sigList = new AdamMil.Security.UI.KeySignatureList();
       lblHelp = new System.Windows.Forms.Label();
       this.SuspendLayout();
-      // 
+      //
       // lblHelp
-      // 
-      lblHelp.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      lblHelp.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       lblHelp.Location = new System.Drawing.Point(5, 4);
       lblHelp.Name = "lblHelp";
       lblHelp.Size = new System.Drawing.Size(741, 63);
       lblHelp.TabIndex = 2;
       lblHelp.Text = resources.GetString("lblHelp.Text");
-      // 
+      //
       // lblDescription
-      // 
-      this.lblDescription.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.lblDescription.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.lblDescription.Location = new System.Drawing.Point(5, 67);
       this.lblDescription.Name = "lblDescription";
       this.lblDescription.Size = new System.Drawing.Size(741, 19);
       this.lblDescription.TabIndex = 1;
       this.lblDescription.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-      // 
+      //
       // sigList
-      // 
+      //
       this.sigList.AllowColumnReorder = true;
-      this.sigList.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+      this.sigList.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.sigList.Font = new System.Drawing.Font("Arial", 8F);
       this.sigList.FullRowSelect = true;
@@ -89,9 +89,9 @@ namespace AdamMil.Security.UI
       this.sigList.TabIndex = 0;
       this.sigList.UseCompatibleStateImageBehavior = false;
       this.sigList.View = System.Windows.Forms.View.Details;
-      // 
+      //
       // KeySignaturesForm
-      // 
+      //
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.ClientSize = new System.Drawing.Size(752, 337);

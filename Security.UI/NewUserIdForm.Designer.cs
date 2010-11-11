@@ -62,57 +62,57 @@ namespace AdamMil.Security.UI
       btnCancel = new System.Windows.Forms.Button();
       btnOK = new System.Windows.Forms.Button();
       this.SuspendLayout();
-      // 
+      //
       // txtComment
-      // 
-      this.txtComment.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.txtComment.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.txtComment.Location = new System.Drawing.Point(90, 60);
       this.txtComment.Name = "txtComment";
       this.txtComment.Size = new System.Drawing.Size(240, 21);
       this.txtComment.TabIndex = 5;
       this.txtComment.TextChanged += new System.EventHandler(this.txtUserId_TextChanged);
-      // 
+      //
       // txtEmail
-      // 
-      this.txtEmail.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.txtEmail.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.txtEmail.Location = new System.Drawing.Point(90, 34);
       this.txtEmail.Name = "txtEmail";
       this.txtEmail.Size = new System.Drawing.Size(240, 21);
       this.txtEmail.TabIndex = 3;
       this.txtEmail.TextChanged += new System.EventHandler(this.txtUserId_TextChanged);
-      // 
+      //
       // txtName
-      // 
-      this.txtName.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.txtName.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.txtName.Location = new System.Drawing.Point(90, 8);
       this.txtName.Name = "txtName";
       this.txtName.Size = new System.Drawing.Size(240, 21);
       this.txtName.TabIndex = 1;
       this.txtName.TextChanged += new System.EventHandler(this.txtUserId_TextChanged);
-      // 
+      //
       // lblKeyId
-      // 
+      //
       lblKeyId.Location = new System.Drawing.Point(3, 34);
       lblKeyId.Name = "lblKeyId";
       lblKeyId.Size = new System.Drawing.Size(81, 20);
       lblKeyId.TabIndex = 2;
       lblKeyId.Text = "Email";
       lblKeyId.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-      // 
+      //
       // lblType
-      // 
+      //
       lblType.Location = new System.Drawing.Point(3, 60);
       lblType.Name = "lblType";
       lblType.Size = new System.Drawing.Size(81, 20);
       lblType.TabIndex = 4;
       lblType.Text = "Comment";
       lblType.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-      // 
+      //
       // lblPrimaryUser
-      // 
+      //
       lblPrimaryUser.Font = new System.Drawing.Font("Verdana", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
       lblPrimaryUser.Location = new System.Drawing.Point(3, 8);
       lblPrimaryUser.Name = "lblPrimaryUser";
@@ -120,18 +120,18 @@ namespace AdamMil.Security.UI
       lblPrimaryUser.TabIndex = 0;
       lblPrimaryUser.Text = "Real Name";
       lblPrimaryUser.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-      // 
+      //
       // lblHelp
-      // 
-      this.lblHelp.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.lblHelp.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.lblHelp.Location = new System.Drawing.Point(6, 108);
       this.lblHelp.Name = "lblHelp";
       this.lblHelp.Size = new System.Drawing.Size(324, 43);
       this.lblHelp.TabIndex = 7;
-      // 
+      //
       // btnCancel
-      // 
+      //
       btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
       btnCancel.Location = new System.Drawing.Point(255, 154);
@@ -140,9 +140,9 @@ namespace AdamMil.Security.UI
       btnCancel.TabIndex = 9;
       btnCancel.Text = "&Cancel";
       btnCancel.UseVisualStyleBackColor = true;
-      // 
+      //
       // btnOK
-      // 
+      //
       btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnOK.Location = new System.Drawing.Point(174, 154);
       btnOK.Name = "btnOK";
@@ -151,9 +151,9 @@ namespace AdamMil.Security.UI
       btnOK.Text = "&OK";
       btnOK.UseVisualStyleBackColor = true;
       btnOK.Click += new System.EventHandler(this.btnOK_Click);
-      // 
+      //
       // chkPrimary
-      // 
+      //
       this.chkPrimary.Checked = true;
       this.chkPrimary.CheckState = System.Windows.Forms.CheckState.Checked;
       this.chkPrimary.Location = new System.Drawing.Point(90, 87);
@@ -162,9 +162,9 @@ namespace AdamMil.Security.UI
       this.chkPrimary.TabIndex = 6;
       this.chkPrimary.Text = "Make this my primary user ID";
       this.chkPrimary.UseVisualStyleBackColor = true;
-      // 
+      //
       // UserIdForm
-      // 
+      //
       this.AcceptButton = btnOK;
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;

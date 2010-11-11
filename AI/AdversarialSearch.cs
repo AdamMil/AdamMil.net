@@ -239,7 +239,7 @@ public abstract class GameSearchBase<StateType, ActionType> :
         // the search completed, so store the result and solution
         result   = currentResult;
         solution = currentSolution;
-        
+
         // if the search was not limited by depth, increasing the depth won't help, so we're done
         if(currentResult != SearchResult.LimitReached) break;
       }
@@ -462,7 +462,7 @@ public class AlphaBetaSearch<StateType, ActionType> : GameSearchBase<StateType,A
     }
 
     int player = Game.GetPlayerToMove(state);
-    
+
     // If this search hit a terminal state, or we'll cut it off, just return the game's estimate of the current
     // state's utility, from the perspective of the player to move in that state.
     wasTerminal = Game.IsTerminalState(state);
@@ -507,7 +507,7 @@ public class AlphaBetaSearch<StateType, ActionType> : GameSearchBase<StateType,A
     {
       // the utility of a non-chance state for the player to move at that state is the utility of the best successor
       float bestUtility = float.NegativeInfinity;
-      
+
       foreach(Move<StateType,ActionType> move in Game.GetSuccessors(state))
       {
         float utility = GetUtilityEstimate(move.State, best0, best1, depth+1, player);
@@ -591,7 +591,7 @@ public class AlphaBetaSearch<StateType, ActionType> : GameSearchBase<StateType,A
   bool depthLimitHit;
   /// <summary>Whether the most recently evaluated state was a terminal state.</summary>
   bool wasTerminal;
-  /// <summary>Whether the limiter caused the search to abort.</summary>  
+  /// <summary>Whether the limiter caused the search to abort.</summary>
   bool searchAborted;
 }
 #endregion
@@ -654,7 +654,7 @@ public class MaxSearch<StateType, ActionType> : GameSearchBase<StateType,ActionT
       searchAborted = true;
       return null;
     }
-    
+
     float[] utilities; // an array that will contain the estimated utilities of the state, for all players
 
     wasTerminal = Game.IsTerminalState(state);
@@ -675,7 +675,7 @@ public class MaxSearch<StateType, ActionType> : GameSearchBase<StateType,ActionT
           // get the estimated utilities of the successor state
           float[] moveUtilities = GetExpectedUtilities(move.State, depth+1);
           if(searchAborted) return null; // if the search was aborted, just return
-          
+
           // add the utility to the total, weighted by the probability of the successor occurring
           for(int i=0; i<utilities.Length; i++) utilities[i] += moveUtilities[i] * move.Probability;
         }
@@ -690,7 +690,7 @@ public class MaxSearch<StateType, ActionType> : GameSearchBase<StateType,ActionT
           float[] moveUtilities = GetExpectedUtilities(move.State, depth+1);
           if(searchAborted) return null; // if the search was aborted, just return
 
-          // find the best successor for the player who moves at the current state 
+          // find the best successor for the player who moves at the current state
           if(utilities == null || moveUtilities[player] > utilities[player])
           {
             utilities = moveUtilities;

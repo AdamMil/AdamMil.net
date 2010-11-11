@@ -267,9 +267,9 @@ public sealed class Stack<T> : IQueue<T>, IReadOnlyList<T>
     {
       get { return Current; }
     }
-    
+
     void IDisposable.Dispose() { }
-    
+
     readonly Stack<T> stack;
     T current;
     int index, count, version;

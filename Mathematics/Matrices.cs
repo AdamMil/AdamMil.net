@@ -32,9 +32,9 @@ namespace AdamMil.Mathematics.Matrices
 #region Matrix3
 [Serializable]
 public sealed class Matrix3
-{ 
+{
   public Matrix3() { M00=M11=M22=1; }
-  
+
   public unsafe Matrix3(double[] data)
   {
     if(data == null) throw new ArgumentNullException();
@@ -45,7 +45,7 @@ public sealed class Matrix3
       Unsafe.Copy(src, dest, Length*sizeof(double));
     }
   }
-  
+
   public unsafe Matrix3(Matrix3 matrix)
   {
     if(matrix == null) throw new ArgumentNullException();
@@ -57,7 +57,7 @@ public sealed class Matrix3
   }
 
   internal Matrix3(bool dummy) { }
-  
+
   public const int Width=3, Height=3, Length=Width*Height;
 
   public unsafe double this[int index]
@@ -97,7 +97,7 @@ public sealed class Matrix3
   }
 
   public override bool Equals(object obj)
-  { 
+  {
     Matrix3 other = obj as Matrix3;
     return other==null ? false : this == other;
   }
@@ -106,9 +106,9 @@ public sealed class Matrix3
   {
     return this == other;
   }
-  
+
   public unsafe bool Equals(Matrix3 other, double epsilon)
-  { 
+  {
     fixed(double* ap=&M00) fixed(double* bp=&other.M00)
       for(int i=0; i<Length; i++) if(Math.Abs(ap[i]-bp[i])>epsilon) return false;
     return true;
@@ -143,7 +143,7 @@ public sealed class Matrix3
   { fixed(double* ap=&a.M00) fixed(double* bp=&b.M00) fixed(double* dp=&dest.M00)
       for(int i=0; i<Length; i++) dp[i] = ap[i]+bp[i];
   }
-  
+
   public static unsafe void Subtract(Matrix3 a, Matrix3 b, Matrix3 dest)
   { fixed(double* ap=&a.M00) fixed(double* bp=&b.M00) fixed(double* dp=&dest.M00)
       for(int i=0; i<Length; i++) dp[i] = ap[i]-bp[i];
@@ -176,15 +176,15 @@ public sealed class Matrix3
   { double cos=Math.Cos(angle), sin=Math.Sin(angle);
     Vector axisc1m = axis * (1-cos);
     Matrix3 ret = new Matrix3(false);
-	  ret.M00 =          cos  + axis.X*axisc1m.X;
-	  ret.M10 =   axis.Z*sin  + axis.Y*axisc1m.X;
-	  ret.M20 = -(axis.Y*sin) + axis.Z*axisc1m.X;
-	  ret.M01 = -(axis.Z*sin) + axis.X*axisc1m.Y;
-	  ret.M11 =          cos  + axis.Y*axisc1m.Y;
-	  ret.M21 =   axis.X*sin  + axis.Z*axisc1m.Y;
-	  ret.M02 =   axis.Y*sin  + axis.X*axisc1m.Z;
-	  ret.M12 = -(axis.X*sin) + axis.Y*axisc1m.Z;
-	  ret.M22 =          cos  + axis.Z*axisc1m.Z;
+    ret.M00 =          cos  + axis.X*axisc1m.X;
+    ret.M10 =   axis.Z*sin  + axis.Y*axisc1m.X;
+    ret.M20 = -(axis.Y*sin) + axis.Z*axisc1m.X;
+    ret.M01 = -(axis.Z*sin) + axis.X*axisc1m.Y;
+    ret.M11 =          cos  + axis.Y*axisc1m.Y;
+    ret.M21 =   axis.X*sin  + axis.Z*axisc1m.Y;
+    ret.M02 =   axis.Y*sin  + axis.X*axisc1m.Z;
+    ret.M12 = -(axis.X*sin) + axis.Y*axisc1m.Z;
+    ret.M22 =          cos  + axis.Z*axisc1m.Z;
     return ret;
   }
 
@@ -272,7 +272,7 @@ public sealed class Matrix3
 public sealed class Matrix4
 {
   public Matrix4() { M00=M11=M22=M33=1; }
-  
+
   public unsafe Matrix4(double[] data)
   {
     if(data == null) throw new ArgumentNullException();
@@ -295,7 +295,7 @@ public sealed class Matrix4
   }
 
   internal Matrix4(bool dummy) { }
-  
+
   public const int Width=4, Height=4, Length=Width*Height;
 
   public unsafe double this[int index]
@@ -338,18 +338,18 @@ public sealed class Matrix4
   }
 
   public override bool Equals(object obj)
-  { 
+  {
     Matrix4 other = obj as Matrix4;
     return other==null ? false : this == other;
   }
-  
+
   public bool Equals(Matrix4 other)
   {
     return this == other;
   }
-  
+
   public unsafe bool Equals(Matrix4 other, double epsilon)
-  { 
+  {
     fixed(double* ap=&M00) fixed(double* bp=&other.M00)
       for(int i=0; i<Length; i++) if(Math.Abs(ap[i]-bp[i])>epsilon) return false;
     return true;
@@ -357,7 +357,7 @@ public sealed class Matrix4
 
   /// <include file="documentation.xml" path="//Common/GetHashCode/*"/>
   public unsafe override int GetHashCode()
-  { 
+  {
     int hash = 0;
     fixed(double* dp=&M00) { int* p=(int*)dp; for(int i=0; i<Length*2; i++) hash ^= p[i]; }
     return hash;
@@ -386,7 +386,7 @@ public sealed class Matrix4
   { fixed(double* ap=&a.M00) fixed(double* bp=&b.M00) fixed(double* dp=&dest.M00)
       for(int i=0; i<Length; i++) dp[i] = ap[i]+bp[i];
   }
-  
+
   public static unsafe void Subtract(Matrix4 a, Matrix4 b, Matrix4 dest)
   { fixed(double* ap=&a.M00) fixed(double* bp=&b.M00) fixed(double* dp=&dest.M00)
       for(int i=0; i<Length; i++) dp[i] = ap[i]-bp[i];
@@ -427,16 +427,16 @@ public sealed class Matrix4
   { double cos=Math.Cos(angle), sin=Math.Sin(angle);
     Vector axisc1m = axis * (1-cos);
     Matrix4 ret = new Matrix4(false);
-	  ret.M00 =          cos  + axis.X*axisc1m.X;
-	  ret.M10 =   axis.Z*sin  + axis.Y*axisc1m.X;
-	  ret.M20 = -(axis.Y*sin) + axis.Z*axisc1m.X;
-	  ret.M01 = -(axis.Z*sin) + axis.X*axisc1m.Y;
-	  ret.M11 =          cos  + axis.Y*axisc1m.Y;
-	  ret.M21 =   axis.X*sin  + axis.Z*axisc1m.Y;
-	  ret.M02 =   axis.Y*sin  + axis.X*axisc1m.Z;
-	  ret.M12 = -(axis.X*sin) + axis.Y*axisc1m.Z;
-	  ret.M22 =          cos  + axis.Z*axisc1m.Z;
-	  ret.M33 = 1;
+    ret.M00 =          cos  + axis.X*axisc1m.X;
+    ret.M10 =   axis.Z*sin  + axis.Y*axisc1m.X;
+    ret.M20 = -(axis.Y*sin) + axis.Z*axisc1m.X;
+    ret.M01 = -(axis.Z*sin) + axis.X*axisc1m.Y;
+    ret.M11 =          cos  + axis.Y*axisc1m.Y;
+    ret.M21 =   axis.X*sin  + axis.Z*axisc1m.Y;
+    ret.M02 =   axis.Y*sin  + axis.X*axisc1m.Z;
+    ret.M12 = -(axis.X*sin) + axis.Y*axisc1m.Z;
+    ret.M22 =          cos  + axis.Z*axisc1m.Z;
+    ret.M33 = 1;
     return ret;
   }
 

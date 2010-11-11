@@ -55,18 +55,18 @@ namespace AdamMil.Security.UI
       lblSearch = new System.Windows.Forms.Label();
       btnCancel = new System.Windows.Forms.Button();
       this.SuspendLayout();
-      // 
+      //
       // lblSearch
-      // 
+      //
       lblSearch.Location = new System.Drawing.Point(5, 7);
       lblSearch.Name = "lblSearch";
       lblSearch.Size = new System.Drawing.Size(72, 21);
       lblSearch.TabIndex = 0;
       lblSearch.Text = "&Search for:";
       lblSearch.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-      // 
+      //
       // btnCancel
-      // 
+      //
       btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
       btnCancel.Location = new System.Drawing.Point(408, 318);
@@ -75,12 +75,12 @@ namespace AdamMil.Security.UI
       btnCancel.TabIndex = 5;
       btnCancel.Text = "Cancel";
       btnCancel.UseVisualStyleBackColor = true;
-      // 
+      //
       // recipients
-      // 
+      //
       this.recipients.AllowColumnReorder = true;
-      this.recipients.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+      this.recipients.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.recipients.Font = new System.Drawing.Font("Arial", 8F);
       this.recipients.FullRowSelect = true;
@@ -93,17 +93,17 @@ namespace AdamMil.Security.UI
       this.recipients.View = System.Windows.Forms.View.Details;
       this.recipients.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.recipients_MouseDoubleClick);
       this.recipients.SelectedIndexChanged += new System.EventHandler(this.recipients_SelectedIndexChanged);
-      // 
+      //
       // txtSearch
-      // 
+      //
       this.txtSearch.Location = new System.Drawing.Point(83, 7);
       this.txtSearch.Name = "txtSearch";
       this.txtSearch.Size = new System.Drawing.Size(218, 21);
       this.txtSearch.TabIndex = 1;
       this.txtSearch.TextChanged += new System.EventHandler(this.txtSearch_TextChanged);
-      // 
+      //
       // btnClear
-      // 
+      //
       this.btnClear.Location = new System.Drawing.Point(307, 7);
       this.btnClear.Name = "btnClear";
       this.btnClear.Size = new System.Drawing.Size(56, 21);
@@ -111,9 +111,9 @@ namespace AdamMil.Security.UI
       this.btnClear.Text = "&Clear";
       this.btnClear.UseVisualStyleBackColor = true;
       this.btnClear.Click += new System.EventHandler(this.btnClear_Click);
-      // 
+      //
       // btnOK
-      // 
+      //
       this.btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       this.btnOK.DialogResult = System.Windows.Forms.DialogResult.OK;
       this.btnOK.Location = new System.Drawing.Point(327, 318);
@@ -122,9 +122,9 @@ namespace AdamMil.Security.UI
       this.btnOK.TabIndex = 4;
       this.btnOK.Text = "&OK";
       this.btnOK.UseVisualStyleBackColor = true;
-      // 
+      //
       // RecipientSearchForm
-      // 
+      //
       this.AcceptButton = this.btnOK;
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;

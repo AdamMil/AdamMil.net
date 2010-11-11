@@ -28,7 +28,7 @@
       </Indexer>
     </INeighborList>
   </CSP>
-  
+
   <Search>
     <typeparam name="ActionType">
       The type of object used to represent actions that transition between states in the problem space. This is
@@ -70,7 +70,7 @@
           This method is used to free any state set up by <see cref="GameSearchBase{S,A}.BeginIterativeDeepeningSearch"/>.
         </remarks>
       </EndIterativeDeepeningSearch>
-      
+
       <IterativeDeepeningSearch>
         <summary>
           Performs an iterative deepening search, which carries out multiple searches, increasing the depth limit
@@ -94,7 +94,7 @@
           but was truncated due to the depth limit.
         </returns>
       </PerformSearch>
-      
+
       <PrepareToStartSearch>
         <summary>
           Called before <see cref="IIterativeSearch{S,T}.BeginSearch(S)"/> to verify that the game is
@@ -269,7 +269,7 @@
         </summary>
         <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*"/>
       </Search>
-      
+
       <Search_State>
         <summary>
           Searches using the given initial state, and running until the search completes or reaches the given limit.
@@ -300,7 +300,7 @@
         </param>
       </Search>
     </LocalSearchBase>
-    
+
     <SearchBase>
       <Search_Timeout>
         <param name="msTimeLimit">
@@ -327,7 +327,7 @@
         <summary>Called when the search starts running.</summary>
       </Start>
     </SearchLimiter>
-    
+
     <SimulatedAnnealing>
       <Constructor>
         <param name="problem">The problem to be solved by simulated annealing. This must implement
@@ -400,7 +400,7 @@
         </para>
       </STUN>
     </SimulatedAnnealing>
-    
+
     <SingleQueueSearchBase>
       <InitializeSearch>
         <summary>

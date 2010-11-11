@@ -223,7 +223,7 @@ public partial class UserIdManagerForm : Form
     UserIdForm form = new UserIdForm();
     if(form.ShowDialog() == DialogResult.OK)
     {
-      try 
+      try
       {
         pgp.AddUserId(key, form.RealName, form.Email, form.Comment, form.Preferences);
         ReloadKey();
@@ -283,7 +283,7 @@ public partial class UserIdManagerForm : Form
   {
     if(userIds.SelectedIndices.Count == 1)
     {
-      try 
+      try
       {
         pgp.SetPreferences(((AttributeItem)userIds.SelectedItems[0]).Attribute, new UserPreferences(true));
         ReloadKey();

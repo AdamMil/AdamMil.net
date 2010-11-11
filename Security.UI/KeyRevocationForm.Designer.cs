@@ -72,10 +72,10 @@ namespace AdamMil.Security.UI
       codeGroup.SuspendLayout();
       howBox.SuspendLayout();
       this.SuspendLayout();
-      // 
+      //
       // lblExplanation
-      // 
-      lblExplanation.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      lblExplanation.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       lblExplanation.Location = new System.Drawing.Point(5, 370);
       lblExplanation.Name = "lblExplanation";
@@ -83,10 +83,10 @@ namespace AdamMil.Security.UI
       lblExplanation.TabIndex = 5;
       lblExplanation.Text = "Short explanation (optional):";
       lblExplanation.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-      // 
+      //
       // codeGroup
-      // 
-      codeGroup.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      codeGroup.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       codeGroup.Controls.Add(this.rbRetired);
       codeGroup.Controls.Add(this.rbCompromised);
@@ -98,10 +98,10 @@ namespace AdamMil.Security.UI
       codeGroup.TabIndex = 4;
       codeGroup.TabStop = false;
       codeGroup.Text = "What is the reason for the revocation?";
-      // 
+      //
       // rbRetired
-      // 
-      this.rbRetired.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.rbRetired.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbRetired.Location = new System.Drawing.Point(7, 88);
       this.rbRetired.Name = "rbRetired";
@@ -109,10 +109,10 @@ namespace AdamMil.Security.UI
       this.rbRetired.TabIndex = 3;
       this.rbRetired.Text = "The key is no longer used.";
       this.rbRetired.UseVisualStyleBackColor = true;
-      // 
+      //
       // rbCompromised
-      // 
-      this.rbCompromised.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.rbCompromised.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbCompromised.Location = new System.Drawing.Point(7, 65);
       this.rbCompromised.Name = "rbCompromised";
@@ -120,10 +120,10 @@ namespace AdamMil.Security.UI
       this.rbCompromised.TabIndex = 2;
       this.rbCompromised.Text = "The key has been been compromised.";
       this.rbCompromised.UseVisualStyleBackColor = true;
-      // 
+      //
       // rbSuperceded
-      // 
-      this.rbSuperceded.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.rbSuperceded.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbSuperceded.Location = new System.Drawing.Point(7, 42);
       this.rbSuperceded.Name = "rbSuperceded";
@@ -131,10 +131,10 @@ namespace AdamMil.Security.UI
       this.rbSuperceded.TabIndex = 1;
       this.rbSuperceded.Text = "The key has been superceded by a new key.";
       this.rbSuperceded.UseVisualStyleBackColor = true;
-      // 
+      //
       // rbNoReason
-      // 
-      this.rbNoReason.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.rbNoReason.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbNoReason.Checked = true;
       this.rbNoReason.Location = new System.Drawing.Point(7, 19);
@@ -144,9 +144,9 @@ namespace AdamMil.Security.UI
       this.rbNoReason.TabStop = true;
       this.rbNoReason.Text = "No reason given.";
       this.rbNoReason.UseVisualStyleBackColor = true;
-      // 
+      //
       // btnCancel
-      // 
+      //
       btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
       btnCancel.Location = new System.Drawing.Point(374, 459);
@@ -155,10 +155,10 @@ namespace AdamMil.Security.UI
       btnCancel.TabIndex = 8;
       btnCancel.Text = "&Cancel";
       btnCancel.UseVisualStyleBackColor = true;
-      // 
+      //
       // howBox
-      // 
-      howBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      howBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       howBox.Controls.Add(this.revokingKeys);
       howBox.Controls.Add(lblRevokingKey);
@@ -170,10 +170,10 @@ namespace AdamMil.Security.UI
       howBox.TabIndex = 3;
       howBox.TabStop = false;
       howBox.Text = "How should the key be revoked?";
-      // 
+      //
       // revokingKeys
-      // 
-      this.revokingKeys.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.revokingKeys.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.revokingKeys.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
       this.revokingKeys.Enabled = false;
@@ -182,19 +182,19 @@ namespace AdamMil.Security.UI
       this.revokingKeys.Name = "revokingKeys";
       this.revokingKeys.Size = new System.Drawing.Size(333, 21);
       this.revokingKeys.TabIndex = 3;
-      // 
+      //
       // lblRevokingKey
-      // 
+      //
       lblRevokingKey.Location = new System.Drawing.Point(6, 67);
       lblRevokingKey.Name = "lblRevokingKey";
       lblRevokingKey.Size = new System.Drawing.Size(95, 18);
       lblRevokingKey.TabIndex = 2;
       lblRevokingKey.Text = "Revoking key:";
       lblRevokingKey.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-      // 
+      //
       // rbIndirect
-      // 
-      this.rbIndirect.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.rbIndirect.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbIndirect.Location = new System.Drawing.Point(9, 44);
       this.rbIndirect.Name = "rbIndirect";
@@ -204,10 +204,10 @@ namespace AdamMil.Security.UI
       this.rbIndirect.Text = "Indirectly, because I am the key\'s designated revoker.";
       this.rbIndirect.UseVisualStyleBackColor = true;
       this.rbIndirect.CheckedChanged += new System.EventHandler(this.rbIndirect_CheckedChanged);
-      // 
+      //
       // rbDirect
-      // 
-      this.rbDirect.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.rbDirect.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.rbDirect.Location = new System.Drawing.Point(9, 21);
       this.rbDirect.Name = "rbDirect";
@@ -216,10 +216,10 @@ namespace AdamMil.Security.UI
       this.rbDirect.TabStop = true;
       this.rbDirect.Text = "Directly, because I own the key.";
       this.rbDirect.UseVisualStyleBackColor = true;
-      // 
+      //
       // lblKey
-      // 
-      lblKey.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      lblKey.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       lblKey.Location = new System.Drawing.Point(7, 54);
       lblKey.Name = "lblKey";
@@ -227,10 +227,10 @@ namespace AdamMil.Security.UI
       lblKey.TabIndex = 1;
       lblKey.Text = "You are about to revoke these keys:";
       lblKey.TextAlign = System.Drawing.ContentAlignment.BottomLeft;
-      // 
+      //
       // lblDescription
-      // 
-      this.lblDescription.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.lblDescription.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.lblDescription.Location = new System.Drawing.Point(7, 5);
       this.lblDescription.Name = "lblDescription";
@@ -238,10 +238,10 @@ namespace AdamMil.Security.UI
       this.lblDescription.TabIndex = 0;
       this.lblDescription.Text = "Revoking a key makes it unusable. If the key was compromised, or no revocation re" +
     "ason is given, signatures made by the key will be considered untrustworthy.";
-      // 
+      //
       // txtExplanation
-      // 
-      this.txtExplanation.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.txtExplanation.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.txtExplanation.Location = new System.Drawing.Point(8, 386);
       this.txtExplanation.MaxLength = 255;
@@ -249,9 +249,9 @@ namespace AdamMil.Security.UI
       this.txtExplanation.Name = "txtExplanation";
       this.txtExplanation.Size = new System.Drawing.Size(442, 66);
       this.txtExplanation.TabIndex = 6;
-      // 
+      //
       // btnOK
-      // 
+      //
       this.btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       this.btnOK.DialogResult = System.Windows.Forms.DialogResult.OK;
       this.btnOK.Location = new System.Drawing.Point(293, 459);
@@ -260,10 +260,10 @@ namespace AdamMil.Security.UI
       this.btnOK.TabIndex = 7;
       this.btnOK.Text = "&Revoke";
       this.btnOK.UseVisualStyleBackColor = true;
-      // 
+      //
       // keyList
-      // 
-      this.keyList.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.keyList.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.keyList.FormattingEnabled = true;
       this.keyList.Location = new System.Drawing.Point(8, 74);
@@ -271,9 +271,9 @@ namespace AdamMil.Security.UI
       this.keyList.SelectionMode = System.Windows.Forms.SelectionMode.None;
       this.keyList.Size = new System.Drawing.Size(442, 69);
       this.keyList.TabIndex = 2;
-      // 
+      //
       // KeyRevocationForm
-      // 
+      //
       this.AcceptButton = this.btnOK;
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;

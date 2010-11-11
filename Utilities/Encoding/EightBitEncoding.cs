@@ -10,87 +10,87 @@ namespace AdamMil.Utilities.Encodings
 /// </summary>
 public sealed class EightBitDecoder : Decoder
 {
-	/// <summary>Initializes a new <see cref="EightBitDecoder"/> with the given <see cref="BinaryEncoder"/>. If the encoder is null,
-	/// characters will simply be expanded without being encoded first.
-	/// </summary>
-	public EightBitDecoder(BinaryEncoder decoder)
-	{
-		this.decoder = decoder;
-	}
+  /// <summary>Initializes a new <see cref="EightBitDecoder"/> with the given <see cref="BinaryEncoder"/>. If the encoder is null,
+  /// characters will simply be expanded without being encoded first.
+  /// </summary>
+  public EightBitDecoder(BinaryEncoder decoder)
+  {
+    this.decoder = decoder;
+  }
 
-	public override int GetCharCount(byte[] bytes, int index, int count)
-	{
-		if(decoder != null) decoder.Reset();
-		return GetCharCount(bytes, index, count, true);
-	}
+  public override int GetCharCount(byte[] bytes, int index, int count)
+  {
+    if(decoder != null) decoder.Reset();
+    return GetCharCount(bytes, index, count, true);
+  }
 
-	public unsafe override int GetCharCount(byte* bytes, int count, bool simulateFlush)
-	{
-		if(count < 0) throw new ArgumentOutOfRangeException();
-		return decoder == null ? count : decoder.GetByteCount(bytes, count, simulateFlush);
-	}
+  public unsafe override int GetCharCount(byte* bytes, int count, bool simulateFlush)
+  {
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    return decoder == null ? count : decoder.GetByteCount(bytes, count, simulateFlush);
+  }
 
-	public unsafe override int GetCharCount(byte[] bytes, int index, int count, bool simulateFlush)
-	{
-		if(count < 0) throw new ArgumentOutOfRangeException();
-		return decoder == null ? count : decoder.GetByteCount(bytes, index, count, simulateFlush);
-	}
+  public unsafe override int GetCharCount(byte[] bytes, int index, int count, bool simulateFlush)
+  {
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    return decoder == null ? count : decoder.GetByteCount(bytes, index, count, simulateFlush);
+  }
 
-	public override int GetChars(byte[] bytes, int byteIndex, int byteCount, char[] chars, int charIndex)
-	{
-		if(decoder != null) decoder.Reset();
-		return GetChars(bytes, byteIndex, byteCount, chars, charIndex, true);
-	}
+  public override int GetChars(byte[] bytes, int byteIndex, int byteCount, char[] chars, int charIndex)
+  {
+    if(decoder != null) decoder.Reset();
+    return GetChars(bytes, byteIndex, byteCount, chars, charIndex, true);
+  }
 
-	public unsafe override int GetChars(byte* bytes, int byteCount, char* chars, int charCount, bool flush)
-	{
-		if(byteCount < 0) throw new ArgumentOutOfRangeException();
+  public unsafe override int GetChars(byte* bytes, int byteCount, char* chars, int charCount, bool flush)
+  {
+    if(byteCount < 0) throw new ArgumentOutOfRangeException();
 
-		if(decoder == null)
-		{
-			if(charCount < byteCount) throw Exceptions.InsufficientBufferSpace(byteCount);
-			Decode(bytes, byteCount, chars);
-		}
-		else
-		{
-			if(decoder.CanEncodeInPlace)
-			{
-				byteCount = decoder.Encode(bytes, byteCount, bytes, byteCount, flush);
-				Decode(bytes, byteCount, chars);
-			}
-			else
-			{
-				int bytesNeeded = decoder.GetByteCount(bytes, byteCount, flush);
-				byte[] buffer = new byte[bytesNeeded];
-				fixed(byte* bufferPtr=buffer)
-				{
-					byteCount = decoder.Encode(bytes, byteCount, bufferPtr, bytesNeeded, flush);
-					if(charCount < byteCount) throw Exceptions.InsufficientBufferSpace(byteCount);
-					Decode(bufferPtr, byteCount, chars);
-				}
-			}
-		}
+    if(decoder == null)
+    {
+      if(charCount < byteCount) throw Exceptions.InsufficientBufferSpace(byteCount);
+      Decode(bytes, byteCount, chars);
+    }
+    else
+    {
+      if(decoder.CanEncodeInPlace)
+      {
+        byteCount = decoder.Encode(bytes, byteCount, bytes, byteCount, flush);
+        Decode(bytes, byteCount, chars);
+      }
+      else
+      {
+        int bytesNeeded = decoder.GetByteCount(bytes, byteCount, flush);
+        byte[] buffer = new byte[bytesNeeded];
+        fixed(byte* bufferPtr=buffer)
+        {
+          byteCount = decoder.Encode(bytes, byteCount, bufferPtr, bytesNeeded, flush);
+          if(charCount < byteCount) throw Exceptions.InsufficientBufferSpace(byteCount);
+          Decode(bufferPtr, byteCount, chars);
+        }
+      }
+    }
 
-		return byteCount;
-	}
+    return byteCount;
+  }
 
-	public unsafe override int GetChars(byte[] bytes, int byteIndex, int byteCount, char[] chars, int charIndex, bool flush)
-	{
-		Utility.ValidateRange(bytes, byteIndex, byteCount);
-		Utility.ValidateRange(chars, charIndex, decoder == null ? byteCount : 0); // we can't validate the count if there's a decoder
-		fixed(byte* bytePtr=bytes)
-		fixed(char* charPtr=chars)
-		{
-			return GetChars(bytePtr+byteIndex, byteCount, charPtr+charIndex, chars.Length-charIndex, flush);
-		}
-	}
+  public unsafe override int GetChars(byte[] bytes, int byteIndex, int byteCount, char[] chars, int charIndex, bool flush)
+  {
+    Utility.ValidateRange(bytes, byteIndex, byteCount);
+    Utility.ValidateRange(chars, charIndex, decoder == null ? byteCount : 0); // we can't validate the count if there's a decoder
+    fixed(byte* bytePtr=bytes)
+    fixed(char* charPtr=chars)
+    {
+      return GetChars(bytePtr+byteIndex, byteCount, charPtr+charIndex, chars.Length-charIndex, flush);
+    }
+  }
 
-	readonly BinaryEncoder decoder;
+  readonly BinaryEncoder decoder;
 
-	unsafe static void Decode(byte* bytes, int byteCount, char* chars)
-	{
-		for(byte* end=bytes+byteCount; bytes != end; chars++, bytes++) *chars = (char)*bytes;
-	}
+  unsafe static void Decode(byte* bytes, int byteCount, char* chars)
+  {
+    for(byte* end=bytes+byteCount; bytes != end; chars++, bytes++) *chars = (char)*bytes;
+  }
 }
 #endregion
 
@@ -100,102 +100,102 @@ public sealed class EightBitDecoder : Decoder
 /// </summary>
 public sealed class EightBitEncoder : Encoder
 {
-	/// <summary>Initializes a new <see cref="EightBitEncoder"/> with the given <see cref="BinaryEncoder"/>. If the encoder is null,
-	/// characters will simply be truncated without being encoded.
-	/// </summary>
-	public EightBitEncoder(BinaryEncoder encoder)
-	{
-		this.encoder = encoder;
-	}
+  /// <summary>Initializes a new <see cref="EightBitEncoder"/> with the given <see cref="BinaryEncoder"/>. If the encoder is null,
+  /// characters will simply be truncated without being encoded.
+  /// </summary>
+  public EightBitEncoder(BinaryEncoder encoder)
+  {
+    this.encoder = encoder;
+  }
 
-	public unsafe override int GetByteCount(char* chars, int count, bool simulateFlush)
-	{
-		if(count < 0) throw new ArgumentOutOfRangeException();
-		return encoder == null ? count : encoder.GetByteCount(Encode(chars, count), 0, count, simulateFlush);
-	}
+  public unsafe override int GetByteCount(char* chars, int count, bool simulateFlush)
+  {
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    return encoder == null ? count : encoder.GetByteCount(Encode(chars, count), 0, count, simulateFlush);
+  }
 
-	public unsafe override int GetByteCount(char[] chars, int index, int count, bool simulateFlush)
-	{
-		Utility.ValidateRange(chars, index, count);
-		if(encoder == null) return count;
-		fixed(char* charPtr=chars) return encoder.GetByteCount(Encode(charPtr+index, count), 0, count, simulateFlush);
-	}
+  public unsafe override int GetByteCount(char[] chars, int index, int count, bool simulateFlush)
+  {
+    Utility.ValidateRange(chars, index, count);
+    if(encoder == null) return count;
+    fixed(char* charPtr=chars) return encoder.GetByteCount(Encode(charPtr+index, count), 0, count, simulateFlush);
+  }
 
-	public unsafe override int GetBytes(char* chars, int charCount, byte* bytes, int byteCount, bool flush)
-	{
-		if(charCount < 0) throw new ArgumentOutOfRangeException();
+  public unsafe override int GetBytes(char* chars, int charCount, byte* bytes, int byteCount, bool flush)
+  {
+    if(charCount < 0) throw new ArgumentOutOfRangeException();
 
-		if(byteCount < charCount) // if there's not enough space in the byte buffer to do the initial eight bit encoding...
-		{
-			if(encoder == null) throw Exceptions.InsufficientBufferSpace(charCount);
+    if(byteCount < charCount) // if there's not enough space in the byte buffer to do the initial eight bit encoding...
+    {
+      if(encoder == null) throw Exceptions.InsufficientBufferSpace(charCount);
 
-			// use a temporary buffer, and then copy the bytes from that into the destination buffer
-			byte[] temp = new byte[charCount];
-			fixed(byte* tempPtr=temp)
-			{
-				int bytesNeeded = GetBytes(chars, charCount, tempPtr, charCount, flush);
-				if(byteCount < bytesNeeded) throw Exceptions.InsufficientBufferSpace(bytesNeeded);
-				Unsafe.Copy(tempPtr, bytes, bytesNeeded);
-				return bytesNeeded;
-			}
-		}
+      // use a temporary buffer, and then copy the bytes from that into the destination buffer
+      byte[] temp = new byte[charCount];
+      fixed(byte* tempPtr=temp)
+      {
+        int bytesNeeded = GetBytes(chars, charCount, tempPtr, charCount, flush);
+        if(byteCount < bytesNeeded) throw Exceptions.InsufficientBufferSpace(bytesNeeded);
+        Unsafe.Copy(tempPtr, bytes, bytesNeeded);
+        return bytesNeeded;
+      }
+    }
 
-		Encode(chars, charCount, bytes);
+    Encode(chars, charCount, bytes);
 
-		if(encoder == null)
-		{
-			return charCount;
-		}
-		else
-		{
-			encoder.Reset();
-			if(encoder.CanEncodeInPlace)
-			{
-				return encoder.Encode(bytes, charCount, bytes, byteCount, flush);
-			}
-			else
-			{
-				int bytesNeeded = encoder.GetByteCount(bytes, charCount, flush);
-				byte[] buffer = new byte[bytesNeeded];
-				fixed(byte* bufferPtr=buffer)
-				{
-					bytesNeeded = encoder.Encode(bytes, charCount, bufferPtr, bytesNeeded, flush);
-					if(byteCount < bytesNeeded) throw Exceptions.InsufficientBufferSpace(bytesNeeded);
-					Unsafe.Copy(bufferPtr, bytes, bytesNeeded);
-				}
-				return bytesNeeded;
-			}
-		}
-	}
+    if(encoder == null)
+    {
+      return charCount;
+    }
+    else
+    {
+      encoder.Reset();
+      if(encoder.CanEncodeInPlace)
+      {
+        return encoder.Encode(bytes, charCount, bytes, byteCount, flush);
+      }
+      else
+      {
+        int bytesNeeded = encoder.GetByteCount(bytes, charCount, flush);
+        byte[] buffer = new byte[bytesNeeded];
+        fixed(byte* bufferPtr=buffer)
+        {
+          bytesNeeded = encoder.Encode(bytes, charCount, bufferPtr, bytesNeeded, flush);
+          if(byteCount < bytesNeeded) throw Exceptions.InsufficientBufferSpace(bytesNeeded);
+          Unsafe.Copy(bufferPtr, bytes, bytesNeeded);
+        }
+        return bytesNeeded;
+      }
+    }
+  }
 
-	public unsafe override int GetBytes(char[] chars, int charIndex, int charCount, byte[] bytes, int byteIndex, bool flush)
-	{
-		Utility.ValidateRange(chars, charIndex, charCount);
-		Utility.ValidateRange(bytes, byteIndex, encoder == null ? charCount : 0); // we can't validate the count if there's an encoder
-		fixed(char* charPtr=chars)
-		fixed(byte* bytePtr=bytes)
-		{
-			return GetBytes(charPtr+charIndex, charCount, bytePtr+byteIndex, bytes.Length-byteIndex, flush);
-		}
-	}
+  public unsafe override int GetBytes(char[] chars, int charIndex, int charCount, byte[] bytes, int byteIndex, bool flush)
+  {
+    Utility.ValidateRange(chars, charIndex, charCount);
+    Utility.ValidateRange(bytes, byteIndex, encoder == null ? charCount : 0); // we can't validate the count if there's an encoder
+    fixed(char* charPtr=chars)
+    fixed(byte* bytePtr=bytes)
+    {
+      return GetBytes(charPtr+charIndex, charCount, bytePtr+byteIndex, bytes.Length-byteIndex, flush);
+    }
+  }
 
-	readonly BinaryEncoder encoder;
+  readonly BinaryEncoder encoder;
 
-	unsafe static byte[] Encode(char* chars, int charCount)
-	{
-		byte[] bytes = new byte[charCount];
-		fixed(byte* bytePtr=bytes) Encode(chars, charCount, bytePtr);
-		return bytes;
-	}
+  unsafe static byte[] Encode(char* chars, int charCount)
+  {
+    byte[] bytes = new byte[charCount];
+    fixed(byte* bytePtr=bytes) Encode(chars, charCount, bytePtr);
+    return bytes;
+  }
 
-	unsafe static void Encode(char* chars, int charCount, byte* bytes)
-	{
-		for(char* end=chars+charCount; chars != end; bytes++, chars++)
-		{
-			char c = *chars;
-			*bytes = c > 0xFF ? (byte)'?' : (byte)c;
-		}
-	}
+  unsafe static void Encode(char* chars, int charCount, byte* bytes)
+  {
+    for(char* end=chars+charCount; chars != end; bytes++, chars++)
+    {
+      char c = *chars;
+      *bytes = c > 0xFF ? (byte)'?' : (byte)c;
+    }
+  }
 }
 #endregion
 
@@ -208,42 +208,42 @@ public sealed class EightBitEncoder : Encoder
 /// </summary>
 public class EightBitEncoding : EncoderDecoderEncoding
 {
-	/// <summary>Initializes a new <see cref="EightBitEncoding"/> that simply truncates characters to 8 bits.</summary>
-	public EightBitEncoding() : this(null, null) { }
+  /// <summary>Initializes a new <see cref="EightBitEncoding"/> that simply truncates characters to 8 bits.</summary>
+  public EightBitEncoding() : this(null, null) { }
 
-	/// <summary>Initializes a new <see cref="EightBitEncoding"/> that truncates characters to 8 bits and encodes them with the
-	/// given encoding.
-	/// </summary>
-	public EightBitEncoding(BinaryEncoding encoding) : this(encoding.GetEncoder(), encoding.GetDecoder()) { }
+  /// <summary>Initializes a new <see cref="EightBitEncoding"/> that truncates characters to 8 bits and encodes them with the
+  /// given encoding.
+  /// </summary>
+  public EightBitEncoding(BinaryEncoding encoding) : this(encoding.GetEncoder(), encoding.GetDecoder()) { }
 
-	/// <summary>Initializes a new <see cref="EightBitEncoding"/> that truncates characters to 8 bits and encodes and decodes them
-	/// with the given encoder and decoder.
-	/// </summary>
-	public EightBitEncoding(BinaryEncoder encoder, BinaryEncoder decoder)
-		: base(new EightBitEncoder(encoder), new EightBitDecoder(decoder))
-	{
-		this.encoder = encoder;
-		this.decoder = decoder;
-	}
+  /// <summary>Initializes a new <see cref="EightBitEncoding"/> that truncates characters to 8 bits and encodes and decodes them
+  /// with the given encoder and decoder.
+  /// </summary>
+  public EightBitEncoding(BinaryEncoder encoder, BinaryEncoder decoder)
+    : base(new EightBitEncoder(encoder), new EightBitDecoder(decoder))
+  {
+    this.encoder = encoder;
+    this.decoder = decoder;
+  }
 
-	public override int GetMaxByteCount(int charCount)
-	{
-		return encoder == null ? charCount : encoder.GetMaxBytes(charCount);
-	}
+  public override int GetMaxByteCount(int charCount)
+  {
+    return encoder == null ? charCount : encoder.GetMaxBytes(charCount);
+  }
 
-	public override int GetMaxCharCount(int byteCount)
-	{
-		return decoder == null ? byteCount : decoder.GetMaxBytes(byteCount);
-	}
+  public override int GetMaxCharCount(int byteCount)
+  {
+    return decoder == null ? byteCount : decoder.GetMaxBytes(byteCount);
+  }
 
-	readonly BinaryEncoder encoder, decoder;
+  readonly BinaryEncoder encoder, decoder;
 }
 #endregion
 
 #region SimpleEightBitEncoding
 public sealed class SimpleEightBitEncoding : EightBitEncoding
 {
-	public static readonly SimpleEightBitEncoding Instance = new SimpleEightBitEncoding();
+  public static readonly SimpleEightBitEncoding Instance = new SimpleEightBitEncoding();
 }
 #endregion
 

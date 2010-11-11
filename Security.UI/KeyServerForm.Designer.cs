@@ -55,9 +55,9 @@ namespace AdamMil.Security.UI
       btnCancel = new System.Windows.Forms.Button();
       lblKeyServer = new System.Windows.Forms.Label();
       this.SuspendLayout();
-      // 
+      //
       // btnOK
-      // 
+      //
       btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnOK.Location = new System.Drawing.Point(177, 41);
       btnOK.Name = "btnOK";
@@ -66,9 +66,9 @@ namespace AdamMil.Security.UI
       btnOK.Text = "OK";
       btnOK.UseVisualStyleBackColor = true;
       btnOK.Click += new System.EventHandler(this.btnOK_Click);
-      // 
+      //
       // btnCancel
-      // 
+      //
       btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
       btnCancel.Location = new System.Drawing.Point(258, 41);
@@ -77,9 +77,9 @@ namespace AdamMil.Security.UI
       btnCancel.TabIndex = 5;
       btnCancel.Text = "Cancel";
       btnCancel.UseVisualStyleBackColor = true;
-      // 
+      //
       // lblKeyServer
-      // 
+      //
       lblKeyServer.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       lblKeyServer.Location = new System.Drawing.Point(2, 12);
       lblKeyServer.Name = "lblKeyServer";
@@ -87,29 +87,29 @@ namespace AdamMil.Security.UI
       lblKeyServer.TabIndex = 2;
       lblKeyServer.Text = "Key server:";
       lblKeyServer.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-      // 
+      //
       // keyservers
-      // 
-      this.keyservers.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.keyservers.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.keyservers.FormattingEnabled = true;
       this.keyservers.Location = new System.Drawing.Point(91, 12);
       this.keyservers.Name = "keyservers";
       this.keyservers.Size = new System.Drawing.Size(242, 21);
       this.keyservers.TabIndex = 3;
-      // 
+      //
       // lblHelp
-      // 
-      this.lblHelp.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.lblHelp.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.lblHelp.Location = new System.Drawing.Point(9, 6);
       this.lblHelp.Name = "lblHelp";
       this.lblHelp.Size = new System.Drawing.Size(324, 0);
       this.lblHelp.TabIndex = 1;
-      // 
+      //
       // KeyServerForm
-      // 
+      //
       this.AcceptButton = btnOK;
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;

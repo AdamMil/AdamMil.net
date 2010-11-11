@@ -43,9 +43,9 @@ namespace AdamMil.Security.UI
       btnOK = new System.Windows.Forms.Button();
       btnCancel = new System.Windows.Forms.Button();
       this.SuspendLayout();
-      // 
+      //
       // chkNoExpiration
-      // 
+      //
       this.chkNoExpiration.Location = new System.Drawing.Point(201, 64);
       this.chkNoExpiration.Name = "chkNoExpiration";
       this.chkNoExpiration.Size = new System.Drawing.Size(117, 17);
@@ -53,43 +53,43 @@ namespace AdamMil.Security.UI
       this.chkNoExpiration.Text = "No expiration";
       this.chkNoExpiration.UseVisualStyleBackColor = true;
       this.chkNoExpiration.CheckedChanged += new System.EventHandler(this.chkNoExpiration_CheckedChanged);
-      // 
+      //
       // keyExpiration
-      // 
+      //
       this.keyExpiration.Format = System.Windows.Forms.DateTimePickerFormat.Short;
       this.keyExpiration.Location = new System.Drawing.Point(73, 61);
       this.keyExpiration.Name = "keyExpiration";
       this.keyExpiration.Size = new System.Drawing.Size(121, 21);
       this.keyExpiration.TabIndex = 19;
-      // 
+      //
       // lblSubExpire
-      // 
+      //
       lblSubExpire.Location = new System.Drawing.Point(1, 61);
       lblSubExpire.Name = "lblSubExpire";
       lblSubExpire.Size = new System.Drawing.Size(66, 20);
       lblSubExpire.TabIndex = 18;
       lblSubExpire.Text = "Expiration";
       lblSubExpire.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-      // 
+      //
       // keyLength
-      // 
+      //
       this.keyLength.FormattingEnabled = true;
       this.keyLength.Location = new System.Drawing.Point(73, 35);
       this.keyLength.Name = "keyLength";
       this.keyLength.Size = new System.Drawing.Size(121, 21);
       this.keyLength.TabIndex = 17;
-      // 
+      //
       // lblSubLength
-      // 
+      //
       lblSubLength.Location = new System.Drawing.Point(1, 35);
       lblSubLength.Name = "lblSubLength";
       lblSubLength.Size = new System.Drawing.Size(66, 20);
       lblSubLength.TabIndex = 16;
       lblSubLength.Text = "Key Size";
       lblSubLength.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-      // 
+      //
       // keyType
-      // 
+      //
       this.keyType.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
       this.keyType.FormattingEnabled = true;
       this.keyType.Location = new System.Drawing.Point(73, 9);
@@ -97,18 +97,18 @@ namespace AdamMil.Security.UI
       this.keyType.Size = new System.Drawing.Size(254, 21);
       this.keyType.TabIndex = 15;
       this.keyType.SelectedIndexChanged += new System.EventHandler(this.keyType_SelectedIndexChanged);
-      // 
+      //
       // lblSubType
-      // 
+      //
       lblSubType.Location = new System.Drawing.Point(1, 9);
       lblSubType.Name = "lblSubType";
       lblSubType.Size = new System.Drawing.Size(66, 20);
       lblSubType.TabIndex = 14;
       lblSubType.Text = "Key Type";
       lblSubType.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-      // 
+      //
       // btnOK
-      // 
+      //
       btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnOK.Location = new System.Drawing.Point(171, 91);
       btnOK.Name = "btnOK";
@@ -117,9 +117,9 @@ namespace AdamMil.Security.UI
       btnOK.Text = "&OK";
       btnOK.UseVisualStyleBackColor = true;
       btnOK.Click += new System.EventHandler(this.btnOK_Click);
-      // 
+      //
       // btnCancel
-      // 
+      //
       btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
       btnCancel.Location = new System.Drawing.Point(252, 91);
@@ -128,9 +128,9 @@ namespace AdamMil.Security.UI
       btnCancel.TabIndex = 22;
       btnCancel.Text = "&Cancel";
       btnCancel.UseVisualStyleBackColor = true;
-      // 
+      //
       // NewSubkeyForm
-      // 
+      //
       this.AcceptButton = btnOK;
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;

@@ -340,7 +340,7 @@ public class Style
     {
       // assume that at least something is set...
       if(options == null) options = new Dictionary<string,object>();
-      
+
       for(DocumentNode node = owner.Parent; node != null; node = node.Parent) // for each ancestor...
       {
         foreach(KeyValuePair<string,object> pair in node.Style.options)
@@ -350,7 +350,7 @@ public class Style
           if((key.Length == 0 || key[0] != '*') && !options.ContainsKey(pair.Key)) options[pair.Key] = pair.Value;
         }
       }
-      
+
       if(options.Count == 0) options = null;
     }
   }
@@ -650,7 +650,7 @@ public class Document
       }
     }
   }
-  
+
   /// <summary>Gets the root node of the document. Use this node to add content to the document.</summary>
   public DocumentNode Root
   {

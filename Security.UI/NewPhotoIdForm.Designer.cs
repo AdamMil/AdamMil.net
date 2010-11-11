@@ -60,10 +60,10 @@ namespace AdamMil.Security.UI
       btnDone = new System.Windows.Forms.Button();
       btnCancel = new System.Windows.Forms.Button();
       this.SuspendLayout();
-      // 
+      //
       // lblHelp
-      // 
-      lblHelp.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      lblHelp.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       lblHelp.Location = new System.Drawing.Point(8, 7);
       lblHelp.Name = "lblHelp";
@@ -73,9 +73,9 @@ namespace AdamMil.Security.UI
       lblHelp.MouseMove += new System.Windows.Forms.MouseEventHandler(this.control_MouseMove);
       lblHelp.MouseDown += new System.Windows.Forms.MouseEventHandler(this.control_MouseDown);
       lblHelp.MouseUp += new System.Windows.Forms.MouseEventHandler(this.control_MouseUp);
-      // 
+      //
       // lblResize
-      // 
+      //
       lblResize.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       lblResize.Location = new System.Drawing.Point(136, 515);
       lblResize.Name = "lblResize";
@@ -83,9 +83,9 @@ namespace AdamMil.Security.UI
       lblResize.TabIndex = 3;
       lblResize.Text = "Resize to:";
       lblResize.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-      // 
+      //
       // btnDone
-      // 
+      //
       btnDone.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       btnDone.Location = new System.Drawing.Point(358, 515);
       btnDone.Name = "btnDone";
@@ -94,9 +94,9 @@ namespace AdamMil.Security.UI
       btnDone.Text = "&Done";
       btnDone.UseVisualStyleBackColor = true;
       btnDone.Click += new System.EventHandler(this.btnDone_Click);
-      // 
+      //
       // btnCancel
-      // 
+      //
       btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
       btnCancel.Location = new System.Drawing.Point(424, 515);
@@ -105,11 +105,11 @@ namespace AdamMil.Security.UI
       btnCancel.TabIndex = 6;
       btnCancel.Text = "Cancel";
       btnCancel.UseVisualStyleBackColor = true;
-      // 
+      //
       // overlay
-      // 
-      this.overlay.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.overlay.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.overlay.Bitmap = null;
       this.overlay.BitmapRect = ((System.Drawing.RectangleF)(resources.GetObject("overlay.BitmapRect")));
@@ -122,9 +122,9 @@ namespace AdamMil.Security.UI
       this.overlay.MouseMove += new System.Windows.Forms.MouseEventHandler(this.control_MouseMove);
       this.overlay.MouseDown += new System.Windows.Forms.MouseEventHandler(this.control_MouseDown);
       this.overlay.MouseUp += new System.Windows.Forms.MouseEventHandler(this.control_MouseUp);
-      // 
+      //
       // btnCrop
-      // 
+      //
       this.btnCrop.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.btnCrop.Enabled = false;
       this.btnCrop.Location = new System.Drawing.Point(8, 515);
@@ -134,9 +134,9 @@ namespace AdamMil.Security.UI
       this.btnCrop.Text = "&Crop";
       this.btnCrop.UseVisualStyleBackColor = true;
       this.btnCrop.Click += new System.EventHandler(this.btnCrop_Click);
-      // 
+      //
       // btnUndo
-      // 
+      //
       this.btnUndo.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.btnUndo.Enabled = false;
       this.btnUndo.Location = new System.Drawing.Point(74, 515);
@@ -146,9 +146,9 @@ namespace AdamMil.Security.UI
       this.btnUndo.Text = "&Undo";
       this.btnUndo.UseVisualStyleBackColor = true;
       this.btnUndo.Click += new System.EventHandler(this.btnUndo_Click);
-      // 
+      //
       // cmbSize
-      // 
+      //
       this.cmbSize.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.cmbSize.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
       this.cmbSize.FormattingEnabled = true;
@@ -162,9 +162,9 @@ namespace AdamMil.Security.UI
       this.cmbSize.Name = "cmbSize";
       this.cmbSize.Size = new System.Drawing.Size(148, 21);
       this.cmbSize.TabIndex = 4;
-      // 
+      //
       // NewPhotoIdForm
-      // 
+      //
       this.AcceptButton = btnDone;
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;

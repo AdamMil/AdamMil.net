@@ -32,7 +32,7 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
 
   /// <summary>Initializes a new <see cref="CircularList{T}"/> with the given capacity and the ability to expand.</summary>
   public CircularList(int capacity) : this(capacity, true) { }
-  
+
   /// <param name="capacity">The initial capacity. If zero, a default capacity will be used.</param>
   /// <param name="canGrow">Determines whether the list is allowed to enlarge beyond its initial capacity. Even if this
   /// is set to false, you can still manually enlarge the list by setting the <see cref="Capacity"/> property.
@@ -115,7 +115,7 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
   {
     get { return canGrow; }
   }
-  
+
   /// <summary>Gets or sets the number of items the list can hold without resizing of the list.</summary>
   public int Capacity
   {

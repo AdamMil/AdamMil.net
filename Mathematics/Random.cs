@@ -677,7 +677,7 @@ public sealed class KISSRNG : RandomNumberGenerator
     X  = 69069*X + 12345;
     Y ^= Y<<13;
     Y ^= Y>>17;
-    Y ^= Y<<5; 
+    Y ^= Y<<5;
 
     ulong t = (ulong)698769069*Z + C;
     C = (uint)(t>>32);
@@ -752,7 +752,7 @@ public sealed class MWC256RNG : RandomNumberGenerator
   public override uint NextUint32()
   {
     I++;
-    ulong t = (ulong)809430660*Q[I] + C; 
+    ulong t = (ulong)809430660*Q[I] + C;
     C = (uint)(t>>32);
     return Q[I] = (uint)t;
   }

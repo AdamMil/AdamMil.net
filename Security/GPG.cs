@@ -248,7 +248,7 @@ public class ExeGPG : GPG
     if(encryptionOptions != null) // if we'll be doing any encryption
     {
       // we can't do signing with detached signatures because GPG doesn't have a way to specify the two output files.
-      // and encryption with 
+      // and encryption with
       if(signingOptions != null && signingOptions.Type != SignatureType.Embedded)
       {
         if(signingOptions.Type == SignatureType.ClearSignedText)
@@ -858,7 +858,7 @@ public class ExeGPG : GPG
     else if(quality == Randomness.TooStrong) qualityArg = "2";
     else qualityArg = "1"; // we'll default to the Strong level
 
-    Command cmd = Execute("--gen-random " + qualityArg + " " + count.ToString(CultureInfo.InvariantCulture), 
+    Command cmd = Execute("--gen-random " + qualityArg + " " + count.ToString(CultureInfo.InvariantCulture),
                           StatusMessages.Ignore, true);
     using(cmd)
     {
@@ -1081,7 +1081,7 @@ public class ExeGPG : GPG
       cmd.Start();
 
       cmd.Process.StandardInput.WriteLine("Key-Type: " + (primaryIsDSA ? "DSA" : "RSA"));
-      
+
       int keyLength = options.KeyLength != 0 ? options.KeyLength : primaryIsDSA ? 1024 : 2048;
       cmd.Process.StandardInput.WriteLine("Key-Length: " + keyLength.ToString(CultureInfo.InvariantCulture));
 
@@ -1111,7 +1111,7 @@ public class ExeGPG : GPG
       // just use the primary key's expiration date and set the subkey's date later
       if(options.KeyExpiration.HasValue)
       {
-        cmd.Process.StandardInput.WriteLine("Expire-Date: " + 
+        cmd.Process.StandardInput.WriteLine("Expire-Date: " +
                                             keyExpirationDays.ToString(CultureInfo.InvariantCulture) + "d");
       }
 
@@ -1226,7 +1226,7 @@ public class ExeGPG : GPG
       {
         image.CopyTo(file);
       }
-      DoEdit(key, new AddPhotoCommand(filename, preferences)); 
+      DoEdit(key, new AddPhotoCommand(filename, preferences));
     }
     finally { File.Delete(filename); }
   }
@@ -1457,10 +1457,10 @@ public class ExeGPG : GPG
     /// <summary>Gets the GPG process, or throws an exception if it has not been started yet.</summary>
     public Process Process
     {
-      get 
+      get
       {
         if(process == null) throw new InvalidOperationException("The process has not started yet.");
-        return process; 
+        return process;
       }
     }
 
@@ -1659,7 +1659,7 @@ public class ExeGPG : GPG
     public void SendLine(string line)
     {
       if(commandStream == null) throw new InvalidOperationException("The command stream is not open.");
-      
+
       if(gpg.LoggingEnabled) gpg.LogLine(">> " + line);
 
       if(!string.IsNullOrEmpty(line))
@@ -2986,7 +2986,7 @@ public class ExeGPG : GPG
     public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
                                               CommandState state, string promptId)
     {
- 	    state.Command.SendLine(command);
+       state.Command.SendLine(command);
       return EditCommandResult.Done;
     }
 
@@ -3161,7 +3161,7 @@ public class ExeGPG : GPG
       ExpectRelist = true;
     }
 
-    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
                                               CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
@@ -3245,7 +3245,7 @@ public class ExeGPG : GPG
       ExpectRelist = true;
     }
 
-    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
                                               CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
@@ -3318,7 +3318,7 @@ public class ExeGPG : GPG
       this.prefString = prefString.ToString();
     }
 
-    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
                                               CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
@@ -3408,7 +3408,7 @@ public class ExeGPG : GPG
       ExpectRelist = true;
     }
 
-    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
                                               CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
@@ -3439,7 +3439,7 @@ public class ExeGPG : GPG
       this.level = level;
     }
 
-    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key, 
+    public override EditCommandResult Process(Queue<EditCommand> commands, EditKey originalKey, EditKey key,
                                               CommandState state, string promptId)
     {
       if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal))
@@ -3659,7 +3659,7 @@ public class ExeGPG : GPG
               sigFilled      = true;
               break;
             }
-            
+
             case StatusMessageType.ErrorSig:
             {
               ErrorSigMessage error = (ErrorSigMessage)msg;
@@ -3672,7 +3672,7 @@ public class ExeGPG : GPG
               sigFilled        = true;
               break;
             }
-            
+
             case StatusMessageType.ExpiredKeySig:
             {
               ExpiredKeySigMessage em = (ExpiredKeySigMessage)msg;
@@ -3681,7 +3681,7 @@ public class ExeGPG : GPG
               sig.Status    |= SignatureStatus.ExpiredKey;
               break;
             }
-            
+
             case StatusMessageType.ExpiredSig:
             {
               ExpiredSigMessage em = (ExpiredSigMessage)msg;
@@ -3690,7 +3690,7 @@ public class ExeGPG : GPG
               sig.Status    |= SignatureStatus.ExpiredSignature;
               break;
             }
-            
+
             case StatusMessageType.GoodSig:
             {
               GoodSigMessage good = (GoodSigMessage)msg;
@@ -3700,7 +3700,7 @@ public class ExeGPG : GPG
               sigFilled      = true;
               break;
             }
-            
+
             case StatusMessageType.RevokedKeySig:
             {
               RevokedKeySigMessage em = (RevokedKeySigMessage)msg;
@@ -3709,7 +3709,7 @@ public class ExeGPG : GPG
               sig.Status    |= SignatureStatus.RevokedKey;
               break;
             }
-            
+
             case StatusMessageType.ValidSig:
             {
               ValidSigMessage valid = (ValidSigMessage)msg;
@@ -3721,7 +3721,7 @@ public class ExeGPG : GPG
               sig.CreationTime          = valid.SignatureTime;
               break;
             }
-            
+
             default: DefaultStatusMessageHandler(msg, state); break;
           }
         }
@@ -4076,7 +4076,7 @@ public class ExeGPG : GPG
       args += GetKeyringArgs(key.Keyring, true) + "--gen-revoke ";
     }
     else // delegated revocation certificate
-    { 
+    {
       args += GetKeyringArgs(new PrimaryKey[] { key, designatedRevoker }, true) +
               "-u " + designatedRevoker.Fingerprint + " --desig-revoke ";
     }
@@ -4217,7 +4217,7 @@ public class ExeGPG : GPG
     // attribute data in response to an ATTRIBUTE status message, because it may block waiting for data that's stuck in
     // GPG's output buffer. so we'll write the attribute data to a temp file, and create dummy attributes. then at the
     // end, we'll replace the dummy attributes with the real thing.
-    
+
     // if attributes are being retrieved, create a new pipe and some syncronization primitives to help with the task
     InheritablePipe attrPipe;
     FileStream attrStream, attrTempStream;
@@ -4824,7 +4824,7 @@ public class ExeGPG : GPG
     if(currentPrimary != null)
     {
       currentPrimary.Subkeys = new ReadOnlyListWrapper<Subkey>(subkeys.ToArray());
-      
+
       // the attributes will be split into UserIds and other attributes
       List<UserId> userIds = new List<UserId>(attributes.Count);
       List<UserAttribute> userAttributes = new List<UserAttribute>();
@@ -4840,7 +4840,7 @@ public class ExeGPG : GPG
       currentPrimary.Attributes = userAttributes.Count == 0 ?
         NoAttributes : new ReadOnlyListWrapper<UserAttribute>(userAttributes.ToArray());
 
-      currentPrimary.DesignatedRevokers = revokers.Count == 0 ? 
+      currentPrimary.DesignatedRevokers = revokers.Count == 0 ?
         NoRevokers : new ReadOnlyListWrapper<string>(revokers.ToArray());
 
       if(currentPrimary.Signatures == null) currentPrimary.Signatures = NoSignatures;
@@ -5071,7 +5071,7 @@ public class ExeGPG : GPG
         args += "--trustdb-name " + EscapeArg(NormalizeKeyringFile(keyring.TrustDbFile)) + " ";
       }
     }
-    
+
     return args;
   }
 
@@ -5231,7 +5231,7 @@ public class ExeGPG : GPG
       if(options == null) throw new ArgumentNullException();
       if(options.KeyServer == null) throw new ArgumentException("No key server was specified.");
     }
-    
+
     string args = null;
 
     if(options != null)
@@ -5246,7 +5246,7 @@ public class ExeGPG : GPG
         args += "--keyserver-options " + EscapeArg(optStr) + " ";
       }
     }
-    
+
     return args;
   }
 
@@ -5693,7 +5693,7 @@ public class ExeGPG : GPG
   /// <returns>Returns true if all data was written to the stream before the process terminated.</returns>
   static bool WriteStreamToProcess(Stream data, Process process)
   {
-    return ReadAndWriteStreams(null, data, process); 
+    return ReadAndWriteStreams(null, data, process);
   }
 
   string[] ciphers, hashes, keyTypes, compressions;

@@ -105,7 +105,7 @@ public class SignatureList : PGPListBase
         {
           if(sig.IsInvalid) overallStatus = SignatureStatus.Invalid;
           else if(!sig.IsValid && overallStatus != SignatureStatus.Invalid) overallStatus = SignatureStatus.Error;
-          
+
           SignatureItem sigItem = CreateSignatureItem(sig);
           if(sigItem != null)
           {

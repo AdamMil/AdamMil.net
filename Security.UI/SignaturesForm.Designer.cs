@@ -51,22 +51,22 @@ namespace AdamMil.Security.UI
       this.signatureList = new AdamMil.Security.UI.SignatureList();
       lblHelp = new System.Windows.Forms.Label();
       this.SuspendLayout();
-      // 
+      //
       // lblHelp
-      // 
-      lblHelp.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      lblHelp.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       lblHelp.Location = new System.Drawing.Point(8, 5);
       lblHelp.Name = "lblHelp";
       lblHelp.Size = new System.Drawing.Size(580, 44);
       lblHelp.TabIndex = 1;
       lblHelp.Text = resources.GetString("lblHelp.Text");
-      // 
+      //
       // signatureList
-      // 
+      //
       this.signatureList.AllowColumnReorder = true;
-      this.signatureList.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+      this.signatureList.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.signatureList.Font = new System.Drawing.Font("Arial", 8F);
       this.signatureList.FullRowSelect = true;
@@ -77,9 +77,9 @@ namespace AdamMil.Security.UI
       this.signatureList.TabIndex = 0;
       this.signatureList.UseCompatibleStateImageBehavior = false;
       this.signatureList.View = System.Windows.Forms.View.Details;
-      // 
+      //
       // SignaturesForm
-      // 
+      //
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.ClientSize = new System.Drawing.Size(596, 294);

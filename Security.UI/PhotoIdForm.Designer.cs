@@ -50,26 +50,26 @@ namespace AdamMil.Security.UI
       this.picture = new System.Windows.Forms.PictureBox();
       ((System.ComponentModel.ISupportInitialize)(this.picture)).BeginInit();
       this.SuspendLayout();
-      // 
+      //
       // lblId
-      // 
-      this.lblId.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+      //
+      this.lblId.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
       this.lblId.Location = new System.Drawing.Point(5, 6);
       this.lblId.Name = "lblId";
       this.lblId.Size = new System.Drawing.Size(342, 34);
       this.lblId.TabIndex = 0;
-      // 
+      //
       // picture
-      // 
+      //
       this.picture.Location = new System.Drawing.Point(12, 45);
       this.picture.Name = "picture";
       this.picture.Size = new System.Drawing.Size(328, 216);
       this.picture.TabIndex = 1;
       this.picture.TabStop = false;
-      // 
+      //
       // PhotoIdForm
-      // 
+      //
       this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.ClientSize = new System.Drawing.Size(352, 273);
