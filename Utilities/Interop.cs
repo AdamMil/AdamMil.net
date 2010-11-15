@@ -27,6 +27,7 @@ namespace AdamMil.Utilities
 // TODO: add 64-bit versions for 64-bit architectures
 
 /// <summary>This class provides methods to help when working with unsafe code.</summary>
+[System.Security.SuppressUnmanagedCodeSecurity]
 public static class Unsafe
 {
   /// <summary>This method fills a block of memory with zeros.</summary>
@@ -45,8 +46,10 @@ public static class Unsafe
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
 
-    // tests show that this method is much faster than both RtlMoveMemory (i.e. memcpy) and the cpblk IL opcode,
-    // though i'm not sure why those are so slow...
+    // tests show that this method is much faster than both RtlMoveMemory (i.e. memcpy) and the cpblk IL opcode for small amounts
+    // of memory, and often for large ones. the cpblk opcode seems unreliable in that it is faster sometimes, but much slower
+    // other times. i don't understand that. RtlMoveMemory at least has consistent performance, and the code switches to it when
+    // it would be advantageous to do so
 
     // this doesn't check for all overlaps, only for overlaps that would impact the main copy algorithm (i.e. when the source
     // comes before the destination in memory)
@@ -54,10 +57,17 @@ public static class Unsafe
 
     if(overlap) // we'll handle overlap by copying backwards from the end
     {
-      // TODO: this could be optimized...
+      #if WINDOWS
+      if(count > 132) // RtlMoveMemory is measured to be faster than the loop below for overlapping blocks larger than ~132 bytes
+      {
+        RtlMoveMemory(dest, src, new IntPtr(count));
+      }
+      else
+      #endif
       if(count != 0)
       {
-        byte *sp = (byte*)src + count - 1;
+        // TODO: this could be optimized... (if we do so, recalibrate the 132 byte threshold above)
+        byte* sp = (byte*)src + count - 1;
         dest = (byte*)dest + count - 1;
         do
         {
@@ -86,6 +96,14 @@ public static class Unsafe
           } while(--offset != 0);
           if(count < 16) goto lastBytes; // if there's not enough space left to do the unrolled version, don't
         }
+
+        #if WINDOWS
+        if(count > 512) // RtlMoveMemory is measured to be faster than the below code after about 512 bytes (although it sucks
+        {               // with unaligned pointers, so we use it after alignment)
+          RtlMoveMemory(dest, src, new IntPtr(count));
+          return;
+        }
+        #endif
 
         do // copy as many 16 byte blocks as we can
         {
@@ -158,6 +176,22 @@ public static class Unsafe
         if(count < 16) goto lastBytes; // if there's not enough space left to do the unrolled version, don't
       }
 
+      #if WINDOWS
+      if(count > 640)
+      {
+        if(value == 0)
+        {
+          RtlZeroMemory(dest, new IntPtr(count)); // RtlZeroMemory is faster after about 640 bytes (if the pointer is aligned)
+          return;
+        }
+        else if(count > 768) // RtlFillMemory is faster after about 768 bytes (if the pointer is aligned)
+        {
+          RtlFillMemory(dest, new IntPtr(count), (byte)value);
+          return;
+        }
+      }
+      #endif
+
       do // fill as many 16-byte blocks as possible
       {
         *(uint*)dest = value;
@@ -194,6 +228,16 @@ public static class Unsafe
       }
     }
   }
+
+  #if WINDOWS
+  // we use IntPtr for the length because the API uses size_t, which is 64-bit on 64-bit machines
+  [DllImport("ntdll.dll", ExactSpelling=true)]
+  unsafe static extern void RtlFillMemory(void* dest, IntPtr length, byte value);
+  [DllImport("ntdll.dll", ExactSpelling=true)]
+  unsafe static extern void RtlMoveMemory(void* dest, void* src, IntPtr length);
+  [DllImport("ntdll.dll", ExactSpelling=true)]
+  unsafe static extern void RtlZeroMemory(void* dest, IntPtr length);
+  #endif
 }
 
 } // namespace AdamMil.Utilities
