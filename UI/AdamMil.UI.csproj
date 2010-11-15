@@ -41,6 +41,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <DocumentationFile>bin\Debug\AdamMil.UI.xml</DocumentationFile>
+    <BaseAddress>24117248</BaseAddress>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -50,6 +51,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <DocumentationFile>bin\Release\AdamMil.UI.xml</DocumentationFile>
+    <BaseAddress>24117248</BaseAddress>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Document.cs" />
