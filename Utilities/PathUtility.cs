@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace AdamMil.Utilities
@@ -41,6 +42,30 @@ public static class PathUtility
       filename  = filename.Substring(dirSlash+1);
     }
     return directory + Path.GetFileNameWithoutExtension(filename) + suffix + Path.GetExtension(filename);
+  }
+
+  /// <summary>Works like <see cref="Directory.GetFiles"/>, but without the unintuitive behavior regarding wildcards with
+  /// 3-character extensions.
+  /// </summary>
+  public static string[] GetFiles(string directory, string pattern)
+  {
+    return GetFiles(directory, pattern, SearchOption.TopDirectoryOnly);
+  }
+
+  /// <summary>Works like <see cref="Directory.GetFiles" />, but without the unintuitive behavior regarding wildcards with
+  /// 3-character extensions.
+  /// </summary>
+  public static string[] GetFiles(string directory, string pattern, SearchOption options)
+  {
+    return FilterFiles(Directory.GetFiles(directory, pattern, options), pattern);
+  }
+
+  /// <summary>Works like <see cref="Directory.GetFileSystemEntries" />, but without the unintuitive behavior regarding wildcards
+  /// with 3-character extensions.
+  /// </summary>
+  public static string[] GetFileSystemEntries(string directory, string pattern)
+  {
+    return FilterFiles(Directory.GetFileSystemEntries(directory, pattern), pattern);
   }
 
   /// <summary>Creates a new file in the system temporary file directory, with the given extension.</summary>
@@ -89,6 +114,59 @@ public static class PathUtility
   public static string StripInvalidPathChars(string name)
   {
     return StringUtility.Remove(name, Path.GetInvalidPathChars());
+  }
+
+  /// <remarks>If you give a wildcard pattern with a 3-character extension and an asterisk to Directory.GetFiles(), for instance
+  /// *.xml, it may return files with extensions longer than 3 characters. For instance, it may return foo.xml~ or foo.xmlabc. It
+  /// doesn't exhibit this behavior with extensions of more or less than 3 characters. This version of GetFiles() will check if
+  /// the pattern ends with a 3-character extension, and if so, will strip out any filenames with extensions longer than 3
+  /// characters.
+  /// </remarks>
+  static string[] FilterFiles(string[] files, string pattern)
+  {
+    if(pattern != null && pattern.Length >= 4 && pattern[pattern.Length-4] == '.') // if it may end in a 3-char extension
+    {
+      for(int i=pattern.Length-3; i<pattern.Length; i++) // if the extension is shorter or contains wildcards, simply return
+      {
+        char c = pattern[i];
+        if(c == '*' || c == '?' || c == '.') return files;
+      }
+
+      bool foundAsterisk = false;
+      for(int i=0; i<pattern.Length-4; i++) // if none of the non-extension pattern characters are '*', then simply return
+      {
+        if(pattern[i] == '*')
+        {
+          foundAsterisk = true;
+          break;
+        }
+      }
+
+      if(foundAsterisk) // if the pattern contains an asterisk and a 3-character extension...
+      {
+        for(int i=0; i<files.Length; i++) // see if any files have an extension that doesn't match
+        {
+          string file = files[i];
+          int lastPeriod = file.LastIndexOf('.');
+          // if any file has an extension that doesn't match, create a new array with only the ones that do match
+          if(lastPeriod == -1 || lastPeriod != file.Length-4)
+          {
+            List<string> newFiles = new List<string>(files.Length-1);
+            for(int j=0; j<i; j++) newFiles.Add(files[j]); // add the files up to 'i'
+            for(i++; i<files.Length; i++) // add the files that have the correct extensions
+            {
+              file = files[i];
+              lastPeriod = file.LastIndexOf('.');
+              if(lastPeriod != -1 && lastPeriod == file.Length-4) newFiles.Add(file);
+            }
+            files = newFiles.ToArray();
+            break;
+          }
+        }
+      }
+    }
+
+    return files;
   }
 
   static string GetRandomName(Random random, int length, bool includeExtension)
