@@ -27,12 +27,18 @@ namespace AdamMil.Collections
 /// <summary>An interface representing a queue of items.</summary>
 public interface IQueue<T> : ICollection<T>
 {
+  /// <summary>Gets whether the collection is empty. This may be more efficient than comparing <see cref="ICollection{T}.Count"/>
+  /// to zero.
+  /// </summary>
+  bool IsEmpty { get; }
   /// <summary>Adds an item to the queue.</summary>
   void Enqueue(T item);
   /// <summary>Returns and removes the first item from the queue.</summary>
   T Dequeue();
   /// <summary>Returns the first item in the queue.</summary>
   T Peek();
+  /// <include file="documentation.xml" path="//Queue/TryDequeue/*"/>
+  bool TryDequeue(out T item);
 }
 
 /// <summary>An interface representing a collection that does not support being changed and does not necessarily have

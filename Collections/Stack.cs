@@ -150,18 +150,41 @@ public sealed class Stack<T> : IQueue<T>, IReadOnlyList<T>
   /// <summary>Shrinks the capacity to the actual number of elements in the priority queue.</summary>
   public void TrimExcess() { Capacity = count; }
 
-  /// <summary>Removes and returns the element on top of the stack.</summary>
-  /// <exception cref="InvalidOperationException">Thrown if the collection is empty.</exception>
+  /// <summary>Attempts to remove an item from the stack. True is returned if an item was successfully removed (and stored in
+  /// <paramref name="item"/>) and false if an item was not removed because the stack was empty.
+  /// </summary>
+  public bool TryPop(out T item)
+  {
+    if(Count == 0)
+    {
+      item = default(T);
+      return false;
+    }
+    else
+    {
+      item = Pop();
+      return true;
+    }
+  }
+
+  bool IQueue<T>.IsEmpty
+  {
+    get { return Count == 0; }
+  }
+
   T IQueue<T>.Dequeue()
   {
     return Pop();
   }
 
-  /// <summary>Adds an item to the stack.</summary>
-  /// <param name="item">The item to add to the stack.</param>
   void IQueue<T>.Enqueue(T item)
   {
     Push(item);
+  }
+
+  bool IQueue<T>.TryDequeue(out T item)
+  {
+    return TryPop(out item);
   }
 
   #region ICollection<T>

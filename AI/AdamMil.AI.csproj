@@ -16,6 +16,7 @@
     <OldToolsVersion>2.0</OldToolsVersion>
     <UpgradeBackupLocation>
     </UpgradeBackupLocation>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -50,6 +51,9 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Core">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Collections\AdamMil.Collections.csproj">
@@ -59,6 +63,10 @@
     <ProjectReference Include="..\Mathematics\AdamMil.Mathematics.csproj">
       <Project>{BC146E65-29FA-4D05-89E2-CF485EBC86B8}</Project>
       <Name>AdamMil.Mathematics</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Utilities\AdamMil.Utilities.csproj">
+      <Project>{29134637-6D08-432C-8161-9DEEE13C955D}</Project>
+      <Name>AdamMil.Utilities</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

@@ -113,7 +113,7 @@ public class ArrayBuffer<T> : ICollection<T>
   }
 
   /// <summary>Updates the <see cref="Count"/> property to add the given number of items, assuming you've already added them
-  /// yourself.
+  /// to the array yourself.
   /// </summary>
   public void AddCount(int count)
   {
@@ -346,10 +346,10 @@ public class ArrayBuffer<T> : ICollection<T>
 /// <summary>Enumerates the items within a segment of an array.</summary>
 public sealed class ArraySegmentEnumerator<T> : IEnumerator<T>
 {
-  /// <summary>Initializes a new <see cref="ArraySegmentEnumerator"/> from the given <see cref="ArraySegment{T}"/>.</summary>
+  /// <summary>Initializes a new <see cref="ArraySegmentEnumerator{T}"/> from the given <see cref="ArraySegment{T}"/>.</summary>
   public ArraySegmentEnumerator(ArraySegment<T> segment) : this(segment.Array, segment.Offset, segment.Count) { }
 
-  /// <summary>Initializes a new <see cref="ArraySegmentEnumerator"/> from the given array and region.</summary>
+  /// <summary>Initializes a new <see cref="ArraySegmentEnumerator{T}"/> from the given array and region.</summary>
   public ArraySegmentEnumerator(T[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
@@ -359,6 +359,7 @@ public sealed class ArraySegmentEnumerator<T> : IEnumerator<T>
     Reset();
   }
 
+  /// <include file="documentation.xml" path="//Utilities/IEnumerator/Current/*"/>
   public T Current
   {
     get
@@ -368,12 +369,14 @@ public sealed class ArraySegmentEnumerator<T> : IEnumerator<T>
     }
   }
 
+  /// <include file="documentation.xml" path="//Utilities/IEnumerator/MoveNext/*"/>
   public bool MoveNext()
   {
     if(currentIndex != end) currentIndex++;
     return currentIndex != end;
   }
 
+  /// <include file="documentation.xml" path="//Utilities/IEnumerator/Reset/*"/>
   public void Reset()
   {
     currentIndex = start-1;

@@ -25,6 +25,7 @@ using System.Text;
 namespace AdamMil.Utilities
 {
 
+/// <summary>Provides useful string utilities and extensions.</summary>
 public static class StringUtility
 {
   /// <summary>Determines whether a string contains a given character.</summary>
@@ -33,7 +34,7 @@ public static class StringUtility
     return strToSearch.IndexOf(charToSearchFor) != -1;
   }
 
-  /// <summary>Determines whether a string contains another given string.</summary>
+  /// <summary>Determines whether a string contains a given substring.</summary>
   public static bool Contains(this string strToSearch, string strToSearchFor, StringComparison comparisonType)
   {
     return strToSearch.IndexOf(strToSearchFor, comparisonType) != -1;
@@ -171,6 +172,12 @@ public static class StringUtility
     }
 
     return str;
+  }
+
+  /// <summary>Splits a string by the given character.</summary>
+  public static string[] Split(this string str, char separator, StringSplitOptions options)
+  {
+    return str.Split(new char[] { separator }, options);
   }
 
   /// <summary>Splits the given string, passing each item through the conversion function before returning it.</summary>

@@ -120,6 +120,9 @@ public interface ITurnBasedGame<StateType, ActionType>
 
 // TODO: implement transposition tables!
 
+// TODO: the minimax searches are basically depth-first, and so don't use much memory. they should be good candidates for being
+// parallelized
+
 #region Search types
 #region GameSearchBase
 /// <summary>A base class for adversarial (or game) search algorithms, which attempt to decide which action should be
@@ -243,7 +246,6 @@ public abstract class GameSearchBase<StateType, ActionType> :
         // if the search was not limited by depth, increasing the depth won't help, so we're done
         if(currentResult != SearchResult.LimitReached) break;
       }
-
       EndIterativeDeepeningSearch();
     }
 

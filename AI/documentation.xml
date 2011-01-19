@@ -34,6 +34,9 @@
       The type of object used to represent actions that transition between states in the problem space. This is
       specific to the problem being solved.
     </typeparam>
+    <typeparam name="ContextType">
+      The type of object used to represent the context of an incremental search.
+    </typeparam>
     <typeparam name="SolutionType">
       The type of solution returned from the search. This depends on the type of search as well as the type of problem.
     </typeparam>
@@ -55,7 +58,7 @@
       <BeginIterativeDeepeningSearch>
         <summary>Called at the beginning of an iterative deepening search.</summary>
         <remarks>
-          Analogous to <see cref="IIterativeSearch{S,T}.BeginSearch(S)"/>, this method is used to set the class
+          Analogous to <see cref="IIterativeSearch{S,T,C}.BeginSearch(S)"/>, this method is used to set the class
           up to begin searching. However, it is called before the entire iterative deepening search, which consists of
           multiple standard searches with an incrementally larger depth limit. This method might be used, for instance,
           to set up state about the search to be held between the iterations of the iterative deepening search, so that
@@ -97,7 +100,7 @@
 
       <PrepareToStartSearch>
         <summary>
-          Called before <see cref="IIterativeSearch{S,T}.BeginSearch(S)"/> to verify that the game is
+          Called before <see cref="IIterativeSearch{S,T,C}.BeginSearch(S)"/> to verify that the game is
           compatible with the search.
         </summary>
         <remarks>If you override this method, note that it may be called multiple times before the search begins.</remarks>
@@ -193,21 +196,12 @@
     </IGraphSearch>
 
     <IIterativeSearch>
-      <SearchInProgress>
-        <summary>Gets whether a search is currently in progress.</summary>
-        <remarks>
-          A search is in progress starting when <see cref="IIterativeSearch{T,S}.BeginSearch"/> is called and ends when
-          <see cref="IIterativeSearch{T,S}.EndSearch"/> is called.
-        </remarks>
-      </SearchInProgress>
-
       <BeginSearchCommon>
         <returns>
-          Returns the initial solution value, which should be passed to <see cref="IIterativeSearch{S,T}.Iterate"/>
-          to update the solution until the search completes. The solution is not guaranteed to be valid until the
-          search has completed.
+          Returns the search context containing the initial solution, which should be passed to
+          <see cref="IIterativeSearch{S,T,C}.Iterate"/> to update the solution until the search completes. The solution is not
+          guaranteed to be valid until the search has completed.
         </returns>
-        <remarks>An exception will be thrown if a search is already in progress.</remarks>
       </BeginSearchCommon>
 
       <BeginSearch>
@@ -220,36 +214,30 @@
         <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearchCommon/*"/>
       </BeginSearch_State>
 
-      <AbortSearch>
-        <summary>Ends the current search.</summary>
-        <remarks>
-          The resources used by the search are kept in memory until EndSearch is called or the search object is
-          garbage collected, to allow you to query the search object about the final state of the search. For instance,
-          you can query the final population of a <see cref="GeneticAlgorithmSearch{S}" /> after the search completes.
-          You can also use this method to abort a search before it has completed, but this only works on searches that
-          are done piecewise using <see cref="IIterativeSearch{S,T}.BeginSearch" /> and
-          <see cref="IIterativeSearch{S,T}.Iterate" />. Don't attempt to call it from another thread to abort a search
-          like <see cref="SearchBase{S,T}.Search" />. An exception will be thrown if no search is currently in
-          progress.
-        </remarks>
-      </AbortSearch>
-
       <Iterate>
         <summary>Continues a search in progress.</summary>
-        <param name="solution">
-          A variable that will be updated with the solution to the problem when the search
-          completes. For some types of searches (local searches in particular), it may be available earlier, although
-          it won't be final until the search has completed.
+        <param name="context">
+          The search context returned from <see cref="BeginSearch" /> whose solution will be hopefully updated with a better one.
+          The solution is not guaranteed to be valid until the search has completed.
         </param>
         <returns>
           The result so far. This will be <see cref="SearchResult.Pending"/> if the search is not complete or
           another value if the search has finished.
         </returns>
-        <remarks>
-          After a search has completed, you must still call <see cref="IIterativeSearch{S,T}.EndSearch"/> to free all
-          of the search state. An exception will be thrown if a search is not in progress.
-        </remarks>
       </Iterate>
+
+      <SelectBestSolution>
+        <summary>Selects the best solution from the given array of search contexts.</summary>
+      </SelectBestSolution>
+
+      <UseAutomaticParallelism>
+        <summary>Gets whether the parallelism will be automatically employed by the <see cref="Search" /> methods to run multiple
+        searches in parallel. The default value is true, although if parallelism is to be employed in another way, you may want to
+        override this and return false. An example is a genetic algorithm search, for which it may be better to employ parallelism
+        to update a single population rather than the default behavior, which would run separate, parallel searches with several
+        populations.
+        </summary>
+      </UseAutomaticParallelism>
     </IIterativeSearch>
 
     <ISearch>
@@ -321,6 +309,7 @@
     <SearchLimiter>
       <LimitReached>
         <summary>Gets whether the limit was reached.</summary>
+        <remarks>Derived classes must ensure that the property is safe for use by multiple threads simultaneously.</remarks>
       </LimitReached>
 
       <Start>

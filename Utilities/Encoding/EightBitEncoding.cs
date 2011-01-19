@@ -241,8 +241,10 @@ public class EightBitEncoding : EncoderDecoderEncoding
 #endregion
 
 #region SimpleEightBitEncoding
+/// <summary>Implements an <see cref="Encoding"/> that simply truncates characters to bytes and expands bytes to characters.</summary>
 public sealed class SimpleEightBitEncoding : EightBitEncoding
 {
+  /// <summary>Gets a default instance of <see cref="SimpleEightBitEncoding"/>.</summary>
   public static readonly SimpleEightBitEncoding Instance = new SimpleEightBitEncoding();
 }
 #endregion

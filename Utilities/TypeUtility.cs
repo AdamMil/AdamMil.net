@@ -24,12 +24,13 @@ using System.Globalization;
 namespace AdamMil.Utilities
 {
 
+/// <summary>Provides utilities for managing <see cref="Type"/> objects and converting values between types.</summary>
 public static class TypeUtility
 {
-  /// <summary>Attempts to convert the given value into the given destination type using the invariant culture.</summary>
+  /// <summary>Attempts to convert the given value into the given destination type using the current culture.</summary>
   public static object ChangeType(Type destinationType, object value)
   {
-    return ChangeType(destinationType, value, CultureInfo.InvariantCulture);
+    return ChangeType(destinationType, value, CultureInfo.CurrentCulture);
   }
 
   /// <summary>Attempts to convert the given value into the given destination type using the given culture.</summary>
@@ -81,6 +82,18 @@ public static class TypeUtility
     }
 
     return value;
+  }
+
+  /// <summary>Attempts to convert the given value into the given destination type using the current culture.</summary>
+  public static T ChangeType<T>(object value)
+  {
+    return (T)ChangeType(typeof(T), value, CultureInfo.CurrentCulture);
+  }
+
+  /// <summary>Attempts to convert the given value into the given destination type using the given culture.</summary>
+  public static T ChangeType<T>(object value, IFormatProvider culture)
+  {
+    return (T)ChangeType(typeof(T), value, culture);
   }
 }
 

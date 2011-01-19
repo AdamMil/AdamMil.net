@@ -65,7 +65,6 @@
   <ItemGroup>
     <Compile Include="BaseCollections.cs" />
     <Compile Include="CircularList.cs" />
-    <Compile Include="Extensions.cs" />
     <Compile Include="Interfaces.cs" />
     <Compile Include="Miscellaneous.cs" />
     <Compile Include="PriorityQueue.cs" />

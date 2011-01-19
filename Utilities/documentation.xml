@@ -1,0 +1,274 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Utilities>
+  <BinaryEncoder>
+    <CanEncodeInPlace>
+      <summary>
+        Gets whether the encoder is capable of encoding in place. If true, it is valid for a user to pass the exact same
+        buffer for both the source and destination. The default implementation returns false.
+      </summary>
+    </CanEncodeInPlace>
+    <Encode>
+      <summary>Encodes data from the source buffer and writes it to the destination buffer.</summary>
+      <param name="source">An array that contains the source data.</param>
+      <param name="sourceIndex">The index of the source data within the array.</param>
+      <param name="sourceCount">The number of bytes to encode.</param>
+      <param name="destination">An array where the encoded bytes should be written.</param>
+      <param name="destinationIndex">The location in the destination array where the encoded bytes should be written.</param>
+      <param name="flush">
+        If false, the encoder may not write all encoded bytes to the destination buffer, if it needs to see
+        bytes from future calls before it can do so. If true, the encoder will assume that this is the end of the source data, and
+        flush its internal state, writing all bytes to the destination.
+      </param>
+      <returns>Returns the number of bytes written to the destination buffer.</returns>
+      <remarks>
+        To encode data in chunks, pass false for <paramref name="flush"/> for all chunks except the last, where
+        <paramref name="flush"/> should be true.
+      </remarks>
+    </Encode>
+    <EncodePtr>
+      <summary>Encodes data from the source buffer and writes it to the destination buffer.</summary>
+      <param name="source">A pointer to the beginning of the source data.</param>
+      <param name="sourceCount">The number of bytes to encode.</param>
+      <param name="destination">A pointer to where the encoded bytes should be written.</param>
+      <param name="destinationCount">The amount of space available in the destination buffer.</param>
+      <param name="flush">
+        If false, the encoder may not write all encoded bytes to the destination buffer, if it needs to see
+        bytes from future calls before it can do so. If true, the encoder will assume that this is the end of the source data, and
+        flush its internal state, writing all bytes to the destination.
+      </param>
+      <returns>Returns the number of bytes written to the destination buffer.</returns>
+      <remarks>
+        To encode data in chunks, pass false for <paramref name="flush"/> for all chunks except the last, where
+        <paramref name="flush"/> should be true.
+      </remarks>
+    </EncodePtr>
+    <GetByteCount>
+      <summary>
+        Returns the number of bytes that would be needed to encode the given source data. This method does not change the
+        state of the encoder.
+      </summary>
+      <param name="data">An array containing the source data that would be encoded.</param>
+      <param name="index">The index of the source data within the array.</param>
+      <param name="count">The number of bytes that would be encoded.</param>
+      <param name="simulateFlush">Whether the encoder would be flushed.</param>
+      <returns>Returns the number of bytes needed to encode the given chunk of data given the current encoder state.</returns>
+    </GetByteCount>
+    <GetByteCountPtr>
+      <summary>
+        Returns the number of bytes that would be needed to encode the given source data. This method does not change the
+        state of the encoder.
+      </summary>
+      <param name="data">A pointer to the source data that would be encoded.</param>
+      <param name="count">The number of bytes that would be encoded.</param>
+      <param name="simulateFlush">Whether the encoder would be flushed.</param>
+      <returns>Returns the number of bytes needed to encode the given chunk of data given the current encoder state.</returns>
+    </GetByteCountPtr>
+    <GetMaxBytes>
+      <summary>Gets the maximum number of bytes that would be needed to fully encode source data of the given size.</summary>
+    </GetMaxBytes>
+    <Reset>
+      <summary>
+        Resets the internal state of the encoder, so that new source data can be encoded. It is not necessary to call this
+        method if the encoder was flushed on the most recent call to <see cref="Encode(byte[],int,int,byte[],int,bool)"/>.
+      </summary>
+    </Reset>
+  </BinaryEncoder>
+
+  <BinaryEncoding>
+    <CanDecodeInPlace>
+      <summary>
+        Gets whether the encoder is capable of decoding in place. If true, it is valid for a user to pass the exact same
+        buffer for both the source and destination.
+      </summary>
+    </CanDecodeInPlace>
+    <CanEncodeInPlace>
+      <summary>
+        Gets whether the encoder is capable of encoding in place. If true, it is valid for a user to pass the exact same
+        buffer for both the source and destination.
+      </summary>
+    </CanEncodeInPlace>
+    <Decode>
+      <summary>Decodes the given data, which is assumed to have been previously encoded with this encoding.</summary>
+      <param name="encodedBytes">An array containing the encoded data.</param>
+      <param name="encodedByteIndex">The index within <paramref name="encodedBytes" /> where the encoded data begins.</param>
+      <param name="encodedByteCount">The number of encoded bytes to decode.</param>
+      <param name="decodedBytes">An array into which the decoded data will be written.</param>
+      <param name="decodedByteIndex">The index within <paramref name="decodedBytes" /> where the decoded data will be written.</param>
+      <returns>Returns the number of bytes actually written to the destination buffer.</returns>
+    </Decode>
+    <DecodePtr>
+      <summary>Decodes the given data, which is assumed to have been previously encoded with this encoding.</summary>
+      <param name="encodedBytes">A pointer to the encoded data.</param>
+      <param name="encodedByteCount">The number of encoded bytes to decode.</param>
+      <param name="decodedBytes">A pointer to the destination buffer where the decoded bytes will be written.</param>
+      <param name="decodedByteCount">The number of bytes available in the destination buffer.</param>
+      <returns>Returns the number of bytes actually written to the destination buffer.</returns>
+    </DecodePtr>
+    <Encode>
+      <summary>Encodes the given data.</summary>
+      <param name="data">An array containing the data to encode.</param>
+      <param name="dataIndex">The index within <paramref name="data" /> where the data to encode begins.</param>
+      <param name="dataByteCount">The number of bytes to encode.</param>
+      <param name="encodedBytes">An array into which the encoded data will be written.</param>
+      <param name="encodedByteIndex">The index within <paramref name="encodedBytes" /> where the encoded data will be written.</param>
+      <returns>Returns the number of bytes actually written to the destination buffer.</returns>
+    </Encode>
+    <EncodePtr>
+      <summary>Encodes the given data.</summary>
+      <param name="data">A pointer to the source data.</param>
+      <param name="dataByteCount">The number of bytes to encode.</param>
+      <param name="encodedBytes">A pointer to the destination buffer where the encoded bytes will be written.</param>
+      <param name="encodedByteCount">The number of bytes available in the destination buffer.</param>
+      <returns>Returns the number of bytes actually written to the destination buffer.</returns>
+    </EncodePtr>
+    <GetDecodedByteCount>
+      <summary>Returns the number of bytes that the given encoded data would decode into.</summary>
+    </GetDecodedByteCount>
+    <GetDecodedByteCountPtr>
+      <summary>Returns the number of bytes that the given encoded data would decode into.</summary>
+      <remarks>
+        The default implementation copies the data into an array and calls
+        <see cref="GetDecodedByteCount(byte[],int,int)"/>.
+      </remarks>
+    </GetDecodedByteCountPtr>
+    <GetEncodedByteCount>
+      <summary>Returns the number of bytes that the given data would encode into.</summary>
+    </GetEncodedByteCount>
+    <GetEncodedByteCountPtr>
+      <summary>Returns the number of bytes that the given data would encode into.</summary>
+      <remarks>
+        The default implementation copies the data into an array and calls
+        <see cref="GetEncodedByteCount(byte[],int,int)"/>.
+      </remarks>
+    </GetEncodedByteCountPtr>
+    <GetDecoder>
+      <summary>Returns a <see cref="BinaryEncoder"/> based on this encoding.</summary>
+    </GetDecoder>
+    <GetEncoder>
+      <summary>Returns a <see cref="BinaryEncoder"/> based on this encoding.</summary>
+    </GetEncoder>
+    <GetMaxDecodedBytes>
+      <summary>Returns the maximum number of bytes that the given number of encoded bytes could decode into.</summary>
+    </GetMaxDecodedBytes>
+    <GetMaxEncodedBytes>
+      <summary>Returns the maximum number of bytes that the given amount of data could encode into.</summary>
+    </GetMaxEncodedBytes>
+  </BinaryEncoding>
+
+  <IEnumerator>
+    <Current>
+      <summary>
+        Gets the current item, or throws an <see cref="InvalidOperationException" /> if the enumerator is not positioned
+        on a valid item.
+      </summary>
+    </Current>
+    <MoveNext>
+      <summary>
+        Attempts to advance the enumerator to the next item. Returns true if the enumerator is positioned at a new item
+        and false if not.
+      </summary>
+    </MoveNext>
+    <Reset>
+      <summary>
+        Resets the enumerator to the beginning, or throws <see cref="NotSupportedException" /> if resetting is not supported.
+      </summary>
+    </Reset>
+  </IEnumerator>
+
+  <Task>
+    <AbortCore>
+      <summary>Called to abort the task, assuming it is currently running.</summary>
+    </AbortCore>
+    <CancelCore>
+      <summary>
+        Called to inform the underlying work item that it needs to cancel its operation. This only needs to be overridden
+        if the work item needs additional notification beyond simply monitoring the <see cref="Task.WasCanceled"/> property.
+        Note that the logic only applies when <see cref="Task.Cancel" /> is called, not when
+        <see cref="TaskCancellationEvent.Cancel">TaskCancellationEvent.Cancel</see> is called.
+      </summary>
+    </CancelCore>
+    <Dispose>
+      <summary>Releases unmanaged resources used by the task, aborting it if it's running.</summary>
+    </Dispose>
+    <RunCore>
+      <summary>
+        Runs the task on the current thread. The method need not update <see cref="Exception"/> or call
+        <see cref="Task.SignalCompletion"/>, as that will be handled by the caller.
+      </summary>
+    </RunCore>
+    <StartCore>
+      <summary>Called to start the task, assuming it is not currently running.</summary>
+    </StartCore>
+  </Task>
+
+  <Tasks>
+    <ParallelForCommon>
+      <param name="start">
+        The loop counter's starting value. This must be less than or equal to <paramref name="endExclusive"/>.
+      </param>
+      <param name="endExclusive">
+        The loop counter's ending value, exclusive. This must be greater than or equal to
+        <paramref name="start"/>.
+      </param>
+      <include file="documentation.xml" path="//Tasks/ParallelismRemarks/*"/>
+    </ParallelForCommon>
+    <ParallelFor>
+      <param name="body">The body of the loop, which is executed for each iteration and passed the loop counter.</param>
+      <remarks>
+        The number of loop iterations is equal to <paramref name="endExclusive"/> - <paramref name="start"/>. It is not
+        guaranteed that the loop iterations will execute sequentially. This method, whose body parameter executes a single
+        iteration of the loop, is preferred when the loop iterations take a substantial amount of time or take an uneven amount
+        of time, such that scheduling them in large chunks could lead to an uneven amount of work for each thread.
+      </remarks>
+      <include file="documentation.xml" path="//Tasks/ParallelForCommon/*"/>
+    </ParallelFor>
+    <ParallelForChunked>
+      <param name="body">The body of the loop, which is called just once with a range of loop counter values, as an inclusive
+        start and exclusive end value. The body should perform its own for loop over the range.
+      </param>
+      <remarks>
+        The number of loop iterations is equal to <paramref name="endExclusive"/> - <paramref name="start"/>. It is not
+        guaranteed that the loop iterations will execute sequentially. This method, whose body parameter executes a chunk of
+        iterations, is preferred when the loop iterations take a small and even amount of time, such that it is unnecessary to
+        incur the overhead of scheduling each loop iteration individually in order to balance the work between threads.
+      </remarks>
+      <include file="documentation.xml" path="//Tasks/ParallelForCommon/*"/>
+    </ParallelForChunked>
+    <ParallelForWithInit>
+      <param name="body">The body of the loop, which is executed for each iteration and passed the loop counter, the context
+        value returned from the <paramref name="threadInitializer" />, and a <see cref="LoopThreadInfo" /> object containing
+        information about the thread.
+      </param>
+      <param name="threadInitializer">A method called with a <see cref="LoopThreadInfo" />, and which should return the context
+        value for the corresponding thread.
+      </param>
+      <typeparam name="T">The type of the context value returned from <paramref name="threadInitializer" />.</typeparam>
+    </ParallelForWithInit>
+    <ParallelismRemarks>
+      <remarks>
+        <para>
+          Note that increasing parallelism does not necessarily increase the speed of an operation. It may even decrease
+          performance due to the overhead of coordinating them. In general, it is usually beneficial to increase parallelism up to the
+          number of independent CPU cores (i.e. up to the value of <see cref="SystemInformation.IndependentProcessorCount"/>), but increasing
+          it up to the number of CPU threads (i.e. the value of <see cref="SystemInformation.CpuThreadCount"/>) may increase or decrease
+          performance, depending on whether the operations performed during the search are the kind that HyperThreading and similar
+          technologies are good at speeding up or not. Typically, CPU-bound operations do not make effective use of HyperThreading and
+          will degrade performance if parallelized beyond the number of cores.
+        </para>
+        <para>
+          For high performance, tasks executed in parallel should avoid accessing shared resources. In particular, be careful to
+          avoid locking and context switching. It is important to limit access to memory and avoid cache thrashing, as the added cache
+          pressure may greatly reduce the benefit of parallelism or even cause performance to degrade. (Even one CPU thread can
+          completely consume the available memory bandwidth, so an algorithm that depends on accessing large amounts of memory may not
+          benefit from parallelism.)
+        </para>
+        <para>
+          Always verify that enabling parallelism for a particular task actually improves performance substantially. It is best to
+          increase parallelism only to the degree that gives a substantial benefit for the number of threads used. Even if using
+          maximum parallelism gives a slight performance benefit, doing so will deprive other processes of computing resources that
+          they might have been able to use more effectively, and may cause the machine to become unresponsive to the user.
+        </para>
+      </remarks>
+    </ParallelismRemarks>
+  </Tasks>
+</Utilities>

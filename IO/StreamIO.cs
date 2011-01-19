@@ -75,7 +75,13 @@ public unsafe static partial class StreamExtensions
     }
   }
 
-  /// <summary>Processes the given stream in chunks of the given size, using the given <see cref="StreamProcessor"/>.</summary>
+  /// <summary>Processes a stream in chunks of 4096 bytes, using the given <see cref="StreamProcessor"/>.</summary>
+  public static void Process(this Stream stream, StreamProcessor processor)
+  {
+    stream.Process(processor, 4096);
+  }
+
+  /// <summary>Processes a stream in chunks of the given size, using the given <see cref="StreamProcessor"/>.</summary>
   public static void Process(this Stream stream, StreamProcessor processor, int chunkSize)
   {
     if(stream == null || processor == null) throw new ArgumentNullException();
@@ -97,7 +103,9 @@ public unsafe static partial class StreamExtensions
     return buf;
   }
 
-  /// <summary>Reads the given number of bytes from a stream into a buffer.</summary>
+  /// <summary>Reads the given number of bytes from a stream into a buffer, and throws an exception if the given number of bytes
+  /// cannot be read.
+  /// </summary>
   /// <returns>The number of bytes read. This will always be equal to <paramref name="length"/>.</returns>
   public static int ReadOrThrow(this Stream stream, byte[] buf, int index, int count)
   {
@@ -179,8 +187,7 @@ public unsafe static partial class StreamExtensions
 
   /// <summary>Reads the next byte from a stream.</summary>
   /// <returns>The byte value read from the stream.</returns>
-  /// <exception cref="EndOfStreamException">Thrown if the end of the stream was reached before the byte could be read.
-  /// </exception>
+  /// <exception cref="EndOfStreamException">Thrown if the end of the stream was reached before the byte could be read.</exception>
   public static byte ReadByteOrThrow(this Stream stream)
   {
     int i = stream.ReadByte();
@@ -319,13 +326,6 @@ public unsafe static partial class StreamExtensions
     if(data == null) throw new ArgumentNullException();
     stream.Write(data, 0, data.Length);
     return data.Length;
-  }
-
-  /// <summary>Encodes a string as ASCII and writes it to a stream.</summary>
-  /// <returns>The number of bytes written to the stream.</returns>
-  public static int WriteAscii(this Stream stream, string str)
-  {
-    return WriteString(stream, str, System.Text.Encoding.ASCII);
   }
 
   /// <summary>Encodes a string as UTF-8 and writes it to a stream.</summary>

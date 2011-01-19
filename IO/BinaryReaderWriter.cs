@@ -29,6 +29,7 @@ namespace AdamMil.IO
 {
 
 // TODO: make sure these work with non-seekable streams
+// TODO: remove support for shared streams? (what would that impact? jappy?)
 
 #region PinnedBuffer
 /// <summary>This class supports the <see cref="BinaryReader"/> and <see cref="BinaryWriter"/> classes and is not
@@ -271,8 +272,7 @@ public abstract class BinaryReaderWriterBase : PinnedBuffer
 /// <summary>This class makes it easy to efficiently deserialize values from a stream or array.</summary>
 /// <remarks>If initialized with a stream, the reader will buffer input, and so may read more bytes from the stream
 /// than you explicitly request. However, when the class is disposed, it will seek the stream to the end of the data
-/// read from the reader, if the stream supports seeking.
-/// This class in not safe for use by multiple threads concurrently.
+/// read from the reader, if the stream supports seeking. This class is not safe for use by multiple threads concurrently.
 /// </remarks>
 public unsafe class BinaryReader : BinaryReaderWriterBase
 {
@@ -1112,7 +1112,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
 
 #region BinaryWriter
 /// <summary>This class makes it easy to efficiently serialize values into a stream or array.</summary>
-/// <remarks>This class in not safe for use by multiple threads concurrently.</remarks>
+/// <remarks>This class is not safe for use by multiple threads concurrently.</remarks>
 public unsafe class BinaryWriter : BinaryReaderWriterBase
 {
   /// <summary>Initializes this <see cref="BinaryWriter"/> with the default buffer size, little-endianness, and the

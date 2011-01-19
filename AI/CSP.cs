@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using AdamMil.AI.Search;
+using AdamMil.Mathematics.Random;
 using AC=AdamMil.Collections;
 
 namespace AdamMil.AI.ConstraintSatisfaction
@@ -1391,7 +1392,7 @@ public sealed class BacktrackingSolver<VarType> : SearchBase<Assignment,Assignme
 /// a solution is found. Because of the randomness, the search is not guaranteed to find a solution in any finite
 /// amount of time, but it usually performs very well.
 /// </remarks>
-public class LocalSearchSolver<VarType> : IterativeSearchBase<Assignment,Assignment>
+public class LocalSearchSolver<VarType> : IterativeSearchBase<Assignment,Assignment,LocalSearchSolver<VarType>.Context>
 {
   /// <summary>Initializes the local search solver with the given problem instance, with 100 turns of no progress
   /// allowed before a restart occurs.
@@ -1408,20 +1409,326 @@ public class LocalSearchSolver<VarType> : IterativeSearchBase<Assignment,Assignm
     MaxIterationsWithoutProgress = maxIterationsWithoutProgress;
   }
 
+  #region Context
+  /// <summary>Contains the search context for a <see cref="LocalSearchSolver{V}"/>.</summary>
+  public sealed class Context : IterativeSearchContext<Assignment>
+  {
+    internal Context(IFiniteDomainCSP<VarType> problem, Assignment initialAssignment, RandomNumberGenerator random,
+                     bool cacheConflicts)
+    {
+      CSPHelper.InitializeSearch(problem, initialAssignment, out variables, out neighbors);
+
+      this.problem   = problem;
+      assignment     = initialAssignment == null ? new Assignment(variables.Length) : initialAssignment;
+      this.random    = random;
+      CacheConflicts = cacheConflicts;
+
+      valueIndices = new List<int>();
+      conflicts    = cacheConflicts ? new List<List<int>>() : null;
+      iterationsWithoutProgress = 0;
+
+      // add one list to the list of conflict lists to simplify the logic in Iterate()
+      if(conflicts != null) conflicts.Add(new List<int>());
+
+      // create a complete assignment, even if it may be in conflict with the constraints
+      for(int i=0; i<variables.Length; i++)
+      {
+        if(!assignment.IsAssigned(i)) assignment[i] = random.Next(variables[i].Domain.Count);
+      }
+
+      // calculate which variables are conflicted in our current assignment
+      conflictedVarIndices = new int[variables.Length];
+
+      CalculateConflictedVariables();
+    }
+
+    /// <summary>Gets the current best assignment.</summary>
+    public override Assignment Solution
+    {
+      get { return assignment; }
+    }
+
+    internal SearchResult Iterate(IFiniteDomainCSP<VarType> problem, int maxIterationsWithoutProgress)
+    {
+      if(numConflictedVars != 0) // if we don't have a valid solution yet
+      {
+        // choose a random conflicted variable
+        int cvIndex = random.Next(numConflictedVars), variable = conflictedVarIndices[cvIndex];
+
+        // select the next value to assign. it should be the one with the fewest conflicts, and should not be the same
+        // value as the one already assigned. we'll keep track of which neighbors the values conflict with as well
+        List<int> conflictedNeighbors;
+        int numberOfConflicts;
+        int value = SelectValueToAssign(variable, out numberOfConflicts, out conflictedNeighbors);
+
+        // keep track of the number of previously conflicted variables so we can tell if we're making progress
+        int previousConflictedVarCount = numConflictedVars;
+
+        // if the value doesn't conflict with any neighbors, remove 'variable' from the list of conflicted variables
+        if(numberOfConflicts == 0) RemoveConflictedVariableAt(cvIndex);
+
+        // assign the new value to the variable
+        AssignValue(variable, value, conflictedNeighbors);
+
+        if(previousConflictedVarCount <= numConflictedVars)
+        {
+          // the number of conflicted variables wasn't decreased this iteration, so no progress was mode. if we've hit
+          // the maximum number of allowed iterations without progress, restart the search
+          if(maxIterationsWithoutProgress != Infinite && ++iterationsWithoutProgress > maxIterationsWithoutProgress)
+          {
+            for(int i=0; i<variables.Length; i++)
+            {
+              assignment[i] = random.Next(variables[i].Domain.Count);
+            }
+            CalculateConflictedVariables();
+            iterationsWithoutProgress = 0;
+          }
+        }
+        else
+        {
+          iterationsWithoutProgress = 0; // otherwise, we had progress
+        }
+      }
+
+      // if the number of conflicted variables drops to zero, we have a solution that is consistent, with the possible
+      // exception of conflicts between variables with domains of a single value, which we didn't track during the
+      // search because we can't change them anyway.
+      if(numConflictedVars == 0)
+      {
+        return IsSolutionConsistent(assignment) ? SearchResult.Success : SearchResult.Failed;
+      }
+      else
+      {
+        return SearchResult.Pending;
+      }
+    }
+
+    /// <summary>Adds the given variable to the list of conflicted variables, if has multiple potential values and
+    /// hasn't already been added.
+    /// </summary>
+    void AddConflictedVariable(int variable)
+    {
+      if(variables[variable].Domain.Count > 1) // there's no point in modifying variables that have only 1 possible value
+      {
+        int index = Array.BinarySearch(conflictedVarIndices, 0, numConflictedVars, variable);
+        if(index < 0) // if the variable is not already in the array, insert it
+        {
+          index = ~index;
+          Array.Copy(conflictedVarIndices, index, conflictedVarIndices, index+1, numConflictedVars++ - index);
+          conflictedVarIndices[index] = variable;
+        }
+      }
+    }
+
+    /// <summary>Assigns the given value to the given variable and updates the list of conflicted variables.</summary>
+    void AssignValue(int variable, int value, List<int> conflictedNeighbors)
+    {
+      assignment[variable] = value;
+
+      // the variable has changed, so we need to update 'conflictedVarIndices' to add new neighbors that are now
+      // conflicted, and remove old neighbors that are no longer conflicted
+      int index = 0;
+      foreach(int j in neighbors[variable])
+      {
+        bool jConflictsWithVariable;
+        if(conflictedNeighbors == null)
+        {
+          jConflictsWithVariable = problem.Conflicts(variable, assignment[variable], j, assignment[j]);
+        }
+        else
+        {
+          jConflictsWithVariable = index < conflictedNeighbors.Count && j == conflictedNeighbors[index];
+        }
+
+        if(jConflictsWithVariable) // the neighbor j is in conflict with 'variable'
+        {
+          index++;
+          AddConflictedVariable(j); // so add it to the list of conflicted variables (if it's not already there)
+        }
+        else if(IsConflictedVariable(j)) // j doesn't conflict with the current variable. if it was known to be
+        {                                // conflicted, see if it still is.
+          bool stillConflicted = false;
+          foreach(int k in neighbors[j])
+          {
+            if(k != variable && problem.Conflicts(j, assignment[j], k, assignment[k]))
+            {
+              stillConflicted = true;
+              break;
+            }
+          }
+          if(!stillConflicted) RemoveConflictedVariable(j);
+        }
+      }
+    }
+
+    /// <summary>Performs the initial calculation of which variables are conflicted after a new random assignment is
+    /// created.
+    /// </summary>
+    void CalculateConflictedVariables()
+    {
+      // calculate the indices of the conflicted variables that we need to correct
+      numConflictedVars = 0;
+
+      // initialize the array of conflicted variables
+      for(int i=0; i<variables.Length; i++)
+      {
+        if(variables[i].Domain.Count > 1) // only variables with more than one possible value should be considered for
+        {                                 // revision
+          foreach(int j in neighbors[i])
+          {
+            if(problem.Conflicts(i, assignment[i], j, assignment[j]))
+            {
+              conflictedVarIndices[numConflictedVars++] = i;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    /// <summary>Given variable and value indices, returns the total number of other variables the value conflicts with,
+    /// and store the indices of the variables in the given array.
+    /// </summary>
+    int CountConflictingVariables(int variable, int value, List<int> conflicts)
+    {
+      if(conflicts != null) conflicts.Clear();
+
+      int total = 0;
+      foreach(int neighbor in neighbors[variable])
+      {
+        if(problem.Conflicts(variable, value, neighbor, assignment[neighbor]))
+        {
+          if(conflicts != null) conflicts.Add(neighbor);
+          total++;
+        }
+      }
+      return total;
+    }
+
+    /// <summary>Determines whether the given variables in in the list of conflicted variables.</summary>
+    bool IsConflictedVariable(int variable)
+    {
+      return Array.BinarySearch(conflictedVarIndices, 0, numConflictedVars, variable) >= 0;
+    }
+
+    /// <summary>Given an assignment with no known conflicting variables, checks the variables that we didn't previously
+    /// consider to determine whether the solution is actually consistent.
+    /// </summary>
+    bool IsSolutionConsistent(Assignment solution)
+    {
+      // we didn't track conflicts between variables with domains of a single value, because they can't be changed to
+      // any other value and so are not really part of the search. we'll check them now.
+      for(int i=0; i<variables.Length; i++)
+      {
+        if(variables[i].Domain.Count == 1)
+        {
+          foreach(int j in neighbors[i])
+          {
+            if(variables[j].Domain.Count == 1 && problem.Conflicts(i, assignment[i], j, assignment[j])) return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    /// <summary>Removes the given variable from the list of conflicted variables.</summary>
+    void RemoveConflictedVariable(int variable)
+    {
+      int index = Array.BinarySearch(conflictedVarIndices, 0, numConflictedVars, variable);
+      if(index >= 0) RemoveConflictedVariableAt(index);
+    }
+
+    /// <summary>Removes the variable at the given index within the list of conflicted variables.</summary>
+    void RemoveConflictedVariableAt(int index)
+    {
+      Array.Copy(conflictedVarIndices, index+1, conflictedVarIndices, index, --numConflictedVars - index);
+    }
+
+
+    /// <summary>Returns the value to assign to the given variable, and gets the list of neighbors it conflicts with, if
+    /// conflict caching is enabled.
+    /// </summary>
+    int SelectValueToAssign(int variable, out int numberOfConflicts, out List<int> conflictedNeighbors)
+    {
+      // we know there are at least two variables in the domain. and we don't want to assign or check the same value
+      // that's already assigned
+
+      // get the initial value of 'fewestConflicts'
+      int valueIndex = assignment[variable] == 0 ? 1 : 0;
+      int fewestConflicts = CountConflictingVariables(variable, valueIndex, conflicts == null ? null : conflicts[0]);
+      valueIndices.Clear();
+      valueIndices.Add(valueIndex);
+
+      for(FiniteDomain<VarType> domain = variables[variable].Domain; valueIndex<domain.Count; valueIndex++)
+      {
+        if(valueIndex == assignment[variable]) continue; // there's no point in assigning the same value twice
+
+        // add another array to hold the conflicting neighbors if we need it
+        if(conflicts != null && conflicts.Count == valueIndices.Count) conflicts.Add(new List<int>());
+
+        // find out how many neighbors this value conflicts with, and get the neighbors if we're doing that
+        int numConflicts = CountConflictingVariables(variable, valueIndex,
+                                                     conflicts == null ? null : conflicts[valueIndices.Count]);
+
+        // we'll accumulate a list of values tied for the fewest conflicts
+        if(numConflicts < fewestConflicts) // if this value has fewer conflicts than the current best...
+        {
+          // move the list containing the conflicting neighbors back to the beginning
+          if(conflicts != null)
+          {
+            List<int> temp = conflicts[valueIndices.Count];
+            conflicts[valueIndices.Count] = conflicts[0];
+            conflicts[0] = temp;
+          }
+
+          valueIndices.Clear();
+          valueIndices.Add(valueIndex);
+
+          fewestConflicts = numConflicts;
+        }
+        else if(numConflicts == fewestConflicts) // otherwise, if this value is tied with the current best...
+        {
+          valueIndices.Add(valueIndex); // just add it to the list
+        }
+      }
+
+      // now choose from the best values randomly
+      valueIndex = random.Next(valueIndices.Count);
+
+      numberOfConflicts   = fewestConflicts;
+      conflictedNeighbors = conflicts == null ? null : conflicts[valueIndex]; // get the list of conflicting neighbors, too
+      return valueIndices[valueIndex]; // return the actual value index (within the domain)
+    }
+
+    /// <summary>The current assignment. This is updated as the search progresses.</summary>
+    internal readonly Assignment assignment;
+    internal readonly IFiniteDomainCSP<VarType> problem;
+    /// <summary>The random number generator used during the search.</summary>
+    internal readonly RandomNumberGenerator random;
+    internal readonly SimpleVariable<VarType>[] variables;
+    internal readonly INeighborList neighbors;
+    /// <summary>A sorted array that contains the indices of variables involved in conflicts.</summary>
+    internal readonly int[] conflictedVarIndices;
+    /// <summary>A temporary storage area for values being considered for the next variable to be assigned.</summary>
+    internal readonly List<int> valueIndices;
+    /// <summary>Temporary storage areas for lists of variables in conflict with potential values.</summary>
+    internal readonly List<List<int>> conflicts;
+    /// <summary>The number of conflicted variables that need to be corrected in order to create a solution.</summary>
+    internal int numConflictedVars;
+    /// <summary>The number of iterations since any progress has been made.</summary>
+    internal int iterationsWithoutProgress;
+    /// <summary>Whether to try to reduce consistency checks at the expense of memory.</summary>
+    internal readonly bool CacheConflicts;
+  }
+  #endregion
+
   /// <summary>Gets or sets whether the search will cache some conflicts in memory.</summary>
   /// <remarks>If set to true, the search will be able to avoid some redundant consistency checks by caching the
   /// results. This reduces consistency checks by about 15% on average while increasing memory usage. The memory used
-  /// should be insignificant, but for certain worst-case problems, it could be substantial. The default is true.
+  /// should be insignificant, but for certain worst-case problems, it could be substantial. The default is true. Changing this
+  /// property has no effect on searches that have already been started.
   /// </remarks>
-  public bool CacheConflicts
-  {
-    get { return cacheConflicts; }
-    set
-    {
-      DisallowChangeDuringSearch();
-      cacheConflicts = value;
-    }
-  }
+  public bool CacheConflicts { get; set; }
 
   /// <summary>Gets or sets the maximum number of iterations without progress allowed before the search is restarted
   /// with a new, random assignment. If equal to <see cref="SearchBase.Infinite"/>, the search will never be restarted
@@ -1429,22 +1736,16 @@ public class LocalSearchSolver<VarType> : IterativeSearchBase<Assignment,Assignm
   /// </summary>
   public int MaxIterationsWithoutProgress
   {
-    get { return maxIterationsWithoutProgress; }
+    get { return _maxIterationsWithoutProgress; }
     set
     {
       if(value < Infinite) throw new ArgumentOutOfRangeException();
-      maxIterationsWithoutProgress = value;
+      _maxIterationsWithoutProgress = value;
     }
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/SearchInProgress/*"/>
-  public override bool SearchInProgress
-  {
-    get { return assignment != null; }
-  }
-
   /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch/*"/>
-  public override Assignment BeginSearch()
+  public override Context BeginSearch()
   {
     return BeginSearch(null);
   }
@@ -1456,322 +1757,44 @@ public class LocalSearchSolver<VarType> : IterativeSearchBase<Assignment,Assignm
   /// solution.
   /// </param>
   /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearchCommon/*"/>
-  public override Assignment BeginSearch(Assignment initialAssignment)
+  public override Context BeginSearch(Assignment initialAssignment)
   {
-    AssertSearchStartable();
-    CSPHelper.InitializeSearch(problem, initialAssignment, out variables, out neighbors);
-
-    assignment   = initialAssignment == null ? new Assignment(variables.Length) : initialAssignment;
-    random       = CreateRandom();
-    valueIndices = new List<int>();
-    conflicts    = cacheConflicts ? new List<List<int>>() : null;
-    iterationsWithoutProgress = 0;
-
-    // add one list to the list of conflict lists to simplify the logic in Iterate()
-    if(conflicts != null) conflicts.Add(new List<int>());
-
-    // create a complete assignment, even if it may be in conflict with the constraints
-    for(int i=0; i<variables.Length; i++)
-    {
-      if(!assignment.IsAssigned(i)) assignment[i] = random.Next(variables[i].Domain.Count);
-    }
-
-    // calculate which variables are conflicted in our current assignment
-    conflictedVarIndices = new int[variables.Length];
-    CalculateConflictedVariables();
-
-    return assignment;
+    return new Context(problem, initialAssignment, CreateRandom(), CacheConflicts);
   }
 
   /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/Iterate/*"/>
-  public override SearchResult Iterate(ref Assignment solution)
+  public override SearchResult Iterate(Context context)
   {
-    AssertSearchInProgress();
-
-    if(numConflictedVars != 0) // if we don't have a valid solution yet
-    {
-      // choose a random conflicted variable
-      int cvIndex = random.Next(numConflictedVars), variable = conflictedVarIndices[cvIndex];
-
-      // select the next value to assign. it should be the one with the fewest conflicts, and should not be the same
-      // value as the one already assigned. we'll keep track of which neighbors the values conflict with as well
-      List<int> conflictedNeighbors;
-      int numberOfConflicts;
-      int value = SelectValueToAssign(variable, out numberOfConflicts, out conflictedNeighbors);
-
-      // keep track of the number of previously conflicted variables so we can tell if we're making progress
-      int previousConflictedVarCount = numConflictedVars;
-
-      // if the value doesn't conflict with any neighbors, remove 'variable' from the list of conflicted variables
-      if(numberOfConflicts == 0) RemoveConflictedVariableAt(cvIndex);
-
-      // assign the new value to the variable
-      AssignValue(variable, value, conflictedNeighbors);
-
-      if(previousConflictedVarCount <= numConflictedVars)
-      {
-        // the number of conflicted variables wasn't decreased this iteration, so no progress was mode. if we've hit
-        // the maximum number of allowed iterations without progress, restart the search
-        if(maxIterationsWithoutProgress != Infinite && ++iterationsWithoutProgress > maxIterationsWithoutProgress)
-        {
-          for(int i=0; i<variables.Length; i++) assignment[i] = random.Next(variables[i].Domain.Count);
-          CalculateConflictedVariables();
-          iterationsWithoutProgress = 0;
-        }
-      }
-      else iterationsWithoutProgress = 0; // otherwise, we had progress
-    }
-
-    solution = assignment; // always return the most current result
-
-    // if the number of conflicted variables drops to zero, we have a solution that is consistent, with the possible
-    // exception of conflicts between variables with domains of a single value, which we didn't track during the
-    // search because we can't change them anyway.
-    if(numConflictedVars == 0)
-    {
-      return IsSolutionConsistent(assignment) ? SearchResult.Success : SearchResult.Failed;
-    }
-    else return SearchResult.Pending;
+    if(context == null) throw new ArgumentNullException();
+    return context.Iterate(problem, MaxIterationsWithoutProgress);
   }
 
   /// <summary>Returns a new random number generator. This method can be overridden to return a random number generator
   /// with a fixed seed, allowing searches to be replayed exactly.
   /// </summary>
-  protected virtual Random CreateRandom()
+  protected virtual RandomNumberGenerator CreateRandom()
   {
-    return new Random();
+    return RandomNumberGenerator.CreateDefault();
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IterativeSearchBase/ResetSearch/*"/>
-  protected override void ResetSearch()
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/SelectBestSolution/*"/>
+  protected override Assignment SelectBestSolution(Context[] contexts)
   {
-    assignment           = null;
-    random               = null;
-    conflictedVarIndices = null;
-    valueIndices         = null;
-    conflicts            = null;
-  }
+    if(contexts == null) throw new ArgumentNullException();
+    if(contexts.Length == 0) throw new ArgumentException();
 
-  /// <summary>Assigns the given value to the given variable and updates the list of conflicted variables.</summary>
-  void AssignValue(int variable, int value, List<int> conflictedNeighbors)
-  {
-    assignment[variable] = value;
-
-    // the variable has changed, so we need to update 'conflictedVarIndices' to add new neighbors that are now
-    // conflicted, and remove old neighbors that are no longer conflicted
-    int index = 0;
-    foreach(int j in neighbors[variable])
+    Context bestContext = contexts[0];
+    for(int i=1; i<contexts.Length; i++)
     {
-      bool jConflictsWithVariable;
-      if(conflictedNeighbors == null)
-      {
-        jConflictsWithVariable = problem.Conflicts(variable, assignment[variable], j, assignment[j]);
-      }
-      else
-      {
-        jConflictsWithVariable = index < conflictedNeighbors.Count && j == conflictedNeighbors[index];
-      }
-
-      if(jConflictsWithVariable) // the neighbor j is in conflict with 'variable'
-      {
-        index++;
-        AddConflictedVariable(j); // so add it to the list of conflicted variables (if it's not already there)
-      }
-      else if(IsConflictedVariable(j)) // j doesn't conflict with the current variable. if it was known to be
-      {                                // conflicted, see if it still is.
-        bool stillConflicted = false;
-        foreach(int k in neighbors[j])
-        {
-          if(k != variable && problem.Conflicts(j, assignment[j], k, assignment[k]))
-          {
-            stillConflicted = true;
-            break;
-          }
-        }
-        if(!stillConflicted) RemoveConflictedVariable(j);
-      }
+      if(contexts[i].assignment.AssignedCount > bestContext.assignment.AssignedCount) bestContext = contexts[i];
     }
+    return bestContext.Solution;
   }
 
-  /// <summary>Performs the initial calculation of which variables are conflicted after a new random assignment is
-  /// created.
-  /// </summary>
-  void CalculateConflictedVariables()
-  {
-    // calculate the indices of the conflicted variables that we need to correct
-    numConflictedVars = 0;
-
-    // initialize the array of conflicted variables
-    for(int i=0; i<variables.Length; i++)
-    {
-      if(variables[i].Domain.Count > 1) // only variables with more than one possible value should be considered for
-      {                                 // revision
-        foreach(int j in neighbors[i])
-        {
-          if(problem.Conflicts(i, assignment[i], j, assignment[j]))
-          {
-            conflictedVarIndices[numConflictedVars++] = i;
-            break;
-          }
-        }
-      }
-    }
-  }
-
-  /// <summary>Given variable and value indices, returns the total number of other variables the value conflicts with,
-  /// and store the indices of the variables in the given array.
-  /// </summary>
-  int CountConflictingVariables(int variable, int value, List<int> conflicts)
-  {
-    if(conflicts != null) conflicts.Clear();
-
-    int total = 0;
-    foreach(int neighbor in neighbors[variable])
-    {
-      if(problem.Conflicts(variable, value, neighbor, assignment[neighbor]))
-      {
-        if(conflicts != null) conflicts.Add(neighbor);
-        total++;
-      }
-    }
-    return total;
-  }
-
-  /// <summary>Given an assignment with no known conflicting variables, checks the variables that we didn't previously
-  /// consider to determine whether the solution is actually consistent.
-  /// </summary>
-  bool IsSolutionConsistent(Assignment solution)
-  {
-    // we didn't track conflicts between variables with domains of a single value, because they can't be changed to
-    // any other value and so are not really part of the search. we'll check them now.
-    for(int i=0; i<variables.Length; i++)
-    {
-      if(variables[i].Domain.Count == 1)
-      {
-        foreach(int j in neighbors[i])
-        {
-          if(variables[j].Domain.Count == 1 && problem.Conflicts(i, assignment[i], j, assignment[j])) return false;
-        }
-      }
-    }
-    return true;
-  }
-
-  /// <summary>Adds the given variable to the list of conflicted variables, if has multiple potential values and
-  /// hasn't already been added.
-  /// </summary>
-  void AddConflictedVariable(int variable)
-  {
-    if(variables[variable].Domain.Count > 1) // there's no point in modifying variables that have only 1 possible value
-    {
-      int index = Array.BinarySearch(conflictedVarIndices, 0, numConflictedVars, variable);
-      if(index < 0) // if the variable is not already in the array, insert it
-      {
-        index = ~index;
-        Array.Copy(conflictedVarIndices, index, conflictedVarIndices, index+1, numConflictedVars++ - index);
-        conflictedVarIndices[index] = variable;
-      }
-    }
-  }
-
-  /// <summary>Determines whether the given variables in in the list of conflicted variables.</summary>
-  bool IsConflictedVariable(int variable)
-  {
-    return Array.BinarySearch(conflictedVarIndices, 0, numConflictedVars, variable) >= 0;
-  }
-
-  /// <summary>Removes the given variable from the list of conflicted variables.</summary>
-  void RemoveConflictedVariable(int variable)
-  {
-    int index = Array.BinarySearch(conflictedVarIndices, 0, numConflictedVars, variable);
-    if(index >= 0) RemoveConflictedVariableAt(index);
-  }
-
-  /// <summary>Removes the variable at the given index within the list of conflicted variables.</summary>
-  void RemoveConflictedVariableAt(int index)
-  {
-    Array.Copy(conflictedVarIndices, index+1, conflictedVarIndices, index, --numConflictedVars - index);
-  }
-
-  /// <summary>Returns the value to assign to the given variable, and gets the list of neighbors it conflicts with, if
-  /// conflict caching is enabled.
-  /// </summary>
-  int SelectValueToAssign(int variable, out int numberOfConflicts, out List<int> conflictedNeighbors)
-  {
-    // we know there are at least two variables in the domain. and we don't want to assign or check the same value
-    // that's already assigned
-
-    // get the initial value of 'fewestConflicts'
-    int valueIndex = assignment[variable] == 0 ? 1 : 0;
-    int fewestConflicts = CountConflictingVariables(variable, valueIndex, conflicts == null ? null : conflicts[0]);
-    valueIndices.Clear();
-    valueIndices.Add(valueIndex);
-
-    for(FiniteDomain<VarType> domain = variables[variable].Domain; valueIndex<domain.Count; valueIndex++)
-    {
-      if(valueIndex == assignment[variable]) continue; // there's no point in assigning the same value twice
-
-      // add another array to hold the conflicting neighbors if we need it
-      if(conflicts != null && conflicts.Count == valueIndices.Count) conflicts.Add(new List<int>());
-
-      // find out how many neighbors this value conflicts with, and get the neighbors if we're doing that
-      int numConflicts = CountConflictingVariables(variable, valueIndex,
-                                                   conflicts == null ? null : conflicts[valueIndices.Count]);
-
-      // we'll accumulate a list of values tied for the fewest conflicts
-      if(numConflicts < fewestConflicts) // if this value has fewer conflicts than the current best...
-      {
-        // move the list containing the conflicting neighbors back to the beginning
-        if(conflicts != null)
-        {
-          List<int> temp = conflicts[valueIndices.Count];
-          conflicts[valueIndices.Count] = conflicts[0];
-          conflicts[0] = temp;
-        }
-
-        valueIndices.Clear();
-        valueIndices.Add(valueIndex);
-
-        fewestConflicts = numConflicts;
-      }
-      else if(numConflicts == fewestConflicts) // otherwise, if this value is tied with the current best...
-      {
-        valueIndices.Add(valueIndex); // just add it to the list
-      }
-    }
-
-    // now choose from the best values randomly
-    valueIndex = random.Next(valueIndices.Count);
-
-    numberOfConflicts   = fewestConflicts;
-    conflictedNeighbors = conflicts == null ? null : conflicts[valueIndex]; // get the list of conflicting neighbors, too
-    return valueIndices[valueIndex]; // return the actual value index (within the domain)
-  }
-
-  /// <summary>The current assignment. This is updated as the search progresses.</summary>
-  Assignment assignment;
   /// <summary>The problem instance to be solved.</summary>
   IFiniteDomainCSP<VarType> problem;
-
-  SimpleVariable<VarType>[] variables;
-  INeighborList neighbors;
-
-  /// <summary>The random number generator used during the search.</summary>
-  Random random;
-  /// <summary>A sorted array that contains the indices of variables involved in conflicts.</summary>
-  int[] conflictedVarIndices;
-  /// <summary>A temporary storage area for values being considered for the next variable to be assigned.</summary>
-  List<int> valueIndices;
-  /// <summary>Temporary storage areas for lists of variables in conflict with potential values.</summary>
-  List<List<int>> conflicts;
   /// <summary>The maximum number of iterations without progress that are allowed before the search restarts.</summary>
-  int maxIterationsWithoutProgress;
-  /// <summary>The number of conflicted variables that need to be corrected in order to create a solution.</summary>
-  int numConflictedVars;
-  /// <summary>The number of iterations since any progress has been made.</summary>
-  int iterationsWithoutProgress;
-  /// <summary>Whether to try to reduce consistency checks at the expense of memory.</summary>
-  bool cacheConflicts = true;
+  int _maxIterationsWithoutProgress;
 }
 #endregion
 #endregion

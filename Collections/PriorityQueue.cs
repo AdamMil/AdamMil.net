@@ -135,6 +135,21 @@ public sealed class PriorityQueue<T> : IQueue<T>, IReadOnlyCollection<T>
   /// <summary>Shrinks the capacity to the actual number of elements in the priority queue.</summary>
   public void TrimExcess() { Capacity = count; }
 
+  /// <include file="documentation.xml" path="//Queue/TryDequeue/*"/>
+  public bool TryDequeue(out T item)
+  {
+    if(Count == 0)
+    {
+      item = default(T);
+      return false;
+    }
+    else
+    {
+      item = Dequeue();
+      return true;
+    }
+  }
+
   #region ICollection<>
   /// <summary>Gets the number of elements contained in the priority queue.</summary>
   public int Count { get { return count; } }
@@ -253,6 +268,13 @@ public sealed class PriorityQueue<T> : IQueue<T>, IReadOnlyCollection<T>
   /// would be dequeued.
   /// </summary>
   public IEnumerator<T> GetEnumerator() { return new Enumerator(this); }
+  #endregion
+
+  #region IQueue<T>
+  bool IQueue<T>.IsEmpty
+  {
+    get { return Count == 0; }
+  }
   #endregion
 
   /// <summary>Heapify the subtree at index <paramref name="i"/>, assuming that Right(i) and Left(i) are both valid
