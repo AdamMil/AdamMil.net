@@ -9,27 +9,15 @@ namespace AdamMil.Utilities.Encodings
 /// </summary>
 public abstract class BinaryEncoder
 {
-  /// <summary>Gets whether the encoder is capable of encoding in place. If true, it is valid for a user to pass the exact same
-  /// buffer for both the source and destination. The default implementation returns false.
-  /// </summary>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/CanEncodeInPlace/*"/>
   public virtual bool CanEncodeInPlace
   {
     get { return false; }
   }
 
-  /// <summary>Encodes data from the source buffer and writes it to the destination buffer.</summary>
-  /// <param name="source">A pointer to the beginning of the source data.</param>
-  /// <param name="sourceCount">The number of bytes to encode.</param>
-  /// <param name="destination">A pointer to where the encoded bytes should be written.</param>
-  /// <param name="destinationCount">The amount of space available in the destination buffer.</param>
-  /// <param name="flush">If false, the encoder may not write all encoded bytes to the destination buffer, if it needs to see
-  /// bytes from future calls before it can do so. If true, the encoder will assume that this is the end of the source data, and
-  /// flush its internal state, writing all bytes to the destination.
-  /// </param>
-  /// <returns>Returns the number of bytes written to the destination buffer.</returns>
-  /// <remarks>To encode data in chunks, pass false for <paramref name="flush"/> for all chunks except the last, where
-  /// <paramref name="flush"/> should be true. The default implementation copies the data into arrays and calls
-  /// <see cref="Encode(byte[],int,int,byte[],int,bool)"/>.
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/EncodePtr/*"/>
+  /// <remarks>
+  /// The default implementation copies the data into arrays and calls <see cref="Encode(byte[],int,int,byte[],int,bool)"/>.
   /// </remarks>
   public unsafe virtual int Encode(byte* source, int sourceCount, byte* destination, int destinationCount, bool flush)
   {
@@ -39,31 +27,14 @@ public abstract class BinaryEncoder
     return Encode(sourceArray, 0, sourceCount, destinationArray, 0, flush);
   }
 
-  /// <summary>Encodes data from the source buffer and writes it to the destination buffer.</summary>
-  /// <param name="source">An array that contains the source data.</param>
-  /// <param name="sourceIndex">The index of the source data within the array.</param>
-  /// <param name="sourceCount">The number of bytes to encode.</param>
-  /// <param name="destination">An array where the encoded bytes should be written.</param>
-  /// <param name="destinationIndex">The location in the destination array where the encoded bytes should be written.</param>
-  /// <param name="flush">If false, the encoder may not write all encoded bytes to the destination buffer, if it needs to see
-  /// bytes from future calls before it can do so. If true, the encoder will assume that this is the end of the source data, and
-  /// flush its internal state, writing all bytes to the destination.
-  /// </param>
-  /// <returns>Returns the number of bytes written to the destination buffer.</returns>
-  /// <remarks>To encode data in chunks, pass false for <paramref name="flush"/> for all chunks except the last, where
-  /// <paramref name="flush"/> should be true.
-  /// </remarks>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Encode/*"/>
   public abstract int Encode(byte[] source, int sourceIndex, int sourceCount, byte[] destination, int destinationIndex,
                              bool flush);
 
-  /// <summary>Returns the number of bytes that would be needed to encode the given source data. This method does not change the
-  /// state of the encoder.
-  /// </summary>
-  /// <param name="data">A pointer to the source data that would be encoded.</param>
-  /// <param name="count">The number of bytes that would be encoded.</param>
-  /// <param name="simulateFlush">Whether the encoder would be flushed.</param>
-  /// <returns>Returns the number of bytes needed to encode the given chunk of data given the current encoder state.</returns>
-  /// <remarks>The default implementation copies the data into arrays and calls <see cref="GetByteCount(byte[],int,int,bool)"/>.</remarks>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCountPtr/*"/>
+  /// <remarks>
+  /// The default implementation copies the data into arrays and calls <see cref="GetByteCount(byte[],int,int,bool)"/>.
+  /// </remarks>
   public unsafe virtual int GetByteCount(byte* data, int count, bool simulateFlush)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
@@ -72,22 +43,13 @@ public abstract class BinaryEncoder
     return GetByteCount(array, 0, count, simulateFlush);
   }
 
-  /// <summary>Returns the number of bytes that would be needed to encode the given source data. This method does not change the
-  /// state of the encoder.
-  /// </summary>
-  /// <param name="data">An array containing the source data that would be encoded.</param>
-  /// <param name="sourceIndex">The index of the source data within the array.</param>
-  /// <param name="count">The number of bytes that would be encoded.</param>
-  /// <param name="simulateFlush">Whether the encoder would be flushed.</param>
-  /// <returns>Returns the number of bytes needed to encode the given chunk of data given the current encoder state.</returns>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCount/*"/>
   public abstract int GetByteCount(byte[] data, int index, int count, bool simulateFlush);
 
-  /// <summary>Gets the maximum number of bytes that would be needed to fully encode source data of the given size.</summary>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetMaxBytes/*"/>
   public abstract int GetMaxBytes(int unencodedByteCount);
 
-  /// <summary>Resets the internal state of the encoder, so that new source data can be encoded. It is not necessary to call this
-  /// method if the encoder was flushed on the most recent call to <see cref="Encode"/>.
-  /// </summary>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Reset/*"/>
   public abstract void Reset();
 }
 #endregion
@@ -98,17 +60,15 @@ public abstract class BinaryEncoder
 /// </summary>
 public abstract class BinaryEncoding
 {
-  /// <summary>Gets whether the encoder is capable of decoding in place. If true, it is valid for a user to pass the exact same
-  /// buffer for both the source and destination. The default implementation returns false.
-  /// </summary>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/CanDecodeInPlace/*"/>
+  /// <remarks>The default implementation returns false.</remarks>
   public virtual bool CanDecodeInPlace
   {
     get { return false; }
   }
 
-  /// <summary>Gets whether the encoder is capable of encoding in place. If true, it is valid for a user to pass the exact same
-  /// buffer for both the source and destination. The default implementation returns false.
-  /// </summary>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/CanEncodeInPlace/*"/>
+  /// <remarks>The default implementation returns false.</remarks>
   public virtual bool CanEncodeInPlace
   {
     get { return false; }
@@ -138,13 +98,10 @@ public abstract class BinaryEncoding
     return MakeReturnArray(decodedBytes, Decode(encodedBytes, index, count, decodedBytes, 0));
   }
 
-  /// <summary>Decodes the given data, which is assumed to have been previously encoded with this encoding.</summary>
-  /// <param name="encodedBytes">A pointer to the encoded data.</param>
-  /// <param name="encodedByteCount">The number of encoded bytes to decode.</param>
-  /// <param name="decodedBytes">A pointer to the destination buffer where the decoded bytes will be written.</param>
-  /// <param name="decodedByteCount">The number of bytes available in the destination buffer.</param>
-  /// <returns>Returns the number of bytes actually written to the destination buffer.</returns>
-  /// <remarks>The default implementation copies the data into an array and calls <see cref="Decode(byte[],int,int,byte[],int)"/>.</remarks>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/DecodePtr/*"/>
+  /// <remarks>
+  /// The default implementation copies the data into an array and calls <see cref="Decode(byte[],int,int,byte[],int)"/>.
+  /// </remarks>
   public unsafe virtual int Decode(byte* encodedBytes, int encodedByteCount, byte* decodedBytes, int decodedByteCount)
   {
     if(encodedByteCount < 0 || decodedByteCount < 0) throw new ArgumentOutOfRangeException();
@@ -177,19 +134,16 @@ public abstract class BinaryEncoding
     return MakeReturnArray(encodedBytes, Encode(decodedBytes, index, count, encodedBytes, 0));
   }
 
-  /// <summary>Encodes the given data.</summary>
-  /// <param name="encodedBytes">A pointer to the source data.</param>
-  /// <param name="encodedByteCount">The number of bytes to encode.</param>
-  /// <param name="decodedBytes">A pointer to the destination buffer where the encoded bytes will be written.</param>
-  /// <param name="decodedByteCount">The number of bytes available in the destination buffer.</param>
-  /// <returns>Returns the number of bytes actually written to the destination buffer.</returns>
-  /// <remarks>The default implementation copies the data into an array and calls <see cref="Encode(byte[],int,int,byte[],int)"/>.</remarks>
-  public unsafe virtual int Encode(byte* decodedBytes, int decodedByteCount, byte* encodedBytes, int encodedByteCount)
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/EncodePtr/*"/>
+  /// <remarks>
+  /// The default implementation copies the data into an array and calls <see cref="Encode(byte[],int,int,byte[],int)"/>.
+  /// </remarks>
+  public unsafe virtual int Encode(byte* data, int dataByteCount, byte* encodedBytes, int encodedByteCount)
   {
-    if(encodedByteCount < 0 || decodedByteCount < 0) throw new ArgumentOutOfRangeException();
-    byte[] decodedByteArray = new byte[decodedByteCount], encodedByteArray = new byte[encodedByteCount];
-    fixed(byte* dbPtr=decodedByteArray) Unsafe.Copy(decodedBytes, dbPtr, decodedByteCount);
-    return Encode(decodedByteArray, 0, decodedByteCount, encodedByteArray, 0);
+    if(encodedByteCount < 0 || dataByteCount < 0) throw new ArgumentOutOfRangeException();
+    byte[] decodedByteArray = new byte[dataByteCount], encodedByteArray = new byte[encodedByteCount];
+    fixed(byte* dbPtr=decodedByteArray) Unsafe.Copy(data, dbPtr, dataByteCount);
+    return Encode(decodedByteArray, 0, dataByteCount, encodedByteArray, 0);
   }
 
   /// <summary>Returns the number of bytes that the given encoded data would decode into.</summary>
@@ -199,10 +153,7 @@ public abstract class BinaryEncoding
     return GetDecodedByteCount(encodedBytes, 0, encodedBytes.Length);
   }
 
-  /// <summary>Returns the number of bytes that the given encoded data would decode into.</summary>
-  /// <remarks>The default implementation copies the data into an array and calls
-  /// <see cref="GetDecodedByteCount(byte[],int,int)"/>.
-  /// </remarks>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetDecodedByteCountPtr/*"/>
   public unsafe virtual int GetDecodedByteCount(byte* encodedBytes, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
@@ -218,10 +169,7 @@ public abstract class BinaryEncoding
     return GetEncodedByteCount(decodedBytes, 0, decodedBytes.Length);
   }
 
-  /// <summary>Returns the number of bytes that the given data would encode into.</summary>
-  /// <remarks>The default implementation copies the data into an array and calls
-  /// <see cref="GetEncodedByteCount(byte[],int,int)"/>.
-  /// </remarks>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetEncodedByteCountPtr/*"/>
   public unsafe virtual int GetEncodedByteCount(byte* decodedBytes, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
@@ -230,43 +178,44 @@ public abstract class BinaryEncoding
     return GetEncodedByteCount(array, 0, count);
   }
 
-  /// <summary>Returns a <see cref="BinaryEncoder"/> based on this encoding. Note that the default implementation creates and
-  /// returns a <see cref="DefaultBinaryEncoder"/>, which may not be capable of properly decoding data in chunks. If the encoding
-  /// requires that state be maintained while decoding chunks of data, you must override this method and return a more suitable
-  /// encoder.
-  /// </summary>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetDecoder/*"/>
+  /// <remarks>Note that the default implementation creates and returns a <see cref="DefaultBinaryEncoder"/>, which may not be
+  /// capable of properly decoding data in chunks. If the encoding requires that state be maintained while decoding chunks of
+  /// data, you must override this method and return a more suitable encoder.
+  /// </remarks>
   public virtual BinaryEncoder GetDecoder()
   {
     return new DefaultBinaryEncoder(this, false);
   }
 
-  /// <summary>Returns a <see cref="BinaryEncoder"/> based on this encoding. Note that the default implementation creates and
-  /// returns a <see cref="DefaultBinaryEncoder"/>, which may not be capable of properly encoding data in chunks. If the encoding
-  /// requires that state be maintained while encoding chunks of data, you must override this method and return a more suitable
-  /// encoder.
-  /// </summary>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetEncoder/*"/>
+  /// <remarks>Note that the default implementation creates and returns a <see cref="DefaultBinaryEncoder"/>, which may not be
+  /// capable of properly encoding data in chunks. If the encoding requires that state be maintained while encoding chunks of
+  /// data, you must override this method and return a more suitable encoder.
+  /// </remarks>
   public virtual BinaryEncoder GetEncoder()
   {
     return new DefaultBinaryEncoder(this, true);
   }
 
-  /// <summary>Decodes the given data, which is assumed to have been previously encoded with this encoding.</summary>
-  public abstract int Decode(byte[] encodedBytes, int ebIndex, int encodedByteCount, byte[] decodedBytes, int dbIndex);
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/Decode/*"/>
+  public abstract int Decode(byte[] encodedBytes, int encodedByteIndex, int encodedByteCount,
+                             byte[] decodedBytes, int decodedByteIndex);
 
-  /// <summary>Encodes the given data.</summary>
-  public abstract int Encode(byte[] decodedBytes, int dbIndex, int decodedByteCount, byte[] encodedBytes, int ebIndex);
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/Encode/*"/>
+  public abstract int Encode(byte[] data, int dataIndex, int dataByteCount, byte[] encodedBytes, int encodedByteIndex);
 
-  /// <summary>Returns the number of bytes that the given encoded data would decode into.</summary>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetDecodedByteCount/*"/>
   public abstract int GetDecodedByteCount(byte[] encodedBytes, int index, int count);
 
-  /// <summary>Returns the number of bytes that the given data would encode into.</summary>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetEncodedByteCount/*"/>
   public abstract int GetEncodedByteCount(byte[] decodedBytes, int index, int count);
 
-  /// <summary>Returns the maximum number of bytes that the given number of encoded bytes could decode into.</summary>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetMaxDecodedBytes/*"/>
   public abstract int GetMaxDecodedBytes(int encodedByteCount);
 
-  /// <summary>Returns the maximum number of bytes that the given amount of data could encode into.</summary>
-  public abstract int GetMaxEncodedBytes(int decodedByteCount);
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetMaxEncodedBytes/*"/>
+  public abstract int GetMaxEncodedBytes(int dataByteCount);
 
   static byte[] MakeReturnArray(byte[] array, int desiredLength)
   {
@@ -300,38 +249,45 @@ public sealed class DefaultBinaryEncoder : BinaryEncoder
     this.encode   = encode;
   }
 
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/CanEncodeInPlace/*"/>
   public override bool CanEncodeInPlace
   {
     get { return encode ? encoding.CanEncodeInPlace : encoding.CanDecodeInPlace; }
   }
 
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/EncodePtr/*"/>
   public override unsafe int Encode(byte* source, int sourceCount, byte* destination, int destinationCount, bool flush)
   {
     return encode ? encoding.Encode(source, sourceCount, destination, destinationCount) :
                     encoding.Decode(source, sourceCount, destination, destinationCount);
   }
 
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Encode/*"/>
   public override int Encode(byte[] source, int sourceIndex, int sourceCount, byte[] destination, int destinationIndex, bool flush)
   {
     return encode ? encoding.Encode(source, sourceIndex, sourceCount, destination, destinationIndex) :
                     encoding.Decode(source, sourceIndex, sourceCount, destination, destinationIndex);
   }
 
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCountPtr/*"/>
   public override unsafe int GetByteCount(byte* data, int count, bool simulateFlush)
   {
     return encode ? encoding.GetEncodedByteCount(data, count) : encoding.GetDecodedByteCount(data, count);
   }
 
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCount/*"/>
   public override int GetByteCount(byte[] data, int index, int count, bool simulateFlush)
   {
     return encode ? encoding.GetEncodedByteCount(data, index, count) : encoding.GetDecodedByteCount(data, index, count);
   }
 
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetMaxBytes/*"/>
   public override int GetMaxBytes(int unencodedByteCount)
   {
     return encode ? encoding.GetMaxEncodedBytes(unencodedByteCount) : encoding.GetMaxDecodedBytes(unencodedByteCount);
   }
 
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Reset/*"/>
   public override void Reset()
   {
   }
@@ -347,6 +303,7 @@ public sealed class DefaultBinaryEncoder : BinaryEncoder
 /// </summary>
 public class EncoderDecoderBinaryEncoding : BinaryEncoding
 {
+  /// <summary>Initializes a new <see cref="EncoderDecoderBinaryEncoding"/> based on two <see cref="BinaryEncoder"/> objects.</summary>
   public EncoderDecoderBinaryEncoding(BinaryEncoder encoder, BinaryEncoder decoder)
   {
     if(encoder == null || decoder == null) throw new ArgumentNullException();
@@ -354,62 +311,73 @@ public class EncoderDecoderBinaryEncoding : BinaryEncoding
     this.decoder = decoder;
   }
 
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/CanDecodeInPlace/*"/>
   public override bool CanDecodeInPlace
   {
     get { return decoder.CanEncodeInPlace; }
   }
 
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/CanEncodeInPlace/*"/>
   public override bool CanEncodeInPlace
   {
     get { return encoder.CanEncodeInPlace; }
   }
 
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/DecodePtr/*"/>
   public override unsafe int Decode(byte* encodedBytes, int encodedByteCount, byte* decodedBytes, int decodedByteCount)
   {
     decoder.Reset();
     return decoder.Encode(encodedBytes, encodedByteCount, decodedBytes, decodedByteCount, true);
   }
 
-  public override int Decode(byte[] encodedBytes, int ebIndex, int encodedByteCount, byte[] decodedBytes, int dbIndex)
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/Decode/*"/>
+  public override int Decode(byte[] encodedBytes, int encodedByteIndex, int encodedByteCount,
+                             byte[] decodedBytes, int decodedByteIndex)
   {
     decoder.Reset();
-    return decoder.Encode(encodedBytes, ebIndex, encodedByteCount, decodedBytes, dbIndex, true);
+    return decoder.Encode(encodedBytes, encodedByteIndex, encodedByteCount, decodedBytes, decodedByteIndex, true);
   }
 
-  public override unsafe int Encode(byte* decodedBytes, int decodedByteCount, byte* encodedBytes, int encodedByteCount)
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/EncodePtr/*"/>
+  public override unsafe int Encode(byte* data, int dataByteCount, byte* encodedBytes, int encodedByteCount)
   {
     encoder.Reset();
-    return encoder.Encode(decodedBytes, decodedByteCount, encodedBytes, encodedByteCount, true);
+    return encoder.Encode(data, dataByteCount, encodedBytes, encodedByteCount, true);
   }
 
-  public override int Encode(byte[] decodedBytes, int dbIndex, int decodedByteCount, byte[] encodedBytes, int ebIndex)
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/Encode/*"/>
+  public override int Encode(byte[] data, int dataIndex, int dataByteCount, byte[] encodedBytes, int encodedByteIndex)
   {
     encoder.Reset();
-    return encoder.Encode(decodedBytes, dbIndex, decodedByteCount, encodedBytes, ebIndex, true);
+    return encoder.Encode(data, dataIndex, dataByteCount, encodedBytes, encodedByteIndex, true);
   }
 
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetDecodedByteCountPtr/*"/>
   public override unsafe int GetDecodedByteCount(byte* encodedBytes, int count)
   {
     decoder.Reset();
     return decoder.GetByteCount(encodedBytes, count, true);
   }
 
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetDecodedByteCount/*"/>
   public override int GetDecodedByteCount(byte[] encodedBytes, int index, int count)
   {
     decoder.Reset();
     return decoder.GetByteCount(encodedBytes, index, count, true);
   }
 
-  public override unsafe int GetEncodedByteCount(byte* decodedBytes, int count)
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetEncodedByteCountPtr/*"/>
+  public override unsafe int GetEncodedByteCount(byte* data, int count)
   {
     encoder.Reset();
-    return encoder.GetByteCount(decodedBytes, count, true);
+    return encoder.GetByteCount(data, count, true);
   }
 
-  public override int GetEncodedByteCount(byte[] decodedBytes, int index, int count)
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetEncodedByteCount/*"/>
+  public override int GetEncodedByteCount(byte[] data, int index, int count)
   {
     encoder.Reset();
-    return encoder.GetByteCount(decodedBytes, index, count, true);
+    return encoder.GetByteCount(data, index, count, true);
   }
 
   /// <summary>Returns the decoder passed to the constructor.</summary>
@@ -424,14 +392,16 @@ public class EncoderDecoderBinaryEncoding : BinaryEncoding
     return encoder;
   }
 
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetMaxDecodedBytes/*"/>
   public override int GetMaxDecodedBytes(int encodedByteCount)
   {
     return decoder.GetMaxBytes(encodedByteCount);
   }
 
-  public override int GetMaxEncodedBytes(int decodedByteCount)
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetMaxEncodedBytes/*"/>
+  public override int GetMaxEncodedBytes(int dataByteCount)
   {
-    return encoder.GetMaxBytes(decodedByteCount);
+    return encoder.GetMaxBytes(dataByteCount);
   }
 
   readonly BinaryEncoder encoder, decoder;

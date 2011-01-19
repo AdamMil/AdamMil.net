@@ -28,6 +28,7 @@ namespace AdamMil.Utilities
 {
 
 #region XmlNodeExtensions
+/// <summary>Provides useful extensions to the <see cref="XmlNode"/> class.</summary>
 public static class XmlNodeExtensions
 {
   /// <summary>Returns the value of the named attribute, or <c>default(T)</c> if the attribute was unspecified.</summary>
@@ -598,6 +599,9 @@ public static class XmlNodeExtensions
     return SelectString(node, xpath, string.Empty);
   }
 
+  /// <summary>Returns the trimmed inner text of the node selected by the given XPath query,
+  /// or the given default value if the node could not be found.
+  /// </summary>
   public static string SelectString(this XmlNode node, string xpath, string defaultValue)
   {
     string stringValue = SelectValue(node, xpath);
@@ -698,7 +702,30 @@ public static class XmlNodeExtensions
 }
 #endregion
 
+#region XmlReaderExtensions
+/// <summary>Provides extensions to the <see cref="XmlReader"/> class.</summary>
+public static class XmlReaderExtensions
+{
+  /// <summary>Skips the children of the current element, without skipping the end element.</summary>
+  public static void SkipChildren(this XmlReader reader)
+  {
+    if(reader == null) throw new ArgumentNullException();
+    if(reader.NodeType != XmlNodeType.Element) throw new InvalidOperationException();
+    if(reader.IsEmptyElement)
+    {
+      reader.Read();
+    }
+    else
+    {
+      reader.Read();
+      while(reader.NodeType != XmlNodeType.EndElement) reader.Skip();
+    }
+  }
+}
+#endregion
+
 #region XmlUtility
+/// <summary>Provides utilities for parsing and encoding XML.</summary>
 public static class XmlUtility
 {
   /// <summary>Parses a string containing a whitespace-separated list of items into an array of strings containing the substrings
@@ -743,6 +770,7 @@ public static class XmlUtility
   /// attributes. This method is not suitable for encoding XML element and attribute names, but only content. (To encode names,
   /// you should use <see cref="XmlConvert.EncodeName"/> or <see cref="XmlConvert.EncodeLocalName"/>.)
   /// </summary>
+  /// <param name="text">The text to encode. If null, null will be returned.</param>
   /// <param name="isAttributeText">If true, additional characters (such as quotation marks, apostrophes, tabs, and newlines)
   /// are encoded as well, allowing safe insertion into XML attributes. If false, the returned text may only be suitable for
   /// insertion into elements.

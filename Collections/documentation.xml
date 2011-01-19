@@ -103,6 +103,15 @@
     </Values>
   </Dictionary>
 
+  <Queue>
+    <TryDequeue>
+      <summary>
+        Attempts to remove an item from the queue. True is returned if an item was successfully removed (and stored in
+        <paramref name="item"/>) and false if an item was not removed because the queue was empty.
+      </summary>
+    </TryDequeue>
+  </Queue>
+  
   <ValidatedCollection>
     <ValidateItem>
       <summary>

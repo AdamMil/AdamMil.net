@@ -312,13 +312,17 @@ public abstract class RandomNumberGenerator
     long dateTicks = DateTime.Now.Ticks, timerTicks = timer.ElapsedTicks;
     // add constants to the timer tick values to prevent them from being too small (especially zero) shortly after startup.
     // the timer may not be thread-safe, but it shouldn't crash and we don't really need accuracy, only rapid change in value
-    return new uint[] { (uint)timerTicks+123456789, (uint)(timerTicks>>32)+678912345, (uint)(dateTicks>>32), (uint)dateTicks };
+    return new uint[]
+    {
+      (uint)timerTicks+123456789, (uint)(timerTicks>>32)+678912345, (uint)(dateTicks>>32)+seedIncrement++, (uint)dateTicks
+    };
   }
 
   uint bitBuffer;
   byte bits;
 
   static System.Diagnostics.Stopwatch timer;
+  static uint seedIncrement;
 }
 #endregion
 

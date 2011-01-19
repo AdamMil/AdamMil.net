@@ -1,4 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using AdamMil.Utilities;
+using AdamMil.Collections;
 
 namespace AdamMil.AI.Search
 {
@@ -8,7 +12,7 @@ namespace AdamMil.AI.Search
 public enum SearchResult
 {
   /// <summary>The search is not yet complete. This value is used by iterative searches to indicate that
-  /// <see cref="IIterativeSearch{S,T}.Iterate"/> should be called more times.
+  /// <see cref="IIterativeSearch{S,T,C}.Iterate"/> should be called more times.
   /// </summary>
   Pending,
   /// <summary>The entire space was searched and no solution was found.</summary>
@@ -26,12 +30,8 @@ public enum SearchResult
 /// <summary>The base interface for problems that can be solved by search.</summary>
 public interface ISearchable<StateType>
 {
-  /// <summary>Evaluates the state and returns true if the state is good enough to be considered a solution to the
-  /// problem.
-  /// </summary>
-  /// <remarks>Search algorithms will explore the state space until they find a state for which this method returns
-  /// true.
-  /// </remarks>
+  /// <summary>Evaluates the state and returns true if the state is good enough to be considered a solution to the problem.</summary>
+  /// <remarks>Search algorithms will explore the state space until they find a state for which this method returns true.</remarks>
   bool IsGoal(StateType state);
 }
 #endregion
@@ -51,19 +51,25 @@ public interface ISearch<StateType, SolutionType>
 
 #region IIterativeSearch
 /// <summary>The base interface for search algorithms that can be performed piecewise.</summary>
-/// <include file="documentation.xml" path="/AI/Search/typeparam[@name='StateType' or @name='SolutionType']"/>
-public interface IIterativeSearch<StateType, SolutionType>
+/// <include file="documentation.xml" path="/AI/Search/typeparam[@name='StateType' or @name='SolutionType' or @name='ContextType']"/>
+public interface IIterativeSearch<StateType, SolutionType, ContextType> where ContextType : IterativeSearchContext<SolutionType>
 {
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/SearchInProgress/*"/>
-  bool SearchInProgress { get; }
   /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch/*"/>
-  SolutionType BeginSearch();
+  ContextType BeginSearch();
   /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch_State/*"/>
-  SolutionType BeginSearch(StateType initialState);
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/EndSearch/*"/>
-  void EndSearch();
+  ContextType BeginSearch(StateType initialState);
   /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/Iterate/*"/>
-  SearchResult Iterate(ref SolutionType solution);
+  SearchResult Iterate(ContextType context);
+}
+#endregion
+
+#region IterativeSearchContext
+/// <summary>Represents the current best solution and the associated context information for an iterative search.</summary>
+/// <include file="documentation.xml" path="/AI/Search/typeparam[@name='SolutionType']"/>
+public abstract class IterativeSearchContext<SolutionType>
+{
+  /// <summary>Gets the current best solution.</summary>
+  public abstract SolutionType Solution { get; }
 }
 #endregion
 
@@ -93,13 +99,41 @@ public struct StateActionPair<StateType, ActionType>
 #endregion
 
 #region SearchBase
-/// <summary>A base class for <see cref="SearchBase{S,A}"/>, to reduce typing by moving non-generic members here.</summary>
+/// <summary>A base class for <see cref="SearchBase{S,A}"/>, containing non-generic members.</summary>
 public abstract class SearchBase
 {
   /// <summary>A value to be used for various methods that take timeouts, maximums, etc., indicating that there should
   /// be no limit.
   /// </summary>
   public const int Infinite = -1;
+
+  /// <summary>Gets or sets the maximum degree of parallelism the search will employ. A value of one specifies that the search
+  /// will not be parallelized at all. Greater values specify that the search may be parallelized. A value of zero specifies that
+  /// the search will try to use the maximum degree of parallelism (i.e. it will attempt to use as many concurrent
+  /// hardware threads as are available). The default value is one.
+  /// </summary>
+  /// <remarks>See the documentation for the <see cref="Tasks"/> class for information about optimizing for parallel code.</remarks>
+  /// <seealso cref="Tasks"/>
+  public int MaxParallelism
+  {
+    get { return _maxParallelism; }
+    set
+    {
+      if(value < 0) throw new ArgumentOutOfRangeException();
+      _maxParallelism = value;
+    }
+  }
+
+  /// <summary>Gets the number of hardware threads that should be used to parallelize a search, given the number of available
+  /// threads and the current value of <see cref="MaxParallelism"/>.
+  /// </summary>
+  protected int GetEffectiveParallelism()
+  {
+    int availableThreads = SystemInformation.GetAvailableCpuThreads();
+    return MaxParallelism == 0 ? availableThreads : Math.Min(MaxParallelism, availableThreads);
+  }
+
+  int _maxParallelism = 1;
 }
 
 /// <summary>The base class for all types of searches defined in this library.</summary>
@@ -146,103 +180,85 @@ public abstract class SearchBase<StateType, SolutionType> : SearchBase, ISearch<
 
 #region IterativeSearchBase
 /// <summary>The base class for seaches that can be performed piecewise.</summary>
-/// <include file="documentation.xml" path="/AI/Search/typeparam[@name='StateType' or @name='SolutionType']"/>
-public abstract class IterativeSearchBase<StateType, SolutionType>
-  : SearchBase<StateType,SolutionType>, IIterativeSearch<StateType, SolutionType>
+/// <include file="documentation.xml" path="/AI/Search/typeparam[@name='StateType' or @name='SolutionType' or @name='ContextType']"/>
+public abstract class IterativeSearchBase<StateType, SolutionType, ContextType>
+  : SearchBase<StateType,SolutionType>, IIterativeSearch<StateType, SolutionType, ContextType>
+  where ContextType : IterativeSearchContext<SolutionType>
 {
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/SearchInProgress/*"/>
-  public abstract bool SearchInProgress { get; }
-
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/EndSearch/*"/>
-  public virtual void EndSearch()
-  {
-    AssertSearchInProgress();
-    ResetSearch();
-  }
-
   /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch/*"/>
-  public abstract SolutionType BeginSearch();
+  public abstract ContextType BeginSearch();
 
   /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch_State/*"/>
-  public abstract SolutionType BeginSearch(StateType initialState);
+  public abstract ContextType BeginSearch(StateType initialState);
 
   /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/Iterate/*"/>
-  public abstract SearchResult Iterate(ref SolutionType solution);
+  public abstract SearchResult Iterate(ContextType context);
 
   /// <include file="documentation.xml" path="/AI/Search/ISearch/Search/*"/>
   public override SearchResult Search(SearchLimiter limiter, out SolutionType solution)
   {
-    StartLimitedSearch(limiter);
-    solution = BeginSearch();
-    return FinishLimitedSearch(ref solution, limiter);
+    return FinishLimitedSearch(limiter, () => BeginSearch(), out solution);
   }
 
   /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/*"/>
   public override SearchResult Search(StateType initialState, SearchLimiter limiter, out SolutionType solution)
   {
-    StartLimitedSearch(limiter);
-    solution = BeginSearch(initialState);
-    return FinishLimitedSearch(ref solution, limiter);
+    return FinishLimitedSearch(limiter, () => BeginSearch(initialState), out solution);
   }
 
-  /// <summary>Throws an exception if a search is not in progress.</summary>
-  protected void AssertSearchInProgress()
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/UseAutomaticParallelism/*"/>
+  protected virtual bool UseAutomaticParallelism
   {
-    if(!SearchInProgress) throw new InvalidOperationException("A search is not currently in progress.");
+    get { return true; }
   }
 
-  /// <summary>Throws an exception if a search cannot be started. (For instance, because one is currently in progress.)</summary>
-  protected void AssertSearchStartable()
-  {
-    if(SearchInProgress)
-    {
-      throw new InvalidOperationException("A search is already in progress. Either abort it by calling EndSearch() "+
-                                          "or finish it by calling Iterate().");
-    }
-  }
-
-  /// <summary>Throws an exception if a search is in progress. This is intended to be called by property setters that
-  /// don't allow a change during a search.
-  /// </summary>
-  protected void DisallowChangeDuringSearch()
-  {
-    if(SearchInProgress)
-    {
-      throw new InvalidOperationException("This property cannot be changed while a search is in progress.");
-    }
-  }
-
-  /// <include file="documentation.xml" path="/AI/Search/IterativeSearchBase/ResetSearch/*"/>
-  protected abstract void ResetSearch();
-
-  /// <summary>Prepares to begin a new potentially-limited search. To be called by a <see cref="Search"/> method before
-  /// <see cref="BeginSearch"/>.
-  /// </summary>
-  protected void StartLimitedSearch(SearchLimiter limiter)
-  {
-    AssertSearchStartable();
-    if(limiter != null) limiter.Start();
-  }
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/SelectBestSolution/*"/>
+  protected abstract SolutionType SelectBestSolution(ContextType[] contexts);
 
   /// <summary>Finishes a potentially-limited search. To be called by a <see cref="Search"/> method after
   /// <see cref="BeginSearch"/>. This method calls <see cref="Iterate"/> repeatedly until the search completes or the
-  /// limit expires (if a limit was given), and then calls <see cref="EndSearch"/> and returns the result.
+  /// limit expires (if a limit was given), and then returns the result.
   /// </summary>
-  protected SearchResult FinishLimitedSearch(ref SolutionType solution, SearchLimiter limiter)
+  SearchResult FinishLimitedSearch(SearchLimiter limiter, Func<ContextType> contextMaker, out SolutionType solution)
   {
-    SearchResult result = SearchResult.Pending;
-    while(result == SearchResult.Pending && (limiter == null || limiter.LimitReached))
+    TaskCancellationEvent foundEvent = new TaskCancellationEvent();
+    int parallelism = UseAutomaticParallelism ? GetEffectiveParallelism() : 1;
+    KeyValuePair<ContextType,SearchResult>[] results = Tasks.Parallelize(task =>
     {
-      result = Iterate(ref solution);
+      ContextType context = contextMaker();
+      SearchResult result = SearchResult.Pending;
+      while(result == SearchResult.Pending && !task.WasCanceled && (limiter == null || limiter.LimitReached))
+      {
+        result = Iterate(context);
+      }
+      if(result == SearchResult.Success) foundEvent.Cancel(); // stop the other threads if we've found a solution
+      return new KeyValuePair<ContextType,SearchResult>(
+        context, result == SearchResult.Pending ? SearchResult.LimitReached : result);
+    }, parallelism, foundEvent);
+
+    // find the best result type
+    SearchResult bestResult = SearchResult.Failed;
+    foreach(var result in results)
+    {
+      if(result.Value != SearchResult.Failed)
+      {
+        bestResult = result.Value;
+        if(bestResult == SearchResult.Success) break;
+      }
     }
-    EndSearch();
-    return result == SearchResult.Pending ? SearchResult.LimitReached : result;
+
+    // find the best solution among those having the best result type
+    solution = SelectBestSolution((from r in results where r.Value == bestResult select r.Key).ToArray());
+    return bestResult;
   }
 }
 #endregion
 
 #region SearchLimiter
 /// <summary>A base for classes that can be used to abort a search if a certain condition is met.</summary>
+/// <remarks>Derived classes must ensure that the <see cref="LimitReached"/> property is safe for use by multiple threads
+/// simultaneously.
+/// </remarks>
 public abstract class SearchLimiter
 {
   /// <include file="documentation.xml" path="/AI/Search/SearchLimiter/LimitReached/*"/>

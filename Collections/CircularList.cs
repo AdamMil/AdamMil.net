@@ -553,6 +553,11 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
   #endregion
 
   #region IQueue<T> Members
+  bool IQueue<T>.IsEmpty
+  {
+    get { return Count == 0; }
+  }
+
   void IQueue<T>.Enqueue(T item)
   {
     Add(item);
@@ -566,6 +571,20 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
   T IQueue<T>.Peek()
   {
     return this[0];
+  }
+
+  bool IQueue<T>.TryDequeue(out T item)
+  {
+    if(Count == 0)
+    {
+      item = default(T);
+      return false;
+    }
+    else
+    {
+      item = RemoveFirst();
+      return true;
+    }
   }
   #endregion
 

@@ -9,31 +9,33 @@ namespace AdamMil.Utilities.Encodings
 /// </summary>
 public sealed class Base64Decoder : BinaryEncoder
 {
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/CanEncodeInPlace/*"/>
   public override bool CanEncodeInPlace
   {
     get { return true; }
   }
 
-  public unsafe override int Encode(byte* srcBytes, int srcCount, byte* destBytes, int destCount, bool flush)
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/EncodePtr/*"/>
+  public unsafe override int Encode(byte* source, int sourceCount, byte* destination, int destinationCount, bool flush)
   {
-    if(srcCount < 0 || destCount < 0) throw new ArgumentOutOfRangeException();
+    if(sourceCount < 0 || destinationCount < 0) throw new ArgumentOutOfRangeException();
 
     // go through the characters, collecting valid ones into a buffer, and processing them whenever we get 4 valid characters
-    byte* originalBytePtr = destBytes;
-    for(byte* end=srcBytes+srcCount; srcBytes != end; srcBytes++)
+    byte* originalBytePtr = destination;
+    for(byte* end=source+sourceCount; source != end; source++)
     {
-      int value = GetBase64Value(*srcBytes);
+      int value = GetBase64Value(*source);
       if(value != -1)
       {
         charBuffer = (charBuffer << 6) | (byte)value;
         if(++bufferChars == 4)
         {
-          if(destCount < 3) throw Exceptions.InsufficientBufferSpace();
-          destBytes[0] = (byte)(charBuffer >> 16);
-          destBytes[1] = (byte)(charBuffer >> 8);
-          destBytes[2] = (byte)charBuffer;
-          destBytes  += 3;
-          destCount  -= 3;
+          if(destinationCount < 3) throw Exceptions.InsufficientBufferSpace();
+          destination[0] = (byte)(charBuffer >> 16);
+          destination[1] = (byte)(charBuffer >> 8);
+          destination[2] = (byte)charBuffer;
+          destination      += 3;
+          destinationCount -= 3;
           bufferChars = 0;
         }
       }
@@ -44,41 +46,44 @@ public sealed class Base64Decoder : BinaryEncoder
     {
       if(bufferChars == 2) // there is 1 data byte in 2 buffer bytes (012345 67xxxx -> xxxx0123 4567xxxx)
       {
-        if(destCount == 0) throw Exceptions.InsufficientBufferSpace();
-        *destBytes++ = (byte)(charBuffer >> 4);
+        if(destinationCount == 0) throw Exceptions.InsufficientBufferSpace();
+        *destination++ = (byte)(charBuffer >> 4);
       }
       else if(bufferChars == 3) // there are 2 data bytes in 3 buffer bytes (012345 670123 4567xx -> 01 23456701 234567xx)
       {
-        if(destCount < 2) throw Exceptions.InsufficientBufferSpace();
-        destBytes[0] = (byte)(charBuffer >> 10);
-        destBytes[1] = (byte)(charBuffer >> 2);
-        destBytes += 2;
+        if(destinationCount < 2) throw Exceptions.InsufficientBufferSpace();
+        destination[0] = (byte)(charBuffer >> 10);
+        destination[1] = (byte)(charBuffer >> 2);
+        destination += 2;
       }
 
       bufferChars = 0;
     }
 
-    return (int)(destBytes - originalBytePtr);
+    return (int)(destination - originalBytePtr);
   }
 
-  public unsafe override int Encode(byte[] srcBytes, int srcIndex, int srcCount, byte[] destBytes, int destIndex, bool flush)
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Encode/*"/>
+  public unsafe override int Encode(byte[] source, int sourceIndex, int sourceCount, byte[] destination, int destinationIndex,
+                                    bool flush)
   {
-    Utility.ValidateRange(srcBytes, srcIndex, srcCount);
-    if(destBytes == null) throw new ArgumentNullException();
-    if(destIndex < 0 || destIndex > destBytes.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(source, sourceIndex, sourceCount);
+    if(destination == null) throw new ArgumentNullException();
+    if(destinationIndex < 0 || destinationIndex > destination.Length) throw new ArgumentOutOfRangeException();
 
-    fixed(byte* srcPtr=srcBytes)
-    fixed(byte* destPtr=destBytes)
+    fixed(byte* srcPtr=source)
+    fixed(byte* destPtr=destination)
     {
-      return Encode(srcPtr+srcIndex, srcCount, destPtr+destIndex, destBytes.Length-destIndex, flush);
+      return Encode(srcPtr+sourceIndex, sourceCount, destPtr+destinationIndex, destination.Length-destinationIndex, flush);
     }
   }
 
-  public unsafe override int GetByteCount(byte* bytes, int count, bool simulateFlush)
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCountPtr/*"/>
+  public unsafe override int GetByteCount(byte* data, int count, bool simulateFlush)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
 
-    int validCharCount = bufferChars + CountValidChars(bytes, count), byteCount = validCharCount / 4 * 3;
+    int validCharCount = bufferChars + CountValidChars(data, count), byteCount = validCharCount / 4 * 3;
     if(simulateFlush)
     {
       validCharCount &= 3; // get the number of remainder characters
@@ -88,18 +93,21 @@ public sealed class Base64Decoder : BinaryEncoder
     return byteCount;
   }
 
-  public unsafe override int GetByteCount(byte[] bytes, int index, int count, bool simulateFlush)
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCount/*"/>
+  public unsafe override int GetByteCount(byte[] data, int index, int count, bool simulateFlush)
   {
-    Utility.ValidateRange(bytes, index, count);
-    fixed(byte* bytePtr=bytes) return GetByteCount(bytePtr+index, count, simulateFlush);
+    Utility.ValidateRange(data, index, count);
+    fixed(byte* bytePtr=data) return GetByteCount(bytePtr+index, count, simulateFlush);
   }
 
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetMaxBytes/*"/>
   public override int GetMaxBytes(int unencodedByteCount)
   {
     int wholeChunks = unencodedByteCount/4, leftOver = unencodedByteCount&3;
     return wholeChunks*3 + (leftOver == 3 ? 2 : leftOver == 2 ? 1 : 0);
   }
 
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Reset/*"/>
   public override void Reset()
   {
     bufferChars = 0;
@@ -148,98 +156,105 @@ public sealed class Base64Encoder : BinaryEncoder
     this.wrapLinesAt = charactersPerLine;
   }
 
-  public unsafe override int Encode(byte* srcBytes, int srcCount, byte* destBytes, int destCount, bool flush)
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/EncodePtr/*"/>
+  public unsafe override int Encode(byte* source, int sourceCount, byte* destination, int destinationCount, bool flush)
   {
-    if(destCount < GetByteCount(srcCount, flush)) throw new ArgumentOutOfRangeException();
+    if(destinationCount < GetByteCount(sourceCount, flush)) throw new ArgumentOutOfRangeException();
 
     // if there's something in the buffer already, try to pad it out to 3 bytes and encode that
-    byte* originalDestPtr = destBytes;
+    byte* originalDestPtr = destination;
     int read;
     if(byteBuffer.Count != 0)
     {
-      read = Math.Min(3-byteBuffer.Count, srcCount);
-      byteBuffer.AddRange(srcBytes, read);
-      srcBytes += read;
-      srcCount -= read;
+      read = Math.Min(3-byteBuffer.Count, sourceCount);
+      byteBuffer.AddRange(source, read);
+      source      += read;
+      sourceCount -= read;
       if(byteBuffer.Count == 3)
       {
-        fixed(byte* bytePtr=byteBuffer.Buffer) Encode(bytePtr+byteBuffer.Offset, byteBuffer.Count, ref destBytes);
+        fixed(byte* bytePtr=byteBuffer.Buffer) Encode(bytePtr+byteBuffer.Offset, byteBuffer.Count, ref destination);
         byteBuffer.Clear();
       }
     }
 
     // then encode the bulk of the array
-    read = Encode(srcBytes, srcCount, ref destBytes);
-    srcBytes += read;
-    srcCount -= read;
+    read = Encode(source, sourceCount, ref destination);
+    source      += read;
+    sourceCount -= read;
 
     // put the remaining data into the buffer
-    byteBuffer.AddRange(srcBytes, srcCount);
+    byteBuffer.AddRange(source, sourceCount);
 
     if(flush) // if we're flushing the last bytes
     {
       if(byteBuffer.Count != 0) // if we have one or two bytes remaining...
       {
-        if(destCount < 4) throw Exceptions.InsufficientBufferSpace();
+        if(destinationCount < 4) throw Exceptions.InsufficientBufferSpace();
         if(byteBuffer.Count == 1)
         {
           int value = byteBuffer[0]; // 00000011
-          AddChar(ref destBytes, base64[value >> 2]);
-          AddChar(ref destBytes, base64[(value & 3) << 4]);
-          AddChar(ref destBytes, (byte)'=');
+          AddChar(ref destination, base64[value >> 2]);
+          AddChar(ref destination, base64[(value & 3) << 4]);
+          AddChar(ref destination, (byte)'=');
         }
         else
         {
           int value = (byteBuffer[0] << 8) | byteBuffer[1]; // 00000011 11110000
-          AddChar(ref destBytes, base64[value >> 10]);
-          AddChar(ref destBytes, base64[(value >> 4) & 0x3F]);
-          AddChar(ref destBytes, base64[(value & 0xF) << 2]);
+          AddChar(ref destination, base64[value >> 10]);
+          AddChar(ref destination, base64[(value >> 4) & 0x3F]);
+          AddChar(ref destination, base64[(value & 0xF) << 2]);
         }
-        AddChar(ref destBytes, (byte)'=');
+        AddChar(ref destination, (byte)'=');
         byteBuffer.Clear();
       }
 
       if(wrapLinesAt != 0 && linePosition != 0) // if we're supposed to wrap lines and we've started one, add a final newline
       {
-        destBytes[0] = (byte)'\r';
-        destBytes[1] = (byte)'\n';
-        destBytes += 2;
+        destination[0] = (byte)'\r';
+        destination[1] = (byte)'\n';
+        destination += 2;
         linePosition = 0;
       }
     }
 
-    return (int)(destBytes - originalDestPtr);
+    return (int)(destination - originalDestPtr);
   }
 
-  public unsafe override int Encode(byte[] srcBytes, int srcIndex, int srcCount, byte[] destBytes, int destIndex, bool flush)
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Encode/*"/>
+  public unsafe override int Encode(byte[] source, int sourceIndex, int sourceCount, byte[] destination, int destinationIndex,
+                                    bool flush)
   {
-    Utility.ValidateRange(srcBytes, srcIndex, srcCount);
-    if(destBytes == null) throw new ArgumentNullException();
-    if(destIndex < 0 || destIndex > destBytes.Length) throw new ArgumentOutOfRangeException();
-    fixed(byte* srcPtr=srcBytes)
-    fixed(byte* destPtr=destBytes)
+    Utility.ValidateRange(source, sourceIndex, sourceCount);
+    if(destination == null) throw new ArgumentNullException();
+    if(destinationIndex < 0 || destinationIndex > destination.Length) throw new ArgumentOutOfRangeException();
+    fixed(byte* srcPtr=source)
+    fixed(byte* destPtr=destination)
     {
-      return Encode(srcPtr+srcIndex, srcCount, destPtr+destIndex, destBytes.Length-destIndex, flush);
+      return Encode(srcPtr+sourceIndex, sourceCount, destPtr+destinationIndex, destination.Length-destinationIndex, flush);
     }
   }
 
-  public unsafe override int GetByteCount(byte* bytes, int count, bool simulateFlush)
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCountPtr/*"/>
+  public unsafe override int GetByteCount(byte* data, int count, bool simulateFlush)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
     return GetByteCount(count, simulateFlush);
   }
 
-  public unsafe override int GetByteCount(byte[] bytes, int index, int count, bool simulateFlush)
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCount/*"/>
+  public unsafe override int GetByteCount(byte[] data, int index, int count, bool simulateFlush)
   {
-    Utility.ValidateRange(bytes, index, count);
+    Utility.ValidateRange(data, index, count);
     return GetByteCount(count, simulateFlush);
   }
 
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetMaxBytes/*"/>
   public override int GetMaxBytes(int unencodedByteCount)
   {
     return (unencodedByteCount+2)/3*4;
   }
 
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Reset/*"/>
   public override void Reset()
   {
     byteBuffer.Clear();
@@ -321,25 +336,30 @@ public sealed class Base64Encoding : EncoderDecoderBinaryEncoding
 #endregion
 
 #region Base64TextEncoding
-/// <summary>Implements an <see cref="Encoding"/> that will "encode" (actually decode) base64 text into its original binary data,
-/// and "decode" (actually encode) binary data into a base64 representation. The terms are reversed because the purpose of an
-/// <see cref="Encoder"/> is to encode text into binary, but in this case, the textual representation is the encoded one. This
-/// class may be used with a <see cref="StreamReader"/> or <see cref="StreamWriter"/>, for instance, to provide efficient base64
-/// encoding or decoding, respectively.
-/// <para>Note that if you need to encode or decode data in chunks, you should use the <see cref="Decoder"/> or
-/// <see cref="Encoder"/> returned from <see cref="Encoding.GetDecoder()"/> or <see cref="Encoding.GetEncoder"/>, because
-/// <see cref="Encoding"/> is not capable of handling data in chunks.
+/// <summary>Implements an <see cref="System.Text.Encoding"/> that will "encode" (actually decode) base64 text into its original
+/// binary data, and "decode" (actually encode) binary data into a base64 representation. The terms are reversed because the
+/// purpose of an <see cref="System.Text.Encoder"/> is to encode text into binary, but in this case, the textual representation
+/// is the encoded one. This class may be used with a <see cref="System.IO.StreamReader"/> or
+/// <see cref="System.IO.StreamWriter"/>, for instance, to provide efficient base64 encoding or decoding, respectively.
+///
+/// <para>Note that if you need to encode or decode data in chunks, you should use the <see cref="System.Text.Decoder"/> or
+/// <see cref="System.Text.Encoder"/> returned from <see cref="System.Text.Encoding.GetDecoder()"/> or
+/// <see cref="System.Text.Encoding.GetEncoder"/>, because <see cref="System.Text.Encoding"/> is not capable of handling data in
+/// chunks.
 /// </para>
 /// </summary>
 public sealed class Base64TextEncoding : EightBitEncoding
 {
+  /// <summary>Initializes a new <see cref="Base64TextEncoding"/> that does not perform line wrapping.</summary>
   public Base64TextEncoding() : base(new Base64Decoder(), new Base64Encoder()) { }
 
+  /// <summary>Gets the name of the encoding. This implementation returns "base64".</summary>
   public override string EncodingName
   {
     get { return "base64"; }
   }
 
+  /// <summary>Gets the default instance of <see cref="Base64TextEncoding"/>, which does not perform line wrapping.</summary>
   public static readonly Base64TextEncoding Instance = new Base64TextEncoding();
 }
 #endregion

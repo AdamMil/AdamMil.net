@@ -24,6 +24,27 @@ using System.Collections.Generic;
 namespace AdamMil.Collections
 {
 
+#region DelegateComparer
+/// <summary>Provides an implementation of <see cref="IComparer{T}"/> that compares items using a <see cref="Comparison{T}"/>.</summary>
+public sealed class DelegateComparer<T> : IComparer<T>
+{
+  /// <summary>Initializes a new <see cref="DelegateComparer{T}"/> with the given <see cref="Comparison{T}"/>.</summary>
+  public DelegateComparer(Comparison<T> comparer)
+  {
+    if(comparer == null) throw new ArgumentNullException();
+    this.comparer = comparer;
+  }
+
+  /// <summary>Compares two items.</summary>
+  public int Compare(T x, T y)
+  {
+    return comparer(x, y);
+  }
+
+  readonly Comparison<T> comparer;
+}
+#endregion
+
 #region ReadOnlyCollectionWrapperBase
 /// <summary>Provides a base class for read-only collection wrappers.</summary>
 public abstract class ReadOnlyCollectionWrapperBase

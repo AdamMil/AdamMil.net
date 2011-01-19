@@ -905,25 +905,29 @@ public class TemporaryFileStream : FileStream
   /// <summary>Initializes a new temporary file with a random name, copies the content from <paramref name="initialContent"/> (if
   /// it's not null), and then rewinds the temporary file stream back to the beginning.
   /// </summary>
-  public TemporaryFileStream(Stream initialContent) : this(Path.GetTempFileName(), initialContent) { }
+  public TemporaryFileStream(Stream initialContent) : this(Path.GetTempFileName(), initialContent, true) { }
 
-  /// <summary>Initializes a new, empty temporary file with the given name.</summary>
-  public TemporaryFileStream(string tempFileName) : this(tempFileName, null) { }
+  /// <summary>Opens or creates a new temporary file with the given name.</summary>
+  public TemporaryFileStream(string tempFilePath)
+    : base(tempFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None)
+  {
+    this.tempFilePath = tempFilePath;
+  }
 
   /// <summary>Initializes a new temporary file with the given name, copies the content from
   /// <paramref name="initialContent"/> (if it's not null), and then rewinds the temporary file stream back to the beginning.
   /// </summary>
-  public TemporaryFileStream(string tempFileName, Stream initialContent) : this(tempFileName, initialContent, true) { }
+  public TemporaryFileStream(string tempFilePath, Stream initialContent) : this(tempFilePath, initialContent, true) { }
 
   /// <summary>Initializes a new, empty temporary file with the given name and copies the content from
   /// <paramref name="initialContent"/> (if it's not null). If <paramref name="rewindAfterCopy"/> is true, the stream will be
   /// rewound back to the beginning after copying the content from <paramref name="initialContent"/>. Otherwise, it will be left
   /// at the end.
   /// </summary>
-  public TemporaryFileStream(string tempFileName, Stream initialContent, bool rewindAfterCopy)
-    : base(tempFileName, FileMode.Create, FileAccess.ReadWrite, FileShare.None)
+  public TemporaryFileStream(string tempFilePath, Stream initialContent, bool rewindAfterCopy)
+    : base(tempFilePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None)
   {
-    this.tempFileName = tempFileName;
+    this.tempFilePath = tempFilePath;
 
     if(initialContent != null)
     {
@@ -935,16 +939,16 @@ public class TemporaryFileStream : FileStream
   protected override void Dispose(bool disposing)
   {
     base.Dispose(disposing);
-    File.Delete(tempFileName);
+    File.Delete(tempFilePath);
   }
 
-  readonly string tempFileName;
+  readonly string tempFilePath;
 }
 #endregion
 
 #region TextStream
 /// <summary>Performs the reverse operation of a <see cref="StreamReader"/>. That is, it converts a source of text back into a
-/// stream of bytes. It is not supported for the text source to become shorter during the operation of the
+/// stream of bytes. It is not supported for the text source to become shorter during the lifetime of the
 /// <see cref="TextStream"/>, although it may become longer. A <see cref="TextStream"/> is similar to a
 /// <see cref="StreamWriter"/>, but also supports the use of <see cref="Encoder"/> objects (in addition to <see cref="Encoding"/>
 /// objects) and doesn't require a temporary stream for storage of the data. The <see cref="TextStream"/> is capable of reading

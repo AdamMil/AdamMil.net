@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using AdamMil.Mathematics.Combinatorics;
+using AdamMil.Mathematics.Random;
+using AdamMil.Utilities;
+using System.Threading;
 
 namespace AdamMil.AI.Search.Local
 {
@@ -27,10 +30,10 @@ public interface ILocallySearchable<StateType> : ISearchable<StateType>
   /// <remarks>This method should return states that are close to the goal if possible, but random enough such that
   /// the set of possible returned states covers all of the valuable parts of the search space.
   /// </remarks>
-  StateValuePair<StateType> GetRandomState(Random random);
+  StateValuePair<StateType> GetRandomState(RandomNumberGenerator random);
 
   /// <summary>Gets a random successor of the given state, using the given random number generator.</summary>
-  StateValuePair<StateType> GetRandomSuccessor(Random random, StateValuePair<StateType> state);
+  StateValuePair<StateType> GetRandomSuccessor(RandomNumberGenerator random, StateValuePair<StateType> state);
 }
 #endregion
 
@@ -39,8 +42,8 @@ public interface ILocallySearchable<StateType> : ISearchable<StateType>
 public interface IClimbingSearchable<StateType> : ILocallySearchable<StateType>
 {
   /// <summary>Gets the successors of a given state along with their fitness values.</summary>
-  /// <remarks>The successors of a state should not change between calls to this method. That is, this method should
-  /// not employ randomness to generate the successors.
+  /// <remarks>The successors of a state should not change between calls to this method. That is, given a state, the same
+  /// successors should always be returned.
   /// </remarks>
   IEnumerable<StateValuePair<StateType>> GetSuccessors(StateValuePair<StateType> state);
 }
@@ -58,13 +61,13 @@ public interface IGeneticallySearchable<StateType> : ILocallySearchable<StateTyp
   /// <remarks>The crossover operation should create a new state from the two states given by combining portions of
   /// both parent states to create the new state.
   /// </remarks>
-  StateValuePair<StateType> Crossover(Random random, StateValuePair<StateType> a, StateValuePair<StateType> b);
+  StateValuePair<StateType> Crossover(RandomNumberGenerator random, StateValuePair<StateType> a, StateValuePair<StateType> b);
 
   /// <summary>Randomly mutates a state and a new state containing the result.</summary>
   /// <param name="random">The random number generator to be used in the process.</param>
   /// <param name="state">The state to be mutated.</param>
   /// <returns>Returns a new state that is similar to the given state, but with a small, random difference.</returns>
-  StateValuePair<StateType> Mutate(Random random, StateValuePair<StateType> state);
+  StateValuePair<StateType> Mutate(RandomNumberGenerator random, StateValuePair<StateType> state);
 }
 #endregion
 #endregion
@@ -104,7 +107,7 @@ public struct StateValuePair<StateType>
 /// from the start state to the goal state. Because of this, local search algorithms typically use only a constant
 /// amount of memory and behave semi-randomly. So depending on the type of local search employed, it may be necessary
 /// to run the search several times, possibly propogating the best solution found from each run to the next. The
-/// <see cref="IIterativeSearch{T,S}.Iterate"/> method of a local search algorithm will update the solution to the best
+/// <see cref="IIterativeSearch{T,S,C}.Iterate"/> method of a local search algorithm will update the solution to the best
 /// known state on each call, and the solution will be valid even if it is not a goal state, or optimal.
 /// </para>
 /// <para>
@@ -115,7 +118,8 @@ public struct StateValuePair<StateType>
 /// doesn't matter.
 /// </para>
 /// </remarks>
-public interface ILocalSearch<StateType> : IIterativeSearch<StateType,StateValuePair<StateType>>
+public interface ILocalSearch<StateType, ContextType> : IIterativeSearch<StateType,StateValuePair<StateType>, ContextType>
+  where ContextType : IterativeSearchContext<StateValuePair<StateType>>
 {
 }
 #endregion
@@ -123,57 +127,35 @@ public interface ILocalSearch<StateType> : IIterativeSearch<StateType,StateValue
 #region LocalSearchBase
 /// <summary>A base class for most of the local searches implemented in this library.</summary>
 /// <typeparam name="ProblemType">The type of problem interface expected by the derived class.</typeparam>
-/// <include file="documentation.xml" path="/AI/Search/typeparam[@name='StateType']"/>
-public abstract class LocalSearchBase<StateType, ProblemType>
-  : IterativeSearchBase<StateType,StateValuePair<StateType>>, ILocalSearch<StateType>
+/// <include file="documentation.xml" path="/AI/Search/typeparam[@name='StateType' or @name='ContextType']"/>
+public abstract class LocalSearchBase<StateType, ProblemType, ContextType>
+  : IterativeSearchBase<StateType,StateValuePair<StateType>,ContextType>, ILocalSearch<StateType, ContextType>
     where ProblemType : ILocallySearchable<StateType>
+    where ContextType : LocalSearchBase<StateType, ProblemType, ContextType>.LocalSearchContextBase
 {
-  /// <summary>Initializes the <see cref="LocalSearchBase{S,P}"/> with the given problem instance.</summary>
+  /// <summary>Initializes a new <see cref="LocalSearchBase{S,P,C}"/> with the given problem instance.</summary>
   protected LocalSearchBase(ProblemType problem)
   {
     if(problem == null) throw new ArgumentNullException("problem");
     this.problem = problem;
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch/*"/>
-  public override StateValuePair<StateType> BeginSearch()
+  #region LocalSearchContextBase
+  /// <summary>Provides a base class for local search context classes.</summary>
+  public abstract class LocalSearchContextBase : IterativeSearchContext<StateValuePair<StateType>>
   {
-    PrepareToStartSearch();
-    return BeginSearch(Problem.GetRandomState(Random));
-  }
+    /// <summary>Initializes a new <see cref="LocalSearchContextBase"/> with the <see cref="RandomNumberGenerator"/> to be used
+    /// during the search.
+    /// </summary>
+    protected LocalSearchContextBase(RandomNumberGenerator random)
+    {
+      Random = random;
+    }
 
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch_State/*"/>
-  public sealed override StateValuePair<StateType> BeginSearch(StateType initialState)
-  {
-    return BeginSearch(new StateValuePair<StateType>(initialState, Problem.EvaluateState(initialState)));
+    /// <summary>Gets the <see cref="RandomNumberGenerator"/> that the context was initialized with.</summary>
+    public RandomNumberGenerator Random { get; private set; }
   }
-
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch_State/*"/>
-  public abstract StateValuePair<StateType> BeginSearch(StateValuePair<StateType> initialState);
-
-  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search/*"/>
-  public override SearchResult Search(SearchLimiter limiter, out StateValuePair<StateType> solution)
-  {
-    PrepareToStartSearch();
-    solution = Problem.GetRandomState(Random);
-    return Search(ref solution, limiter);
-  }
-
-  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/*"/>
-  public sealed override SearchResult Search(StateType initialState, SearchLimiter limiter,
-                                             out StateValuePair<StateType> solution)
-  {
-    solution = new StateValuePair<StateType>(initialState, Problem.EvaluateState(initialState));
-    return Search(ref solution, limiter);
-  }
-
-  /// <include file="documentation.xml" path="/AI/Search/LocalSearchBase/Search/*"/>
-  public SearchResult Search(ref StateValuePair<StateType> initialSolution, SearchLimiter limiter)
-  {
-    StartLimitedSearch(limiter);
-    initialSolution = BeginSearch(initialSolution);
-    return FinishLimitedSearch(ref initialSolution, limiter);
-  }
+  #endregion
 
   /// <summary>Gets the problem instance used to construct this search.</summary>
   protected ProblemType Problem
@@ -181,43 +163,35 @@ public abstract class LocalSearchBase<StateType, ProblemType>
     get { return problem; }
   }
 
-  /// <summary>Gets the random number generator to be used during the current search. This property is only
-  /// valid during a search. Specifically, it is initialized by <see cref="PrepareToStartSearch"/>.
-  /// </summary>
-  protected Random Random
-  {
-    get { return random; }
-  }
-
   /// <summary>Returns a new random number generator. This method can be overridden to return a random number generator
-  /// with a fixed seed, allowing searches to be replayed exactly.
+  /// with different characteristics or a fixed seed.
   /// </summary>
-  protected virtual Random CreateRandom()
+  protected virtual RandomNumberGenerator CreateRandom()
   {
-    return new Random();
+    return RandomNumberGenerator.CreateDefault();
   }
 
-  /// <summary>Checks that a search is startable, and if so, initializes necessary variables, like
-  /// <see cref="Random"/>. This may be called multiple times, in which case, later calls should return without doing
-  /// anything.
-  /// </summary>
-  protected virtual void PrepareToStartSearch()
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/SelectBestSolution/*"/>
+  protected override StateValuePair<StateType> SelectBestSolution(ContextType[] contexts)
   {
-    if(random == null) // if a search has not been prepared...
+    if(contexts == null) throw new ArgumentNullException();
+    if(contexts.Length == 0) throw new ArgumentException();
+
+    ContextType bestContext = contexts[0];
+    float bestValue = bestContext.Solution.Value;
+    for(int i=1; i<contexts.Length; i++)
     {
-      AssertSearchStartable(); // ensure that we're in a position to start a new search
-      random = CreateRandom(); // then prepare to start it
+      float value = contexts[i].Solution.Value;
+      if(value > bestValue)
+      {
+        bestValue   = value;
+        bestContext = contexts[i];
+      }
     }
-  }
-
-  /// <include file="documentation.xml" path="/AI/Search/IterativeSearchBase/ResetSearch/*"/>
-  protected override void ResetSearch()
-  {
-    random = null;
+    return bestContext.Solution;
   }
 
   readonly ProblemType problem;
-  Random random;
 }
 #endregion
 
@@ -225,10 +199,12 @@ public abstract class LocalSearchBase<StateType, ProblemType>
 /// <summary>A base class for local search algorithms based on or similar to hill-climbing, such as hill climbing
 /// itself, local beam search, simulated annealing, etc.
 /// </summary>
-/// <include file="documentation.xml" path="/AI/Search/typeparam[@name='StateType']"/>
-public abstract class ClimbingSearchBase<StateType> : LocalSearchBase<StateType, IClimbingSearchable<StateType>>
+/// <include file="documentation.xml" path="/AI/Search/typeparam[@name='StateType' or @name='ContextType']"/>
+public abstract class ClimbingSearchBase<StateType,ContextType>
+  : LocalSearchBase<StateType, IClimbingSearchable<StateType>, ContextType>
+    where ContextType : LocalSearchBase<StateType, IClimbingSearchable<StateType>, ContextType>.LocalSearchContextBase
 {
-  /// <summary>Initializes the <see cref="ClimbingSearchBase{S}"/> with a problem instance.</summary>
+  /// <summary>Initializes the <see cref="ClimbingSearchBase{S,C}"/> with a problem instance.</summary>
   protected ClimbingSearchBase(IClimbingSearchable<StateType> problem) : base(problem) { }
 }
 #endregion
@@ -250,7 +226,8 @@ public abstract class ClimbingSearchBase<StateType> : LocalSearchBase<StateType,
 /// </para>
 /// </remarks>
 /// <include file="documentation.xml" path="/AI/Search/typeparam[@name='StateType']"/>
-public class GeneticAlgorithmSearch<StateType> : LocalSearchBase<StateType, IGeneticallySearchable<StateType>>
+public class GeneticAlgorithmSearch<StateType>
+  : LocalSearchBase<StateType, IGeneticallySearchable<StateType>, GeneticAlgorithmSearch<StateType>.Context>
 {
   /// <summary>Initializes the <see cref="GeneticAlgorithmSearch{S}"/> with the given population size, a 90% chance
   /// of crossover, a 0.5% chance of regeneration, and a 2% chance of mutation.
@@ -275,6 +252,26 @@ public class GeneticAlgorithmSearch<StateType> : LocalSearchBase<StateType, IGen
     MutationChance     = mutationChance;
   }
 
+  #region Context
+  /// <summary>Contains the context for a genetic algorithm search.</summary>
+  public sealed class Context : LocalSearchContextBase
+  {
+    internal Context(RandomNumberGenerator random, int populationSize) : base(random)
+    {
+      population = new StateValuePair<StateType>[populationSize];
+    }
+
+    /// <summary>Gets the solution from the current best member of the population.</summary>
+    public override StateValuePair<StateType> Solution
+    {
+      get { return population[bestMember]; }
+    }
+
+    internal StateValuePair<StateType>[] population;
+    internal int bestMember;
+  }
+  #endregion
+
   /// <summary>Gets or sets the chance of a member of a new generation being generated via crossover.</summary>
   /// <remarks>This property represents the chance of a new member of a generation being calculated by combining two
   /// members of the previous generation, as a probability from 0 to 1. This chance should be high, between 0.75 and
@@ -282,11 +279,11 @@ public class GeneticAlgorithmSearch<StateType> : LocalSearchBase<StateType, IGen
   /// </remarks>
   public double CrossoverChance
   {
-    get { return crossoverChance; }
+    get { return _crossoverChance; }
     set
     {
       if(value < 0 || value > 1) throw new ArgumentOutOfRangeException("CrossoverChance");
-      crossoverChance = value;
+      _crossoverChance = value;
       AdjustRegenChance(); // changing the crossover chance affects the regeneration chance
     }
   }
@@ -299,23 +296,22 @@ public class GeneticAlgorithmSearch<StateType> : LocalSearchBase<StateType, IGen
   /// </remarks>
   public double MutationChance
   {
-    get { return mutationChance; }
+    get { return _mutationChance; }
     set
     {
       if(value < 0 || value > 1) throw new ArgumentOutOfRangeException("MutationChance");
-      mutationChance = value;
+      _mutationChance = value;
     }
   }
 
-  /// <summary>Gets or sets the number of members in the population.</summary>
+  /// <summary>Gets or sets the number of members in the population. Changing this property will not affect searches in progress.</summary>
   public int PopulationSize
   {
-    get { return populationSize; }
+    get { return _populationSize; }
     set
     {
       if(value < 2) throw new ArgumentOutOfRangeException("PopulationSize", "Population size must be at least 2.");
-      DisallowChangeDuringSearch();
-      populationSize = value;
+      _populationSize = value;
     }
   }
 
@@ -330,28 +326,21 @@ public class GeneticAlgorithmSearch<StateType> : LocalSearchBase<StateType, IGen
   /// </remarks>
   public double RegenerationChance
   {
-    get { return regenerationChance; }
+    get { return _regenerationChance; }
     set
     {
       if(value < 0 || value > 1) throw new ArgumentOutOfRangeException("RegenerationChance");
-      regenerationChance = value;
+      _regenerationChance = value;
       AdjustRegenChance();
     }
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/SearchInProgress/*"/>
-  public override bool SearchInProgress
-  {
-    get { return population != null; }
-  }
-
   /// <summary>Begins a new search with a completely random initial population.</summary>
-  /// <returns>Returns the best member of the initial population.</returns>
-  public override StateValuePair<StateType> BeginSearch()
+  public override Context BeginSearch()
   {
-    PrepareToStartSearch();
-    MakeInitialPopulation();
-    return population[bestMember];
+    Context context = new Context(CreateRandom(), PopulationSize);
+    MakeInitialPopulation(context);
+    return context;
   }
 
   /// <summary>Begins a new search with an initial population related to the given initial state.</summary>
@@ -360,86 +349,98 @@ public class GeneticAlgorithmSearch<StateType> : LocalSearchBase<StateType, IGen
   /// implements <see cref="IClimbingSearchable{S}"/>) and a number of its random mutations. The rest of the population
   /// will be filled out randomly.
   /// </remarks>
-  public override StateValuePair<StateType> BeginSearch(StateValuePair<StateType> initialState)
+  public override Context BeginSearch(StateType initialState)
   {
-    PrepareToStartSearch();
-    MakeInitialPopulation(initialState);
-    return population[bestMember];
+    Context context = new Context(CreateRandom(), PopulationSize);
+    MakeInitialPopulation(context, new StateValuePair<StateType>(initialState, Problem.EvaluateState(initialState)));
+    return context;
   }
 
   /// <summary>Iterates the genetic algorithm search. Each iteration corresponds to one generation of the population.</summary>
-  public override SearchResult Iterate(ref StateValuePair<StateType> solution)
+  public override SearchResult Iterate(Context context)
   {
+    if(context == null) throw new ArgumentNullException();
+
     // otherwise, generate a new population and calculate the new best solution
-    StateValuePair<StateType>[] newPopulation = new StateValuePair<StateType>[populationSize];
+    StateValuePair<StateType>[] newPopulation = new StateValuePair<StateType>[context.population.Length];
 
     // ensure that the current best member is propogated to the next generation unchanged
-    newPopulation[0] = population[bestMember];
-    bestMember = 0;
+    newPopulation[0]   = context.population[context.bestMember];
+    context.bestMember = 0;
 
-    float[] populationWeights = CalculatePopulationWeights();
-    for(int index=1; index<populationSize; index++)
+    float[] populationWeights = CalculatePopulationWeights(context);
+    int parallelism = GetEffectiveParallelism();
+    bool parallelized = parallelism > 1;
+    Tasks.ParallelFor(1, context.population.Length, info => info.ThreadNumber == 0 ? context.Random : CreateRandom(),
+                      (index,random,info) =>
     {
       bool tryMutation = true; // whether the new member has a chance of undergoing mutation
-      if(Random.NextDouble() < crossoverChance) // if crossover is to be used, do the reproduction
+      if(random.NextDouble() < CrossoverChance) // if crossover is to be used, do the reproduction
       {
-        int a = SelectRandomMember(populationWeights), b = SelectRandomMember(populationWeights);
-        newPopulation[index] = Problem.Crossover(Random, population[a], population[b]);
+        int a = SelectRandomMember(populationWeights, random), b = SelectRandomMember(populationWeights, random);
+        newPopulation[index] = Problem.Crossover(random, context.population[a], context.population[b]);
       }
-      else if(Random.NextDouble() < adjustedRegenChance) // if not, see if the member is to be regenerated randomly
+      else if(random.NextDouble() < adjustedRegenChance) // if not, see if the member is to be regenerated randomly
       {
-        newPopulation[index] = Problem.GetRandomState(Random);
+        newPopulation[index] = Problem.GetRandomState(random);
         tryMutation = false; // we shouldn't mutate members that are already completely random
       }
       else // otherwise, just copy a member from the previous generation
       {
-        newPopulation[index] = population[SelectRandomMember(populationWeights)];
+        newPopulation[index] = context.population[SelectRandomMember(populationWeights, random)];
       }
 
       // potentially apply a random mutation
-      if(tryMutation && Random.NextDouble() < mutationChance)
+      if(tryMutation && random.NextDouble() < MutationChance)
       {
-        newPopulation[index] = Problem.Mutate(Random, newPopulation[index]);
+        newPopulation[index] = Problem.Mutate(random, newPopulation[index]);
       }
 
       // update 'bestMember' as necessary
-      if(newPopulation[index].Value > newPopulation[bestMember].Value) bestMember = index;
-    }
+      if(parallelized) Monitor.Enter(context);
+      try
+      {
+        if(newPopulation[index].Value > newPopulation[context.bestMember].Value) context.bestMember = index;
+      }
+      finally
+      {
+        if(parallelized) Monitor.Exit(context);
+      }
+    }, parallelism);
 
-    population = newPopulation; // switch to the new population
-    solution   = population[bestMember]; // assign the best member so far to the solution
+    context.population = newPopulation; // switch to the new population
     // if the current best member is good enough, return success
-    return Problem.IsGoal(solution.State) ? SearchResult.Success : SearchResult.Pending;
+    return Problem.IsGoal(context.Solution.State) ? SearchResult.Success : SearchResult.Pending;
   }
 
-  /// <summary>Given an index from zero to <see cref="PopulationSize"/>-1, returns that member of the population.</summary>
-  public StateValuePair<StateType> GetMember(int index)
+  /// <summary>Returns a member of a search's current population.</summary>
+  public StateValuePair<StateType> GetMember(Context context, int index)
   {
-    if(index < 0 || index >= populationSize) throw new ArgumentOutOfRangeException();
-    AssertSearchInProgress();
-    return population[index];
+    if(context == null) throw new ArgumentNullException();
+    if(index < 0 || index >= context.population.Length) throw new ArgumentOutOfRangeException();
+    return context.population[index];
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search/*"/>
-  public override SearchResult Search(SearchLimiter limiter, out StateValuePair<StateType> solution)
+  /// <summary>Gets whether the parallelism will be automatically employed by the <see cref="Search" /> methods to run multiple
+  /// searches in parallel. This method has been overridden to return false, because parallelism is employed to update a single
+  /// population rather than run multiple searches with multiple populations in parallel.
+  /// </summary>
+  protected sealed override bool UseAutomaticParallelism
   {
-    StartLimitedSearch(limiter);
-    solution = BeginSearch();
-    return FinishLimitedSearch(ref solution, limiter);
+    get { return false; }
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IterativeSearchBase/ResetSearch/*"/>
-  protected override void ResetSearch()
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/SelectBestSolution/*"/>
+  protected override StateValuePair<StateType> SelectBestSolution(Context[] contexts)
   {
-    base.ResetSearch();
-    population = null;
+    throw new NotImplementedException();
   }
 
-  /// <summary>Adds an initial population member at the given index, updating <see cref="bestMember"/> as necessary.</summary>
-  void AddInitialMember(int index, StateValuePair<StateType> member)
+  /// <summary>Adds an initial population member at the given index, updating the best known member as necessary.</summary>
+  void AddInitialMember(Context context, int index, StateValuePair<StateType> member)
   {
-    if(index == 0 || member.Value > population[bestMember].Value) bestMember = index;
-    population[index] = member;
+    if(index == 0 || member.Value > context.population[context.bestMember].Value) context.bestMember = index;
+    context.population[index] = member;
   }
 
   /// <summary>Calculates an adjusted regeneration chance based on the crossover chance.</summary>
@@ -450,44 +451,42 @@ public class GeneticAlgorithmSearch<StateType> : LocalSearchBase<StateType, IGen
   /// </remarks>
   void AdjustRegenChance()
   {
-    double nonCrossoverChance = 1-crossoverChance;
-    adjustedRegenChance = nonCrossoverChance == 0 ? 0 : regenerationChance/nonCrossoverChance;
+    double nonCrossoverChance = 1-CrossoverChance;
+    adjustedRegenChance = nonCrossoverChance == 0 ? 0 : _regenerationChance/nonCrossoverChance;
   }
 
   /// <summary>Calculates weights from 0 to 1 for each member of the population based on how fit they are compared to
   /// the average. The weights can be taken as a probability that the member should be selected. The sum of all the
   /// weights should equal 1.0.
   /// </summary>
-  float[] CalculatePopulationWeights()
+  float[] CalculatePopulationWeights(Context context)
   {
     // the weight for each member will be equal to the percentage that they contribute to the total. that is, the
     // weight for a member with fitness value X will be equal to X/total.
 
     // calculate the total fitness of the entire population
     double total = 0;
+    StateValuePair<StateType>[] population = context.population;
     for(int i=0; i<population.Length; i++) total += population[i].Value;
 
     double inverseTotal = 1/total; // invert the total so we can do multiplication rather than division (faster)
-    float[] weights = new float[populationSize];
+    float[] weights = new float[population.Length];
     for(int i=0; i<weights.Length; i++) weights[i] = (float)(population[i].Value * inverseTotal);
 
     return weights;
   }
 
   /// <summary>Creates an initial population containing random members.</summary>
-  void MakeInitialPopulation()
+  void MakeInitialPopulation(Context context)
   {
-    population = new StateValuePair<StateType>[populationSize];
-    for(int i=0; i<population.Length; i++) AddInitialMember(i, Problem.GetRandomState(Random));
+    for(int i=0; i<context.population.Length; i++) AddInitialMember(context, i, Problem.GetRandomState(context.Random));
   }
 
   /// <summary>Creates an initial population containing the given state, related states, and possibly random states.</summary>
-  void MakeInitialPopulation(StateValuePair<StateType> initialState)
+  void MakeInitialPopulation(Context context, StateValuePair<StateType> initialState)
   {
-    population = new StateValuePair<StateType>[populationSize];
-
     // add the initial state to the population (to the 0th index)
-    AddInitialMember(0, initialState);
+    AddInitialMember(context, 0, initialState);
 
     int index = 1;
 
@@ -499,47 +498,44 @@ public class GeneticAlgorithmSearch<StateType> : LocalSearchBase<StateType, IGen
         new List<StateValuePair<StateType>>(climbable.GetSuccessors(initialState));
 
       // if there are more successors than the population size, permute them to get a random sample
-      if(successors.Count > populationSize-1) Permutations.RandomlyPermute(successors, Random);
+      if(successors.Count > context.population.Length-1) Permutations.RandomlyPermute(successors, context.Random);
 
-      for(int end=Math.Min(successors.Count+1,populationSize); index<end; index++)
+      for(int end=Math.Min(successors.Count+1, context.population.Length); index<end; index++)
       {
-        AddInitialMember(index, successors[index-1]);
+        AddInitialMember(context, index, successors[index-1]);
       }
     }
 
     // fill half of the remaining space with mutations of the initial state
-    for(int end=index + (populationSize-index)/2; index<end; index++)
+    for(int end=index + (context.population.Length-index)/2; index<end; index++)
     {
-      AddInitialMember(index, Problem.Mutate(Random, population[0]));
+      AddInitialMember(context, index, Problem.Mutate(context.Random, context.population[0]));
     }
 
     // fill the rest with random states
-    while(index++ < populationSize) AddInitialMember(index, Problem.GetRandomState(Random));
+    while(index++ < context.population.Length) AddInitialMember(context, index, Problem.GetRandomState(context.Random));
   }
 
-  /// <summary>Given a list of population weights, returns a random member of the population with a likelihood
+  int _populationSize;
+  double _crossoverChance, _regenerationChance, _mutationChance, adjustedRegenChance;
+
+  /// <summary>Given a list of population member weights, returns a random member of the population with a likelihood
   /// proportional to its weight.
   /// </summary>
-  int SelectRandomMember(float[] populationWeights)
+  static int SelectRandomMember(float[] populationWeights, RandomNumberGenerator random)
   {
     // select a random index, and a random weight (which determines how far we'll travel from the index)
-    float totalWeight = (float)Random.NextDouble();
-    int index = Random.Next(populationSize);
+    float totalWeight = (float)random.NextDouble();
+    int index = random.Next(populationWeights.Length);
 
     while(totalWeight > 0)
     {
       totalWeight -= populationWeights[index];
-      if(++index == populationSize) index = 0;
+      if(++index == populationWeights.Length) index = 0;
     }
 
     return index;
   }
-
-  StateValuePair<StateType>[] population;
-  int populationSize;
-  double crossoverChance, regenerationChance, adjustedRegenChance, mutationChance;
-  /// <summary>The index of the best member within the population array.</summary>
-  int bestMember;
 }
 #endregion
 
@@ -555,7 +551,8 @@ public class GeneticAlgorithmSearch<StateType> : LocalSearchBase<StateType, IGen
 /// becomes capable of finding relatively good solutions to many problems in a reasonable amount of time.
 /// </remarks>
 /// <include file="documentation.xml" path="/AI/Search/typeparam[@name='StateType']"/>
-public class HillClimbingSearch<StateType> : ClimbingSearchBase<StateType>
+public class HillClimbingSearch<StateType>
+  : ClimbingSearchBase<StateType, HillClimbingSearch<StateType>.Context>
 {
   /// <summary>Initializes a new <see cref="HillClimbingSearch{S}"/> with up to 50 sideways moves, and no limit to the
   /// number of random restarts allowed.
@@ -573,70 +570,96 @@ public class HillClimbingSearch<StateType> : ClimbingSearchBase<StateType>
   /// <summary>Initializes a new <see cref="HillClimbingSearch{S}"/>.</summary>
   /// <include file="documentation.xml" path="/AI/Search/HillClimbingSearch/*"/>
   /// <param name="maxRestarts">The initial value of <see cref="MaxRestarts"/>.</param>
-  public HillClimbingSearch(IClimbingSearchable<StateType> problem, int maxSidewaysMoves, int maxRestarts)
-    : base(problem)
+  public HillClimbingSearch(IClimbingSearchable<StateType> problem, int maxSidewaysMoves, int maxRestarts) : base(problem)
   {
     MaxSidewaysMoves = maxSidewaysMoves;
     MaxRestarts      = maxRestarts;
   }
 
+  #region Context
+  /// <summary>Contains the context for a hill climbing search.</summary>
+  public sealed class Context : LocalSearchContextBase
+  {
+    internal Context(RandomNumberGenerator random, StateValuePair<StateType> initialSolution,
+                     int maxRestarts, int maxSidewaysMoves) : base(random)
+    {
+      solution         = initialSolution;
+      MaxRestarts      = maxRestarts;
+      MaxSidewaysMoves = maxSidewaysMoves;
+    }
+
+    /// <summary>Gets the current best solution.</summary>
+    public override StateValuePair<StateType> Solution
+    {
+      get { return solution; }
+    }
+
+    /// <summary>Temporary storage for the successors being considered during the search.</summary>
+    internal List<StateValuePair<StateType>> bestSuccessors = new List<StateValuePair<StateType>>();
+    internal readonly int MaxRestarts, MaxSidewaysMoves;
+    /// <summary>The number of restarts performed so far during this search.</summary>
+    internal int numRestarts;
+    /// <summary>The number of sideways moves performed since the last restart.</summary>
+    internal int numSidewaysMoves;
+    internal StateValuePair<StateType> solution;
+  }
+  #endregion
+
   /// <summary>Gets or sets the maximum number of sideways moves allowed. A sideways move is a move from a state to a
   /// successor with an identical fitness value. Such a move is only considered when no successor has a higher fitness
   /// value, and allowing some number of sideways moves can help the search escape from a ridge in the search space. A
-  /// good value is typically 50, or 100, or so.
+  /// good value is typically 50, or 100, or so. Changing this property has no effect on searches that have already been started.
   /// </summary>
   public int MaxSidewaysMoves
   {
-    get { return maxSidewaysMoves; }
+    get { return _maxSidewaysMoves; }
     set
     {
       if(value < 0) throw new ArgumentOutOfRangeException();
-      DisallowChangeDuringSearch();
-      maxSidewaysMoves = value;
+      _maxSidewaysMoves = value;
     }
   }
 
-  /// <summary>Gets or sets the maximum number of random restarts that are allowed during the search. If nonzero,
-  /// the search will restart from a random state when no further progress is being made up to the maximum number of
-  /// allowed restarts, before giving up. If <see cref="SearchBase.Infinite"/> is passed, the search will
-  /// restart as many times as is necessary to find a goal state.
+  /// <summary>Gets or sets the maximum number of random restarts that are allowed during the search. If nonzero, the search will
+  /// restart from a random state when no further progress is being made up to the maximum number of allowed restarts, before
+  /// giving up. If <see cref="SearchBase.Infinite"/> is passed, the search will restart as many times as is necessary to find a
+  /// goal state. Changing this property has no effect on searches that have already been started.
   /// </summary>
   public int MaxRestarts
   {
-    get { return maxRestarts; }
+    get { return _maxRestarts; }
     set
     {
-      if(maxRestarts < Infinite) throw new ArgumentOutOfRangeException();
-      DisallowChangeDuringSearch();
-      maxRestarts = value;
+      if(_maxRestarts < Infinite) throw new ArgumentOutOfRangeException();
+      _maxRestarts = value;
     }
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/SearchInProgress/*"/>
-  public override bool SearchInProgress
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch/*"/>
+  public override Context BeginSearch()
   {
-    get { return bestSuccessors != null; }
+    RandomNumberGenerator random = CreateRandom();
+    return new Context(random, Problem.GetRandomState(random), MaxRestarts, MaxSidewaysMoves);
   }
 
   /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch_State/*"/>
-  public override StateValuePair<StateType> BeginSearch(StateValuePair<StateType> initialState)
+  public override Context BeginSearch(StateType initialState)
   {
-    AssertSearchStartable();
-    bestSuccessors   = new List<StateValuePair<StateType>>();
-    numSidewaysMoves = numRestarts = 0;
-    return initialState;
+    StateValuePair<StateType> statePair = new StateValuePair<StateType>(initialState, Problem.EvaluateState(initialState));
+    return new Context(CreateRandom(), statePair, MaxRestarts, MaxSidewaysMoves);
   }
 
   /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/Iterate/*"/>
-  public override SearchResult Iterate(ref StateValuePair<StateType> solution)
+  public override SearchResult Iterate(Context context)
   {
-    AssertSearchInProgress();
+    if(context == null) throw new ArgumentNullException();
 
     // if what we have is good enough, return success
-    if(Problem.IsGoal(solution.State)) return SearchResult.Success;
+    if(Problem.IsGoal(context.Solution.State)) return SearchResult.Success;
 
     // otherwise, we want to choose randomly from the best successors
-    foreach(StateValuePair<StateType> successor in Problem.GetSuccessors(solution))
+    List<StateValuePair<StateType>> bestSuccessors = context.bestSuccessors;
+    foreach(StateValuePair<StateType> successor in Problem.GetSuccessors(context.solution))
     {
       if(bestSuccessors.Count == 0 || successor.Value > bestSuccessors[0].Value) // if we've found a better successor
       {
@@ -651,45 +674,32 @@ public class HillClimbingSearch<StateType> : ClimbingSearchBase<StateType>
 
     // choose the successor randomly from the list
     StateValuePair<StateType>? bestSuccessor =
-      bestSuccessors.Count == 0 ? (StateValuePair<StateType>?)null : bestSuccessors[Random.Next(bestSuccessors.Count)];
+      bestSuccessors.Count == 0 ? (StateValuePair<StateType>?)null : bestSuccessors.SelectRandom(context.Random);
     bestSuccessors.Clear();
 
     // if there is no successor, or the best successor is worse than the current state, or it's a sideways move and
     // we've reached our limit, then we can't make any more progress, so try to restart the search.
-    if(!bestSuccessor.HasValue || bestSuccessor.Value.Value < solution.Value ||
-       bestSuccessor.Value.Value == solution.Value && numSidewaysMoves++ == maxSidewaysMoves)
+    if(!bestSuccessor.HasValue || bestSuccessor.Value.Value < context.solution.Value ||
+       bestSuccessor.Value.Value == context.solution.Value && context.numSidewaysMoves++ == context.MaxSidewaysMoves)
     {
       // if we can't restart, we're finished.
-      if(maxRestarts != Infinite && numRestarts == maxRestarts) return SearchResult.LimitReached;
+      if(_maxRestarts != Infinite && context.numRestarts == context.MaxRestarts) return SearchResult.LimitReached;
 
       // we can restart, so do so.
-      numSidewaysMoves = 0;
-      numRestarts++; // increment this here instead of in the 'if' statement above to prevent the it from overflowing
-      solution = Problem.GetRandomState(Random);      // if Iterate() is called repeatedly after the search has ended
+      context.numSidewaysMoves = 0;
+      context.numRestarts++; // increment this here instead of in the 'if' statement above to prevent the it from overflowing
+      context.solution = Problem.GetRandomState(context.Random);  // if Iterate() is called repeatedly after the search has ended
     }
     else
     {
       // here, the best successor is better than or equal to what we've got, so move to it
-      solution = bestSuccessor.Value;
+      context.solution = bestSuccessor.Value;
     }
 
     return SearchResult.Pending;
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IterativeSearchBase/ResetSearch/*"/>
-  protected override void ResetSearch()
-  {
-    base.ResetSearch();
-    bestSuccessors = null;
-  }
-
-  int maxSidewaysMoves, maxRestarts;
-  /// <summary>A temporary storage area for the successors being considered during the search.</summary>
-  List<StateValuePair<StateType>> bestSuccessors;
-  /// <summary>The number of sideways moves performed since the last restart.</summary>
-  int numSidewaysMoves;
-  /// <summary>The number of restarts performed so far during this search.</summary>
-  int numRestarts;
+  int _maxSidewaysMoves, _maxRestarts;
 }
 #endregion
 
@@ -830,7 +840,8 @@ public static class SimulatedAnnealingSearch
 /// </para>
 /// </remarks>
 /// <include file="documentation.xml" path="/AI/Search/typeparam[@name='StateType']"/>
-public class SimulatedAnnealingSearch<StateType> : LocalSearchBase<StateType,ILocallySearchable<StateType>>
+public class SimulatedAnnealingSearch<StateType>
+  : LocalSearchBase<StateType,ILocallySearchable<StateType>,SimulatedAnnealingSearch<StateType>.Context>
 {
   /// <summary>Initializes a new simulated annealing search with the given starting temperature and number of
   /// iterations, with tunneling disabled and quenching enabled.
@@ -870,101 +881,131 @@ public class SimulatedAnnealingSearch<StateType> : LocalSearchBase<StateType,ILo
                                   SimulatedAnnealingSearch.Tunneler tunneler, bool quench) : base(problem)
   {
     if(schedule == null) throw new ArgumentNullException();
-    this.schedule = schedule;
-    this.tunneler = tunneler;
-    this.quench   = quench;
+    Schedule = schedule;
+    Tunneler = tunneler;
+    Quench   = quench;
   }
+
+  #region Context
+  /// <summary>Contains the context for a simulated annealing search.</summary>
+  public sealed class Context : LocalSearchContextBase
+  {
+    internal Context(RandomNumberGenerator random, SimulatedAnnealingSearch.Schedule schedule,
+                     SimulatedAnnealingSearch.Tunneler tunneler, StateValuePair<StateType> initialSolution, bool quench)
+      : base(random)
+    {
+      Schedule           = schedule;
+      Tunneler           = tunneler;
+      Quench             = quench;
+      solution           = bestSolution = initialSolution;
+      bestPreStunValue   = bestSolution.Value;
+      bestSolution.Value = TunnelValue(bestSolution.Value);
+    }
+
+    /// <summary>Gets the current best solution.</summary>
+    public override StateValuePair<StateType> Solution
+    {
+      get { return solution; }
+    }
+
+    /// <summary>Retrieves the fitness value adjusted by the tunneling technique.</summary>
+    internal float TunnelValue(float value)
+    {
+      return Tunneler == null ? value : Tunneler(value, bestPreStunValue);
+    }
+
+    internal readonly SimulatedAnnealingSearch.Schedule Schedule;
+    internal readonly SimulatedAnnealingSearch.Tunneler Tunneler;
+    internal HillClimbingSearch<StateType> quencher;
+    internal HillClimbingSearch<StateType>.Context quenchContext;
+    internal float bestPreStunValue;
+    internal int iteration;
+    internal StateValuePair<StateType> solution, bestSolution;
+    internal readonly bool Quench;
+  }
+  #endregion
 
   /// <summary>Gets or sets whether a hill-climbing algorithm should be run on the final solution to maximize it before
   /// it's returned, if a goal state could not be reached by the simulated annealing. In order for quenching to work,
-  /// the problem must implement <cref see="IClimbingSearchable{S}"/>.
+  /// the problem must implement <cref see="IClimbingSearchable{S}"/>. Changing this property will not affect searches that have
+  /// already been started.
   /// </summary>
-  public bool Quench
-  {
-    get { return quench; }
-    set
-    {
-      DisallowChangeDuringSearch();
-      quench = value;
-    }
-  }
+  public bool Quench { get; set; }
 
-  /// <summary>Gets or sets the <see cref="SimulatedAnnealingSearch.Schedule">scheduling method</see> that determines
-  /// the temperature of the annealing process, as a function of the iteration number.
+  /// <summary>Gets or sets the <see cref="SimulatedAnnealingSearch.Schedule">scheduling method</see> that determines the
+  /// temperature of the annealing process, as a function of the iteration number. Changing this property will not affect
+  /// searches that have already been started.
   /// </summary>
   public SimulatedAnnealingSearch.Schedule Schedule
   {
-    get { return schedule; }
+    get { return _schedule; }
     set
     {
       if(value == null) throw new ArgumentNullException();
-      DisallowChangeDuringSearch();
-      schedule = value;
+      _schedule = value;
     }
   }
 
   /// <summary>Gets or sets the <see cref="SimulatedAnnealingSearch.Tunneler">tunnel method</see> that warps the
   /// fitness space given knowledge about the highest maximum found so far. If this is null, tunneling will be disabled.
+  /// Changing this property will not affect searches that have already been started.
   /// </summary>
-  public SimulatedAnnealingSearch.Tunneler Tunneler
-  {
-    get { return tunneler; }
-    set
-    {
-      DisallowChangeDuringSearch();
-      tunneler = value;
-    }
-  }
+  public SimulatedAnnealingSearch.Tunneler Tunneler { get; set; }
 
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/SearchInProgress/*"/>
-  public override bool SearchInProgress
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch/*"/>
+  public override SimulatedAnnealingSearch<StateType>.Context BeginSearch()
   {
-    get { return inProgress; }
+    RandomNumberGenerator random = CreateRandom();
+    return new Context(random, Schedule, Tunneler, Problem.GetRandomState(random), Quench);
   }
 
   /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch_State/*"/>
-  public override StateValuePair<StateType> BeginSearch(StateValuePair<StateType> initialState)
+  public override Context BeginSearch(StateType initialState)
   {
-    quencher     = null;
-    bestSolution = initialState;
-    iteration    = 0;
-    inProgress   = true;
-    bestPreStunValue   = bestSolution.Value;
-    bestSolution.Value = TunnelValue(bestSolution.Value);
-    return bestSolution;
+    StateValuePair<StateType> initialSolution = new StateValuePair<StateType>(initialState, Problem.EvaluateState(initialState));
+    return new Context(CreateRandom(), Schedule, Tunneler, initialSolution, Quench);
   }
 
   /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/Iterate/*"/>
-  public override SearchResult Iterate(ref StateValuePair<StateType> solution)
+  public override SearchResult Iterate(Context context)
   {
+    if(context == null) throw new ArgumentNullException();
+
     // if we're quenching the final solution, do that
-    if(quencher != null) return quencher.Iterate(ref solution);
+    if(context.quencher != null)
+    {
+      SearchResult result = context.quencher.Iterate(context.quenchContext);
+      context.solution = context.quenchContext.solution;
+      return result;
+    }
 
     // if the current state is good enough, return success
-    if(Problem.IsGoal(solution.State))
+    if(Problem.IsGoal(context.Solution.State))
     {
-      if(tunneler != null) solution.Value = bestPreStunValue; // undo the tunneling operation
+      if(context.Tunneler != null) context.solution.Value = context.bestPreStunValue; // undo the tunneling operation
       return SearchResult.Success;
     }
 
-    float temperature = schedule(iteration++);
+    float temperature = context.Schedule(context.iteration++);
 
     if(temperature <= 0) // if the temperature drops to zero, we're done.
     {
       // return the best solution we've found so far
-      solution = bestSolution;
-      if(tunneler != null) solution.Value = bestPreStunValue; // undo the tunneling operation
+      context.solution = context.bestSolution;
+      if(context.Tunneler != null) context.solution.Value = context.bestPreStunValue; // undo the tunneling operation
 
       // the solution is not "good enough" (otherwise it would have been returned already), so attempt to quench it if
       // that's enabled
-      if(quench)
+      if(context.Quench)
       {
         IClimbingSearchable<StateType> climbable = Problem as IClimbingSearchable<StateType>;
         if(climbable != null) // if the problem supports climbing, run a hill climber on it
         {
-          quencher = new HillClimbingSearch<StateType>(climbable, 0, 0);
-          solution = quencher.BeginSearch(solution);
-          return quencher.Iterate(ref solution);
+          context.quencher = new HillClimbingSearch<StateType>(climbable, 0, 0);
+          context.quenchContext = context.quencher.BeginSearch(context.Solution.State);
+          SearchResult result = context.quencher.Iterate(context.quenchContext);
+          context.solution = context.quenchContext.solution;
+          return result;
         }
       }
 
@@ -973,23 +1014,23 @@ public class SimulatedAnnealingSearch<StateType> : LocalSearchBase<StateType,ILo
     }
 
     StateValuePair<StateType> next =
-      Problem.GetRandomSuccessor(Random, tunneler == null ?
-        solution : new StateValuePair<StateType>(solution.State, bestPreStunValue));
+      Problem.GetRandomSuccessor(context.Random, context.Tunneler == null ?
+        context.solution : new StateValuePair<StateType>(context.solution.State, context.bestPreStunValue));
 
-    float nextValue = TunnelValue(next.Value), valueDelta = nextValue - solution.Value;
+    float nextValue = context.TunnelValue(next.Value), valueDelta = nextValue - context.solution.Value;
 
     // always accept uphill moves and accept downhill moves with a probability that depends on the temperature
-    if(valueDelta > 0 || Random.NextDouble() < Math.Exp(valueDelta / temperature))
+    if(valueDelta > 0 || context.Random.NextDouble() < Math.Exp(valueDelta / temperature))
     {
-      solution = next;
-      if(nextValue > bestSolution.Value)
+      context.solution = next;
+      if(nextValue > context.bestSolution.Value)
       {
-        bestSolution = next;
+        context.bestSolution = next;
         // since the best solution is changing, the tunneling-adjusted value will change, so recalculate it
-        if(tunneler != null)
+        if(context.Tunneler != null)
         {
-          bestPreStunValue   = next.Value;
-          bestSolution.Value = TunnelValue(next.Value);
+          context.bestPreStunValue   = next.Value;
+          context.bestSolution.Value = context.TunnelValue(next.Value);
         }
       }
     }
@@ -997,28 +1038,7 @@ public class SimulatedAnnealingSearch<StateType> : LocalSearchBase<StateType,ILo
     return SearchResult.Pending;
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IterativeSearchBase/ResetSearch/*"/>
-  protected override void ResetSearch()
-  {
-    base.ResetSearch();
-    quencher     = null;
-    bestSolution = new StateValuePair<StateType>();
-    inProgress   = false;
-  }
-
-  /// <summary>Retrieves the fitness value adjusted by the tunneling technique.</summary>
-  float TunnelValue(float value)
-  {
-    return tunneler == null ? value : tunneler(value, bestPreStunValue);
-  }
-
-  SimulatedAnnealingSearch.Schedule schedule;
-  SimulatedAnnealingSearch.Tunneler tunneler;
-  HillClimbingSearch<StateType> quencher;
-  StateValuePair<StateType> bestSolution;
-  float bestPreStunValue;
-  int iteration;
-  bool quench, inProgress;
+  SimulatedAnnealingSearch.Schedule _schedule;
 }
 #endregion
 #endregion

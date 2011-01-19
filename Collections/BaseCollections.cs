@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace AdamMil.Collections
@@ -32,6 +33,12 @@ public abstract class CollectionBase<T> : IList<T>
   protected CollectionBase()
   {
     Items = new List<T>();
+  }
+
+  /// <summary>Initializes a new <see cref="CollectionBase{T}"/> with an existing list of items.</summary>
+  protected CollectionBase(IEnumerable<T> items) : this()
+  {
+    AddRange(items);
   }
 
   /// <summary>Gets or sets the item at the given index, which must be from 0 to <see cref="Count"/>-1.</summary>
@@ -60,14 +67,14 @@ public abstract class CollectionBase<T> : IList<T>
     InsertItem(Count, item);
   }
 
-  /// <summary>Adds all of the given items to the collection.</summary>
+  /// <summary>Adds a list of items to the collection.</summary>
   public void AddRange(IEnumerable<T> items)
   {
     if(items == null) throw new ArgumentNullException();
     AssertNotReadOnly();
 
     // if we know how many items there are, use that knowledge to preallocate space within the collection
-    ICollection<T> collection = items as ICollection<T>;
+    ICollection collection = items as ICollection;
     if(collection != null)
     {
       int newCount = Items.Count + collection.Count, capacity = Items.Capacity;
@@ -80,6 +87,12 @@ public abstract class CollectionBase<T> : IList<T>
     }
 
     foreach(T item in items) Add(item);
+  }
+
+  /// <summary>Adds a list of items to the collection.</summary>
+  public void AddRange(params T[] items)
+  {
+    AddRange((IEnumerable<T>)items);
   }
 
   /// <include file="documentation.xml" path="//Common/Clear/*"/>
@@ -199,7 +212,7 @@ public abstract class CollectionBase<T> : IList<T>
   {
   }
 
-  System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+  IEnumerator IEnumerable.GetEnumerator()
   {
     return GetEnumerator();
   }
@@ -210,6 +223,11 @@ public abstract class CollectionBase<T> : IList<T>
 /// <summary>Represents a collection that validates the items being added.</summary>
 public abstract class ValidatedCollection<T> : CollectionBase<T>
 {
+  /// <summary>Initializes a new <see cref="ValidatedCollection{T}"/>.</summary>
+  protected ValidatedCollection() { }
+  /// <summary>Initializes a new <see cref="ValidatedCollection{T}"/> with the given list of items.</summary>
+  protected ValidatedCollection(IEnumerable<T> items) : base(items) { }
+
   /// <include file="documentation.xml" path="//CollectionBase/InsertItem/*"/>
   protected override void InsertItem(int index, T item)
   {
@@ -233,6 +251,11 @@ public abstract class ValidatedCollection<T> : CollectionBase<T>
 /// <summary>Represents a collection that validates the items being added to ensure that none are null.</summary>
 public class NonNullCollection<T> : ValidatedCollection<T> where T : class
 {
+  /// <summary>Initializes a new <see cref="NonNullCollection{T}"/>.</summary>
+  protected NonNullCollection() { }
+  /// <summary>Initializes a new <see cref="NonNullCollection{T}"/> with the given list of items.</summary>
+  protected NonNullCollection(IEnumerable<T> items) : base(items) { }
+
   /// <include file="documentation.xml" path="//ValidatedCollection/ValidateItem/*"/>
   protected override void ValidateItem(T item, int index)
   {

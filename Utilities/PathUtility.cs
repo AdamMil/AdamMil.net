@@ -43,6 +43,42 @@ public static class PathUtility
     return directory + Path.GetFileNameWithoutExtension(filename) + suffix + Path.GetExtension(filename);
   }
 
+  /// <summary>Creates a new file in the system temporary file directory, with the given extension.</summary>
+  public static string GetTempFileNameWithExtension(string extension)
+  {
+    return GetTempFileNameWithExtension(Path.GetTempPath(), extension);
+  }
+
+  /// <summary>Creates a new file in the given directory (which must exist), with the given extension.</summary>
+  public static string GetTempFileNameWithExtension(string tempDirectory, string extension)
+  {
+    Random random = new Random();
+
+    // make sure the extension starts with a period
+    if(!string.IsNullOrEmpty(extension) && extension[0] != '.') extension = "." + extension;
+
+    for(int tries=0; tries<10; tries++)
+    {
+      string fileName;
+      do
+      {
+        fileName = Path.Combine(tempDirectory, GetRandomName(random, 8, false));
+        if(!string.IsNullOrEmpty(extension)) fileName += extension;
+      }
+      while(File.Exists(fileName));
+
+      try
+      {
+        using(FileStream file = new FileStream(fileName, FileMode.CreateNew, FileAccess.Write)) { }
+        return fileName;
+      }
+      catch { }
+    }
+
+    throw new Exception("Unable to allocate a temporary file.");
+  }
+
+
   /// <summary>Removes invalid filename characters from the given string, and returns it.</summary>
   public static string StripInvalidFileNameChars(string name)
   {
@@ -53,6 +89,18 @@ public static class PathUtility
   public static string StripInvalidPathChars(string name)
   {
     return StringUtility.Remove(name, Path.GetInvalidPathChars());
+  }
+
+  static string GetRandomName(Random random, int length, bool includeExtension)
+  {
+    if(length < (includeExtension ? 5 : 1)) throw new ArgumentOutOfRangeException();
+    const string ValidChars = "abcdefghijklmnopqrstuvwxyz0123456789~@#%&()-_=+[]{};',";
+    char[] chars = new char[length];
+    for(int i = 0, extensionIndex = includeExtension ? length-4 : -1; i < chars.Length; i++)
+    {
+      chars[i] = i == extensionIndex ? '.' : ValidChars[random.Next(ValidChars.Length)];
+    }
+    return new string(chars);
   }
 
   static readonly char[] DirectorySeparatorChars = new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };

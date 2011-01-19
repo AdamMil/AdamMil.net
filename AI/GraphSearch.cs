@@ -6,6 +6,11 @@ using AC=AdamMil.Collections;
 namespace AdamMil.AI.Search.Graph
 {
 
+// NOTE: although the graph searches can be parallelized relatively easily, they have not been because the speed of the graph
+// search heavily affected by memory access times. parallelizing it results in a speedup that is quite small, due to the
+// increased cache and memory pressure, and makes the code substantially more complicated, so i didn't think it was worth it.
+// it may be worth revisiting when we upgrade to .NET 4, which has faster locking primitives and concurrent collections
+
 #region Problem definitions
 #region IGraphSearchable
 /// <summary>Represents a problem that can be attacked with a graph search.</summary>
@@ -114,7 +119,7 @@ public interface IBidirectionalGraphSearch<StateType, ActionType> : IGraphSearch
 /// <summary>Represents a node in the search tree as well as a node in the solution. In a solution, it represents a
 /// state and the action needed to get from that state to the next, with the node for the next state found by
 /// following the <see cref="Parent"/> pointer. During the search, the fields can be used in whatever way is most
-/// convenient for the search algorithm, as long as a proper solution can be reconstructed.
+/// convenient for the search algorithm.
 /// </summary>
 /// <include file="documentation.xml" path="/AI/Search/typeparam[@name='StateType' or @name='ActionType']"/>
 public sealed class Node<StateType,ActionType>
@@ -155,15 +160,11 @@ public abstract class GraphSearchBase<StateType, ActionType>
   protected GraphSearchBase(IGraphSearchable<StateType,ActionType> problem)
   {
     if(problem == null) throw new ArgumentNullException();
-    this.problem = problem;
+    Problem = problem;
   }
 
   /// <include file="documentation.xml" path="/AI/Search/IGraphSearch/EliminateDuplicateStates/*"/>
-  public bool EliminateDuplicateStates
-  {
-    get { return eliminateDuplicates; }
-    set { eliminateDuplicates = value; }
-  }
+  public bool EliminateDuplicateStates { get; set; }
 
   /// <include file="documentation.xml" path="/AI/Search/GraphSearchBase/BidirectionalSearch/*"/>
   public SearchResult BidirectionalSearch(out Node<StateType, ActionType> solution)
@@ -210,14 +211,7 @@ public abstract class GraphSearchBase<StateType, ActionType>
   }
 
   /// <summary>The problem to be solved by this search instance.</summary>
-  protected IGraphSearchable<StateType, ActionType> Problem
-  {
-    get { return problem; }
-  }
-
-  readonly IGraphSearchable<StateType, ActionType> problem;
-
-  bool eliminateDuplicates;
+  protected IGraphSearchable<StateType, ActionType> Problem { get; private set; }
 }
 #endregion
 
@@ -356,8 +350,7 @@ public abstract class SingleQueueSearchBase<StateType, ActionType> : GraphSearch
         return SearchResult.Success; // and return it
       }
 
-      limitHit =
-        TryEnqueueNodes(rightFringe, rightNode, EliminateDuplicateStates ? rightStates : null, true) || limitHit;
+      limitHit = TryEnqueueNodes(rightFringe, rightNode, rightStates, true) || limitHit;
     }
 
     // if it gets here, we couldn't find a solution
@@ -405,7 +398,7 @@ public abstract class SingleQueueSearchBase<StateType, ActionType> : GraphSearch
   /// </summary>
   void AssertBidirectionallySearchable()
   {
-    if(BidiProblem == null) throw new ArgumentNullException("This problem is not bidirectionally searchable.");
+    if(BidiProblem == null) throw new InvalidOperationException("This problem is not bidirectionally searchable.");
 
     if(useHeuristic)
     {
@@ -426,11 +419,11 @@ public abstract class SingleQueueSearchBase<StateType, ActionType> : GraphSearch
     {
       Node<StateType, ActionType> nextEnd = end.Parent;
 
-      end.Action   = BidiProblem.GetSuccessorAction(end.Parent.State, end.State, end.Action);
-      end.State    = nextEnd.State;
-      end.PathCost = start.PathCost + (end.Parent == null ? 0 : end.PathCost-end.Parent.PathCost);
-      end.Depth    = start.Depth + 1;
-      end.Parent   = start;
+      end.Action        = BidiProblem.GetSuccessorAction(end.Parent.State, end.State, end.Action);
+      end.State         = nextEnd.State;
+      end.PathCost      = start.PathCost + (end.Parent == null ? 0 : end.PathCost-end.Parent.PathCost);
+      end.Depth         = start.Depth + 1;
+      end.Parent        = start;
       end.HeuristicCost = nextEnd.HeuristicCost;
 
       start = end;
@@ -630,9 +623,7 @@ public abstract class DepthBasedSearch<StateType, ActionType> : SingleQueueSearc
 #endregion
 
 #region DepthLimitedSearch
-/// <summary>A search that is equivalent to <see cref="DepthFirstSearch{S,A}"/>, except that it is guaranteed to
-/// terminate.
-/// </summary>
+/// <summary>A search that is equivalent to <see cref="DepthFirstSearch{S,A}"/>, except that it is guaranteed to terminate.</summary>
 /// <include file="documentation.xml" path="/AI/Search/typeparam[@name='StateType' or @name='ActionType']"/>
 public class DepthLimitedSearch<StateType, ActionType> : DepthBasedSearch<StateType, ActionType>
 {
@@ -661,9 +652,7 @@ public sealed class DepthFirstSearch<StateType, ActionType> : DepthLimitedSearch
 
 #region GreedyBestFirstSearch
 /// <summary>A search method that expands nodes with the lowest heuristic first.</summary>
-/// <remarks>Greedy best first search is neither optimal nor complete, and is dominated by
-/// <see cref="AStarSearch{S,A}"/>.
-/// </remarks>
+/// <remarks>Greedy best first search is neither optimal nor complete, and is dominated by <see cref="AStarSearch{S,A}"/>.</remarks>
 /// <include file="documentation.xml" path="/AI/Search/typeparam[@name='StateType' or @name='ActionType']"/>
 public sealed class GreedyBestFirstSearch<StateType, ActionType> : SingleQueueSearchBase<StateType, ActionType>
 {
@@ -739,6 +728,7 @@ public sealed class IterativeDeepeningSearch<StateType, ActionType> : DepthBased
 // TODO: A* with partial expansion (http://www.ai.soc.i.kyoto-u.ac.jp/services/publications/00/00conf04.pdf)
 // TODO: SMA* and SMAG* (http://www2.parc.com/isl/members/rzhou/papers/flairs02.ps.gz)
 
+// TODO: check documentation (first "complete" to "optimal"?)
 #region UniformCostSearch
 /// <summary>A search that expands the node with the lowest accumulated path cost first.</summary>
 /// <remarks>Uniform cost search is complete with positive step costs, is complete if the branching factor is finite
