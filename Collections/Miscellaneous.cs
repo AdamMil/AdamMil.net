@@ -453,7 +453,8 @@ public sealed class ReversedComparer<T> : IComparer<T>
   /// </summary>
   public int Compare(T a, T b)
   {
-    return -cmp.Compare(a, b);
+    // we can't use something like -cmp.Compare(a, b) because if it returned int.MinValue, then it could not be negated
+    return cmp.Compare(b, a);
   }
 
   readonly IComparer<T> cmp;
