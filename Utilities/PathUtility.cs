@@ -28,7 +28,7 @@ namespace AdamMil.Utilities
 /// <summary>Provides utilities to manipulate file paths.</summary>
 public static class PathUtility
 {
-  /// <summary>Appends the to the portion of the filename before the extension. For instance, if the
+  /// <summary>Appends a suffix to the portion of a filename before the extension. For instance, if the
   /// filename is "C:\foo.txt" and the suffix is "-2", the return value will be "C:\foo-2.txt".
   /// </summary>
   public static string AppendToFileName(string filename, string suffix)
@@ -38,7 +38,7 @@ public static class PathUtility
     int dirSlash = filename.LastIndexOfAny(DirectorySeparatorChars);
     if(dirSlash != -1)
     {
-      directory = filename.Substring(0, dirSlash+1);
+      directory = filename.Substring(0, dirSlash+1); // include the slash in the directory name
       filename  = filename.Substring(dirSlash+1);
     }
     return directory + Path.GetFileNameWithoutExtension(filename) + suffix + Path.GetExtension(filename);
