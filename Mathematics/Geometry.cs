@@ -2496,6 +2496,9 @@ public class RectanglePacker
   /// <summary>A comparer that can be used to sort <see cref="Size"/> objects prior to passing them to
   /// <see cref="TryAdd(Size)"/>. This comparer is automatically used by <see cref="TryAdd(Size[])"/>.
   /// </summary>
+  /// <remarks>This comparer should not be used to compare <see cref="Size"/> objects in general. It is only suitable for
+  /// comparing <see cref="Size"/> objects that will be passed to <see cref="TryAdd(Size[])"/>.
+  /// </remarks>
   public sealed class SizeComparer : IComparer<Size>
   {
     SizeComparer() { }
@@ -2503,6 +2506,10 @@ public class RectanglePacker
     /// <summary>Compares two sizes, ordering them first by height descending and then by width descending.</summary>
     public int Compare(Size a, Size b)
     {
+      // NOTE: comparing integers by subtraction is not safe in general, because int.MinValue - int.MaxValue == 1. similarly,
+      // int.MaxValue - int.MinValue = -1, even though int.MaxValue > int.MinValue. in general, it only works if the difference
+      // between the two values is less than 2^31. but we validate later that all sizes are non-negative, so it's okay.
+
       int cmp = b.Height - a.Height;
       return cmp == 0 ? b.Width - a.Width : cmp;
     }
