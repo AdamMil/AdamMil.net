@@ -2152,7 +2152,7 @@ public sealed class Polygon : ICloneable, ISerializable
 
   void EnlargeArray(int newElements)
   {
-    if(points.Length < pointCount+newElements) Utility.EnlargeArray(ref points, pointCount, newElements);
+    if(points.Length < pointCount+newElements) points = Utility.EnlargeArray(points, pointCount, newElements);
   }
 
   static Polygon[] AddPoly(Polygon poly, Polygon[] array, int index)

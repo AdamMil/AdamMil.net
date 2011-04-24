@@ -1,19 +1,17 @@
-﻿using System;
-using System.Reflection;
+﻿using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyTitle("AdamMil.net Utilities")]
-[assembly: AssemblyDescription("A set of generally useful utilities for .NET development.")]
+[assembly: AssemblyTitle("AdamMil.net Transactions")]
+[assembly: AssemblyDescription("A library that simplifies the creation of transactional software.")]
 #if DEBUG
 [assembly: AssemblyConfiguration("Debug")]
 #else
 [assembly: AssemblyConfiguration("Release")]
 #endif
 [assembly: AssemblyProduct("AdamMil.net")]
-[assembly: AssemblyCopyright("Copyright © Adam Milazzo 2010-2011")]
+[assembly: AssemblyCopyright("Copyright © Adam Milazzo 2011")]
 
 [assembly: ComVisible(false)]
-[assembly: CLSCompliant(true)]
 
 [assembly: AssemblyVersion("1.0.0.0")]
 [assembly: AssemblyFileVersion("1.0.0.0")]

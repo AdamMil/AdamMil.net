@@ -257,17 +257,17 @@ public abstract class RandomNumberGenerator
   {
     Utility.ValidateRange(bytes, index, count);
 
-    int chunks = count/4;
+    int chunks = count/4; // do as many bytes as we can in 4-byte chunks
     for(; chunks != 0; index += 4, chunks--)
     {
       uint chunk = NextUint32();
       bytes[index]   = (byte)chunk;
-      bytes[index+1] = (byte)(chunks >> 8);
-      bytes[index+2] = (byte)(chunks >> 16);
-      bytes[index+3] = (byte)(chunks >> 24);
+      bytes[index+1] = (byte)(chunk >> 8);
+      bytes[index+2] = (byte)(chunk >> 16);
+      bytes[index+3] = (byte)(chunk >> 24);
     }
 
-    count -= chunks*4;
+    count &= 3; // get the number of remaining bytes
     if(count != 0)
     {
       uint chunk = NextUint32();
@@ -285,10 +285,22 @@ public abstract class RandomNumberGenerator
     return new KISSRNG();
   }
 
+  /// <summary>Creates a new <see cref="RandomNumberGenerator"/> of the all-around best general-purpose type in the library.</summary>
+  public static RandomNumberGenerator CreateDefault(uint[] seed)
+  {
+    return new KISSRNG(seed);
+  }
+
   /// <summary>Creates a new <see cref="RandomNumberGenerator"/> of the fastest type available in the library.</summary>
   public static RandomNumberGenerator CreateFastest()
   {
     return new XorShift128RNG();
+  }
+
+  /// <summary>Creates a new <see cref="RandomNumberGenerator"/> of the fastest type available in the library.</summary>
+  public static RandomNumberGenerator CreateFastest(uint[] seed)
+  {
+    return new XorShift128RNG(seed);
   }
 
   /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/*"/>
@@ -464,7 +476,7 @@ public sealed class CMWC4096RNG : RandomNumberGenerator
   /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/*"/>
   protected override void LoadStateCore(BinaryReader reader)
   {
-    Q = reader.ReadUInt32(4096);
+    Q = reader.ReadUInt32s(4096);
     C = reader.ReadUInt32();
     I = reader.ReadInt32();
   }
@@ -524,8 +536,8 @@ public sealed class ISAACRNG : RandomNumberGenerator
   /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/*"/>
   protected override void LoadStateCore(BinaryReader reader)
   {
-    results     = reader.ReadUInt32(256);
-    state       = reader.ReadUInt32(256);
+    results     = reader.ReadUInt32s(256);
+    state       = reader.ReadUInt32s(256);
     resultIndex = reader.ReadInt32();
     accumulator = reader.ReadUInt32();
     lastResult  = reader.ReadUInt32();
@@ -764,7 +776,7 @@ public sealed class MWC256RNG : RandomNumberGenerator
   /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/*"/>
   protected override void LoadStateCore(BinaryReader reader)
   {
-    Q = reader.ReadUInt32(256);
+    Q = reader.ReadUInt32s(256);
     C = reader.ReadUInt32();
     I = reader.ReadByte();
   }
@@ -814,7 +826,7 @@ public sealed class XorShift128RNG : RandomNumberGenerator
 
     if(seed != null)
     {
-      if(seed.Length > 0) X = seed[0];
+      if(seed.Length != 0) X = seed[0];
       if(seed.Length > 1) Y = seed[1];
       if(seed.Length > 2) Z = seed[2];
       if(seed.Length > 3 && (seed[0] != 0 || seed[1] != 0 || seed[2] != 0 || seed[3] != 0)) W = seed[3]; // avoid all zeroes

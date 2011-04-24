@@ -24,6 +24,7 @@ using System.Globalization;
 using System.IO;
 using AdamMil.Collections;
 using AdamMil.IO;
+using AdamMil.Utilities;
 
 namespace AdamMil.Security.PGP
 {
@@ -357,7 +358,7 @@ public class UserImage : UserAttributeWithData
       if(headerVersion != 1)
       {
         throw new PGPException("Unsupported image header version " +
-                               headerVersion.ToString(CultureInfo.InvariantCulture));
+                               headerVersion.ToInvariantString());
       }
 
       // the Bitmap(Stream) constructor wants to own the entire stream, so we can't pass it a stream that's seeked

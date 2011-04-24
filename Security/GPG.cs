@@ -858,7 +858,7 @@ public class ExeGPG : GPG
     else if(quality == Randomness.TooStrong) qualityArg = "2";
     else qualityArg = "1"; // we'll default to the Strong level
 
-    Command cmd = Execute("--gen-random " + qualityArg + " " + count.ToString(CultureInfo.InvariantCulture),
+    Command cmd = Execute("--gen-random " + qualityArg + " " + count.ToInvariantString(),
                           StatusMessages.Ignore, true);
     using(cmd)
     {
@@ -1012,7 +1012,7 @@ public class ExeGPG : GPG
     if(options.KeyLength != 0 && (options.KeyLength < 1024 || options.KeyLength > maxKeyLength))
     {
       throw new KeyCreationFailedException(FailureReason.None, "Key length " +
-        options.KeyLength.ToString(CultureInfo.InvariantCulture) + " is not supported.");
+        options.KeyLength.ToInvariantString() + " is not supported.");
     }
 
     bool subIsDSA = string.Equals(options.SubkeyType, KeyType.DSA, StringComparison.OrdinalIgnoreCase);
@@ -1044,7 +1044,7 @@ public class ExeGPG : GPG
       if(options.SubkeyLength != 0 && (options.SubkeyLength < 1024 || options.SubkeyLength > maxKeyLength))
       {
         throw new KeyCreationFailedException(FailureReason.None, "Key length "+
-          options.SubkeyLength.ToString(CultureInfo.InvariantCulture) + " is not supported.");
+          options.SubkeyLength.ToInvariantString() + " is not supported.");
       }
 
       if(subCapabilities == KeyCapabilities.Default)
@@ -1083,7 +1083,7 @@ public class ExeGPG : GPG
       cmd.Process.StandardInput.WriteLine("Key-Type: " + (primaryIsDSA ? "DSA" : "RSA"));
 
       int keyLength = options.KeyLength != 0 ? options.KeyLength : primaryIsDSA ? 1024 : 2048;
-      cmd.Process.StandardInput.WriteLine("Key-Length: " + keyLength.ToString(CultureInfo.InvariantCulture));
+      cmd.Process.StandardInput.WriteLine("Key-Length: " + keyLength.ToInvariantString());
 
       cmd.Process.StandardInput.WriteLine("Key-Usage: " + GetKeyUsageString(primaryCapabilities));
 
@@ -1093,7 +1093,7 @@ public class ExeGPG : GPG
         cmd.Process.StandardInput.WriteLine("Subkey-Usage: " + GetKeyUsageString(subCapabilities));
 
         keyLength = options.SubkeyLength != 0 ? options.SubkeyLength : subIsDSA ? 1024 : 2048;
-        cmd.Process.StandardInput.WriteLine("Subkey-Length: " + keyLength.ToString(CultureInfo.InvariantCulture));
+        cmd.Process.StandardInput.WriteLine("Subkey-Length: " + keyLength.ToInvariantString());
       }
 
       if(!string.IsNullOrEmpty(realName)) cmd.Process.StandardInput.WriteLine("Name-Real: " + realName);
@@ -1112,7 +1112,7 @@ public class ExeGPG : GPG
       if(options.KeyExpiration.HasValue)
       {
         cmd.Process.StandardInput.WriteLine("Expire-Date: " +
-                                            keyExpirationDays.ToString(CultureInfo.InvariantCulture) + "d");
+                                            keyExpirationDays.ToInvariantString() + "d");
       }
 
       cmd.Process.StandardInput.Close(); // close STDIN so GPG can start generating the key
@@ -1483,7 +1483,7 @@ public class ExeGPG : GPG
     {
       if(!SuccessfulExit)
       {
-        throw new PGPException("GPG returned failure code "+ExitCode.ToString(CultureInfo.InvariantCulture));
+        throw new PGPException("GPG returned failure code "+ExitCode.ToInvariantString());
       }
     }
 
@@ -2440,7 +2440,7 @@ public class ExeGPG : GPG
         if(length < 0 || length > maxLength)
         {
           throw new KeyCreationFailedException(FailureReason.None, "Key length " +
-                                               length.ToString(CultureInfo.InvariantCulture) + " is not supported.");
+                                               length.ToInvariantString() + " is not supported.");
         }
       }
 
@@ -2483,20 +2483,20 @@ public class ExeGPG : GPG
       {
         if(!sentLength)
         {
-          state.Command.SendLine(length.ToString(CultureInfo.InvariantCulture));
+          state.Command.SendLine(length.ToInvariantString());
           sentLength = true;
         }
         else // if GPG asks a second time, then it rejected the key length
         {
           throw new KeyCreationFailedException(FailureReason.None, "Key length " +
-                                               length.ToString(CultureInfo.InvariantCulture) + " is not supported.");
+                                               length.ToInvariantString() + " is not supported.");
         }
       }
       else if(string.Equals(promptId, "keygen.valid", StringComparison.Ordinal))
       {
         if(!sentExpiration)
         {
-          state.Command.SendLine(expirationDays.ToString(CultureInfo.InvariantCulture));
+          state.Command.SendLine(expirationDays.ToInvariantString());
           sentExpiration = true;
         }
         else // if GPG asks a second time, then it rejected the expiration date
@@ -2620,7 +2620,7 @@ public class ExeGPG : GPG
       {
         if(!sentExpiration)
         {
-          state.Command.SendLine(expirationDays.ToString(CultureInfo.InvariantCulture));
+          state.Command.SendLine(expirationDays.ToInvariantString());
           sentExpiration = true;
         }
         else // if GPG asked us twice, that means it rejected the expiration date
@@ -3174,7 +3174,7 @@ public class ExeGPG : GPG
 
         if(!key.UserIds[key.UserIds.Count-1].Selected) // then, if the UID is not already selected, select it
         {
-          state.Command.SendLine("uid " + key.UserIds.Count.ToString(CultureInfo.InvariantCulture));
+          state.Command.SendLine("uid " + key.UserIds.Count.ToInvariantString());
           return EditCommandResult.Done;
         }
 
@@ -3221,7 +3221,7 @@ public class ExeGPG : GPG
           if(index == key.Subkeys.Count) throw UnexpectedError("No subkey found with fingerprint " + fingerprint);
 
           // then select it
-          state.Command.SendLine("key " + (index+1).ToString(CultureInfo.InvariantCulture));
+          state.Command.SendLine("key " + (index+1).ToInvariantString());
           return EditCommandResult.Done;
         }
       }
@@ -3280,7 +3280,7 @@ public class ExeGPG : GPG
         // if the one we want is not currently selected, select it
         if(!key.UserIds[index].Selected)
         {
-          state.Command.SendLine("uid " + (index+1).ToString(CultureInfo.InvariantCulture));
+          state.Command.SendLine("uid " + (index+1).ToInvariantString());
           return EditCommandResult.Done;
         }
 
@@ -3304,15 +3304,15 @@ public class ExeGPG : GPG
 
       foreach(OpenPGPCipher cipher in preferences.PreferredCiphers)
       {
-        prefString.Append(" S").Append(((int)cipher).ToString(CultureInfo.InvariantCulture));
+        prefString.Append(" S").Append(((int)cipher).ToInvariantString());
       }
       foreach(OpenPGPHashAlgorithm hash in preferences.PreferredHashes)
       {
-        prefString.Append(" H").Append(((int)hash).ToString(CultureInfo.InvariantCulture));
+        prefString.Append(" H").Append(((int)hash).ToInvariantString());
       }
       foreach(OpenPGPCompression compression in preferences.PreferredCompressions)
       {
-        prefString.Append(" Z").Append(((int)compression).ToString(CultureInfo.InvariantCulture));
+        prefString.Append(" Z").Append(((int)compression).ToInvariantString());
       }
 
       this.prefString = prefString.ToString();
@@ -3556,7 +3556,7 @@ public class ExeGPG : GPG
       }
       else if(string.Equals(promptId, "trustsig_prompt.trust_depth", StringComparison.Ordinal))
       {
-        state.Command.SendLine(options.TrustDepth.ToString(CultureInfo.InvariantCulture));
+        state.Command.SendLine(options.TrustDepth.ToInvariantString());
       }
       else if(string.Equals(promptId, "trustsig_prompt.trust_regexp", StringComparison.Ordinal))
       {
@@ -4034,7 +4034,7 @@ public class ExeGPG : GPG
     if(statusMessageHandling != StatusMessages.Ignore) // if the status stream is requested...
     {
       commandPipe = new InheritablePipe(); // create a pipe for the command-fd
-      string cmdFd = commandPipe.ClientHandle.ToInt64().ToString(CultureInfo.InvariantCulture);
+      string cmdFd = commandPipe.ClientHandle.ToInt64().ToInvariantString();
       string statusFd = statusMessageHandling == StatusMessages.MixIntoStdout ? "1" : cmdFd;
       args = "--exit-on-status-write-error --status-fd " + statusFd + " --command-fd " + cmdFd + " " + args;
     }
@@ -4235,7 +4235,7 @@ public class ExeGPG : GPG
       attrTempStream = new FileStream(attrTempFile, FileMode.Open, FileAccess.ReadWrite);
       attrBuffer     = new byte[4096];
 
-      args += "--attribute-fd " + attrPipe.ClientHandle.ToInt64().ToString(CultureInfo.InvariantCulture) + " ";
+      args += "--attribute-fd " + attrPipe.ClientHandle.ToInt64().ToInvariantString() + " ";
     }
     else // otherwise, attributes are not being retrieved, so we don't need them
     {
@@ -5242,7 +5242,7 @@ public class ExeGPG : GPG
       {
         string optStr = null;
         if(options.HttpProxy != null) optStr += "http-proxy=" + options.HttpProxy.AbsoluteUri + " ";
-        if(options.Timeout != 0) optStr += "timeout=" + options.Timeout.ToString(CultureInfo.InvariantCulture) + " ";
+        if(options.Timeout != 0) optStr += "timeout=" + options.Timeout.ToInvariantString() + " ";
         args += "--keyserver-options " + EscapeArg(optStr) + " ";
       }
     }

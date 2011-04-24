@@ -579,6 +579,13 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     return value;
   }
 
+  /// <summary>Reads a <see cref="Guid"/> from the stream.</summary>
+  /// <returns></returns>
+  public Guid ReadGuid()
+  {
+    return new Guid(ReadBytes(16));
+  }
+
   /// <summary>Reads a signed two-byte integer from the stream.</summary>
   public short ReadInt16()
   {
@@ -631,7 +638,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads an array of bytes from the stream.</summary>
-  public byte[] ReadByte(int count)
+  public byte[] ReadBytes(int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
     byte[] data = new byte[count];
@@ -640,48 +647,48 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads a number of two-byte characters from the stream.</summary>
-  public void ReadByte(byte[] array, int index, int count)
+  public void ReadBytes(byte[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
     fixed(byte* ptr=array) Read(ptr, count);
   }
 
   /// <summary>Reads an array of two-byte characters from the stream using the given encoding.</summary>
-  public char[] ReadChar(int count)
+  public char[] ReadChars(int count)
   {
-    return ReadChar(count, DefaultEncoding);
+    return ReadChars(count, DefaultEncoding);
   }
 
   /// <summary>Reads an array of two-byte characters from the stream using the given encoding.</summary>
-  public char[] ReadChar(int count, Encoding encoding)
+  public char[] ReadChars(int count, Encoding encoding)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
     char[] chars = new char[count];
-    fixed(char* charPtr=chars) ReadChar(charPtr, count, encoding);
+    fixed(char* charPtr=chars) ReadChars(charPtr, count, encoding);
     return chars;
   }
 
   /// <summary>Reads a number of two-byte characters from the stream. Returns the number of bytes read from the stream.</summary>
-  public int ReadChar(char[] array, int index, int count)
+  public int ReadChars(char[] array, int index, int count)
   {
-    return ReadChar(array, index, count, DefaultEncoding);
+    return ReadChars(array, index, count, DefaultEncoding);
   }
 
   /// <summary>Reads a number of two-byte characters from the stream. Returns the number of bytes read from the stream.</summary>
-  public int ReadChar(char[] array, int index, int count, Encoding encoding)
+  public int ReadChars(char[] array, int index, int count, Encoding encoding)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(char* ptr=array) return ReadChar(ptr+index, count, encoding);
+    fixed(char* ptr=array) return ReadChars(ptr+index, count, encoding);
   }
 
   /// <summary>Reads a number of two-byte characters from the stream. Returns the number of bytes read from the stream.</summary>
-  public int ReadChar(char* array, int count)
+  public int ReadChars(char* array, int count)
   {
-    return ReadChar(array, count, DefaultEncoding);
+    return ReadChars(array, count, DefaultEncoding);
   }
 
   /// <summary>Reads a number of two-byte characters from the stream. Returns the number of bytes read from the stream.</summary>
-  public int ReadChar(char* array, int count, Encoding encoding)
+  public int ReadChars(char* array, int count, Encoding encoding)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
     if(encoding == null) throw new ArgumentNullException();
@@ -703,44 +710,59 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     return totalRead;
   }
 
+  /// <summary>Reads an array of <see cref="Guid"/> objects from the stream.</summary>
+  public Guid[] ReadGuids(int count)
+  {
+    Guid[] data = new Guid[count];
+    ReadGuids(data, 0, count);
+    return data;
+  }
+
+  /// <summary>Reads an array of <see cref="Guid"/> objects from the stream.</summary>
+  public void ReadGuids(Guid[] array, int index, int count)
+  {
+    Utility.ValidateRange(array, index, count);
+    for(int end=index+count; index < end; index++) array[index] = ReadGuid();
+  }
+
   /// <summary>Reads an array of signed two-byte integers from the stream.</summary>
-  public short[] ReadInt16(int count)
+  public short[] ReadInt16s(int count)
   {
     short[] data = new short[count];
-    fixed(short* ptr=data) ReadInt16(ptr, count);
+    fixed(short* ptr=data) ReadInt16s(ptr, count);
     return data;
   }
 
   /// <summary>Reads an array of signed two-byte integers from the stream.</summary>
-  public void ReadInt16(short[] array, int index, int count)
+  public void ReadInt16s(short[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(short* ptr=array) ReadInt16(ptr+index, count);
+    fixed(short* ptr=array) ReadInt16s(ptr+index, count);
   }
 
   /// <summary>Reads an array of signed two-byte integers from the stream.</summary>
-  public void ReadInt16(short* array, int count)
+  public void ReadInt16s(short* array, int count)
   {
-    ReadUInt16((ushort*)array, count);
+    ReadUInt16s((ushort*)array, count);
   }
 
   /// <summary>Reads an array of unsigned two-byte integers from the stream.</summary>
-  public ushort[] ReadUInt16(int count)
+  public ushort[] ReadUInt16s(int count)
   {
     ushort[] data = new ushort[count];
-    fixed(ushort* ptr=data) ReadUInt16(ptr, count);
+    fixed(ushort* ptr=data) ReadUInt16s(ptr, count);
     return data;
   }
 
   /// <summary>Reads an array of unsigned two-byte integers from the stream.</summary>
-  public void ReadUInt16(ushort[] array, int index, int count)
+  public void ReadUInt16s(ushort[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(ushort* ptr=array) ReadUInt16(ptr+index, count);
+    fixed(ushort* ptr=array) ReadUInt16s(ptr+index, count);
   }
 
   /// <summary>Reads an array of unsigned two-byte integers from the stream.</summary>
-  public void ReadUInt16(ushort* array, int count)
+  public void ReadUInt16s(ushort* array, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
     Read(array, count*sizeof(ushort));
@@ -748,43 +770,43 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads an array of signed four-byte integers from the stream.</summary>
-  public int[] ReadInt32(int count)
+  public int[] ReadInt32s(int count)
   {
     int[] data = new int[count];
-    fixed(int* ptr=data) ReadInt32(ptr, count);
+    fixed(int* ptr=data) ReadInt32s(ptr, count);
     return data;
   }
 
   /// <summary>Reads an array of signed four-byte integers from the stream.</summary>
-  public void ReadInt32(int[] array, int index, int count)
+  public void ReadInt32s(int[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(int* ptr=array) ReadInt32(ptr+index, count);
+    fixed(int* ptr=array) ReadInt32s(ptr+index, count);
   }
 
   /// <summary>Reads an array of signed four-byte integers from the stream.</summary>
-  public void ReadInt32(int* array, int count)
+  public void ReadInt32s(int* array, int count)
   {
-    ReadUInt32((uint*)array, count);
+    ReadUInt32s((uint*)array, count);
   }
 
   /// <summary>Reads an array of unsigned four-byte integers from the stream.</summary>
-  public uint[] ReadUInt32(int count)
+  public uint[] ReadUInt32s(int count)
   {
     uint[] data = new uint[count];
-    fixed(uint* ptr=data) ReadUInt32(ptr, count);
+    fixed(uint* ptr=data) ReadUInt32s(ptr, count);
     return data;
   }
 
   /// <summary>Reads an array of unsigned four-byte integers from the stream.</summary>
-  public void ReadUInt32(uint[] array, int index, int count)
+  public void ReadUInt32s(uint[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(uint* ptr=array) ReadUInt32(ptr+index, count);
+    fixed(uint* ptr=array) ReadUInt32s(ptr+index, count);
   }
 
   /// <summary>Reads an array of unsigned four-byte integers from the stream.</summary>
-  public void ReadUInt32(uint* array, int count)
+  public void ReadUInt32s(uint* array, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
     Read(array, count*sizeof(uint));
@@ -792,43 +814,43 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads an array of signed eight-byte integers from the stream.</summary>
-  public long[] ReadInt64(int count)
+  public long[] ReadInt64s(int count)
   {
     long[] data = new long[count];
-    fixed(long* ptr=data) ReadInt64(ptr, count);
+    fixed(long* ptr=data) ReadInt64s(ptr, count);
     return data;
   }
 
   /// <summary>Reads an array of signed eight-byte integers from the stream.</summary>
-  public void ReadInt64(long[] array, int index, int count)
+  public void ReadInt64s(long[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(long* ptr=array) ReadInt64(ptr+index, count);
+    fixed(long* ptr=array) ReadInt64s(ptr+index, count);
   }
 
   /// <summary>Reads an array of signed eight-byte integers from the stream.</summary>
-  public void ReadInt64(long* array, int count)
+  public void ReadInt64s(long* array, int count)
   {
-    ReadUInt64((ulong*)array, count);
+    ReadUInt64s((ulong*)array, count);
   }
 
   /// <summary>Reads an array of unsigned eight-byte integers from the stream.</summary>
-  public ulong[] ReadUInt64(int count)
+  public ulong[] ReadUInt64s(int count)
   {
     ulong[] data = new ulong[count];
-    fixed(ulong* ptr=data) ReadUInt64(ptr, count);
+    fixed(ulong* ptr=data) ReadUInt64s(ptr, count);
     return data;
   }
 
   /// <summary>Reads an array of unsigned eight-byte integers from the stream.</summary>
-  public void ReadUInt64(ulong[] array, int index, int count)
+  public void ReadUInt64s(ulong[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(ulong* ptr=array) ReadUInt64(ptr+index, count);
+    fixed(ulong* ptr=array) ReadUInt64s(ptr+index, count);
   }
 
   /// <summary>Reads an array of unsigned eight-byte integers from the stream.</summary>
-  public void ReadUInt64(ulong* array, int count)
+  public void ReadUInt64s(ulong* array, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
     Read(array, count*sizeof(ulong));
@@ -836,44 +858,44 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads an array of four-byte floats from the stream.</summary>
-  public float[] ReadSingle(int count)
+  public float[] ReadSingles(int count)
   {
     float[] data = new float[count];
-    fixed(float* ptr=data) ReadSingle(ptr, count);
+    fixed(float* ptr=data) ReadSingles(ptr, count);
     return data;
   }
 
   /// <summary>Reads an array of four-byte floats from the stream.</summary>
-  public void ReadSingle(float[] array, int index, int count)
+  public void ReadSingles(float[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(float* ptr=array) ReadSingle(ptr+index, count);
+    fixed(float* ptr=array) ReadSingles(ptr+index, count);
   }
 
   /// <summary>Reads an array of unsigned four-byte integers from the stream.</summary>
-  public void ReadSingle(float* array, int count)
+  public void ReadSingles(float* array, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
     Read(array, count*sizeof(float));
   }
 
   /// <summary>Reads an array of eight-byte floats from the stream.</summary>
-  public double[] ReadDouble(int count)
+  public double[] ReadDoubles(int count)
   {
     double[] data = new double[count];
-    fixed(double* ptr=data) ReadDouble(ptr, count);
+    fixed(double* ptr=data) ReadDoubles(ptr, count);
     return data;
   }
 
   /// <summary>Reads an array of eight-byte floats from the stream.</summary>
-  public void ReadDouble(double[] array, int index, int count)
+  public void ReadDoubles(double[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(double* ptr=array) ReadDouble(ptr+index, count);
+    fixed(double* ptr=array) ReadDoubles(ptr+index, count);
   }
 
   /// <summary>Reads an array of unsigned eight-byte integers from the stream.</summary>
-  public void ReadDouble(double* array, int count)
+  public void ReadDoubles(double* array, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
     Read(array, count*sizeof(double));
@@ -899,7 +921,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     if(nbytes == 0) return string.Empty;
     // if it all fits into the buffer, then read it directly out of the buffer
     else if(nbytes <= Buffer.Length) return encoding.GetString(Buffer, (int)(ReadContiguousData(nbytes)-BufferPtr), nbytes);
-    else return encoding.GetString(ReadByte(nbytes)); // otherwise, read it into a temporary array
+    else return encoding.GetString(ReadBytes(nbytes)); // otherwise, read it into a temporary array
   }
 
   /// <summary>Reads a string that was written by <see cref="BinaryWriter.WriteStringWithLength"/>.</summary>

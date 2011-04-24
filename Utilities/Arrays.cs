@@ -166,17 +166,17 @@ public class ArrayBuffer<T> : ICollection<T>
   }
 
   /// <summary>Copies all items from the buffer to the given array.</summary>
-  public void CopyTo(T[] array, int index)
+  public void CopyTo(T[] array, int arrayIndex)
   {
-    CopyTo(array, index, Count);
+    CopyTo(array, arrayIndex, Count);
   }
 
   /// <summary>Copies the given number of items from the buffer to the given array.</summary>
-  public void CopyTo(T[] array, int index, int count)
+  public void CopyTo(T[] array, int arrayIndex, int count)
   {
-    Utility.ValidateRange(array, index, count);
+    Utility.ValidateRange(array, arrayIndex, count);
     if(count > Count) throw new ArgumentOutOfRangeException();
-    Array.Copy(Buffer, Offset, array, index, count);
+    Array.Copy(Buffer, Offset, array, arrayIndex, count);
   }
 
   /// <summary>Copies the given portion of the buffer (represented by the logical source index and count) to the given array.</summary>
@@ -206,7 +206,7 @@ public class ArrayBuffer<T> : ICollection<T>
     {
       spaceAtEnd += Offset;
       MakeContiguous();
-      if(elementsToAdd > spaceAtEnd) Utility.EnlargeArray(ref _buffer, Count, elementsToAdd);
+      if(elementsToAdd > spaceAtEnd) _buffer = Utility.EnlargeArray(_buffer, Count, elementsToAdd);
     }
     return Buffer;
   }
@@ -342,6 +342,83 @@ public class ArrayBuffer<T> : ICollection<T>
 }
 #endregion
 
+#region ArrayExtensions
+/// <summary>Provides convenient extensions for working with arrays.</summary>
+public static class ArrayExtensions
+{
+  public static bool Contains(this Array array, object item)
+  {
+    return Array.IndexOf(array, item) != -1;
+  }
+
+  public static bool Contains(this Array array, object item, int startIndex)
+  {
+    return Array.IndexOf(array, item, startIndex) != -1;
+  }
+
+  public static bool Contains<T>(this T[] array, T item)
+  {
+    return Array.IndexOf<T>(array, item) != -1;
+  }
+
+  public static bool Contains<T>(this T[] array, T item, int startIndex)
+  {
+    return Array.IndexOf<T>(array, item, startIndex) != -1;
+  }
+
+  public static int IndexOf(this Array array, object item)
+  {
+    return Array.IndexOf(array, item);
+  }
+
+  public static int IndexOf(this Array array, object item, int startIndex)
+  {
+    return Array.IndexOf(array, item, startIndex);
+  }
+
+  public static int IndexOf<T>(this T[] array, T item)
+  {
+    return Array.IndexOf<T>(array, item);
+  }
+
+  public static int IndexOf<T>(this T[] array, T item, int startIndex)
+  {
+    return Array.IndexOf<T>(array, item, startIndex);
+  }
+}
+#endregion
+
+#region ArraySegmentEnumerable
+/// <summary>Enumerates the items within a segment of an array.</summary>
+public sealed class ArraySegmentEnumerable<T> : IEnumerable<T>
+{
+  /// <summary>Initializes a new <see cref="ArraySegmentEnumerable"/> from the given <see cref="ArraySegment{T}"/>.</summary>
+  public ArraySegmentEnumerable(ArraySegment<T> segment) : this(segment.Array, segment.Offset, segment.Count) { }
+
+  /// <summary>Initializes a new <see cref="ArraySegmentEnumerable"/> from the given array and region.</summary>
+  public ArraySegmentEnumerable(T[] array, int index, int count)
+  {
+    Utility.ValidateRange(array, index, count);
+    this.array = array;
+    this.start = index;
+    this.count = count;
+  }
+
+  public IEnumerator<T> GetEnumerator()
+  {
+    return new ArraySegmentEnumerator<T>(array, start, count);
+  }
+
+  System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+  {
+    return GetEnumerator();
+  }
+
+  readonly T[] array;
+  readonly int start, count;
+}
+#endregion
+
 #region ArraySegmentEnumerator
 /// <summary>Enumerates the items within a segment of an array.</summary>
 public sealed class ArraySegmentEnumerator<T> : IEnumerator<T>
@@ -407,6 +484,7 @@ public sealed class ByteBuffer : ArrayBuffer<byte>
   public ByteBuffer(int capacity) : base(capacity) { }
 
   /// <summary>Adds the given number of bytes from the byte pointer to the buffer.</summary>
+  [CLSCompliant(false)]
   public unsafe void AddRange(byte* sourceBytes, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
@@ -415,6 +493,7 @@ public sealed class ByteBuffer : ArrayBuffer<byte>
   }
 
   /// <summary>Removes the given number of bytes from the buffer and copies them to the given byte pointer.</summary>
+  [CLSCompliant(false)]
   public unsafe void Remove(byte* destination, int count)
   {
     if(count < 0 || count > Count) throw new ArgumentOutOfRangeException();

@@ -39,7 +39,7 @@ public static class TypeUtility
     if(destinationType == null) throw new ArgumentNullException();
 
     Type srcType = value == null ? null : value.GetType();
-    // if the types match, or we're not simply dealing with a null value and a reference type...
+    // if the types don't match, and we're not simply dealing with a null value and a reference type...
     if(destinationType != srcType && (value != null || destinationType.IsValueType))
     {
       // we need special handling for Nullable<T> types. if the
@@ -57,12 +57,12 @@ public static class TypeUtility
           {
             // otherwise, get the type T in Nullable<T>
             destinationType = destinationType.GetGenericArguments()[0];
-            // the below code will try to convert the value to type T
+            // the below code will try to convert the value to type T, which can be unboxed into Nullable<T>
           }
         }
       }
 
-      if(destinationType == typeof(Guid)) // Convert.ChangeType() will fail to convert a string to a Guid, so we'll do it ourselves
+      if(destinationType == typeof(Guid)) // Convert.ChangeType() fails to convert a string to a Guid, so we'll do it ourselves
       {
         string stringValue = value as string;
         if(string.IsNullOrEmpty(stringValue)) throw new InvalidCastException();

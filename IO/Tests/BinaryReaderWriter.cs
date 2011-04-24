@@ -48,7 +48,7 @@ public class BinaryReaderWriterTest
       Assert.AreEqual('吉', br.ReadChar());
       Assert.AreEqual("Hello, world.吉吉", br.ReadStringWithLength());
       Assert.AreEqual(new string('吉', 4096), br.ReadStringWithLength());
-      TestHelpers.AssertArrayEquals(new char[] { 'H', 'o', 'p', 'e', '吉' }, br.ReadChar(5));
+      TestHelpers.AssertArrayEquals(new char[] { 'H', 'o', 'p', 'e', '吉' }, br.ReadChars(5));
     }
   }
 

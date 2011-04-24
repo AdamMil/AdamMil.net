@@ -228,11 +228,13 @@ public class EightBitEncoding : EncoderDecoderEncoding
 
   public override int GetMaxByteCount(int charCount)
   {
+    if(charCount < 0) throw new ArgumentOutOfRangeException();
     return encoder == null ? charCount : encoder.GetMaxBytes(charCount);
   }
 
   public override int GetMaxCharCount(int byteCount)
   {
+    if(byteCount < 0) throw new ArgumentOutOfRangeException();
     return decoder == null ? byteCount : decoder.GetMaxBytes(byteCount);
   }
 

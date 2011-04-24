@@ -25,6 +25,7 @@ namespace AdamMil.Utilities
 {
 
 /// <summary>This class provides methods to help when working with unsafe code.</summary>
+[CLSCompliant(false)]
 [System.Security.SuppressUnmanagedCodeSecurity]
 public static class Unsafe
 {

@@ -24,6 +24,45 @@ using System.Collections.Generic;
 namespace AdamMil.Collections
 {
 
+#region EmptyEnumerable
+/// <summary>Represents an empty sequence of items. This read-only class can be used wherever an
+/// <see cref="IEnumerable{T}"/> or <see cref="IEnumerator{T}"/> is expected.
+/// </summary>
+public sealed class EmptyEnumerable<T> : IEnumerable<T>, IEnumerator<T>
+{
+  public IEnumerator<T> GetEnumerator()
+  {
+    return this;
+  }
+
+  T IEnumerator<T>.Current
+  {
+    get { throw new InvalidOperationException(); }
+  }
+
+  object System.Collections.IEnumerator.Current
+  {
+    get { throw new InvalidOperationException(); }
+  }
+
+  void IDisposable.Dispose() { }
+
+  bool System.Collections.IEnumerator.MoveNext()
+  {
+    return false;
+  }
+
+  void System.Collections.IEnumerator.Reset()
+  {
+  }
+
+  System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+  {
+    return this;
+  }
+}
+#endregion
+
 /// <summary>Implements useful extensions for .NET built-in collections.</summary>
 public static partial class CollectionExtensions
 {

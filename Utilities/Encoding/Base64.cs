@@ -237,7 +237,6 @@ public sealed class Base64Encoder : BinaryEncoder
   /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCountPtr/*"/>
   public unsafe override int GetByteCount(byte* data, int count, bool simulateFlush)
   {
-    if(count < 0) throw new ArgumentOutOfRangeException();
     return GetByteCount(count, simulateFlush);
   }
 
@@ -251,7 +250,7 @@ public sealed class Base64Encoder : BinaryEncoder
   /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetMaxBytes/*"/>
   public override int GetMaxBytes(int unencodedByteCount)
   {
-    return (unencodedByteCount+2)/3*4;
+    return GetByteCount(unencodedByteCount, true);
   }
 
   /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Reset/*"/>
@@ -304,6 +303,7 @@ public sealed class Base64Encoder : BinaryEncoder
 
   int GetByteCount(int count, bool simulateFlush)
   {
+    if(count < 0 || count > 1610612733) throw new ArgumentOutOfRangeException(); // the max chars we can decode into 2^31-1 bytes
     if(byteBuffer != null) count += byteBuffer.Count;
     int byteCount = (count + (simulateFlush ? 2 : 0)) / 3 * 4;
     if(wrapLinesAt != 0) byteCount += (byteCount + linePosition + (simulateFlush ? wrapLinesAt-1 : 0)) / wrapLinesAt * 2;
