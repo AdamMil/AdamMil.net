@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -213,7 +214,7 @@ public class CopyReadStream : DelegateStream
 
   public CopyReadStream(Stream baseStream, Stream copyStream, bool autoFlush, bool ownStreams) : base(baseStream, ownStreams)
   {
-    if(copyStream == null) throw new ArgumentNullException();
+    if(baseStream == null || copyStream == null) throw new ArgumentNullException();
     if(!baseStream.CanRead || !copyStream.CanWrite)
     {
       throw new ArgumentException("The input stream must be readable and the copy stream must be writable.");
@@ -263,6 +264,125 @@ public class CopyReadStream : DelegateStream
 
   readonly Stream copyStream;
   readonly bool ownStreams;
+}
+#endregion
+
+#region DataRecordStream
+/// <summary>Implements a read-only stream that reads a value from a column in an <see cref="IDataRecord"/> object. (Note that
+/// <see cref="IDataReader" /> objects also implement <see cref="IDataRecord"/>.) This is useful for reading large binary values
+/// from databases. It is possible to seek within the stream if the data reader is not forward-only, but it is recommended to use
+/// forward-only readers for large binary values, to avoid caching too much data in memory.
+/// </summary>
+public class DataRecordStream : Stream
+{
+  /// <summary>Initializes a new <see cref="DataRecordStream"/> with an <see cref="IDataRecord"/> and the index of the column to
+  /// read from. The record will be disposed when the stream is closed.
+  /// </summary>
+  public DataRecordStream(IDataRecord record, int columnIndex) : this(record, columnIndex, true) { }
+
+  /// <summary>Initializes a new <see cref="DataRecordStream"/> with an <see cref="IDataRecord"/> and the index of the column to
+  /// read from. If <paramref name="ownRecord"/> is true, the record will be disposed when the stream is closed.
+  /// </summary>
+  public DataRecordStream(IDataRecord record, int columnIndex, bool ownRecord)
+  {
+    if(record == null) throw new ArgumentNullException();
+    if(columnIndex < 0 || columnIndex >= record.FieldCount) throw new ArgumentOutOfRangeException();
+    this.record    = record;
+    this.column    = columnIndex;
+    this.length    = CalculateLength();
+    this.ownRecord = ownRecord;
+  }
+
+  /// <summary>Initializes a new <see cref="DataRecordStream"/> with an <see cref="IDataRecord"/> and the name of the column to
+  /// read from. The record will be disposed when the stream is closed.
+  /// </summary>
+  public DataRecordStream(IDataRecord record, string columnName) : this(record, columnName, true) { }
+
+  /// <summary>Initializes a new <see cref="DataRecordStream"/> with an <see cref="IDataRecord"/> and the name of the column to
+  /// read from. If <paramref name="ownRecord"/> is true, the record will be disposed when the stream is closed.
+  /// </summary>
+  public DataRecordStream(IDataRecord record, string columnName, bool ownRecord)
+  {
+    if(record == null) throw new ArgumentNullException();
+
+    try { this.column = record.GetOrdinal(columnName); }
+    catch(IndexOutOfRangeException) { throw new ArgumentException("No such column name: " + columnName); }
+
+    this.record    = record;
+    this.length    = CalculateLength();
+    this.ownRecord = ownRecord;
+  }
+
+  public sealed override bool CanRead
+  {
+    get { return true; }
+  }
+
+  public override bool CanSeek
+  {
+    get { return true; }
+  }
+
+  public override bool CanWrite
+  {
+    get { return false; }
+  }
+
+  public override long Length
+  {
+    get { return length; }
+  }
+
+  public override long Position
+  {
+    get { return position; }
+    set { Seek(value, SeekOrigin.Begin); }
+  }
+
+  public override void Flush() { }
+
+  public override int Read(byte[] buffer, int offset, int count)
+  {
+    long bytesRead = record.GetBytes(column, position, buffer, offset, count);
+    position += bytesRead;
+    return (int)bytesRead;
+  }
+
+  public override long Seek(long offset, SeekOrigin origin)
+  {
+    if(origin == SeekOrigin.Current) offset += position;
+    else if(origin == SeekOrigin.End) offset += length;
+
+    if(offset < 0 || offset > length) throw new ArgumentOutOfRangeException();
+    return position = offset;
+  }
+
+  public override void SetLength(long value)
+  {
+    throw new NotSupportedException();
+  }
+
+  public override void Write(byte[] buffer, int offset, int count)
+  {
+    throw new NotSupportedException();
+  }
+
+  protected override void Dispose(bool disposing)
+  {
+    base.Dispose(disposing);
+    if(ownRecord) Utility.Dispose(record);
+  }
+
+  long CalculateLength()
+  {
+    return record.GetBytes(column, 0, null, 0, 0);
+  }
+
+  readonly IDataRecord record;
+  readonly long length;
+  long position;
+  readonly int column;
+  readonly bool ownRecord;
 }
 #endregion
 
@@ -343,9 +463,9 @@ public class DelegateStream : Stream
     return baseStream.Seek(offset, origin);
   }
 
-  public override void SetLength(long value)
+  public override void SetLength(long length)
   {
-    baseStream.SetLength(value);
+    baseStream.SetLength(length);
   }
 
   public override void Write(byte[] buffer, int offset, int count)
@@ -622,6 +742,7 @@ public class StreamStream : DelegateStream
   /// <param name="shared">If set to true, the underlying stream will be seeked to the expected position before
   /// each operation in case some other code has moved the file pointer. If set to false, it is assumed that other
   /// code will not touch the underlying stream while this stream is in use, so the additional seeking can be avoided.
+  /// Note that setting this to true does not make the stream thread-safe.
   /// </param>
   public StreamStream(Stream stream, long start, long length, bool shared)
     : this(stream, start, length, shared, !shared) { }
@@ -638,6 +759,7 @@ public class StreamStream : DelegateStream
   /// <param name="shared">If set to true, the underlying stream will be seeked to the expected position before
   /// each operation in case some other code has moved the file pointer. If set to false, it is assumed that other
   /// code will not touch the underlying stream while this stream is in use, so the additional seeking can be avoided.
+  /// Note that setting this to true does not make the stream thread-safe.
   /// </param>
   /// <param name="closeInner">If set to true, the underlying stream will be closed automatically when this stream
   /// is closed.

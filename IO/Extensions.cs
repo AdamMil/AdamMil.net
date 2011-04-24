@@ -75,22 +75,44 @@ public unsafe static partial class StreamExtensions
     }
   }
 
-  /// <summary>Processes a stream in chunks of 4096 bytes, using the given <see cref="StreamProcessor"/>.</summary>
+  /// <summary>Processes a stream in chunks of up to 4096 bytes, using the given <see cref="StreamProcessor"/>.</summary>
   public static void Process(this Stream stream, StreamProcessor processor)
   {
-    stream.Process(processor, 4096);
+    stream.Process(4096, false, processor);
   }
 
-  /// <summary>Processes a stream in chunks of the given size, using the given <see cref="StreamProcessor"/>.</summary>
-  public static void Process(this Stream stream, StreamProcessor processor, int chunkSize)
+  /// <summary>Processes a stream in chunks up to the given size, using the given <see cref="StreamProcessor"/>.</summary>
+  public static void Process(this Stream stream, int chunkSize, StreamProcessor processor)
+  {
+    stream.Process(chunkSize, false, processor);
+  }
+
+  /// <summary>Processes a stream in chunks up to the given size, using the given <see cref="StreamProcessor"/>.</summary>
+  /// <param name="stream">The stream to process.</param>
+  /// <param name="chunkSize">The maximum size of the chunks to process.</param>
+  /// <param name="fullChunks">If true, the method may read from the stream multiple times per chunk, attempting to fill the
+  /// entire chunk before calling the processor. In that case, only the last chunk may be smaller than
+  /// <paramref name="chunkSize"/>. If false, the method will read from the stream only once per chunk, and all chunks may be
+  /// smaller than <paramref name="chunkSize"/>.
+  /// </param>
+  /// <param name="processor">A <see cref="StreamProcessor"/> that will process each chunk of data.</param>
+  public static void Process(this Stream stream, int chunkSize, bool fullChunks, StreamProcessor processor)
   {
     if(stream == null || processor == null) throw new ArgumentNullException();
     if(chunkSize <= 0) throw new ArgumentOutOfRangeException();
 
     byte[] buffer = new byte[chunkSize];
-    int read;
-    do read = stream.Read(buffer, 0, chunkSize);
-    while(read != 0 && processor(buffer, read));
+    int inChunk;
+    do
+    {
+      inChunk = 0;
+      do // try to read a full chunk if fullChunks is true
+      {
+        int read = stream.Read(buffer, inChunk, chunkSize - inChunk);
+        if(read == 0) break;
+        inChunk += read;
+      } while(inChunk < chunkSize && fullChunks);
+    } while(inChunk != 0 && processor(buffer, inChunk));
   }
 
   /// <summary>Reads the given number of bytes from a stream.</summary>
@@ -190,6 +212,7 @@ public unsafe static partial class StreamExtensions
   /// <exception cref="EndOfStreamException">Thrown if the end of the stream was reached before the byte could be read.</exception>
   public static byte ReadByteOrThrow(this Stream stream)
   {
+    if(stream == null) throw new ArgumentNullException();
     int i = stream.ReadByte();
     if(i == -1) throw new EndOfStreamException();
     return (byte)i;
@@ -297,6 +320,7 @@ public unsafe static partial class StreamExtensions
   /// <remarks>This method works on both seekable and non-seekable streams, but is more efficient with seekable ones.</remarks>
   public static void Skip(this Stream stream, long bytes)
   {
+    if(stream == null) throw new ArgumentNullException();
     if(bytes < 0) throw new ArgumentException("cannot be negative", "bytes");
 
     if(stream.CanSeek)

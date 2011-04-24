@@ -18,23 +18,35 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-using System;
 using System.Globalization;
 
 namespace AdamMil.Utilities
 {
 
-static class Exceptions
+public static class PrimitiveExtensions
 {
-  public static ArgumentException InsufficientBufferSpace()
+  /// <summary>Converts the value to a string using the invariant culture.</summary>
+  public static string ToInvariantString(this int value)
   {
-    return new ArgumentException("Insufficient space in the output buffer.");
+    return value.ToString(CultureInfo.InvariantCulture);
   }
 
-  public static ArgumentException InsufficientBufferSpace(int elementsNeeded)
+  /// <summary>Converts the value to a string using the invariant culture.</summary>
+  public static string ToInvariantString(this long value)
   {
-    return new ArgumentException("Insufficient space in the output buffer. " +
-                                 elementsNeeded.ToInvariantString() + " elements needed.");
+    return value.ToString(CultureInfo.InvariantCulture);
+  }
+
+  /// <summary>Converts the value to a string using the invariant culture.</summary>
+  public static string ToInvariantString(this decimal value)
+  {
+    return value.ToString(CultureInfo.InvariantCulture);
+  }
+
+  /// <summary>Converts the value to a string using the invariant culture.</summary>
+  public static string ToInvariantString(this double value)
+  {
+    return value.ToString(CultureInfo.InvariantCulture);
   }
 }
 

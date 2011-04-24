@@ -119,7 +119,7 @@ public sealed class Impersonation : IDisposable
   }
 
   /// <summary>Runs the given delegate as the user referenced by the given user token, optionally executing it in a new thread.</summary>
-  public static void RunWithImpersonation(IntPtr userToken, bool runInANewThread, ThreadStart code)
+  public static void RunWithImpersonation(IntPtr userToken, bool runInANewThread, Action code)
   {
     if(code == null) throw new ArgumentException();
     Run(userToken, false, code, runInANewThread);
@@ -128,7 +128,7 @@ public sealed class Impersonation : IDisposable
   /// <summary>Runs the given delegate as the user referenced by the given <see cref="WindowsIdentity"/>, optionally executing it
   /// in a new thread.
   /// </summary>
-  public static void RunWithImpersonation(WindowsIdentity user, bool runInANewThread, ThreadStart code)
+  public static void RunWithImpersonation(WindowsIdentity user, bool runInANewThread, Action code)
   {
     if(code == null) throw new ArgumentException();
     Run(user, code, runInANewThread);
@@ -138,7 +138,7 @@ public sealed class Impersonation : IDisposable
   /// DOMAIN\user or user@domain format.
   /// </summary>
   public static void RunWithImpersonation(string userName, string password, LoginType loginType, bool runInANewThread,
-                                          ThreadStart code)
+                                          Action code)
   {
     if(code == null) throw new ArgumentException();
     Run(LogonUser(GetDomain(userName), GetUserName(userName), password, loginType), true, code, runInANewThread);
@@ -148,7 +148,7 @@ public sealed class Impersonation : IDisposable
   /// DOMAIN\user or user@domain format.
   /// </summary>
   public static void RunWithImpersonation(string userName, SecureString password, LoginType loginType, bool runInANewThread,
-                                          ThreadStart code)
+                                          Action code)
   {
     if(code == null) throw new ArgumentException();
     Run(LogonUser(GetDomain(userName), GetUserName(userName), password, loginType), true, code, runInANewThread);
@@ -156,7 +156,7 @@ public sealed class Impersonation : IDisposable
 
   /// <summary>Runs the given delegate as the given user, optionally executing it in a new thread.</summary>
   public static void RunWithImpersonation(string domain, string userName, string password, LoginType loginType,
-                                          bool runInANewThread, ThreadStart code)
+                                          bool runInANewThread, Action code)
   {
     if(code == null) throw new ArgumentException();
     Run(LogonUser(domain, userName, password, loginType), true, code, runInANewThread);
@@ -164,7 +164,7 @@ public sealed class Impersonation : IDisposable
 
   /// <summary>Runs the given delegate as the given user, optionally executing it in a new thread.</summary>
   public static void RunWithImpersonation(string domain, string userName, SecureString password, LoginType loginType,
-                                          bool runInANewThread, ThreadStart code)
+                                          bool runInANewThread, Action code)
   {
     if(code == null) throw new ArgumentException();
     Run(LogonUser(domain, userName, password, loginType), true, code, runInANewThread);
@@ -255,26 +255,31 @@ public sealed class Impersonation : IDisposable
   static IntPtr LogonUser(string domain, string userName, SecureString password, LoginType loginType)
   {
     ValidateLogonArguments(domain, userName, password);
-    IntPtr handle;
+    IntPtr handle, passwordStr = IntPtr.Zero;
     int logonType = GetNTLogonType(loginType);
-    if(!LogonUser(userName, domain, password, logonType, LOGON32_PROVIDER_DEFAULT, out handle))
+    try
     {
-      throw new Win32Exception();
+      passwordStr = Marshal.SecureStringToGlobalAllocUnicode(password);
+      if(!LogonUser(userName, domain, passwordStr, logonType, LOGON32_PROVIDER_DEFAULT, out handle)) throw new Win32Exception();
+    }
+    finally
+    {
+      if(passwordStr != IntPtr.Zero) Marshal.ZeroFreeGlobalAllocUnicode(passwordStr);
     }
     return handle;
   }
 
-  static void Run(WindowsIdentity identity, ThreadStart code, bool runInANewThread)
+  static void Run(WindowsIdentity identity, Action code, bool runInANewThread)
   {
     Run(delegate { return new Impersonation(identity); }, code, runInANewThread);
   }
 
-  static void Run(IntPtr token, bool ownToken, ThreadStart code, bool runInANewThread)
+  static void Run(IntPtr token, bool ownToken, Action code, bool runInANewThread)
   {
     Run(delegate { return new Impersonation(token, ownToken); }, code, runInANewThread);
   }
 
-  static void Run(ImpersonationMaker impersonationMaker, ThreadStart code, bool runInANewThread)
+  static void Run(ImpersonationMaker impersonationMaker, Action code, bool runInANewThread)
   {
     if(!runInANewThread)
     {
@@ -287,10 +292,10 @@ public sealed class Impersonation : IDisposable
       Exception exception = null;
 
       Thread thread = new Thread((ThreadStart)delegate
-        {
-          try { using(impersonationMaker()) code(); } // this try/catch block exists to propagate the exception to the calling thread
-          catch(Exception ex) { exception = ex; }
-        });
+      {
+        try { using(impersonationMaker()) code(); } // this try/catch block exists to propagate the exception to the calling thread
+        catch(Exception ex) { exception = ex; }
+      });
       thread.Start();
       thread.Join();
 
@@ -319,14 +324,17 @@ public sealed class Impersonation : IDisposable
   const int LOGON32_PROVIDER_DEFAULT = 0;
 
   [DllImport("advapi32.dll", SetLastError=true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
   static extern bool LogonUser(string userName, string domain, string password, int logonType, int logonProvider,
                                out IntPtr userToken);
 
   [DllImport("advapi32.dll", SetLastError=true)]
-  static extern bool LogonUser(string userName, string domain, SecureString password, int logonType, int logonProvider,
+  [return: MarshalAs(UnmanagedType.Bool)]
+  static extern bool LogonUser(string userName, string domain, IntPtr password, int logonType, int logonProvider,
                                out IntPtr userToken);
 
   [DllImport("kernel32.dll", ExactSpelling=true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
   static extern bool CloseHandle(IntPtr handle);
 }
 #endregion

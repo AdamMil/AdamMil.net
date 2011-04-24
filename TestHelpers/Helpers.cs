@@ -8,15 +8,12 @@ namespace AdamMil.Tests
 
 public static class TestHelpers
 {
-  public static void AssertArrayEquals<T>(T[] expected, params T[] actual)
+  public static void AssertArrayEquals<T>(T[] actual, params T[] expected)
   {
-    if(expected == null && actual == null) return;
-    if(expected == null || actual == null) throw new ArgumentNullException();
-    Assert.AreEqual(expected.Length, actual.Length);
-    for(int i=0; i<expected.Length; i++)
-    {
-      Assert.AreEqual(actual[i], expected[i]);
-    }
+    if(actual == null && expected == null) return;
+    if(actual == null || expected == null) throw new ArgumentNullException();
+    Assert.AreEqual(actual.Length, expected.Length);
+    for(int i=0; i<actual.Length; i++) Assert.AreEqual(expected[i], actual[i]);
   }
 
   public static void AssertPropertyEquals(string propertyName, object expected, object actual)

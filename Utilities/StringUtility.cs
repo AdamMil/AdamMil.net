@@ -31,12 +31,14 @@ public static class StringUtility
   /// <summary>Determines whether a string contains a given character.</summary>
   public static bool Contains(this string strToSearch, char charToSearchFor)
   {
+    if(strToSearch == null) throw new ArgumentNullException();
     return strToSearch.IndexOf(charToSearchFor) != -1;
   }
 
   /// <summary>Determines whether a string contains a given substring.</summary>
   public static bool Contains(this string strToSearch, string strToSearchFor, StringComparison comparisonType)
   {
+    if(strToSearch == null) throw new ArgumentNullException();
     return strToSearch.IndexOf(strToSearchFor, comparisonType) != -1;
   }
 
@@ -53,18 +55,10 @@ public static class StringUtility
                          ignoreCase ? StringComparison.CurrentCultureIgnoreCase : StringComparison.CurrentCulture);
   }
 
-  /// <summary>Converts the given string, which must contain only hex digits, into the corresponding byte array.</summary>
-  public static byte[] FromHex(string hex)
+  /// <summary>Returns null if the given string is null or empty. Otherwise, returns the given string.</summary>
+  public static string MakeNullIfEmpty(string str)
   {
-    if(hex == null) throw new ArgumentNullException();
-    if((hex.Length & 1) != 0) throw new ArgumentException("The length of the hex data must be a multiple of two.");
-
-    byte[] data = new byte[hex.Length / 2];
-    for(int i=0,o=0; i<hex.Length; i += 2)
-    {
-      data[o++] = (byte)((HexValue(hex[i]) << 4) | HexValue(hex[i+1]));
-    }
-    return data;
+    return string.IsNullOrEmpty(str) ? null : str;
   }
 
   /// <summary>Determines whether two strings are identical, using a case-sensitive ordinal comparison.</summary>
@@ -77,26 +71,6 @@ public static class StringUtility
   public static bool OrdinalEquals(this string string1, string string2, bool ignoreCase)
   {
     return string.Equals(string1, string2, ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
-  }
-
-  /// <summary>Converts the given byte value into a corresponding two-digit hex string.</summary>
-  public static string ToHex(byte value)
-  {
-    return new string(new char[2] { HexChars[value >> 4], HexChars[value & 0xF] });
-  }
-
-  /// <summary>Converts the given binary data into a hex string.</summary>
-  public static string ToHex(byte[] data)
-  {
-    if(data == null) throw new ArgumentNullException();
-    char[] chars = new char[data.Length * 2];
-    for(int i=0,o=0; i<data.Length; i++)
-    {
-      byte value = data[i];
-      chars[o++] = HexChars[value >> 4];
-      chars[o++] = HexChars[value & 0xF];
-    }
-    return new string(chars);
   }
 
   /// <summary>Creates a string from the given sequence by concatenating each element.</summary>
@@ -174,6 +148,27 @@ public static class StringUtility
     return str;
   }
 
+  /// <summary>Splits a string by the given substring.</summary>
+  public static string[] Split(this string str, string separator)
+  {
+    if(str == null) throw new ArgumentNullException();
+    return str.Split(new string[] { separator }, StringSplitOptions.None);
+  }
+
+  /// <summary>Splits a string by the given substring.</summary>
+  public static string[] Split(this string str, string separator, StringSplitOptions options)
+  {
+    if(str == null) throw new ArgumentNullException();
+    return str.Split(new string[] { separator }, options);
+  }
+
+  /// <summary>Splits a string by the given character.</summary>
+  public static string[] Split(this string str, char separator, int maxItems)
+  {
+    if(str == null) throw new ArgumentNullException();
+    return str.Split(new char[] { separator }, maxItems);
+  }
+
   /// <summary>Splits a string by the given character.</summary>
   public static string[] Split(this string str, char separator, StringSplitOptions options)
   {
@@ -189,11 +184,8 @@ public static class StringUtility
   /// <summary>Splits the given string, passing each item through the conversion function before returning it.</summary>
   public static string[] Split(this string str, char separator, Converter<string,string> converter, StringSplitOptions options)
   {
-    if(converter == null) throw new ArgumentNullException();
-    if(string.IsNullOrEmpty(str))
-    {
-      return options == StringSplitOptions.RemoveEmptyEntries ? new string[0] : new string[] { converter(str) };
-    }
+    if(str == null || converter == null) throw new ArgumentNullException();
+    if(str.Length == 0) return options == StringSplitOptions.RemoveEmptyEntries ? new string[0] : new string[] { converter(str) };
 
     string[] items = str.Split(new char[] { separator }, options);
     for(int i=0; i<items.Length; i++) items[i] = converter(items[i]);
@@ -209,25 +201,14 @@ public static class StringUtility
   /// <summary>Splits the given string, passing each item through the conversion function before returning it.</summary>
   public static T[] Split<T>(this string str, char separator, Converter<string,T> converter, StringSplitOptions options)
   {
-    if(converter == null) throw new ArgumentNullException();
-    if(string.IsNullOrEmpty(str)) return options == StringSplitOptions.RemoveEmptyEntries ? new T[0] : new T[] { converter(str) };
+    if(str == null || converter == null) throw new ArgumentNullException();
+    if(str.Length == 0) return options == StringSplitOptions.RemoveEmptyEntries ? new T[0] : new T[] { converter(str) };
 
     string[] bits = str.Split(new char[] { separator }, options);
     T[] items = new T[bits.Length];
     for(int i=0; i<items.Length; i++) items[i] = converter(bits[i]);
     return items;
   }
-
-  /// <summary>Converts the given hex digit into its numeric value.</summary>
-  static int HexValue(char c)
-  {
-    if(c >= '0' && c <= '9') return c - '0';
-    else if(c >= 'A' && c <= 'F') return c - ('A' - 10);
-    else if(c >= 'a' && c <= 'f') return c - ('a' - 10);
-    else throw new ArgumentException("'" + c.ToString() + "' is not a valid hex digit.");
-  }
-
-  const string HexChars = "0123456789ABCDEF";
 }
 
 } // namespace AdamMil.Utilities

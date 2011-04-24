@@ -27,6 +27,133 @@ using System.Xml;
 namespace AdamMil.Utilities
 {
 
+#region XmlElementExtensions
+/// <summary>Provides useful extensions to the <see cref="XmlElement"/> class.</summary>
+public static class XmlElementExtensions
+{
+  /// <summary>Sets the named attribute with a value based on a boolean value.</summary>
+  public static void SetAttribute(this XmlElement element, string attributeName, bool value)
+  {
+    if(element == null) throw new ArgumentNullException();
+    element.SetAttribute(attributeName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with a value based on a byte value.</summary>
+  public static void SetAttribute(this XmlElement element, string attributeName, byte value)
+  {
+    if(element == null) throw new ArgumentNullException();
+    element.SetAttribute(attributeName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with a value based on a character value.</summary>
+  public static void SetAttribute(this XmlElement element, string attributeName, char value)
+  {
+    if(element == null) throw new ArgumentNullException();
+    element.SetAttribute(attributeName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with a value based on a <see cref="DateTime"/>. The <see cref="DateTimeKind"/> of the
+  /// <see cref="DateTime"/> will be preserved.
+  /// </summary>
+  public static void SetAttribute(this XmlElement element, string attributeName, DateTime dateTimeValue)
+  {
+    element.SetAttribute(attributeName, dateTimeValue, XmlDateTimeSerializationMode.RoundtripKind);
+  }
+
+  /// <summary>Sets the named attribute with a value based on a <see cref="DateTime"/>.</summary>
+  public static void SetAttribute(this XmlElement element, string attributeName, DateTime dateTimeValue,
+                                  XmlDateTimeSerializationMode dateTimeMode)
+  {
+    if(element == null) throw new ArgumentNullException();
+    element.SetAttribute(attributeName, XmlConvert.ToString(dateTimeValue, dateTimeMode));
+  }
+
+  /// <summary>Sets the named attribute with a value based on a <see cref="Decimal"/> value.</summary>
+  public static void SetAttribute(this XmlElement element, string attributeName, decimal value)
+  {
+    if(element == null) throw new ArgumentNullException();
+    element.SetAttribute(attributeName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with a value based on a 64-bit floating point value.</summary>
+  public static void SetAttribute(this XmlElement element, string attributeName, double value)
+  {
+    if(element == null) throw new ArgumentNullException();
+    element.SetAttribute(attributeName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with a value based on a <see cref="Guid"/> value.</summary>
+  public static void SetAttribute(this XmlElement element, string attributeName, Guid value)
+  {
+    if(element == null) throw new ArgumentNullException();
+    element.SetAttribute(attributeName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with a value based on a 16-bit integer value.</summary>
+  public static void SetAttribute(this XmlElement element, string attributeName, short value)
+  {
+    if(element == null) throw new ArgumentNullException();
+    element.SetAttribute(attributeName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with a value based on a 32-bit integer value.</summary>
+  public static void SetAttribute(this XmlElement element, string attributeName, int value)
+  {
+    if(element == null) throw new ArgumentNullException();
+    element.SetAttribute(attributeName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with a value based on a 64-bit integer value.</summary>
+  public static void SetAttribute(this XmlElement element, string attributeName, long value)
+  {
+    if(element == null) throw new ArgumentNullException();
+    element.SetAttribute(attributeName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with a value based on an 8-bit integer value.</summary>
+  public static void SetAttribute(this XmlElement element, string attributeName, sbyte value)
+  {
+    if(element == null) throw new ArgumentNullException();
+    element.SetAttribute(attributeName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with a value based on an 32-bit floating point value.</summary>
+  public static void SetAttribute(this XmlElement element, string attributeName, float value)
+  {
+    if(element == null) throw new ArgumentNullException();
+    element.SetAttribute(attributeName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with a value based on an <see cref="TimeSpan"/> value.</summary>
+  public static void SetAttribute(this XmlElement element, string attributeName, TimeSpan value)
+  {
+    if(element == null) throw new ArgumentNullException();
+    element.SetAttribute(attributeName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with a value based on a 16-bit unsigned integer value.</summary>
+  public static void SetAttribute(this XmlElement element, string attributeName, ushort value)
+  {
+    if(element == null) throw new ArgumentNullException();
+    element.SetAttribute(attributeName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with a value based on a 32-bit unsigned integer value.</summary>
+  public static void SetAttribute(this XmlElement element, string attributeName, uint value)
+  {
+    if(element == null) throw new ArgumentNullException();
+    element.SetAttribute(attributeName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with a value based on a 64-bit unsigned integer value.</summary>
+  public static void SetAttribute(this XmlElement element, string attributeName, ulong value)
+  {
+    if(element == null) throw new ArgumentNullException();
+    element.SetAttribute(attributeName, XmlConvert.ToString(value));
+  }
+}
+#endregion
+
 #region XmlNodeExtensions
 /// <summary>Provides useful extensions to the <see cref="XmlNode"/> class.</summary>
 public static class XmlNodeExtensions
@@ -711,11 +838,7 @@ public static class XmlReaderExtensions
   {
     if(reader == null) throw new ArgumentNullException();
     if(reader.NodeType != XmlNodeType.Element) throw new InvalidOperationException();
-    if(reader.IsEmptyElement)
-    {
-      reader.Read();
-    }
-    else
+    if(!reader.IsEmptyElement)
     {
       reader.Read();
       while(reader.NodeType != XmlNodeType.EndElement) reader.Skip();
@@ -724,8 +847,146 @@ public static class XmlReaderExtensions
 }
 #endregion
 
+#region XmlWriterExtensions
+/// <summary>Provides extensions to the <see cref="XmlWriter"/> class.</summary>
+public static class XmlWriterExtensions
+{
+  /// <summary>Sets the named attribute with content based on a boolean value.</summary>
+  public static void WriteElement(this XmlWriter writer, string localName, bool value)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteElementString(localName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with content based on a byte value.</summary>
+  public static void WriteElement(this XmlWriter writer, string localName, byte value)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteElementString(localName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with content based on a character value.</summary>
+  public static void WriteElement(this XmlWriter writer, string localName, char value)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteElementString(localName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with content based on a <see cref="DateTime"/>. The <see cref="DateTimeKind"/> of the
+  /// <see cref="DateTime"/> will be preserved.
+  /// </summary>
+  public static void WriteElement(this XmlWriter writer, string localName, DateTime value)
+  {
+    writer.WriteElement(localName, value, XmlDateTimeSerializationMode.RoundtripKind);
+  }
+
+  /// <summary>Sets the named attribute with content based on a <see cref="DateTime"/>.</summary>
+  public static void WriteElement(this XmlWriter writer, string localName, DateTime value, XmlDateTimeSerializationMode mode)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteElementString(localName, XmlConvert.ToString(value, mode));
+  }
+
+  /// <summary>Sets the named attribute with content based on a <see cref="Decimal"/> value.</summary>
+  public static void WriteElement(this XmlWriter writer, string localName, decimal value)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteElementString(localName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with content based on a 64-bit floating point value.</summary>
+  public static void WriteElement(this XmlWriter writer, string localName, double value)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteElementString(localName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with content based on a <see cref="Guid"/> value.</summary>
+  public static void WriteElement(this XmlWriter writer, string localName, Guid value)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteElementString(localName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with content based on a 16-bit integer value.</summary>
+  public static void WriteElement(this XmlWriter writer, string localName, short value)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteElementString(localName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with content based on a 32-bit integer value.</summary>
+  public static void WriteElement(this XmlWriter writer, string localName, int value)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteElementString(localName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with content based on a 64-bit integer value.</summary>
+  public static void WriteElement(this XmlWriter writer, string localName, long value)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteElementString(localName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with content based on an 8-bit integer value.</summary>
+  [CLSCompliant(false)]
+  public static void WriteElement(this XmlWriter writer, string localName, sbyte value)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteElementString(localName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with content based on an 32-bit floating point value.</summary>
+  public static void WriteElement(this XmlWriter writer, string localName, float value)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteElementString(localName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with content based on an <see cref="TimeSpan"/> value.</summary>
+  public static void WriteElement(this XmlWriter writer, string localName, TimeSpan value)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteElementString(localName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with content based on a 16-bit unsigned integer value.</summary>
+  [CLSCompliant(false)]
+  public static void WriteElement(this XmlWriter writer, string localName, ushort value)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteElementString(localName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with content based on a 32-bit unsigned integer value.</summary>
+  [CLSCompliant(false)]
+  public static void WriteElement(this XmlWriter writer, string localName, uint value)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteElementString(localName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with content based on a 64-bit unsigned integer value.</summary>
+  [CLSCompliant(false)]
+  public static void WriteElement(this XmlWriter writer, string localName, ulong value)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteElementString(localName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Writes an empty element with the given name.</summary>
+  public static void WriteEmptyElement(this XmlWriter writer, string localName)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteStartElement(localName);
+    writer.WriteEndElement();
+  }
+}
+#endregion
+
 #region XmlUtility
-/// <summary>Provides utilities for parsing and encoding XML.</summary>
+/// <summary>Provides utilities for reading and writing XML.</summary>
 public static class XmlUtility
 {
   /// <summary>Parses a string containing a whitespace-separated list of items into an array of strings containing the substrings
@@ -821,11 +1082,8 @@ public static class XmlUtility
 
         if(entity != null) // if the character needs to be encoded...
         {
-          if(sb == null) // then initialize the string builder if we haven't already
-          {
-            sb = new StringBuilder(text.Length + 100); // allocate enough room for the text, plus some entities
-            sb.Append(text, 0, i); // add the text so far (which didn't need encoding)
-          }
+          // initialize the string builder if we haven't already, with enough room for the text, plus some entities
+          if(sb == null) sb = new StringBuilder(text, 0, i, text.Length + 100);
           sb.Append(entity); // then add the entity for the current character
         }
         else if(sb != null) // the character doesn't need encoding. only add it if a previous character has needed encoding...

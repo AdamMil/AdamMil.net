@@ -47,6 +47,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Arrays.cs" />
+    <Compile Include="BinaryUtility.cs" />
+    <Compile Include="Comparisons.cs" />
     <Compile Include="DateUtility.cs" />
     <Compile Include="Encoding\Base64.cs" />
     <Compile Include="Encoding\BinaryEncoding.cs" />
@@ -54,12 +56,16 @@
     <Compile Include="Encoding\TextEncoding.cs" />
     <Compile Include="Exceptions.cs" />
     <Compile Include="Collections.cs" />
+    <Compile Include="GuidUtility.cs" />
     <Compile Include="Interop.cs" />
+    <Compile Include="Linq.cs" />
+    <Compile Include="PrimitiveExtensions.cs" />
     <Compile Include="SystemInformation.cs" />
     <Compile Include="Tasks.cs" />
     <Compile Include="PathUtility.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="StringUtility.cs" />
+    <Compile Include="ThreadUtility.cs" />
     <Compile Include="TypeUtility.cs" />
     <Compile Include="Utility.cs" />
     <Compile Include="XmlUtility.cs" />

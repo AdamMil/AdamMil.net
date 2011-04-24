@@ -35,6 +35,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AdamMil.Utilities", "Utilit
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Utilities.Tests", "Utilities\Tests\Utilities.Tests.csproj", "{49375935-95C1-46FE-AD47-3E366E428C5F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AdamMil.Transactions", "Transactions\AdamMil.Transactions.csproj", "{A77F2A3B-6F95-48E8-9947-25F82A33CC5E}"
+EndProject
 Global
 	GlobalSection(SubversionScc) = preSolution
 		Svn-Managed = True
@@ -113,6 +115,10 @@ Global
 		{49375935-95C1-46FE-AD47-3E366E428C5F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{49375935-95C1-46FE-AD47-3E366E428C5F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{49375935-95C1-46FE-AD47-3E366E428C5F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A77F2A3B-6F95-48E8-9947-25F82A33CC5E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A77F2A3B-6F95-48E8-9947-25F82A33CC5E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A77F2A3B-6F95-48E8-9947-25F82A33CC5E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A77F2A3B-6F95-48E8-9947-25F82A33CC5E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -175,6 +175,27 @@
     </Reset>
   </IEnumerator>
 
+  <Linq>
+    <TakeGreatest>
+      <remarks>
+        If you only need a subset of the items, it is more efficient to use this method rather than sort the entire list of items,
+        because this method can find the greatest N items without sorting all of the data. (For instance, selecting the greatest
+        10 items from a list of 1000 requires on average about 14000 comparisons if the entire list is sorted, but only about 2000
+        comparisons using this method.)
+        If you want the greatest N items in sorted order, you can call this method and then sort the result.
+      </remarks>
+    </TakeGreatest>
+    <TakeLeast>
+      <remarks>
+        If you only need a subset of the items, it is more efficient to use this method rather than sort the entire list of items,
+        because this method can find the least N items without sorting all of the data. (For instance, selecting the least 10
+        items from a list of 1000 requires on average about 14000 comparisons if the entire list is sorted, but only about 2000
+        comparisons using this method.)
+        If you want the least N items in sorted order, you can call this method and then sort the result.
+      </remarks>
+    </TakeLeast>
+  </Linq>
+
   <Task>
     <AbortCore>
       <summary>Called to abort the task, assuming it is currently running.</summary>

@@ -33,6 +33,7 @@ public static class PathUtility
   /// </summary>
   public static string AppendToFileName(string filename, string suffix)
   {
+    if(string.IsNullOrEmpty(filename)) throw new ArgumentException("File name cannot be empty.");
     // we use this code rather than Path.GetDirectoryName() and Path.Combine() to avoid changing the path separator character
     string directory = null;
     int dirSlash = filename.LastIndexOfAny(DirectorySeparatorChars);
@@ -100,7 +101,7 @@ public static class PathUtility
       catch { }
     }
 
-    throw new Exception("Unable to allocate a temporary file.");
+    throw new IOException("Unable to allocate a temporary file.");
   }
 
 

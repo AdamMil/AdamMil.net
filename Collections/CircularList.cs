@@ -25,6 +25,7 @@ namespace AdamMil.Collections
 {
 
 /// <summary>Represents a circular list, which can also be used as a FIFO queue.</summary>
+[Serializable]
 public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
 {
   /// <summary>Initializes a new <see cref="CircularList{T}"/> with the default capacity and the ability to expand.</summary>
