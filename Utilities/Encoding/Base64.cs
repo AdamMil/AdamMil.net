@@ -16,6 +16,7 @@ public sealed class Base64Decoder : BinaryEncoder
   }
 
   /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/EncodePtr/*"/>
+  [CLSCompliant(false)]
   public unsafe override int Encode(byte* source, int sourceCount, byte* destination, int destinationCount, bool flush)
   {
     if(sourceCount < 0 || destinationCount < 0) throw new ArgumentOutOfRangeException();
@@ -69,7 +70,7 @@ public sealed class Base64Decoder : BinaryEncoder
   {
     Utility.ValidateRange(source, sourceIndex, sourceCount);
     if(destination == null) throw new ArgumentNullException();
-    if(destinationIndex < 0 || destinationIndex > destination.Length) throw new ArgumentOutOfRangeException();
+    if((uint)destinationIndex > (uint)destination.Length) throw new ArgumentOutOfRangeException();
 
     fixed(byte* srcPtr=source)
     fixed(byte* destPtr=destination)
@@ -79,6 +80,7 @@ public sealed class Base64Decoder : BinaryEncoder
   }
 
   /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCountPtr/*"/>
+  [CLSCompliant(false)]
   public unsafe override int GetByteCount(byte* data, int count, bool simulateFlush)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
@@ -157,6 +159,7 @@ public sealed class Base64Encoder : BinaryEncoder
   }
 
   /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/EncodePtr/*"/>
+  [CLSCompliant(false)]
   public unsafe override int Encode(byte* source, int sourceCount, byte* destination, int destinationCount, bool flush)
   {
     if(destinationCount < GetByteCount(sourceCount, flush)) throw new ArgumentOutOfRangeException();
@@ -226,7 +229,7 @@ public sealed class Base64Encoder : BinaryEncoder
   {
     Utility.ValidateRange(source, sourceIndex, sourceCount);
     if(destination == null) throw new ArgumentNullException();
-    if(destinationIndex < 0 || destinationIndex > destination.Length) throw new ArgumentOutOfRangeException();
+    if((uint)destinationIndex > (uint)destination.Length) throw new ArgumentOutOfRangeException();
     fixed(byte* srcPtr=source)
     fixed(byte* destPtr=destination)
     {
@@ -235,6 +238,7 @@ public sealed class Base64Encoder : BinaryEncoder
   }
 
   /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCountPtr/*"/>
+  [CLSCompliant(false)]
   public unsafe override int GetByteCount(byte* data, int count, bool simulateFlush)
   {
     return GetByteCount(count, simulateFlush);
@@ -303,7 +307,7 @@ public sealed class Base64Encoder : BinaryEncoder
 
   int GetByteCount(int count, bool simulateFlush)
   {
-    if(count < 0 || count > 1610612733) throw new ArgumentOutOfRangeException(); // the max chars we can decode into 2^31-1 bytes
+    if((uint)count > (uint)1610612733) throw new ArgumentOutOfRangeException(); // the max chars we can decode into 2^31-1 bytes
     if(byteBuffer != null) count += byteBuffer.Count;
     int byteCount = (count + (simulateFlush ? 2 : 0)) / 3 * 4;
     if(wrapLinesAt != 0) byteCount += (byteCount + linePosition + (simulateFlush ? wrapLinesAt-1 : 0)) / wrapLinesAt * 2;

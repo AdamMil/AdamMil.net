@@ -17,6 +17,7 @@ public abstract class EncoderDecoderEncoding : Encoding
     this.decoder = decoder;
   }
 
+  [CLSCompliant(false)]
   public unsafe override int GetByteCount(char* chars, int count)
   {
     encoder.Reset();
@@ -29,6 +30,7 @@ public abstract class EncoderDecoderEncoding : Encoding
     return encoder.GetByteCount(chars, index, count, true);
   }
 
+  [CLSCompliant(false)]
   public unsafe override int GetBytes(char* chars, int charCount, byte* bytes, int byteCount)
   {
     encoder.Reset();
@@ -41,6 +43,7 @@ public abstract class EncoderDecoderEncoding : Encoding
     return encoder.GetBytes(chars, charIndex, charCount, bytes, byteIndex, true);
   }
 
+  [CLSCompliant(false)]
   public unsafe override int GetCharCount(byte* bytes, int count)
   {
     decoder.Reset();
@@ -53,6 +56,7 @@ public abstract class EncoderDecoderEncoding : Encoding
     return decoder.GetCharCount(bytes, index, count, true);
   }
 
+  [CLSCompliant(false)]
   public unsafe override int GetChars(byte* bytes, int byteCount, char* chars, int charCount)
   {
     decoder.Reset();

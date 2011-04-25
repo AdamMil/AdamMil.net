@@ -67,12 +67,12 @@ public sealed class Stack<T> : IQueue<T>, IReadOnlyList<T>
   {
     get
     {
-      if(index < 0 || index >= count) throw new ArgumentOutOfRangeException();
+      if((uint)index >= (uint)count) throw new ArgumentOutOfRangeException();
       return array[index];
     }
     set
     {
-      if(index < 0 || index >= count) throw new ArgumentOutOfRangeException();
+      if((uint)index >= (uint)count) throw new ArgumentOutOfRangeException();
       array[index] = value;
       version++;
     }
@@ -124,7 +124,7 @@ public sealed class Stack<T> : IQueue<T>, IReadOnlyList<T>
   /// <summary>Removes the given number of items from the top of the stack.</summary>
   public void Pop(int count)
   {
-    if(count < 0 || count > Count) throw new ArgumentOutOfRangeException();
+    if((uint)count > (uint)Count) throw new ArgumentOutOfRangeException();
     this.count -= count;
     if(mustClear) Array.Clear(array, Count, count);
     version++;

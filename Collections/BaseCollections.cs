@@ -245,7 +245,7 @@ public abstract class CollectionBase<T> : IList<T>
   /// <include file="documentation.xml" path="//Common/Insert/*"/>
   public void Insert(int index, T item)
   {
-    if(index < 0 || index > Count) throw new ArgumentOutOfRangeException();
+    if((uint)index > (uint)Count) throw new ArgumentOutOfRangeException();
     AssertNotReadOnly();
     InsertItem(index, item);
   }

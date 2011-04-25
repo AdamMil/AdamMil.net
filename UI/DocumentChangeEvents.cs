@@ -635,7 +635,7 @@ public class InsertTextChange : ChangeEvent
   public InsertTextChange(TextNode textNode, int index, string text) : base(textNode)
   {
     if(textNode.Locked) throw new ArgumentException("The node to set is locked.");
-    if(index < 0 || index > textNode.TextLength) throw new ArgumentOutOfRangeException();
+    if((uint)index > (uint)textNode.TextLength) throw new ArgumentOutOfRangeException();
     if(text == null) throw new ArgumentNullException();
 
     this.textNode = textNode;

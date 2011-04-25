@@ -234,7 +234,7 @@ public class ArrayBuffer<T> : ICollection<T>
   /// </summary>
   public int GetRawIndex(int logicalIndex)
   {
-    if(logicalIndex < 0 || logicalIndex > Count) throw new ArgumentOutOfRangeException();
+    if((uint)logicalIndex > (uint)Count) throw new ArgumentOutOfRangeException();
     return logicalIndex + Offset;
   }
 
@@ -287,7 +287,7 @@ public class ArrayBuffer<T> : ICollection<T>
   /// </summary>
   public void Remove(int count)
   {
-    if(count < 0 || count > Count) throw new ArgumentOutOfRangeException();
+    if((uint)count > (uint)Count) throw new ArgumentOutOfRangeException();
     Count -= count;
     Offset = Count == 0 ? 0 : Offset + count;
   }
@@ -392,10 +392,10 @@ public static class ArrayExtensions
 /// <summary>Enumerates the items within a segment of an array.</summary>
 public sealed class ArraySegmentEnumerable<T> : IEnumerable<T>
 {
-  /// <summary>Initializes a new <see cref="ArraySegmentEnumerable"/> from the given <see cref="ArraySegment{T}"/>.</summary>
+  /// <summary>Initializes a new <see cref="ArraySegmentEnumerable{T}"/> from the given <see cref="ArraySegment{T}"/>.</summary>
   public ArraySegmentEnumerable(ArraySegment<T> segment) : this(segment.Array, segment.Offset, segment.Count) { }
 
-  /// <summary>Initializes a new <see cref="ArraySegmentEnumerable"/> from the given array and region.</summary>
+  /// <summary>Initializes a new <see cref="ArraySegmentEnumerable{T}"/> from the given array and region.</summary>
   public ArraySegmentEnumerable(T[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
@@ -496,7 +496,7 @@ public sealed class ByteBuffer : ArrayBuffer<byte>
   [CLSCompliant(false)]
   public unsafe void Remove(byte* destination, int count)
   {
-    if(count < 0 || count > Count) throw new ArgumentOutOfRangeException();
+    if((uint)count > (uint)Count) throw new ArgumentOutOfRangeException();
     fixed(byte* dptr=Buffer) Unsafe.Copy(dptr+Offset, destination, count);
     Remove(count);
   }

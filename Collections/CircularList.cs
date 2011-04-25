@@ -227,7 +227,7 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
   /// <summary>Removes and discards the first <paramref name="count"/> items from the list.</summary>
   public void RemoveFirst(int count)
   {
-    if(count < 0 || count > this.count) throw new ArgumentOutOfRangeException();
+    if((uint)count > (uint)this.count) throw new ArgumentOutOfRangeException();
 
     if(count == 1)
     {
@@ -670,7 +670,7 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
   /// <returns>The logical index is the index into the data -- into list of items.</returns>
   protected int GetLogicalIndex(int rawIndex)
   {
-    if(rawIndex < 0 || rawIndex >= array.Length) throw new ArgumentOutOfRangeException();
+    if((uint)rawIndex >= (uint)array.Length) throw new ArgumentOutOfRangeException();
 
     if(rawIndex >= head || IsContiguous) rawIndex -= tail;
     else if(rawIndex < head) rawIndex += array.Length-tail;
@@ -683,7 +683,7 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
   /// </remarks>
   protected int GetRawIndex(int logicalIndex)
   {
-    if(logicalIndex < 0 || logicalIndex >= count) throw new ArgumentOutOfRangeException();
+    if((uint)logicalIndex >= (uint)count) throw new ArgumentOutOfRangeException();
 
     if(IsContiguous || logicalIndex < array.Length-tail) logicalIndex += tail;
     else logicalIndex -= array.Length-tail;

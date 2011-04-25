@@ -157,7 +157,7 @@ public class AggregateStream : Stream
     if(origin == SeekOrigin.Current) offset += position;
     else if(origin == SeekOrigin.End) offset += length;
 
-    if(offset < 0 || offset > length) throw new ArgumentOutOfRangeException();
+    if((ulong)offset > (ulong)length) throw new ArgumentOutOfRangeException();
     position = offset;
 
     // find the stream containing the new position
@@ -286,7 +286,7 @@ public class DataRecordStream : Stream
   public DataRecordStream(IDataRecord record, int columnIndex, bool ownRecord)
   {
     if(record == null) throw new ArgumentNullException();
-    if(columnIndex < 0 || columnIndex >= record.FieldCount) throw new ArgumentOutOfRangeException();
+    if((uint)columnIndex >= (uint)record.FieldCount) throw new ArgumentOutOfRangeException();
     this.record    = record;
     this.column    = columnIndex;
     this.length    = CalculateLength();
@@ -353,7 +353,7 @@ public class DataRecordStream : Stream
     if(origin == SeekOrigin.Current) offset += position;
     else if(origin == SeekOrigin.End) offset += length;
 
-    if(offset < 0 || offset > length) throw new ArgumentOutOfRangeException();
+    if((ulong)offset > (ulong)length) throw new ArgumentOutOfRangeException();
     return position = offset;
   }
 
@@ -848,7 +848,7 @@ public class StreamStream : DelegateStream
   {
     if(origin == SeekOrigin.Current) offset += position;
     else if(origin == SeekOrigin.End) offset += length;
-    if(offset < 0 || offset > length) throw new ArgumentOutOfRangeException("Cannot seek outside the bounds of this stream.");
+    if((ulong)offset > (ulong)length) throw new ArgumentOutOfRangeException("Cannot seek outside the bounds of this stream.");
     position = InnerStream.Seek(start+offset, SeekOrigin.Begin) - start;
     return position;
   }
@@ -1140,8 +1140,7 @@ public class TextStream : Stream
 
   public override int Read(byte[] buffer, int offset, int count)
   {
-    if(buffer == null) throw new ArgumentNullException();
-    if(offset < 0 || count < 0 || offset+count > buffer.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(buffer, offset, count);
 
     int totalRead = 0;
     while(count != 0)

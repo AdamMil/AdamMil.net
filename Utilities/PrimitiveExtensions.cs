@@ -23,6 +23,7 @@ using System.Globalization;
 namespace AdamMil.Utilities
 {
 
+/// <summary>Provides extensions for primitive numeric types.</summary>
 public static class PrimitiveExtensions
 {
   /// <summary>Converts the value to a string using the invariant culture.</summary>

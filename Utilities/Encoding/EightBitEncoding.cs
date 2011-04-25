@@ -24,6 +24,7 @@ public sealed class EightBitDecoder : Decoder
     return GetCharCount(bytes, index, count, true);
   }
 
+  [CLSCompliant(false)]
   public unsafe override int GetCharCount(byte* bytes, int count, bool simulateFlush)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
@@ -42,6 +43,7 @@ public sealed class EightBitDecoder : Decoder
     return GetChars(bytes, byteIndex, byteCount, chars, charIndex, true);
   }
 
+  [CLSCompliant(false)]
   public unsafe override int GetChars(byte* bytes, int byteCount, char* chars, int charCount, bool flush)
   {
     if(byteCount < 0) throw new ArgumentOutOfRangeException();
@@ -108,6 +110,7 @@ public sealed class EightBitEncoder : Encoder
     this.encoder = encoder;
   }
 
+  [CLSCompliant(false)]
   public unsafe override int GetByteCount(char* chars, int count, bool simulateFlush)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
@@ -121,6 +124,7 @@ public sealed class EightBitEncoder : Encoder
     fixed(char* charPtr=chars) return encoder.GetByteCount(Encode(charPtr+index, count), 0, count, simulateFlush);
   }
 
+  [CLSCompliant(false)]
   public unsafe override int GetBytes(char* chars, int charCount, byte* bytes, int byteCount, bool flush)
   {
     if(charCount < 0) throw new ArgumentOutOfRangeException();

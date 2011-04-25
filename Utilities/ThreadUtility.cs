@@ -24,6 +24,7 @@ using System.Threading;
 namespace AdamMil.Utilities
 {
 
+/// <summary>Provides convenient extensions to the <see cref="ReaderWriterLockSlim"/> class.</summary>
 public static class ReaderWriterLockExtensions
 {
   /// <summary>Performs the typical read-and-maybe-write lock pattern.</summary>

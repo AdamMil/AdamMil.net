@@ -168,7 +168,7 @@ public sealed class ArrayLineStorage : LineStorage
   /// <include file="documentation.xml" path="/UI/LineStorage/GetLineInfo/*"/>
   public override void GetLineInfo(int line, out int offset, out int length)
   {
-    if(line < 0 || line >= count) throw new ArgumentOutOfRangeException();
+    if((uint)line >= (uint)count) throw new ArgumentOutOfRangeException();
 
     offset = 0;
     for(int i=0; i<line; i++) offset += lineLengths[i];
@@ -178,7 +178,7 @@ public sealed class ArrayLineStorage : LineStorage
   /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLength/*"/>
   public override int GetLineLength(int line)
   {
-    if(line < 0 || line >= count) throw new ArgumentOutOfRangeException();
+    if((uint)line >= (uint)count) throw new ArgumentOutOfRangeException();
     return lineLengths[line];
   }
 
@@ -193,14 +193,14 @@ public sealed class ArrayLineStorage : LineStorage
   /// <include file="documentation.xml" path="/UI/LineStorage/AlterLength/*"/>
   public override void AlterLength(int line, int lengthDelta)
   {
-    if(line < 0 || line >= count || lineLengths[line]+lengthDelta < 0) throw new ArgumentOutOfRangeException();
+    if((uint)line >= (uint)count || lineLengths[line]+lengthDelta < 0) throw new ArgumentOutOfRangeException();
     lineLengths[line] += lengthDelta;
   }
 
   /// <include file="documentation.xml" path="/UI/LineStorage/InsertLine/*"/>
   public override void InsertLine(int line, int length)
   {
-    if(line < 0 || line > count || length < 0) throw new ArgumentOutOfRangeException();
+    if((uint)line > (uint)count || length < 0) throw new ArgumentOutOfRangeException();
 
     if(count == lineLengths.Length)
     {
@@ -217,7 +217,7 @@ public sealed class ArrayLineStorage : LineStorage
   /// <include file="documentation.xml" path="/UI/LineStorage/DeleteLine/*"/>
   public override void DeleteLine(int line)
   {
-    if(line < 0 || line >= count) throw new ArgumentOutOfRangeException();
+    if((uint)line >= (uint)count) throw new ArgumentOutOfRangeException();
     Array.Copy(lineLengths, line+1, lineLengths, line, count-line-1);
     count--;
   }
@@ -271,7 +271,7 @@ public sealed class TreeLineStorage : LineStorage
   /// <include file="documentation.xml" path="/UI/LineStorage/CharToLine2/*"/>
   public override void CharToLine(int charIndex, out int line, out int column)
   {
-    if(charIndex < 0 || charIndex > array[0]) throw new ArgumentOutOfRangeException();
+    if((uint)charIndex > (uint)array[0]) throw new ArgumentOutOfRangeException();
 
     int index;
     if(charIndex == array[0])
@@ -316,7 +316,7 @@ public sealed class TreeLineStorage : LineStorage
   /// <include file="documentation.xml" path="/UI/LineStorage/GetLineInfo/*"/>
   public override void GetLineInfo(int line, out int offset, out int length)
   {
-    if(line < 0 || line >= count) throw new ArgumentOutOfRangeException();
+    if((uint)line >= (uint)count) throw new ArgumentOutOfRangeException();
 
     int nodeIndex = GetLeafIndex(line); // get the leaf node that holds the line
     length = array[nodeIndex];          // the length of the line is stored there.
@@ -353,7 +353,7 @@ public sealed class TreeLineStorage : LineStorage
   /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLength/*"/>
   public override int GetLineLength(int line)
   {
-    if(line < 0 || line >= count) throw new ArgumentOutOfRangeException();
+    if((uint)line >= (uint)count) throw new ArgumentOutOfRangeException();
     return array[GetLeafIndex(line)];
   }
 
@@ -368,7 +368,7 @@ public sealed class TreeLineStorage : LineStorage
   /// <include file="documentation.xml" path="/UI/LineStorage/AlterLength/*"/>
   public override void AlterLength(int line, int lengthDelta)
   {
-    if(line < 0 || line > count) throw new ArgumentOutOfRangeException();
+    if((uint)line > (uint)count) throw new ArgumentOutOfRangeException();
 
     int nodeIndex = GetLeafIndex(line), newLength = array[nodeIndex]+lengthDelta;
     if(newLength < 0) throw new ArgumentOutOfRangeException();
@@ -387,7 +387,7 @@ public sealed class TreeLineStorage : LineStorage
   /// <include file="documentation.xml" path="/UI/LineStorage/InsertLine/*"/>
   public override void InsertLine(int line, int length)
   {
-    if(line < 0 || line > count || length < 0) throw new ArgumentOutOfRangeException();
+    if((uint)line > (uint)count || length < 0) throw new ArgumentOutOfRangeException();
 
     int leafIndex = GetLeafIndex(line);
 
@@ -411,7 +411,7 @@ public sealed class TreeLineStorage : LineStorage
   /// <include file="documentation.xml" path="/UI/LineStorage/DeleteLine/*"/>
   public override void DeleteLine(int line)
   {
-    if(line < 0 || line >= count) throw new ArgumentOutOfRangeException();
+    if((uint)line >= (uint)count) throw new ArgumentOutOfRangeException();
 
     // TODO: if the tree shrinks significantly (ie, to 1/8th of the maximum capacity), it may be best to resize and
     // rebuild the tree at this point to speed up future traversal operations
@@ -781,7 +781,7 @@ public class GapTextBuffer : EditableTextBuffer
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertChar/*"/>
   public override void Insert(int index, char c)
   {
-    if(index < 0 || index > length) throw new ArgumentOutOfRangeException();
+    if((uint)index > (uint)length) throw new ArgumentOutOfRangeException();
     MoveAndResizeGap(index, 1);
     buffer[gapStart++] = c;
     length++;
@@ -803,7 +803,7 @@ public class GapTextBuffer : EditableTextBuffer
   public override void Insert(int index, string str)
   {
     if(str == null) throw new ArgumentNullException();
-    if(index < 0 || index > length) throw new ArgumentOutOfRangeException();
+    if((uint)index > (uint)length) throw new ArgumentOutOfRangeException();
 
     MoveAndResizeGap(index, str.Length);
     str.CopyTo(0, buffer, gapStart, str.Length);
@@ -820,7 +820,7 @@ public class GapTextBuffer : EditableTextBuffer
   /// <summary>Converts a logical index into a raw index.</summary>
   int GetRawIndex(int logicalIndex)
   {
-    if(logicalIndex < 0 || logicalIndex >= length) throw new ArgumentOutOfRangeException();
+    if((uint)logicalIndex >= (uint)length) throw new ArgumentOutOfRangeException();
     return logicalIndex < gapStart ? logicalIndex : logicalIndex + GapSize;
   }
 
@@ -1096,7 +1096,7 @@ public class TextDocument
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertReader/*"/>
   public void Insert(int index, TextReader reader)
   {
-    if(index < 0 || index > Length) throw new ArgumentOutOfRangeException();
+    if((uint)index > (uint)Length) throw new ArgumentOutOfRangeException();
     if(reader == null) throw new ArgumentNullException();
 
     char[] buffer = new char[4096];

@@ -26,6 +26,7 @@ using AdamMil.Collections;
 namespace AdamMil.Utilities
 {
 
+/// <summary>Provides additional LINQ extensions for <see cref="IEnumerable{T}"/>.</summary>
 public static class EnumerableExtensions
 {
   /// <summary>Returns the items in ascending order.</summary>
