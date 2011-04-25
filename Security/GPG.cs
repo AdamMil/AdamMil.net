@@ -2437,7 +2437,7 @@ public class ExeGPG : GPG
       else
       {
         int maxLength = isDSA ? 3072 : 4096;
-        if(length < 0 || length > maxLength)
+        if((uint)length > (uint)maxLength)
         {
           throw new KeyCreationFailedException(FailureReason.None, "Key length " +
                                                length.ToInvariantString() + " is not supported.");

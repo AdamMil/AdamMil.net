@@ -111,6 +111,7 @@ public static class XmlElementExtensions
   }
 
   /// <summary>Sets the named attribute with a value based on an 8-bit integer value.</summary>
+  [CLSCompliant(false)]
   public static void SetAttribute(this XmlElement element, string attributeName, sbyte value)
   {
     if(element == null) throw new ArgumentNullException();
@@ -132,6 +133,7 @@ public static class XmlElementExtensions
   }
 
   /// <summary>Sets the named attribute with a value based on a 16-bit unsigned integer value.</summary>
+  [CLSCompliant(false)]
   public static void SetAttribute(this XmlElement element, string attributeName, ushort value)
   {
     if(element == null) throw new ArgumentNullException();
@@ -139,6 +141,7 @@ public static class XmlElementExtensions
   }
 
   /// <summary>Sets the named attribute with a value based on a 32-bit unsigned integer value.</summary>
+  [CLSCompliant(false)]
   public static void SetAttribute(this XmlElement element, string attributeName, uint value)
   {
     if(element == null) throw new ArgumentNullException();
@@ -146,6 +149,7 @@ public static class XmlElementExtensions
   }
 
   /// <summary>Sets the named attribute with a value based on a 64-bit unsigned integer value.</summary>
+  [CLSCompliant(false)]
   public static void SetAttribute(this XmlElement element, string attributeName, ulong value)
   {
     if(element == null) throw new ArgumentNullException();
@@ -340,6 +344,7 @@ public static class XmlNodeExtensions
   }
 
   /// <summary>Returns the value of the named attribute as an 8-bit signed integer, or 0 if the attribute was unspecified or empty.</summary>
+  [CLSCompliant(false)]
   public static sbyte GetSByteAttribute(this XmlNode node, string attrName)
   {
     return GetSByteAttribute(node, attrName, 0);
@@ -348,6 +353,7 @@ public static class XmlNodeExtensions
   /// <summary>Returns the value of the named attribute as an 8-bit signed integer, or the given default
   /// value if the attribute was unspecified or empty.
   /// </summary>
+  [CLSCompliant(false)]
   public static sbyte GetSByteAttribute(this XmlNode node, string attrName, sbyte defaultValue)
   {
     string attrValue = GetAttributeValue(node, attrName);
@@ -402,6 +408,7 @@ public static class XmlNodeExtensions
   }
 
   /// <summary>Returns the value of the named attribute as a 16-bit unsigned integer, or 0 if the attribute was unspecified or empty.</summary>
+  [CLSCompliant(false)]
   public static ushort GetUInt16Attribute(this XmlNode node, string attrName)
   {
     return GetUInt16Attribute(node, attrName, 0);
@@ -410,6 +417,7 @@ public static class XmlNodeExtensions
   /// <summary>Returns the value of the named attribute as a 16-bit unsigned integer, or the given default
   /// value if the attribute was unspecified or empty.
   /// </summary>
+  [CLSCompliant(false)]
   public static ushort GetUInt16Attribute(this XmlNode node, string attrName, ushort defaultValue)
   {
     string attrValue = GetAttributeValue(node, attrName);
@@ -417,6 +425,7 @@ public static class XmlNodeExtensions
   }
 
   /// <summary>Returns the value of the named attribute as a 32-bit unsigned integer, or 0 if the attribute was unspecified or empty.</summary>
+  [CLSCompliant(false)]
   public static uint GetUInt32Attribute(this XmlNode node, string attrName)
   {
     return GetUInt32Attribute(node, attrName, 0);
@@ -425,6 +434,7 @@ public static class XmlNodeExtensions
   /// <summary>Returns the value of the named attribute as a 32-bit unsigned integer, or the given default
   /// value if the attribute was unspecified or empty.
   /// </summary>
+  [CLSCompliant(false)]
   public static uint GetUInt32Attribute(this XmlNode node, string attrName, uint defaultValue)
   {
     string attrValue = GetAttributeValue(node, attrName);
@@ -432,6 +442,7 @@ public static class XmlNodeExtensions
   }
 
   /// <summary>Returns the value of the named attribute as a 64-bit unsigned integer, or 0 if the attribute was unspecified or empty.</summary>
+  [CLSCompliant(false)]
   public static ulong GetUInt64Attribute(this XmlNode node, string attrName)
   {
     return GetUInt64Attribute(node, attrName, 0);
@@ -440,6 +451,7 @@ public static class XmlNodeExtensions
   /// <summary>Returns the value of the named attribute as a 64-bit unsigned integer, or the given default
   /// value if the attribute was unspecified or empty.
   /// </summary>
+  [CLSCompliant(false)]
   public static ulong GetUInt64Attribute(this XmlNode node, string attrName, ulong defaultValue)
   {
     string attrValue = GetAttributeValue(node, attrName);
@@ -687,6 +699,7 @@ public static class XmlNodeExtensions
   /// <summary>Returns the inner text of the node selected by the given XPath query as an 8-bit signed integer,
   /// or 0 if the node could not be found or was empty.
   /// </summary>
+  [CLSCompliant(false)]
   public static sbyte SelectSByte(this XmlNode node, string xpath)
   {
     return SelectSByte(node, xpath, 0);
@@ -695,6 +708,7 @@ public static class XmlNodeExtensions
   /// <summary>Returns the inner text of the node selected by the given XPath query as an 8-bit signed integer,
   /// or the given default value if the node could not be found or was empty.
   /// </summary>
+  [CLSCompliant(false)]
   public static sbyte SelectSByte(this XmlNode node, string xpath, sbyte defaultValue)
   {
     string stringValue = SelectValue(node, xpath);
@@ -755,6 +769,7 @@ public static class XmlNodeExtensions
   /// <summary>Returns the inner text of the node selected by the given XPath query as a 16-bit unsigned integer,
   /// or 0 if the node could not be found or was empty.
   /// </summary>
+  [CLSCompliant(false)]
   public static ushort SelectUInt16(this XmlNode node, string xpath)
   {
     return SelectUInt16(node, xpath, 0);
@@ -763,6 +778,7 @@ public static class XmlNodeExtensions
   /// <summary>Returns the inner text of the node selected by the given XPath query as a 16-bit unsigned integer,
   /// or the given default value if the node could not be found or was empty.
   /// </summary>
+  [CLSCompliant(false)]
   public static ushort SelectUInt16(this XmlNode node, string xpath, ushort defaultValue)
   {
     string stringValue = SelectValue(node, xpath);
@@ -772,6 +788,7 @@ public static class XmlNodeExtensions
   /// <summary>Returns the inner text of the node selected by the given XPath query as a 32-bit unsigned integer,
   /// or 0 if the node could not be found or was empty.
   /// </summary>
+  [CLSCompliant(false)]
   public static uint SelectUInt32(this XmlNode node, string xpath)
   {
     return SelectUInt32(node, xpath, 0);
@@ -780,6 +797,7 @@ public static class XmlNodeExtensions
   /// <summary>Returns the inner text of the node selected by the given XPath query as a 32-bit unsigned integer,
   /// or the given default value if the node could not be found or was empty.
   /// </summary>
+  [CLSCompliant(false)]
   public static uint SelectUInt32(this XmlNode node, string xpath, uint defaultValue)
   {
     string stringValue = SelectValue(node, xpath);
@@ -789,6 +807,7 @@ public static class XmlNodeExtensions
   /// <summary>Returns the inner text of the node selected by the given XPath query as a 64-bit unsigned integer,
   /// or 0 if the node could not be found or was empty.
   /// </summary>
+  [CLSCompliant(false)]
   public static ulong SelectUInt64(this XmlNode node, string xpath)
   {
     return SelectUInt64(node, xpath, 0);
@@ -797,6 +816,7 @@ public static class XmlNodeExtensions
   /// <summary>Returns the inner text of the node selected by the given XPath query as a 64-bit unsigned integer,
   /// or the given default value if the node could not be found or was empty.
   /// </summary>
+  [CLSCompliant(false)]
   public static ulong SelectUInt64(this XmlNode node, string xpath, ulong defaultValue)
   {
     string stringValue = SelectValue(node, xpath);

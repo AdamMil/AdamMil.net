@@ -184,9 +184,8 @@ public class DocumentEditor : Control
     {
       Layout();
 
-      if(value.X < 0 || value.Y < 0 ||
-         value.X > (hScrollBar == null ? 0 : hScrollBar.Maximum) ||
-         value.Y > (vScrollBar == null ? 0 : vScrollBar.Maximum))
+      if((uint)value.X > (uint)(hScrollBar == null ? 0 : hScrollBar.Maximum) ||
+         (uint)value.Y > (uint)(vScrollBar == null ? 0 : vScrollBar.Maximum))
       {
         throw new ArgumentOutOfRangeException();
       }
@@ -834,7 +833,7 @@ public class DocumentEditor : Control
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetPixelOffset/*"/>
     public virtual Point GetPixelOffset(Graphics gdi, int indexOffset)
     {
-      if(indexOffset < 0 || indexOffset > Length) throw new ArgumentOutOfRangeException();
+      if((uint)indexOffset > (uint)Length) throw new ArgumentOutOfRangeException();
 
       if(indexOffset > 0 && indexOffset < Length)
       {
@@ -1581,7 +1580,7 @@ public class DocumentEditor : Control
     /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNearestIndex/*"/>
     public override Point GetPixelOffset(Graphics gdi, int indexOffset)
     {
-      if(indexOffset < 0 || indexOffset > Length) throw new ArgumentOutOfRangeException();
+      if((uint)indexOffset > (uint)Length) throw new ArgumentOutOfRangeException();
 
       int xPos;
       if(indexOffset >= ContentLength)
@@ -3475,7 +3474,7 @@ public class DocumentEditor : Control
   /// <summary>Throws an exception if the given index is out of bounds for the document.</summary>
   protected void ValidateIndex(int index)
   {
-    if(index < 0 || index > IndexLength) throw new ArgumentOutOfRangeException();
+    if((uint)index > (uint)IndexLength) throw new ArgumentOutOfRangeException();
   }
 
   /// <summary>Throws an exception if the given span is out of bounds for the document.</summary>

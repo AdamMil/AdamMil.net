@@ -437,7 +437,7 @@ public class GeneticAlgorithmSearch<StateType>
   public StateValuePair<StateType> GetMember(Context context, int index)
   {
     if(context == null) throw new ArgumentNullException();
-    if(index < 0 || index >= context.population.Length) throw new ArgumentOutOfRangeException();
+    if((uint)index >= (uint)context.population.Length) throw new ArgumentOutOfRangeException();
     return context.population[index];
   }
 

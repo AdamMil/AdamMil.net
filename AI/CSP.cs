@@ -420,14 +420,14 @@ public sealed class Assignment
   {
     get
     {
-      if(index < 0 || index >= values.Length) throw new ArgumentOutOfRangeException();
+      if((uint)index >= (uint)values.Length) throw new ArgumentOutOfRangeException();
       int value = values[index];
       if(value == -1) throw new InvalidOperationException("The variable is not currently assigned.");
       return value;
     }
     set
     {
-      if(index < 0 || index >= values.Length || value < 0) throw new ArgumentOutOfRangeException();
+      if((uint)index >= (uint)values.Length || value < 0) throw new ArgumentOutOfRangeException();
       if(values[index] == -1) assignedCount++; // if it's not currently assigned, then we're adding a new assignment
       values[index] = value;
     }
@@ -454,14 +454,14 @@ public sealed class Assignment
   /// <summary>Returns true if the variable at the given index is assigned and false if not.</summary>
   public bool IsAssigned(int index)
   {
-    if(index < 0 || index >= values.Length) throw new ArgumentOutOfRangeException();
+    if((uint)index >= (uint)values.Length) throw new ArgumentOutOfRangeException();
     return values[index] != -1; // -1 means "not assigned"
   }
 
   /// <summary>Unassigns the variable at the given index.</summary>
   public void Unassign(int index)
   {
-    if(index < 0 || index >= values.Length) throw new ArgumentOutOfRangeException();
+    if((uint)index >= (uint)values.Length) throw new ArgumentOutOfRangeException();
 
     if(values[index] != -1)
     {
@@ -520,7 +520,7 @@ static class CSPHelper
         if(initialAssignment.IsAssigned(i))
         {
           int value = initialAssignment[i];
-          if(value < 0 || value >= variables[i].Domain.Count)
+          if((uint)value >= (uint)variables[i].Domain.Count)
           {
             variables = null;
             neighbors = null;
