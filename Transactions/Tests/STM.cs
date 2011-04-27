@@ -100,6 +100,19 @@ public class STMTests
       otx.Commit();
     }
     AssertEqual(a, 1, b, 2, c, 3);
+
+    // test the ability to reuse transactions
+    using(STMTransaction otx = STMTransaction.Create())
+    {
+      using(STMTransaction tx = STMTransaction.Create(true))
+      {
+        Assert.AreSame(otx, tx);
+        a.Set(10);
+        tx.Commit();
+      }
+      otx.Commit();
+    }
+    AssertEqual(a, 10);
   }
   #endregion
 
@@ -223,6 +236,17 @@ public class STMTests
       otx.Commit();
     }
     AssertEqual(a, 1, b, 2);
+
+    // test the ability to ignore system transactions
+    using(new TransactionScope())
+    {
+      using(STMTransaction tx = STMTransaction.Create(false, true))
+      {
+        a.Set(10);
+        tx.Commit();
+      }
+    }
+    AssertEqual(a, 10);
   }
   #endregion
 

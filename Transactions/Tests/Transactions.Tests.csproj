@@ -42,6 +42,7 @@
     <Reference Include="System.Transactions" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Collections.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="STM.cs" />
   </ItemGroup>

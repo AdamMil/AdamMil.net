@@ -25,9 +25,19 @@ namespace AdamMil.Transactions
 {
 
 #region TransactionalArray
+/// <summary>Implements an array whose members are transactional variables. The array's length cannot be changed after it is
+/// created, so the array does not support methods that add or remove members.
+/// </summary>
+/// <remarks>When iterating over the array using an enumerator, be sure to dispose the enumerator when you're done with it, as
+/// the enumerator holds open a transaction that is disposed when the enumerator is.
+/// </remarks>
 public sealed class TransactionalArray<T> : IList<T>
 {
+  /// <summary>Initializes a new <see cref="TransactionalArray{T}"/> with the given number of elements.</summary>
   public TransactionalArray(int length) : this(length, null) { }
+  /// <summary>Initializes a new <see cref="TransactionalArray{T}"/> with the given number of elements, and using the given
+  /// <see cref="IComparer{T}"/> to compare elements.
+  /// </summary>
   public TransactionalArray(int length, IComparer<T> comparer)
   {
     if(length < 0) throw new ArgumentOutOfRangeException();
@@ -37,7 +47,11 @@ public sealed class TransactionalArray<T> : IList<T>
     this.comparer = comparer == null ? Comparer<T>.Default :  comparer;
   }
 
+  /// <summary>Initializes a new <see cref="TransactionalArray{T}"/> with the given set of items.</summary>
   public TransactionalArray(IEnumerable<T> initialItems) : this(initialItems, null) { }
+  /// <summary>Initializes a new <see cref="TransactionalArray{T}"/> with the given set of items, and using the given
+  /// <see cref="IComparer{T}"/> to compare elements.
+  /// </summary>
   public TransactionalArray(IEnumerable<T> initialItems, IComparer<T> comparer)
   {
     if(initialItems == null) throw new ArgumentNullException();
@@ -53,11 +67,12 @@ public sealed class TransactionalArray<T> : IList<T>
   }
 
   #region IList<T> Members
+  /// <inheritdoc/>
   public T this[int index]
   {
     get
     {
-      using(STMTransaction transaction = STMTransaction.Create())
+      using(STMTransaction transaction = STMTransaction.Create(true))
       {
         T value = array[index].Read();
         transaction.Commit();
@@ -66,7 +81,7 @@ public sealed class TransactionalArray<T> : IList<T>
     }
     set
     {
-      using(STMTransaction transaction = STMTransaction.Create())
+      using(STMTransaction transaction = STMTransaction.Create(true))
       {
         array[index].Set(value);
         transaction.Commit();
@@ -74,6 +89,7 @@ public sealed class TransactionalArray<T> : IList<T>
     }
   }
 
+  /// <inheritdoc/>
   public int IndexOf(T item)
   {
     using(STMTransaction transaction = STMTransaction.Create())
@@ -99,21 +115,25 @@ public sealed class TransactionalArray<T> : IList<T>
   #endregion
 
   #region ICollection<T> Members
+  /// <inheritdoc/>
   public int Count
   {
     get { return array.Length; }
   }
 
+  /// <inheritdoc/>
   public bool IsReadOnly
   {
     get { return false; }
   }
 
+  /// <inheritdoc/>
   public bool Contains(T item)
   {
     return IndexOf(item) != -1;
   }
 
+  /// <inheritdoc/>
   public void CopyTo(T[] array, int arrayIndex)
   {
     using(STMTransaction transaction = STMTransaction.Create())
@@ -140,6 +160,7 @@ public sealed class TransactionalArray<T> : IList<T>
   #endregion
 
   #region IEnumerable<T> Members
+  /// <inheritdoc/>
   public IEnumerator<T> GetEnumerator()
   {
     return new Enumerator(array);
@@ -177,6 +198,7 @@ public sealed class TransactionalArray<T> : IList<T>
       if(transaction != null)
       {
         transaction.Commit();
+        transaction.Dispose();
         transaction = null;
       }
     }

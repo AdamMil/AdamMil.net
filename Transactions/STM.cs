@@ -31,7 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // additionally, Fraser's system is not very amenable to the inclusion of fancy features from the Haskell STM or to integration
 // with System.Transactions, so i've modified it substantially. hopefully i haven't broken the design too much.
 
-// TODO: add spin waits to the CAS (CompareAndExchange) loops when we upgrade to .NET 4
+// TODO: add spin waits to the CAS (CompareAndExchange) and Retry() loops when we upgrade to .NET 4
 
 using System;
 using System.Collections.Generic;
@@ -71,6 +71,11 @@ public static class STM
   }
 
   /// <summary>Executes an action until it successfully commits in a transaction.</summary>
+  /// <remarks>It should be possible for the action to succeed eventually. Since an exception thrown from it will cause
+  /// a retry, actions that always throw will cause the method to never return. If the action may fail repeatedly, call the
+  /// override that takes a timeout. Since the action may be executed multiple times, be careful to avoid non-transactional side
+  /// effects.
+  /// </remarks>
   public static void Retry(Action action)
   {
     Retry(action, Timeout.Infinite);
@@ -81,7 +86,11 @@ public static class STM
   /// <param name="timeoutMs">The amount of time, in milliseconds, before the method will stop retrying the code. If
   /// <see cref="Timeout.Infinite"/> is given, the method will only stop when the action succeeds.
   /// </param>
-  /// <remarks>If the method times out, the last exception thrown by the action will be rethrown.</remarks>
+  /// <remarks>It should be possible for the action to succeed eventually. Since an exception thrown from it will cause
+  /// a retry, actions that always throw will cause the method to never return. If the action may fail repeatedly, specify a
+  /// timeout. Since the action may be executed multiple times, be careful to avoid non-transactional side effects. If the
+  /// method times out, the last exception caught will be rethrown.
+  /// </remarks>
   public static void Retry(Action action, int timeoutMs)
   {
     if(action == null) throw new ArgumentNullException();
@@ -106,6 +115,11 @@ public static class STM
   /// <summary>Executes a function until it successfully commits in a transaction. The value returned from the function in the
   /// first successful transaction will then be returned.
   /// </summary>
+  /// <remarks>It should be possible for the function to succeed eventually. Since an exception thrown from it will cause
+  /// a retry, functions that always throw will cause the method to never return. If the function may fail repeatedly, call the
+  /// override that takes a timeout. Since the function may be executed multiple times, be careful to avoid non-transactional
+  /// side effects.
+  /// </remarks>
   public static T Retry<T>(Func<T> function)
   {
     return Retry(function, Timeout.Infinite);
@@ -116,9 +130,13 @@ public static class STM
   /// </summary>
   /// <param name="function">The function to execute.</param>
   /// <param name="timeoutMs">The amount of time, in milliseconds, before the method will stop retrying the function. If
-  /// <see cref="Timeout.Infinite"/> is given, the method will only stop when the action succeeds.
+  /// <see cref="Timeout.Infinite"/> is given, the method will only stop when the function succeeds.
   /// </param>
-  /// <remarks>If the method times out, the last exception thrown by the action will be rethrown.</remarks>
+  /// <remarks>It should be possible for the function to succeed eventually. Since an exception thrown from it will cause
+  /// a retry, functions that always throw will cause the method to never return. If the function may fail repeatedly, specify a
+  /// timeout. Since the function may be executed multiple times, be careful to avoid non-transactional side effects. If the
+  /// method times out, the last exception caught will be rethrown.
+  /// </remarks>
   public static T Retry<T>(Func<T> function, int timeoutMs)
   {
     if(function == null) throw new ArgumentNullException();
@@ -176,8 +194,9 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
 {
   internal STMTransaction(STMTransaction parent)
   {
-    this.parent = parent;
-    this.id     = (ulong)Interlocked.Increment(ref nextId);
+    this.parent   = parent;
+    this.id       = (ulong)Interlocked.Increment(ref nextId);
+    this.refCount = 1;
   }
 
   internal STMTransaction(STMTransaction parent, Transaction systemTransaction) : this(parent)
@@ -195,8 +214,8 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   /// </exception>
   public void Commit()
   {
-    if(this != Current) throw new InvalidOperationException();
-    if(!TryCommit()) throw new TransactionAbortedException();
+    if(refCount < 1 || this != Current) throw new InvalidOperationException();
+    else if(refCount == 1 && !TryCommit()) throw new TransactionAbortedException();
   }
 
   /// <summary>Disposes the transaction, removing it from the transaction stack and decoupling it from any
@@ -204,11 +223,15 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   /// </summary>
   public void Dispose()
   {
-    // decouple the transaction from System.Transactions to prevent it from holding up other transactions
-    systemTransaction = null;
-    RemoveFromStack();
+    if(refCount > 0 && Interlocked.Decrement(ref refCount) == 0)
+    {
+      // decouple the transaction from System.Transactions to prevent it from holding up other transactions
+      systemTransaction = null;
+      RemoveFromStack();
+    }
   }
 
+  /// <inheritdoc/>
   public override string ToString()
   {
     return "STM Transaction #" + id.ToInvariantString();
@@ -224,16 +247,38 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   /// <summary>Creates a new <see cref="STMTransaction"/> makes it the current transaction for the thread, and returns it.</summary>
   public static STMTransaction Create()
   {
-    return Create(false);
+    return Create(false, false);
   }
 
   /// <summary>Returns the current <see cref="STMTransaction"/> for the thread, potentially creating a new one first.</summary>
+  /// <param name="useExisting">If false, a new transaction will always be created, which is the normal behavior. If true, the
+  /// method may return an existing transaction from the transaction stack, and simply increase its reference count. Reusing a
+  /// transaction in this way can cause unexpected behavior and should only be done if the action being performed within the
+  /// transaction is inherently atomic. For instance, reading a single variable is an atomic operation, so as an optimization, a
+  /// transactional data structure may opt to reuse an existing transaction when implementing a method that only reads a single
+  /// variable. You must still call <see cref="Commit"/> and <see cref="Dispose"/> as normal, but the transaction will only be
+  /// committed and disposed when its reference count drops to zero.
+  /// </param>
+  public static STMTransaction Create(bool useExisting)
+  {
+    return Create(useExisting, false);
+  }
+
+  /// <summary>Returns the current <see cref="STMTransaction"/> for the thread, potentially creating a new one first.</summary>
+  /// <param name="useExisting">If false, a new transaction will always be created, which is the normal behavior. If true, the
+  /// method may return an existing transaction from the transaction stack, and simply increase its reference count. Reusing a
+  /// transaction in this way can cause unexpected behavior and should only be done if the action being performed within the
+  /// transaction is inherently atomic. For instance, reading a single variable is an atomic operation, so as an optimization, a
+  /// transactional data structure may opt to reuse an existing transaction when implementing a method that only reads a single
+  /// variable. You must still call <see cref="Commit"/> and <see cref="Dispose"/> as normal, but the transaction will only be
+  /// committed and disposed when its reference count drops to zero.
+  /// </param>
   /// <param name="ignoreSystemTransaction">If true, no attempt will be made to integrate the STM transaction with the current
   /// <see cref="Transaction"/>. This can improve performance of the <see cref="Create"/> call slightly if you know that
   /// <see cref="Transaction.Current"/> is null. If false is passed, the <see cref="STMTransaction"/> will be integrated with the
   /// current <see cref="Transaction"/> as normal.
   /// </param>
-  public static STMTransaction Create(bool ignoreSystemTransaction)
+  public static STMTransaction Create(bool useExisting, bool ignoreSystemTransaction)
   {
     STMTransaction transaction = Current;
 
@@ -254,10 +299,15 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
 
       // if there was none found, push a new transaction onto the stack that is bound to and under the control of the
       // system transaction. the user's transaction will be nested within that one
-      if(!found) Current = transaction = new STMTransaction(transaction, systemTransaction);
+      if(!found)
+      {
+        Current = transaction = new STMTransaction(transaction, systemTransaction);
+        useExisting = false; // don't return the transaction directly, since it's under the control of System.Transactions
+      }
     }
 
-    Current = transaction = new STMTransaction(transaction);
+    if(!useExisting || transaction == null) Current = transaction = new STMTransaction(transaction);
+    else Interlocked.Increment(ref transaction.refCount);
     return transaction;
   }
 
@@ -743,7 +793,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   Dictionary<TransactionalVariable, object> readLog;
   /// <summary>The write log, containing variables written by this transaction, or null if no variables have been written.</summary>
   SortedDictionary<TransactionalVariable, WriteEntry> writeLog;
-  int preparedStatus, status;
+  int preparedStatus, status, refCount; // refCount keeps track of the number of times Create() returned the same transaction
   bool removedFromStack;
 
   static int TryUpdateStatus(ref int status, int newStatus)
