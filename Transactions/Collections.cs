@@ -57,7 +57,7 @@ public sealed class TransactionalArray<T> : IList<T>
   {
     get
     {
-      using(STMTransaction transaction = STMTransaction.Create(true))
+      using(STMTransaction transaction = STMTransaction.Create())
       {
         T value = array[index].Read();
         transaction.Commit();
@@ -66,7 +66,7 @@ public sealed class TransactionalArray<T> : IList<T>
     }
     set
     {
-      using(STMTransaction transaction = STMTransaction.Create(true))
+      using(STMTransaction transaction = STMTransaction.Create())
       {
         array[index].Set(value);
         transaction.Commit();
@@ -76,7 +76,7 @@ public sealed class TransactionalArray<T> : IList<T>
 
   public int IndexOf(T item)
   {
-    using(STMTransaction transaction = STMTransaction.Create(true))
+    using(STMTransaction transaction = STMTransaction.Create())
     {
       for(int i=0; i<array.Length; i++)
       {
@@ -116,7 +116,7 @@ public sealed class TransactionalArray<T> : IList<T>
 
   public void CopyTo(T[] array, int arrayIndex)
   {
-    using(STMTransaction transaction = STMTransaction.Create(true))
+    using(STMTransaction transaction = STMTransaction.Create())
     {
       for(int i=0; i<this.array.Length; i++) array[arrayIndex+i] = this.array[i].Read();
       transaction.Commit();
@@ -159,7 +159,7 @@ public sealed class TransactionalArray<T> : IList<T>
     public Enumerator(TransactionalVariable<T>[] array)
     {
       this.array  = array;
-      transaction = STMTransaction.Create(true);
+      transaction = STMTransaction.Create();
       index       = -1;
     }
 

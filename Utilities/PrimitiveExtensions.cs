@@ -39,6 +39,18 @@ public static class PrimitiveExtensions
   }
 
   /// <summary>Converts the value to a string using the invariant culture.</summary>
+  public static string ToInvariantString(this uint value)
+  {
+    return value.ToString(CultureInfo.InvariantCulture);
+  }
+
+  /// <summary>Converts the value to a string using the invariant culture.</summary>
+  public static string ToInvariantString(this ulong value)
+  {
+    return value.ToString(CultureInfo.InvariantCulture);
+  }
+
+  /// <summary>Converts the value to a string using the invariant culture.</summary>
   public static string ToInvariantString(this decimal value)
   {
     return value.ToString(CultureInfo.InvariantCulture);

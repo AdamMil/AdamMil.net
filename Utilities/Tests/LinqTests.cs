@@ -18,7 +18,7 @@ public class LinqTests
     Random rand = new Random();
     for(int i=0; i<array.Length-1; i++) Utility.Swap(ref array[i], ref array[i+rand.Next(array.Length-i)]);
 
-    TestHelpers.AssertArrayEquals(array.TakeLeast(10).Order().ToArray(), 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5);
+    TestHelpers.AssertArrayEquals(array.TakeLeast(10).Order().ToArray(), 0, 0, 1, 1, 2, 2, 3, 3, 4, 4);
     TestHelpers.AssertArrayEquals(array.TakeGreatest(10).OrderDescending().ToArray(), 499, 499, 498, 498, 497, 497, 496, 496, 495, 495);
   }
 }

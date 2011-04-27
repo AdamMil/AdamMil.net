@@ -28,13 +28,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // the basic ideas come from those papers, but unfortunately they don't give complete implementation descriptions. (for instance
 // the Fraser paper handwaves away nested transactions and assumes single-phase commit, while the Haskell paper contains only a
 // brief textual description of the implementation, which is tied to Concurrent Haskell runtime implementation details.)
-// additionally, Fraser's and Harris's system is not very amenable to the inclusion of fancy features from the Haskell STM or
-// to integration with System.Transactions, so i've needed to modify it substantially. i hope i've succeeded in not breaking it.
+// additionally, Fraser's system is not very amenable to the inclusion of fancy features from the Haskell STM or to integration
+// with System.Transactions, so i've modified it substantially. hopefully i haven't broken the design too much.
 
 // TODO: add spin waits to the CAS (CompareAndExchange) loops when we upgrade to .NET 4
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Reflection;
 using System.Threading;
 using System.Transactions;
@@ -67,6 +68,76 @@ public static class STM
   public static TransactionalVariable<T> Allocate<T>(T initialValue)
   {
     return new TransactionalVariable<T>(initialValue);
+  }
+
+  /// <summary>Executes an action until it successfully commits in a transaction.</summary>
+  public static void Retry(Action action)
+  {
+    Retry(action, Timeout.Infinite);
+  }
+
+  /// <summary>Executes an action until it successfully commits in a transaction, or until the given time limit has ellapsed.</summary>
+  /// <param name="action">The action to execute.</param>
+  /// <param name="timeoutMs">The amount of time, in milliseconds, before the method will stop retrying the code. If
+  /// <see cref="Timeout.Infinite"/> is given, the method will only stop when the action succeeds.
+  /// </param>
+  /// <remarks>If the method times out, the last exception thrown by the action will be rethrown.</remarks>
+  public static void Retry(Action action, int timeoutMs)
+  {
+    if(action == null) throw new ArgumentNullException();
+    Stopwatch timer = timeoutMs == Timeout.Infinite ? null : Stopwatch.StartNew();
+    Exception exception = null;
+    do
+    {
+      STMTransaction tx = STMTransaction.Create();
+      try
+      {
+        action();
+        tx.Commit();
+        return;
+      }
+      catch(Exception ex) { exception = ex; }
+      finally { tx.Dispose(); }
+    } while(timer == null || timer.ElapsedMilliseconds < timeoutMs);
+
+    throw exception;
+  }
+
+  /// <summary>Executes a function until it successfully commits in a transaction. The value returned from the function in the
+  /// first successful transaction will then be returned.
+  /// </summary>
+  public static T Retry<T>(Func<T> function)
+  {
+    return Retry(function, Timeout.Infinite);
+  }
+
+  /// <summary>Executes a function until it successfully commits in a transaction, or until the given time limit has ellapsed.
+  /// The value returned from the function in the first successful transaction will then be returned.
+  /// </summary>
+  /// <param name="function">The function to execute.</param>
+  /// <param name="timeoutMs">The amount of time, in milliseconds, before the method will stop retrying the function. If
+  /// <see cref="Timeout.Infinite"/> is given, the method will only stop when the action succeeds.
+  /// </param>
+  /// <remarks>If the method times out, the last exception thrown by the action will be rethrown.</remarks>
+  public static T Retry<T>(Func<T> function, int timeoutMs)
+  {
+    if(function == null) throw new ArgumentNullException();
+    Stopwatch timer = timeoutMs == Timeout.Infinite ? null : Stopwatch.StartNew();
+    Exception exception = null;
+    do
+    {
+      STMTransaction tx = STMTransaction.Create();
+      try
+      {
+        T value = function();
+        tx.Commit();
+        return value;
+      }
+      catch(Exception ex) { exception = ex; }
+      finally { tx.Dispose(); }
+    } while(timer == null || timer.ElapsedMilliseconds < timeoutMs);
+
+    throw exception;
   }
 }
 #endregion
@@ -105,9 +176,8 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
 {
   internal STMTransaction(STMTransaction parent)
   {
-    this.parent   = parent;
-    this.id       = (ulong)Interlocked.Increment(ref nextId);
-    this.refCount = 1;
+    this.parent = parent;
+    this.id     = (ulong)Interlocked.Increment(ref nextId);
   }
 
   internal STMTransaction(STMTransaction parent, Transaction systemTransaction) : this(parent)
@@ -118,23 +188,30 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
 
   /// <summary>Attempts to commit the current transaction.</summary>
   /// <exception cref="InvalidOperationException">Thrown if the transaction has already finished (i.e. been committed, rolled
-  /// back, etc).
+  /// back, etc), or if this is not the topmost transaction on the transaction stack.
   /// </exception>
   /// <exception cref="TransactionAbortedException">Thrown if the attempt to commit the transaction failed because of a conflict
   /// with another transaction.
   /// </exception>
   public void Commit()
   {
-    if(refCount < 1) throw new InvalidOperationException();
-    else if(refCount == 1 && !TryCommit()) throw new TransactionAbortedException();
+    if(this != Current) throw new InvalidOperationException();
+    if(!TryCommit()) throw new TransactionAbortedException();
   }
 
-  /// <summary>Disposes the transaction, removing it from the transaction stack. This must be called when you have finished with
-  /// the transaction.
+  /// <summary>Disposes the transaction, removing it from the transaction stack and decoupling it from any
+  /// <see cref="Transaction"/> in scope. This must be called when you have finished with the transaction.
   /// </summary>
   public void Dispose()
   {
-    if(refCount > 0 && Interlocked.Decrement(ref refCount) == 0) RemoveFromStack();
+    // decouple the transaction from System.Transactions to prevent it from holding up other transactions
+    systemTransaction = null;
+    RemoveFromStack();
+  }
+
+  public override string ToString()
+  {
+    return "STM Transaction #" + id.ToInvariantString();
   }
 
   /// <summary>Gets the current <see cref="STMTransaction"/> for this thread, or null if no transaction has been created.</summary>
@@ -147,29 +224,16 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   /// <summary>Creates a new <see cref="STMTransaction"/> makes it the current transaction for the thread, and returns it.</summary>
   public static STMTransaction Create()
   {
-    return Create(false, false);
+    return Create(false);
   }
 
   /// <summary>Returns the current <see cref="STMTransaction"/> for the thread, potentially creating a new one first.</summary>
-  /// <param name="useExisting">If false, a new transaction will always be created. If true, a new transaction will only be
-  /// created if there is no current transaction, or if a new <see cref="Transaction"/> has come into scope.
-  /// </param>
-  public static STMTransaction Create(bool useExisting)
-  {
-    return Create(useExisting, false);
-  }
-
-  /// <summary>Returns the current <see cref="STMTransaction"/> for the thread, potentially creating a new one first.</summary>
-  /// <param name="useExisting">If false, a new transaction will always be created. If true, a new transaction will only be
-  /// created if there is no current transaction, or if a new <see cref="Transaction"/> has come into scope (and
-  /// <paramref name="ignoreSystemTransaction"/> is false).
-  /// </param>
   /// <param name="ignoreSystemTransaction">If true, no attempt will be made to integrate the STM transaction with the current
   /// <see cref="Transaction"/>. This can improve performance of the <see cref="Create"/> call slightly if you know that
   /// <see cref="Transaction.Current"/> is null. If false is passed, the <see cref="STMTransaction"/> will be integrated with the
   /// current <see cref="Transaction"/> as normal.
   /// </param>
-  public static STMTransaction Create(bool useExisting, bool ignoreSystemTransaction)
+  public static STMTransaction Create(bool ignoreSystemTransaction)
   {
     STMTransaction transaction = Current;
 
@@ -190,22 +254,10 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
 
       // if there was none found, push a new transaction onto the stack that is bound to and under the control of the
       // system transaction. the user's transaction will be nested within that one
-      if(!found)
-      {
-        Current = transaction = new STMTransaction(transaction, systemTransaction);
-        useExisting = false; // don't return the transaction directly, since it's under the control of the system transaction
-      }
+      if(!found) Current = transaction = new STMTransaction(transaction, systemTransaction);
     }
 
-    if(!useExisting || transaction == null) // if we have to create a new transaction, do so
-    {
-      Current = transaction = new STMTransaction(transaction);
-    }
-    else // otherwise, increment the reference count of the existing transaction
-    {
-      Interlocked.Increment(ref transaction.refCount);
-    }
-
+    Current = transaction = new STMTransaction(transaction);
     return transaction;
   }
 
@@ -283,10 +335,15 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     public const int Undetermined=0;
     /// <summary>The transaction is in the process of committing, and is checking opened variables for conflicts.</summary>
     public const int ReadCheck=1;
+    /// <summary>The transaction is prepared to commit successfully, and will do so as soon as <see cref="FinishCommit"/> is
+    /// called. (This is useful for two-stage commit, to prevent a prepared transaction tied to System.Transactions from being
+    /// aborted, which would violate the contract that a resource manager is supposed to implement.)
+    /// </summary>
+    public const int Prepared=2;
     /// <summary>The transaction has been successfully committed.</summary>
-    public const int Committed=2;
+    public const int Committed=3;
     /// <summary>The transaction has been aborted.</summary>
-    public const int Aborted=3;
+    public const int Aborted=4;
   }
   #endregion
 
@@ -346,7 +403,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     return entry;
   }
 
-  /// <summary>Takes the status from <see cref="preparedStatus"/> (usually set by calling <see cref="PrepareCommit"/>) and
+  /// <summary>Takes the status from <see cref="preparedStatus"/> (usually set by calling <see cref="PrepareToCommit"/>) and
   /// attempts to commit or roll back the transaction based on that status.
   /// </summary>
   // NOTE: this method needs to be reentrant from multiple threads, because transactions can help each other commit by calling
@@ -354,21 +411,13 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   void FinishCommit()
   {
     if(preparedStatus == Status.Undetermined) throw new InvalidOperationException();
-
-    int currentStatus;
-    while(true)
-    {
-      currentStatus = status;
-      // if the final state has already been set (i.e. it's equal to Committed or Aborted), then we can't change it
-      if(currentStatus == Status.Committed || currentStatus == Status.Aborted) break;
-      Interlocked.CompareExchange(ref status, preparedStatus, currentStatus); // try to set the final state
-    }
+    int currentStatus = TryUpdateStatus(ref status, preparedStatus);
 
     if(parent == null || currentStatus != Status.Committed) // if this is a top-level or unsuccessful transaction...
     {
-      if(writeLog != null) // if we have changes to commit...
+      if(writeLog != null) // if we have variables to unlock...
       {
-        // unlock everything we've locked, either committing our changes or rolling them back
+        // unlock everything by either committing our changes or rolling them back
         foreach(KeyValuePair<TransactionalVariable, WriteEntry> pair in writeLog)
         {
           Interlocked.CompareExchange(ref pair.Key.value,
@@ -406,12 +455,27 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
         // if we aren't performing our read check yet, then they started to commit first, so we should help them commit.
         // otherwise, we are both trying to commit, so help them commit only if they started executing first (i.e. have a lower
         // id). (it's not actually critical that they started executing first. it's only important that there exists some global
-        // ordering of transactions that can be used to resolve conflicts). if we don't help them commit, then abort them
-        if(status != Status.ReadCheck || id > owningTransaction.id) owningTransaction.TryCommit(); // help it commit
-        else Interlocked.CompareExchange(ref owningTransaction.status, Status.Aborted, Status.ReadCheck); // abort it
+        // ordering of transactions that can be used to resolve conflicts). if we don't help them commit, then abort them. also,
+        // we can't help transactions tied to System.Transactions to commit because they would only be in the preparation phase,
+        // and we don't know whether the transaction manager will actually commit them. so we'll play it safe and abort them
+        if(owningTransaction.systemTransaction == null && (status != Status.ReadCheck || id > owningTransaction.id))
+        {
+          owningTransaction.TryCommit(); // help it commit
+        }
+        else
+        {
+          Interlocked.CompareExchange(ref owningTransaction.status, Status.Aborted, Status.ReadCheck); // abort it
+        }
+      }
+      else if(owningTransaction.status == Status.Prepared && status == Status.Undetermined)
+      {
+        // if the other transaction is prepared to commit, so it will probably do so very shortly, and our transaction is still
+        // active. if we take the old value, we will almost certainly abort later, so it may be worth waiting a short time to get
+        // the new value and reduce our chance of having to abort
+        Thread.Sleep(0);
       }
       // if the owning transaction committed directly to the variable, return the new value. otherwise, return the old value
-      value = owningTransaction.status == Status.Committed && owningTransaction.parent == null ? entry.NewValue : entry.OldValue;
+      value = owningTransaction.parent == null && owningTransaction.status == Status.Committed ? entry.NewValue : entry.OldValue;
     }
     return value;
   }
@@ -444,7 +508,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   /// </summary>
   // NOTE: this method needs to be reentrant from multiple threads, because transactions can help each other commit by calling
   // each other's TryCommit() methods, and the user can also call Commit()
-  void PrepareCommit()
+  void PrepareToCommit()
   {
     int newStatus = Status.Aborted; // assume that the transaction will abort
 
@@ -465,9 +529,32 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
           if(value == pair.Value.OldValue || value == this) break;
           STMTransaction owningTransaction = value as STMTransaction;
           if(owningTransaction == null) goto decide; // another transaction committed a change already, so we fail
-          // another transaction already has it locked for committing, so help that transaction commit and then check again.
-          // if the transaction aborted, it may be available to us
-          owningTransaction.TryCommit();
+          // another transaction already has it locked for committing, but we can help that transaction commit and then check
+          // again. if the transaction aborts, we can lock it. however, we can't simply commit a transaction tied to
+          // System.Transactions because we don't know if the transaction manager will actually want to commit it. in that case,
+          // if its ultimate fate hasn't been decided yet, we may have to roll it back or abort ourselves instead. (we can't
+          // simply abort it because we could get stuck in an infinite loop if it never gets around to undoing its changes)
+          int otherStatus = owningTransaction.status;
+          if(owningTransaction.systemTransaction == null ||
+             (otherStatus == Status.Aborted || otherStatus == Status.Committed))
+          {
+            owningTransaction.TryCommit();
+          }
+          else if(otherStatus != Status.Prepared && id < owningTransaction.id)
+          {
+            // if a transaction tied to System.Transactions hasn't yet finished preparation, then we can try to abort it, but
+            // we'll only do so if we started running first
+            Interlocked.CompareExchange(ref owningTransaction.status, Status.Aborted, otherStatus);
+            if(owningTransaction.status == Status.Aborted) owningTransaction.TryCommit();
+          }
+          else
+          {
+            // otherwise, it has finished preparation, so we can't abort it, as that may lead to inconsistencies, since after
+            // preparing, a System.Transactions transaction is supposed to be guaranteed to commit successfully when Commit() is
+            // eventually called. if we aborted it now, it would violate that expectation. (or, it just started first and we want
+            // to be courteous)
+            goto decide;
+          }
         }
       }
     }
@@ -500,18 +587,16 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
       }
     }
 
-    // at this point, it looks like we're going to succeed, but it's still possible that another transaction will abort us
-    newStatus = Status.Committed;
+    // at this point, it looks like we're going to succeed, but it's still possible that another transaction has already aborted
+    // us, or will do so shortly
+    if(status != Status.Aborted) newStatus = Status.Committed; // if another transaction aborted us, detect it sooner
 
     decide:
-    int currentStatus;
-    while(true)
-    {
-      currentStatus = preparedStatus;
-      // if the prepared state has already been set (i.e. it's equal to Committed or Aborted), then we can't change it.
-      if(currentStatus == Status.Committed || currentStatus == Status.Aborted) break;
-      Interlocked.CompareExchange(ref preparedStatus, newStatus, currentStatus); // try to set the prepared status
-    }
+    int currentStatus = TryUpdateStatus(ref preparedStatus, newStatus);
+
+    // now update the real status based on the prepared status. this is to get us out of the read check phase so that we can't
+    // be aborted anymore
+    TryUpdateStatus(ref status, currentStatus == Status.Aborted ? Status.Aborted : Status.Prepared);
   }
 
   /// <summary>Removes the transaction from the transaction stack.</summary>
@@ -543,13 +628,13 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
             Interlocked.CompareExchange(ref top.status, Status.Aborted, status);
           }
           if(top == this) break;
+          top.removedFromStack = true; // mark nested transactions as having been removed from the stack
           top = top.parent;
         }
 
         STMTransaction.Current = parent; // remove this transaction and all nested transactions
+        removedFromStack = true;
       }
-
-      removedFromStack = true;
     }
   }
 
@@ -564,7 +649,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
 
   bool TryCommit()
   {
-    if(preparedStatus == Status.Undetermined) PrepareCommit();
+    if(preparedStatus == Status.Undetermined) PrepareToCommit();
     FinishCommit();
     return status == Status.Committed;
   }
@@ -590,29 +675,18 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     return false;
   }
 
-  /// <summary>The transaction's unique ID.</summary>
-  readonly ulong id;
-  /// <summary>The enclosing transaction on the transaction stack, or null if this is a top-level transaction.</summary>
-  readonly STMTransaction parent;
-  /// <summary>The .NET <see cref="Transaction"/> in which this STM transaction is enlisted, or null if none.</summary>
-  readonly Transaction systemTransaction;
-  /// <summary>The read log, containing variables opened in read mode by this transaction, or null if none have been opened.</summary>
-  Dictionary<TransactionalVariable, object> readLog;
-  /// <summary>The write log, containing variables written by this transaction, or null if no variables have been written.</summary>
-  SortedDictionary<TransactionalVariable, WriteEntry> writeLog;
-  int preparedStatus, status, refCount; // refCount keeps track of the number of times Create() returned the same transaction
-  bool removedFromStack;
-
-  [ThreadStatic] static STMTransaction _current;
-
-  static long nextId;
-
   #region IEnlistmentNotification Members
   void IEnlistmentNotification.Commit(Enlistment enlistment)
   {
-    TryCommit();
-    Dispose(); // drop the reference code to zero and remove the transaction from the stack if it's still there
-    enlistment.Done();
+    try
+    {
+      TryCommit();
+    }
+    finally
+    {
+      Dispose(); // dispose the transaction here, since it's not exposed to the user
+      enlistment.Done();
+    }
   }
 
   void IEnlistmentNotification.InDoubt(Enlistment enlistment)
@@ -621,25 +695,72 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     // rest of the transaction might have completed successfully, we'll never find out. if we take no action, our changes won't
     // get committed -- the variables may just be left in a locked state -- so we might as well roll them back to return them to
     // a consistent state sooner
-    RollBack();
-    Dispose(); // drop the reference code to zero and remove the transaction from the stack if it's still there
-    enlistment.Done();
+    try
+    {
+      RollBack();
+    }
+    finally
+    {
+      Dispose(); // dispose the transaction here, since it's not exposed to the user
+      enlistment.Done();
+    }
   }
 
   void IEnlistmentNotification.Prepare(PreparingEnlistment preparingEnlistment)
   {
-    PrepareCommit();
-    if(preparedStatus == Status.Committed) preparingEnlistment.Prepared();
-    else preparingEnlistment.ForceRollback(); // if it doesn't seem we can commit, then rollback the transaction
+    try
+    {
+      PrepareToCommit();
+    }
+    finally
+    {
+      if(preparedStatus == Status.Committed && status == Status.Prepared) preparingEnlistment.Prepared();
+      else preparingEnlistment.ForceRollback(); // if it doesn't seem we can commit, then rollback the transaction
+    }
   }
 
   void IEnlistmentNotification.Rollback(Enlistment enlistment)
   {
-    RollBack();
-    Dispose(); // drop the reference code to zero and remove the transaction from the stack if it's still there
-    enlistment.Done();
+    try
+    {
+      RollBack();
+    }
+    finally
+    {
+      Dispose(); // dispose the transaction here, since it's not exposed to the user
+      enlistment.Done();
+    }
   }
   #endregion
+
+  /// <summary>The transaction's unique ID.</summary>
+  readonly ulong id;
+  /// <summary>The enclosing transaction on the transaction stack, or null if this is a top-level transaction.</summary>
+  readonly STMTransaction parent;
+  /// <summary>The .NET <see cref="Transaction"/> in which this STM transaction is enlisted, or null if none.</summary>
+  Transaction systemTransaction;
+  /// <summary>The read log, containing variables opened in read mode by this transaction, or null if none have been opened.</summary>
+  Dictionary<TransactionalVariable, object> readLog;
+  /// <summary>The write log, containing variables written by this transaction, or null if no variables have been written.</summary>
+  SortedDictionary<TransactionalVariable, WriteEntry> writeLog;
+  int preparedStatus, status;
+  bool removedFromStack;
+
+  static int TryUpdateStatus(ref int status, int newStatus)
+  {
+    int currentStatus;
+    while(true)
+    {
+      currentStatus = status;
+      // if the status has already been set (i.e. it's equal to Committed or Aborted), then we can't change it.
+      if(currentStatus == newStatus || currentStatus == Status.Committed || currentStatus == Status.Aborted) break;
+      Interlocked.CompareExchange(ref status, newStatus, currentStatus);
+    }
+    return currentStatus;
+  }
+
+  [ThreadStatic] static STMTransaction _current;
+  static long nextId;
 }
 #endregion
 
