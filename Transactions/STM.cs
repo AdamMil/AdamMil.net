@@ -30,6 +30,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // brief textual description of the implementation, which is tied to Concurrent Haskell runtime implementation details.)
 // additionally, Fraser's system is not very amenable to the inclusion of fancy features from the Haskell STM or to integration
 // with System.Transactions, so i've modified it substantially. hopefully i haven't broken the design too much.
+//
+// the system allows the possibility that a transaction can read inconsistent state. this is a common problem with STM
+// implementations, and in a system like this one, where transactions can help each other commit, it seems difficult to fix
+// without adverse effects on either performance or transaction commit rate. (one reasonably performant method using a global
+// version counter precludes reading the new values of variables from transactions that have started to commit but haven't yet
+// finished. the transaction doing the reading is then guaranteed to abort later, when the abortion might have been avoided if it
+// got the new value. i haven't found a performant method that doesn't increase abortion rate.) a transaction that has read
+// inconsistent state would eventually abort itself, but it's possible for the inconsistent state to cause unpredictable behavior
+// if the transaction is not written with that possibility in mind.
 
 // TODO: add spin waits to the CAS (CompareAndExchange) and Retry() loops when we upgrade to .NET 4
 
@@ -93,23 +102,7 @@ public static class STM
   /// </remarks>
   public static void Retry(Action action, int timeoutMs)
   {
-    if(action == null) throw new ArgumentNullException();
-    Stopwatch timer = timeoutMs == Timeout.Infinite ? null : Stopwatch.StartNew();
-    Exception exception = null;
-    do
-    {
-      STMTransaction tx = STMTransaction.Create();
-      try
-      {
-        action();
-        tx.Commit();
-        return;
-      }
-      catch(Exception ex) { exception = ex; }
-      finally { tx.Dispose(); }
-    } while(timer == null || timer.ElapsedMilliseconds < timeoutMs);
-
-    throw exception;
+    Retry((Func<object>)delegate { action(); return null; });
   }
 
   /// <summary>Executes a function until it successfully commits in a transaction. The value returned from the function in the
@@ -142,6 +135,7 @@ public static class STM
     if(function == null) throw new ArgumentNullException();
     Stopwatch timer = timeoutMs == Timeout.Infinite ? null : Stopwatch.StartNew();
     Exception exception = null;
+    int delay = 1;
     do
     {
       STMTransaction tx = STMTransaction.Create();
@@ -153,6 +147,8 @@ public static class STM
       }
       catch(Exception ex) { exception = ex; }
       finally { tx.Dispose(); }
+      Thread.Sleep(delay); // if it failed, wait a little bit before trying again
+      if(delay < 250) delay *= 2;
     } while(timer == null || timer.ElapsedMilliseconds < timeoutMs);
 
     throw exception;
@@ -416,6 +412,13 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   /// <summary>Represents an entry in the write log.</summary>
   sealed class WriteEntry
   {
+    public WriteEntry() { }
+    public WriteEntry(object oldValue, object newValue)
+    {
+      OldValue = oldValue;
+      NewValue = newValue;
+    }
+
     public object OldValue, NewValue;
   }
   #endregion
@@ -478,13 +481,39 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     else // this is a successful nested transaction, so commit into the parent transaction by copying our log entries into it
     {
       parent.AssertActive(); // make sure the parent transaction is still active
+      // despite the fact that FinishCommit() must be thread-safe in general, we don't have to protect access to the log data
+      // structures here because this is a nested transaction, and FinishCommit() should only be called concurrently for
+      // top-level transactions, since nested transactions never take ownership of any variables, and the parent transaction,
+      // which might be top-level, can't have started committing yet
       if(writeLog != null)
       {
-        foreach(KeyValuePair<TransactionalVariable, WriteEntry> pair in writeLog) parent.Set(pair.Key, pair.Value.NewValue);
+        if(parent.writeLog == null)
+        {
+          parent.writeLog = new SortedDictionary<TransactionalVariable, WriteEntry>(VariableComparer.Instance);
+        }
+        foreach(KeyValuePair<TransactionalVariable, WriteEntry> pair in writeLog)
+        {
+          WriteEntry entry;
+          if(parent.writeLog.TryGetValue(pair.Key, out entry))
+          {
+            entry.NewValue = pair.Value.NewValue;
+          }
+          else
+          {
+            parent.writeLog.Add(pair.Key, new WriteEntry(pair.Value.OldValue, pair.Value.NewValue));
+            // remove it from the parent's read log if we added it to the write log
+            if(parent.readLog != null) parent.readLog.Remove(pair.Key);
+          }
+        }
       }
       if(readLog != null)
       {
-        foreach(KeyValuePair<TransactionalVariable,object> pair in readLog) parent.OpenForRead(pair.Key, pair.Value);
+        if(parent.readLog == null) parent.readLog = new Dictionary<TransactionalVariable, object>();
+        foreach(KeyValuePair<TransactionalVariable, object> pair in readLog)
+        {
+          // only add to the parent's read log if the variable doesn't already exist in its write log
+          if(parent.writeLog == null || !parent.writeLog.ContainsKey(pair.Key)) parent.readLog.Add(pair.Key, pair.Value);
+        }
       }
     }
 
@@ -542,15 +571,6 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
       }
     }
     return false;
-  }
-
-  /// <summary>Called from a nested transaction to commit read log entries into the enclosing transaction's (i.e. our) read log.</summary>
-  void OpenForRead(TransactionalVariable variable, object value)
-  {
-    // we can assume that the variable is not opened in any enclosing transaction, because if it was then it wouldn't have
-    // existed in a nested transaction's read log
-    if(readLog == null) readLog = new Dictionary<TransactionalVariable, object>();
-    readLog.Add(variable, value);
   }
 
   /// <summary>Prepares the transaction for committing by taking ownership of written variables, and places the transaction
@@ -793,7 +813,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   Dictionary<TransactionalVariable, object> readLog;
   /// <summary>The write log, containing variables written by this transaction, or null if no variables have been written.</summary>
   SortedDictionary<TransactionalVariable, WriteEntry> writeLog;
-  int preparedStatus, status, refCount; // refCount keeps track of the number of times Create() returned the same transaction
+  int preparedStatus, status, refCount; // refCount is incremented whenever Create() returns the same transaction multiple times
   bool removedFromStack;
 
   static int TryUpdateStatus(ref int status, int newStatus)
@@ -822,7 +842,7 @@ public abstract class TransactionalVariable
 {
   internal TransactionalVariable(object initialValue) // prevent any other assembly from subclassing it
   {
-    id    = (ulong)Interlocked.Increment(ref nextId);
+    id    = (ulong)Interlocked.Increment(ref idCounter);
     value = initialValue;
   }
 
@@ -839,10 +859,10 @@ public abstract class TransactionalVariable
   }
 
   /// <summary>Opens the variable for read access and returns the current value. You must not call any methods or properties on
-  /// the returned object that would change it, without opening it in write mode (by calling <see cref="OpenForWrite"/>) first!
-  /// If the variable will later be opened for write access, it is more efficient to just open it once, for read/write
-  /// access, rather than opening it for read access and later reopening it for write access, although it is best to avoid
-  /// opening a variable in write mode if possible.
+  /// the returned object that would change it, without opening it in read/write mode (by calling <see cref="OpenForWrite"/>)
+  /// first! If the variable will later be opened for write access, it is more efficient to just open it once, for read/write
+  /// access, rather than opening it for read access and later reopening it for read/write access, although it is best to avoid
+  /// opening a variable in read/write mode if you can.
   /// </summary>
   /// <exception cref="InvalidOperationException">Thrown if there is no active <see cref="STMTransaction"/> on this thread.</exception>
   public object Read()
@@ -884,7 +904,7 @@ public abstract class TransactionalVariable
   /// <summary>Indicates how a value will be cloned when a variable is opened in write mode.</summary>
   protected enum CloneType : byte
   {
-    /// <summary>The value does will not be cloned or copied at all. This is only suitable for immutable types.</summary>
+    /// <summary>The value will not be cloned at all. This is only suitable for immutable types.</summary>
     NoClone,
     /// <summary>The value can be cloned by unboxing and reboxing it. This is suitable for mutable value types.</summary>
     Rebox,
@@ -896,7 +916,7 @@ public abstract class TransactionalVariable
   /// variable's value will be replaced completely. To alter a mutable object through its methods and properties, use
   /// <see cref="OpenForWrite"/> to return a mutable instance of it.
   /// </summary>
-  // NOTE: this is not public because it would allow type safety to be broken (e.g. non-T stored in TransactionalVariable<T>)
+  // NOTE: this is not public because it would allow type safety to be broken (i.e. non-T stored in TransactionalVariable<T>)
   protected void Set(object newValue)
   {
     GetTransaction().Set(this, newValue);
@@ -908,8 +928,11 @@ public abstract class TransactionalVariable
   protected static CloneType GetCloneType(Type type)
   {
     if(Type.GetTypeCode(type) != TypeCode.Object) return CloneType.NoClone;
-    typeLock.EnterReadLock();
-    try { return cloneTypes[type]; }
+    try
+    {
+      typeLock.EnterReadLock();
+      return cloneTypes[type];
+    }
     finally { typeLock.ExitReadLock(); }
   }
 
@@ -989,7 +1012,7 @@ public abstract class TransactionalVariable
 
   static readonly Dictionary<Type, CloneType> cloneTypes = new Dictionary<Type, CloneType>();
   static readonly ReaderWriterLockSlim typeLock = new ReaderWriterLockSlim();
-  static long nextId;
+  static long idCounter;
 }
 #endregion
 
@@ -1026,10 +1049,10 @@ public sealed class TransactionalVariable<T> : TransactionalVariable
   }
 
   /// <summary>Opens the variable for read access and returns the current value. You must not call any methods or properties on
-  /// the returned object that would change it, without opening it in write mode (by calling <see cref="OpenForWrite"/>) first!
-  /// If the variable will later be opened for write access, it is more efficient to just open it once, for read/write
-  /// access, rather than opening it for read access and later reopening it for write access, although it is best to avoid
-  /// opening a variable in write mode if possible.
+  /// the returned object that would change it, without opening it in read/write mode (by calling <see cref="OpenForWrite"/>)
+  /// first! If the variable will later be opened for write access, it is more efficient to just open it once, for read/write
+  /// access, rather than opening it for read access and later reopening it for read/write access, although it is best to avoid
+  /// opening a variable in read/write mode if you can.
   /// </summary>
   /// <exception cref="InvalidOperationException">Thrown if there is no active <see cref="STMTransaction"/> on this thread.</exception>
   public new T Read()
