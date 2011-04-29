@@ -1,0 +1,176 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<TX>
+  <STM>
+    <Allocate>
+      <exception cref="NotSupportedException">Thrown if <typeparamref name="T"/> is not cloneable. See
+        <see cref="TransactionalVariable{T}"/> for more details.
+      </exception>
+    </Allocate>
+    <CheckConsistency>
+      <summary>
+        Checks that the current transaction has seen a consistent view of memory up to the point when this method was
+        called.
+      </summary>
+      <exception cref="TransactionAbortedException">
+        Thrown if any variables have changed since they were read by the transaction
+        in such a way that restarting the transaction would allow it to see different values.
+      </exception>
+      <include file="documentation.xml" path="TX/STM/ConsistencyCheckRemarks/*" />
+    </CheckConsistency>
+    <Commit>
+      <summary>
+        Checks that the transaction has seen a consistent view of memory and then commits any changes that the
+        transaction has made.
+      </summary>
+      <remarks>In the case of a nested transaction, the changes will be added to the enclosing transaction, and will be committed
+        when the enclosing transaction is committed.
+      </remarks>
+      <exception cref="InvalidOperationException">
+        Thrown if the transaction has already finished (i.e. been committed, rolled back, etc), or if this is not the topmost
+        transaction on the transaction stack.
+      </exception>
+      <exception cref="TransactionAbortedException">
+        Thrown if the attempt to commit the transaction failed because of a conflict with another transaction.
+      </exception>
+    </Commit>
+    <ConsistencyCheckRemarks>
+      <include file="documentation.xml" path="TX/STM/ConsistencyRemarks/*" />
+      <remarks>
+        <para>
+          This method will deliberately fail to detect inconsistency in the case that this is a nested transaction and the
+          inconsistency can only be resolved by restarting an enclosing transaction. In that case, aborting the nested
+          transaction could lead to an infinite loop where the transaction restarts but can never escape the inconsistency.
+          This type of inconsistency should be "safe" in that it should not impact the behavior of the nested transaction, so
+          the nested transaction will be allowed to commit successfull, but the enclosing transaction will eventually abort.
+        </para>
+        <para>
+          Calling this method can incur a significant performance penalty. If inconsistency would merely lead to the transaction
+          throwing an exception, it would be better to take the optimistic approach of avoiding the consistency check and
+          catching the exception. If the exception can be thrown either due to user error or to inconsistency, then in the
+          exception handler you can call <see cref="IsConsistent" /> to see if the transaction has seen a consistent view of
+          memory. If so, the exception can be assumed to be due to user error, and if not, the transaction can be retried. The
+          <see cref="STM.Retry" /> method implements this logic for you.
+        </para>
+      </remarks>
+    </ConsistencyCheckRemarks>
+    <ConsistencyRemarks>
+      <remarks>
+        It is possible for a transaction to see an inconsistent view of memory. See the following example:
+        <code>
+using(STMTransaction tx = STMTransaction.Create())
+{
+  a = var1.Read();
+  // another transaction commits changes to <c>var1</c> and <c>var2</c> at this point
+  b = var2.Read();
+  ...
+}
+        </code>
+        In this example, the transaction will see a value of <c>var1</c> from before the other transaction committed, and a
+        value of <c>var2</c> from after it committed. The values will be inconsistent. When the transaction in the example calls
+        <see cref="STMTransaction.Commit"/>, the inconsistency will be detected and the transaction will be aborted, but until
+        that point, if the transaction in the example is not written with this possibility in mind, the inconsistency may cause
+        it to behave unexpectedly. If your algorithm requires consistency, you can call <see cref="CheckConsistency"/> or
+        <see cref="IsConsistent" /> any time to validate the consistency of the transaction, or you can use the
+        <see cref="STMOptions.EnsureConsistency" /> option, but see their documentation for proper usage.
+      </remarks>
+    </ConsistencyRemarks>
+    <IsConsistent>
+      <summary>
+        Determines whether the transaction has seen a consistent view of memory up to the point when this method is
+        called.
+      </summary>
+      <seealso cref="CheckConsistency"/>
+      <include file="documentation.xml" path="TX/STM/ConsistencyCheckRemarks/*" />
+    </IsConsistent>
+    <NewTVar>
+      <include file="documentation.xml" path="TX/STM/TVarRemarks/*" />
+      <exception cref="NotSupportedException"> Thrown if <typeparamref name="T"/> is not cloneable.</exception>
+    </NewTVar>
+    <OpenForWrite>
+      <summary>
+        Opens the variable for read/write access and returns the current value. This method is meant to be used when the
+        variable's value needs to be read before writing it, or when it is an object whose methods and properties will be used to
+        mutate it. To replace the value completely, call <see cref="Set"/>.
+      </summary>
+      <exception cref="InvalidOperationException">
+        Thrown if there is no active <see cref="STMTransaction"/> on this thread, or
+        if the current value's implementation of <see cref="ICloneable"/> is incorrect.
+      </exception>
+    </OpenForWrite>
+    <Read>
+      <summary>
+        Opens the variable for read access and returns the current value. If there is no current transaction, this is
+        equivalent to calling <see cref="ReadWithoutOpening"/>. You must not call any methods or properties on the returned object
+        that would change it, without opening it in read/write mode (by calling <see cref="OpenForWrite"/>) first!
+      </summary>
+    </Read>
+    <ReadWithoutOpening>
+      <summary>
+        Reads the value of this variable without opening it. This should only be done if the logic will not be affected by
+        the variable's value changing after it's read, or if you want to check a variable's value without affecting the current
+        transaction (e.g. to view it for debugging purposes). If there is no current transaction, the most recently committed
+        value will returned.
+      </summary>
+    </ReadWithoutOpening>
+    <Retry>
+      <remarks>If <see cref="TransactionAbortedException"/> is thrown from the delegate, it will cause the transaction to be
+      restarted. If another type of exception is thrown, a consistency check will be done. If the transaction is consistent,
+      the exception will be considered to be legitimate and will be rethrown. If the consistency check fails, the exception will
+      be assumed to be caused by the inconsistency, and the transaction will be restarted.
+      </remarks>
+    </Retry>
+    <RetryWithTimeout>
+      <param name="timeoutMs">The amount of time, in milliseconds, before the method will stop retrying the code. If
+        <see cref="Timeout.Infinite"/> is given, the method will only stop when the delegate succeeds.
+      </param>
+      <remarks>
+        If <see cref="TransactionAbortedException"/> is thrown from the delegate, it will cause the transaction to be
+        restarted. If another type of exception is thrown, a consistency check will be done. If the transaction is consistent,
+        the exception will be considered to be legitimate and will be rethrown. If the consistency check fails, the exception
+        will be assumed to be caused by the inconsistency, and the transaction will be restarted. If the method times out,
+        <see cref="TransactionAbortedException"/> will be thrown. The timeout will not interrupt the delegate while it's running,
+        and will only be checked when it aborts the transaction, so this method may run for longer than the timeout specifies.
+      </remarks>
+      <exception cref="TransactionAbortedException">Thrown if the timeout expired before the action was able to complete
+        successfully.
+      </exception>
+    </RetryWithTimeout>
+    <Set>
+      <summary>
+        Opens the variable for writing and sets its value to the given value. This method is meant to be used when the
+        variable's value will be replaced completely. To alter a mutable object through its methods and properties, use
+        <see cref="OpenForWrite"/> to return the current instance of it.
+      </summary>
+      <exception cref="InvalidOperationException">
+        Thrown if there is no active <see cref="STMTransaction"/> on this thread, or
+        if the current value's implementation of <see cref="ICloneable"/> is incorrect.
+      </exception>
+    </Set>
+    <TVarRemarks>
+      <remarks>
+        All types used in a <see cref="TransactionalVariable{T}" /> must be thread-safe for reading.
+        If a transaction calls <see cref="OpenForWrite" /> and then mutates the returned value, the change to the instance must
+        be isolated from other transactions. The way it does this depends on the type of the value.
+        <list type="bullet">
+          <item>
+            <description>
+              Immutable types are shared across all transactions. You can designate a type as immutable by marking it with the
+              <see cref="STMImmutableAttribute" />, but you must ensure the type is actually immutable. If an immutable type
+              implements <see cref="ICloneable" />, the implementation will be ignored
+            </description>
+          </item>
+          <item>
+            Value types that contain no references to mutable reference types are copied bitwise if necessary.
+            You can customize the copying process by implementing <see cref="ICloneable" />, but this is rarely necessary.
+          </item>
+          <item>
+            Mutable reference types and value types that contain mutable reference types cannot be handled automatically by the
+            system, and must implement <see cref="ICloneable" />. Types that do not implement it cannot be used within a
+            <see cref="TransactionalVariable{T}" /> and will cause the constructor to throw a
+            <see cref="NotSupportedException" />.
+          </item>
+        </list>
+      </remarks>
+    </TVarRemarks>
+  </STM>
+</TX>

@@ -21,6 +21,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 using System;
 using System.Collections.Generic;
 
+// TODO: recheck the performance of MemberwiseClone() versus manual cloning to see if it's improved in .NET 4
+
 namespace AdamMil.Transactions
 {
 
@@ -28,9 +30,6 @@ namespace AdamMil.Transactions
 /// <summary>Implements an array whose members are transactional variables. The array's length cannot be changed after it is
 /// created, so the array does not support methods that add or remove members.
 /// </summary>
-/// <remarks>When iterating over the array using an enumerator, be sure to dispose the enumerator when you're done with it, as
-/// the enumerator holds open a transaction that is disposed when the enumerator is.
-/// </remarks>
 public sealed class TransactionalArray<T> : IList<T>
 {
   /// <summary>Initializes a new <see cref="TransactionalArray{T}"/> with the given number of elements.</summary>
@@ -70,37 +69,21 @@ public sealed class TransactionalArray<T> : IList<T>
   /// <inheritdoc/>
   public T this[int index]
   {
-    get
-    {
-      using(STMTransaction transaction = STMTransaction.Create(true))
-      {
-        T value = array[index].Read();
-        transaction.Commit();
-        return value;
-      }
-    }
-    set
-    {
-      using(STMTransaction transaction = STMTransaction.Create(true))
-      {
-        array[index].Set(value);
-        transaction.Commit();
-      }
-    }
+    get { return array[index].Read(); }
+    set { STM.Retry(delegate { array[index].Set(value); }); }
   }
 
   /// <inheritdoc/>
   public int IndexOf(T item)
   {
-    using(STMTransaction transaction = STMTransaction.Create())
+    return STM.Retry(delegate
     {
       for(int i=0; i<array.Length; i++)
       {
         if(comparer.Compare(item, array[i].Read()) == 0) return i;
       }
-      transaction.Commit();
-    }
-    return -1;
+      return -1;
+    });
   }
 
   void IList<T>.Insert(int index, T item)
@@ -136,11 +119,12 @@ public sealed class TransactionalArray<T> : IList<T>
   /// <inheritdoc/>
   public void CopyTo(T[] array, int arrayIndex)
   {
-    using(STMTransaction transaction = STMTransaction.Create())
+    if(array == null) throw new ArgumentNullException();
+    if(arrayIndex < 0 || arrayIndex+Count > array.Length) throw new ArgumentOutOfRangeException();
+    STM.Retry(delegate
     {
       for(int i=0; i<this.array.Length; i++) array[arrayIndex+i] = this.array[i].Read();
-      transaction.Commit();
-    }
+    });
   }
 
   void ICollection<T>.Add(T item)
@@ -179,9 +163,8 @@ public sealed class TransactionalArray<T> : IList<T>
   {
     public Enumerator(TransactionalVariable<T>[] array)
     {
-      this.array  = array;
-      transaction = STMTransaction.Create();
-      index       = -1;
+      this.array = array;
+      index      = -1;
     }
 
     public T Current
@@ -190,16 +173,6 @@ public sealed class TransactionalArray<T> : IList<T>
       {
         if((uint)index >= (uint)array.Length) throw new InvalidOperationException();
         return current;
-      }
-    }
-
-    public void Dispose()
-    {
-      if(transaction != null)
-      {
-        transaction.Commit();
-        transaction.Dispose();
-        transaction = null;
       }
     }
 
@@ -220,7 +193,6 @@ public sealed class TransactionalArray<T> : IList<T>
 
     public void Reset()
     {
-      if(transaction == null) throw new InvalidOperationException();
       index = -1;
     }
 
@@ -229,8 +201,9 @@ public sealed class TransactionalArray<T> : IList<T>
       get { return Current; }
     }
 
+    void IDisposable.Dispose() { }
+
     readonly TransactionalVariable<T>[] array;
-    STMTransaction transaction;
     T current;
     int index;
   }
@@ -238,6 +211,243 @@ public sealed class TransactionalArray<T> : IList<T>
 
   readonly TransactionalVariable<T>[] array;
   readonly IComparer<T> comparer;
+}
+#endregion
+
+// TODO: ensure that we check for null keys
+#region TransactionalDictionary
+public sealed class TransactionalDictionary<K, V> : IDictionary<K, V>
+{
+  public TransactionalDictionary() : this((IComparer<K>)null) { }
+  public TransactionalDictionary(IComparer<K> comparer)
+  {
+    this.comparer = comparer ?? Comparer<K>.Default;
+    this.root     = new TransactionalVariable<Node>();
+    this.count    = new TransactionalVariable<int>();
+  }
+
+  public TransactionalDictionary(IEnumerable<KeyValuePair<K, V>> initialItems) : this(initialItems, null) { }
+  public TransactionalDictionary(IEnumerable<KeyValuePair<K, V>> initialItems, IComparer<K> comparer) : this(comparer)
+  {
+    if(initialItems == null) throw new ArgumentNullException();
+    using(STMTransaction tx = STMTransaction.Create())
+    {
+      foreach(KeyValuePair<K, V> pair in initialItems) Add(pair.Key, pair.Value);
+      tx.Commit();
+    }
+  }
+
+  #region IDictionary<K,V> Members
+  public V this[K key]
+  {
+    get
+    {
+      Node node = FindNode(key);
+      if(node == null) throw new KeyNotFoundException();
+      return node.Value;
+    }
+    set
+    {
+      STM.Retry(delegate
+      {
+        TransactionalVariable<Node> variable;
+        Node node = FindNode(key, out variable);
+        if(node == null) throw new KeyNotFoundException();
+        variable.OpenForWrite().Value = value;
+      });
+    }
+  }
+
+  public ICollection<K> Keys
+  {
+    get { throw new NotImplementedException(); }
+  }
+
+  public ICollection<V> Values
+  {
+    get { throw new NotImplementedException(); }
+  }
+
+  public void Add(K key, V value)
+  {
+    throw new NotImplementedException();
+  }
+
+  public bool ContainsKey(K key)
+  {
+    return FindNode(key) != null;
+  }
+
+  public bool Remove(K key)
+  {
+    return STM.Retry(delegate
+    {
+      TransactionalVariable<Node> variable;
+      Node node = FindNode(key, out variable);
+      if(node == null)
+      {
+        return false;
+      }
+      else
+      {
+        Remove(variable);
+        return true;
+      }
+    });
+  }
+
+  public bool TryGetValue(K key, out V value)
+  {
+    Node node = FindNode(key);
+    if(node == null)
+    {
+      value = default(V);
+      return false;
+    }
+    else
+    {
+      value = node.Value;
+      return true;
+    }
+  }
+  #endregion
+
+  #region ICollection<KeyValuePair<K,V>> Members
+  public int Count
+  {
+    get { return count.Read(); }
+  }
+
+  public bool IsReadOnly
+  {
+    get { return false; }
+  }
+
+  public void Clear()
+  {
+    STM.Retry(delegate
+    {
+      root.Set(null);
+      count.Set(0);
+    });
+  }
+
+  public void CopyTo(KeyValuePair<K, V>[] array, int arrayIndex)
+  {
+    if(array == null) throw new ArgumentNullException();
+    if(arrayIndex < 0) throw new ArgumentOutOfRangeException();
+    STM.Retry(delegate
+    {
+      if(arrayIndex + Count > array.Length) throw new ArgumentOutOfRangeException();
+      int index = arrayIndex;
+      foreach(KeyValuePair<K, V> pair in this) array[index++] = pair;
+    });
+  }
+
+  void ICollection<KeyValuePair<K, V>>.Add(KeyValuePair<K, V> item)
+  {
+    Add(item.Key, item.Value);
+  }
+
+  bool ICollection<KeyValuePair<K, V>>.Contains(KeyValuePair<K, V> item)
+  {
+    V value;
+    return TryGetValue(item.Key, out value) && object.Equals(value, item.Value);
+  }
+
+  bool ICollection<KeyValuePair<K, V>>.Remove(KeyValuePair<K, V> item)
+  {
+    return STM.Retry(delegate
+    {
+      TransactionalVariable<Node> variable;
+      Node node = FindNode(item.Key, out variable);
+      if(node == null || !object.Equals(node.Value, item.Value))
+      {
+        return false;
+      }
+      else
+      {
+        Remove(variable);
+        return true;
+      }
+    });
+  }
+  #endregion
+
+  #region IEnumerable<KeyValuePair<K,V>> Members
+  public IEnumerator<KeyValuePair<K, V>> GetEnumerator()
+  {
+    throw new NotImplementedException();
+  }
+  #endregion
+
+  #region IEnumerable Members
+  System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+  {
+    return GetEnumerator();
+  }
+  #endregion
+
+  #region Color
+  public enum Color : byte
+  {
+    Black=0, Red=1
+  }
+  #endregion
+
+  #region Node
+  sealed class Node : ICloneable
+  {
+    public object Clone()
+    {
+      Node node = new Node(); // return MemberwiseClone(); could also be used, but unfortunately it's much slower :-(
+      node.Parent = Parent;
+      node.Left   = Left;
+      node.Right  = Right;
+      node.Key    = Key;
+      node.Value  = Value;
+      node.Color  = Color;
+      return node;
+    }
+
+    public TransactionalVariable<Node> Parent, Left, Right;
+    public K Key;
+    public V Value;
+    public Color Color;
+  }
+  #endregion
+
+  Node FindNode(K key)
+  {
+    TransactionalVariable<Node> variable;
+    return STM.Retry(delegate { return FindNode(key, out variable); });
+  }
+
+  Node FindNode(K key, out TransactionalVariable<Node> variable)
+  {
+    TransactionalVariable<Node> nodeVar = root;
+    Node node;
+    do
+    {
+      node = nodeVar.Read();
+      int cmp = comparer.Compare(key, node.Key);
+      if(cmp == 0) break;
+      else nodeVar = cmp < 0 ? node.Left : node.Right;
+    } while(nodeVar != Leaf);
+    variable = nodeVar;
+    return nodeVar == Leaf ? null : node;
+  }
+
+  void Remove(TransactionalVariable<Node> variable)
+  {
+    throw new NotImplementedException();
+  }
+
+  readonly IComparer<K> comparer;
+  readonly TransactionalVariable<Node> root;
+  readonly TransactionalVariable<int> count;
+
+  static readonly TransactionalVariable<Node> Leaf = new TransactionalVariable<Node>();
 }
 #endregion
 

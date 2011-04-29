@@ -101,18 +101,38 @@ public class STMTests
     }
     AssertEqual(a, 1, b, 2, c, 3);
 
-    // test the ability to reuse transactions
+    int ntValue = 0;
+
+    // test post-commit actions
+    using(STMTransaction tx = STMTransaction.Create())
+    {
+      a.Set(10);
+      tx.Commit(delegate { ntValue = 1; });
+    }
+    Assert.AreEqual(1, ntValue);
+
+    // ensure they're not executed unless the top-level transaction executes
+    using(STMTransaction otx = STMTransaction.Create())
+    using(STMTransaction tx = STMTransaction.Create())
+    {
+      a.Set(10);
+      tx.Commit(delegate { ntValue = 2; });
+    }
+    Assert.AreEqual(1, ntValue);
+
+    // ensure that they're executed in the right order (innermost first) and at the right time
     using(STMTransaction otx = STMTransaction.Create())
     {
-      using(STMTransaction tx = STMTransaction.Create(true))
+      using(STMTransaction tx = STMTransaction.Create())
       {
-        Assert.AreSame(otx, tx);
         a.Set(10);
-        tx.Commit();
+        tx.Commit(delegate { ntValue = 2; });
+        Assert.AreEqual(1, ntValue);
       }
-      otx.Commit();
+      Assert.AreEqual(1, ntValue);
+      otx.Commit(delegate { ntValue++; });
     }
-    AssertEqual(a, 10);
+    Assert.AreEqual(3, ntValue);
   }
   #endregion
 
@@ -240,13 +260,30 @@ public class STMTests
     // test the ability to ignore system transactions
     using(new TransactionScope())
     {
-      using(STMTransaction tx = STMTransaction.Create(false, true))
+      using(STMTransaction tx = STMTransaction.Create(STMOptions.IgnoreSystemTransaction))
       {
         a.Set(10);
         tx.Commit();
       }
     }
     AssertEqual(a, 10);
+
+    // test post-commit actions
+    int ntValue = 0;
+
+    // test that they're not executed if the System.Transactions transaction isn't completed
+    using(new TransactionScope())
+    using(STMTransaction tx = STMTransaction.Create()) tx.Commit(delegate { ntValue=1; });
+    Assert.AreEqual(0, ntValue);
+
+    // test that they are executed when it is
+    using(TransactionScope stx = new TransactionScope())
+    {
+      using(STMTransaction tx = STMTransaction.Create()) tx.Commit(delegate { ntValue=1; });
+      Assert.AreEqual(0, ntValue);
+      stx.Complete();
+    }
+    Assert.AreEqual(1, ntValue);
   }
   #endregion
 
@@ -265,9 +302,9 @@ public class STMTests
       TestHelpers.TestException<InvalidOperationException>(delegate { tx.Commit(); });
     }
 
-    // test that variables can't be opened for read or write outside transactions
+    // test that variables can't be opened for write outside transactions
     TransactionalVariable<int> a = STM.Allocate<int>();
-    TestHelpers.TestException<InvalidOperationException>(delegate { a.Read(); });
+    TestHelpers.TestException<InvalidOperationException>(delegate { a.OpenForWrite(); });
     TestHelpers.TestException<InvalidOperationException>(delegate { a.Set(1); });
 
     // test that bad implementations of ICloneable are detected
@@ -345,6 +382,25 @@ public class STMTests
   [Test]
   public void T05_TestContention()
   {
+    // test the EnsureConsistency option
+    TransactionalVariable<int> a = STM.Allocate<int>(), b = STM.Allocate<int>();
+    using(STMTransaction tx = STMTransaction.Create(STMOptions.EnsureConsistency))
+    {
+      a.Read();
+      Thread thread = new Thread((ThreadStart)delegate
+      {
+        using(STMTransaction tx2 = STMTransaction.Create())
+        {
+          a.Set(1);
+          tx2.Commit();
+        }
+      });
+      thread.Start();
+      thread.Join();
+
+      TestHelpers.TestException<TransactionAbortedException>(delegate { b.Read(); });
+    }
+
     const int Iterations = 500;
     TransactionalVariable<int>[] vars = new TransactionalVariable<int>[10]; // the array length must be even
     for(int i=0; i<vars.Length; i++) vars[i] = STM.Allocate<int>();

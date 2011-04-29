@@ -18,10 +18,10 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-// this is a software transactional memory (STM) system based on the ideas (particularly OSTM) laid out in the paper
-// "Concurrent programming without locks" [Fraser and Harris, 2007]. the system should be lock-free, meaning that it is free from
-// deadlock and livelock, and a transaction should be guaranteed to eventually commit if it is retried enough times. the system
-// also incorporates features based on the Haskell STM system originally described in "Composable Memory Transactions" [Harris,
+// this is a software transactional memory (STM) system based on the ideas (particularly OSTM) laid out in the paper "Concurrent
+// programming without locks" [Fraser and Harris, 2007]. the system should be lock-free, meaning that it is free from deadlock
+// and livelock, and a transaction should be guaranteed to eventually commit if it is retried enough times. the system also
+// incorporates features based on the Haskell STM system originally described in "Composable Memory Transactions" [Harris,
 // Marlow, Jones, and Herlihy, 2006], such as nested transactions, automatic retry, and orElse composition. finally, the system
 // integrates with the .NET System.Transactions framework.
 //
@@ -33,14 +33,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //
 // the system allows the possibility that a transaction can read inconsistent state. this is a common problem with STM
 // implementations, and in a system like this one, where transactions can help each other commit, it seems difficult to fix
-// without adverse effects on either performance or transaction commit rate. (one reasonably performant method using a global
-// version counter precludes reading the new values of variables from transactions that have started to commit but haven't yet
-// finished. the transaction doing the reading is then guaranteed to abort later, when the abortion might have been avoided if it
-// got the new value. i haven't found a performant method that doesn't increase abortion rate.) a transaction that has read
-// inconsistent state would eventually abort itself, but it's possible for the inconsistent state to cause unpredictable behavior
-// if the transaction is not written with that possibility in mind.
+// without adverse effects on either performance or transaction commit rate. a transaction that has read inconsistent state would
+// eventually abort itself, but it's possible for the inconsistent state to cause unpredictable behavior if the transaction is
+// not written with that possibility in mind. to address this, i've done the following:
+// * added a way to manually check consistency during a transaction, and an option to automatically check it after each variable
+//   is opened. the automatic check is not enabled by default due to the fact that it incurs a substantial performance penalty
+// * made STM.Retry() use a consistency check to see if an exception thrown from the transaction may have been caused by
+//   inconsistency. if so, the transaction is retried, and if not, the exception is propagated
 
-// TODO: add spin waits to the CAS (CompareAndExchange) and Retry() loops when we upgrade to .NET 4
+// TODO: add spin waits to various loops when we upgrade to .NET 4
 
 using System;
 using System.Collections.Generic;
@@ -60,9 +61,7 @@ public static class STM
   /// <summary>Allocates and returns a new <see cref="TransactionalVariable{T}"/> with a default value. This is equivalent to
   /// constructing a <see cref="TransactionalVariable{T}"/> using its constructor.
   /// </summary>
-  /// <exception cref="NotSupportedException">Thrown if <typeparamref name="T"/> is not cloneable. See
-  /// <see cref="TransactionalVariable{T}"/> for more details.
-  /// </exception>
+  /// <include file="documentation.xml" path="TX/STM/Allocate/*" />
   public static TransactionalVariable<T> Allocate<T>()
   {
     return new TransactionalVariable<T>();
@@ -71,20 +70,28 @@ public static class STM
   /// <summary>Allocates and returns a new <see cref="TransactionalVariable{T}"/> with the given value. This is equivalent to
   /// constructing a <see cref="TransactionalVariable{T}"/> using its constructor.
   /// </summary>
-  /// <exception cref="NotSupportedException">Thrown if <typeparamref name="T"/> is not cloneable. See
-  /// <see cref="TransactionalVariable{T}"/> for more details.
-  /// </exception>
+  /// <include file="documentation.xml" path="TX/STM/Allocate/*" />
   public static TransactionalVariable<T> Allocate<T>(T initialValue)
   {
     return new TransactionalVariable<T>(initialValue);
   }
 
+  /// <exception cref="InvalidOperationException">Thrown if there is no current transaction, or if it is no longer active.</exception>
+  /// <include file="documentation.xml" path="TX/STM/CheckConsistency/*" />
+  public static void CheckConsistency()
+  {
+    GetTransaction().CheckConsistency();
+  }
+
+  /// <exception cref="InvalidOperationException">Thrown if there is no current transaction, or if it is no longer active.</exception>
+  /// <include file="documentation.xml" path="TX/STM/IsConsistent/*" />
+  public static bool IsConsistent()
+  {
+    return GetTransaction().IsConsistent();
+  }
+
   /// <summary>Executes an action until it successfully commits in a transaction.</summary>
-  /// <remarks>It should be possible for the action to succeed eventually. Since an exception thrown from it will cause
-  /// a retry, actions that always throw will cause the method to never return. If the action may fail repeatedly, call the
-  /// override that takes a timeout. Since the action may be executed multiple times, be careful to avoid non-transactional side
-  /// effects.
-  /// </remarks>
+  /// <include file="documentation.xml" path="TX/STM/Retry/*"/>
   public static void Retry(Action action)
   {
     Retry(action, Timeout.Infinite);
@@ -92,14 +99,7 @@ public static class STM
 
   /// <summary>Executes an action until it successfully commits in a transaction, or until the given time limit has ellapsed.</summary>
   /// <param name="action">The action to execute.</param>
-  /// <param name="timeoutMs">The amount of time, in milliseconds, before the method will stop retrying the code. If
-  /// <see cref="Timeout.Infinite"/> is given, the method will only stop when the action succeeds.
-  /// </param>
-  /// <remarks>It should be possible for the action to succeed eventually. Since an exception thrown from it will cause
-  /// a retry, actions that always throw will cause the method to never return. If the action may fail repeatedly, specify a
-  /// timeout. Since the action may be executed multiple times, be careful to avoid non-transactional side effects. If the
-  /// method times out, the last exception caught will be rethrown.
-  /// </remarks>
+  /// <include file="documentation.xml" path="TX/STM/RetryWithTimeout/*"/>
   public static void Retry(Action action, int timeoutMs)
   {
     Retry((Func<object>)delegate { action(); return null; });
@@ -108,11 +108,7 @@ public static class STM
   /// <summary>Executes a function until it successfully commits in a transaction. The value returned from the function in the
   /// first successful transaction will then be returned.
   /// </summary>
-  /// <remarks>It should be possible for the function to succeed eventually. Since an exception thrown from it will cause
-  /// a retry, functions that always throw will cause the method to never return. If the function may fail repeatedly, call the
-  /// override that takes a timeout. Since the function may be executed multiple times, be careful to avoid non-transactional
-  /// side effects.
-  /// </remarks>
+  /// <include file="documentation.xml" path="TX/STM/Retry/*"/>
   public static T Retry<T>(Func<T> function)
   {
     return Retry(function, Timeout.Infinite);
@@ -122,19 +118,11 @@ public static class STM
   /// The value returned from the function in the first successful transaction will then be returned.
   /// </summary>
   /// <param name="function">The function to execute.</param>
-  /// <param name="timeoutMs">The amount of time, in milliseconds, before the method will stop retrying the function. If
-  /// <see cref="Timeout.Infinite"/> is given, the method will only stop when the function succeeds.
-  /// </param>
-  /// <remarks>It should be possible for the function to succeed eventually. Since an exception thrown from it will cause
-  /// a retry, functions that always throw will cause the method to never return. If the function may fail repeatedly, specify a
-  /// timeout. Since the function may be executed multiple times, be careful to avoid non-transactional side effects. If the
-  /// method times out, the last exception caught will be rethrown.
-  /// </remarks>
+  /// <include file="documentation.xml" path="TX/STM/RetryWithTimeout/*"/>
   public static T Retry<T>(Func<T> function, int timeoutMs)
   {
     if(function == null) throw new ArgumentNullException();
     Stopwatch timer = timeoutMs == Timeout.Infinite ? null : Stopwatch.StartNew();
-    Exception exception = null;
     int delay = 1;
     do
     {
@@ -145,13 +133,25 @@ public static class STM
         tx.Commit();
         return value;
       }
-      catch(Exception ex) { exception = ex; }
+      catch(TransactionAbortedException) { }
+      catch
+      {
+        // if the transaction has seen a consistent view of memory, then consider the exception to be legitimate
+        if(tx.IsConsistent()) throw;
+      }
       finally { tx.Dispose(); }
       Thread.Sleep(delay); // if it failed, wait a little bit before trying again
       if(delay < 250) delay *= 2;
     } while(timer == null || timer.ElapsedMilliseconds < timeoutMs);
 
-    throw exception;
+    throw new TransactionAbortedException();
+  }
+
+  static STMTransaction GetTransaction()
+  {
+    STMTransaction transaction = STMTransaction.Current;
+    if(transaction == null) throw new InvalidOperationException();
+    return transaction;
   }
 }
 #endregion
@@ -169,6 +169,27 @@ public class STMImmutableAttribute : Attribute
 }
 #endregion
 
+#region STMOptions
+/// <summary>Options used during the creation of a transaction to control how the transaction behaves.</summary>
+[Flags]
+public enum STMOptions
+{
+  /// <summary>Checks consistency when <see cref="STMTransaction.Commit"/> is called, and attempts to integrate with
+  /// System.Transactions.
+  /// </summary>
+  Default=0,
+  /// <summary>Checks consistency after each variable is opened, as well as during <see cref="STMTransaction.Commit"/> in order
+  /// to ensure that the transaction always sees a consistent view of memory. This option incurs a substantial performance
+  /// penalty, and it is recommended to avoid it and call <see cref="STMTransaction.CheckConsistency"/> manually where
+  /// consistency is required, or better yet, write write your transactions so that they can tolerate inconsistency. See
+  /// <see cref="STMTransaction.CheckConsistency"/> for more details.
+  /// </summary>
+  EnsureConsistency=1,
+  /// <summary>No attempt will be made to integrate the STM transaction with the current <see cref="Transaction"/>.</summary>
+  IgnoreSystemTransaction=2
+}
+#endregion
+
 #region STMTransaction
 /// <summary>Represents a transaction that controls access to memory resources managed by <see cref="TransactionalVariable{T}"/>
 /// objects. To commit the transaction, call <see cref="Commit"/>. In any case, <see cref="Dispose"/> must be called to clean up
@@ -177,41 +198,65 @@ public class STMImmutableAttribute : Attribute
 /// </summary>
 /// <remarks>
 /// <para>Transactions can be composed by nesting them, in which case the changes are not really committed until the outermost
-/// transaction is committed. Unlike the <see cref="Transaction"/> class, if a nested <see cref="STMTransaction"/> aborts, it can
-/// be retried and does not force the parent <see cref="STMTransaction"/> to abort.
+/// transaction is committed. If a nested <see cref="STMTransaction"/> aborts, it can be retried and does not force the parent
+/// <see cref="STMTransaction"/> to abort.
 /// </para>
-/// <para><see cref="STMTransaction"/> objects integrate with the .NET <see cref="Transaction"/> class. When <see cref="Create"/>
-/// is called to create a new <see cref="STMTransaction"/>, it will be enlisted in the current <see cref="Transaction"/> if there
-/// is one, and the changes will not be committed until the <see cref="STMTransaction"/> and the <see cref="Transaction"/> are
-/// both committed.
+/// <para>By default, <see cref="STMTransaction"/> objects integrate with the .NET <see cref="Transaction"/> class. When
+/// <see cref="Create"/> is called to create a new <see cref="STMTransaction"/>, it will be enlisted in the current
+/// <see cref="Transaction"/> if there is one, and the changes will not be committed until the <see cref="STMTransaction"/> and
+/// the <see cref="Transaction"/> are both committed.
 /// </para>
 /// </remarks>
+/// <include file="documentation.xml" path="TX/STM/ConsistencyRemarks/*" />
 public sealed class STMTransaction : IDisposable, IEnlistmentNotification
 {
-  internal STMTransaction(STMTransaction parent)
+  internal STMTransaction(STMTransaction parent, STMOptions options)
   {
-    this.parent   = parent;
-    this.id       = (ulong)Interlocked.Increment(ref nextId);
-    this.refCount = 1;
+    this.parent  = parent;
+    this.id      = (ulong)Interlocked.Increment(ref nextId);
+    this.options = options;
   }
 
-  internal STMTransaction(STMTransaction parent, Transaction systemTransaction) : this(parent)
+  internal STMTransaction(STMTransaction parent, Transaction systemTransaction) : this(parent, STMOptions.Default)
   {
     this.systemTransaction = systemTransaction;
     systemTransaction.EnlistVolatile(this, EnlistmentOptions.None);
   }
 
-  /// <summary>Attempts to commit the current transaction.</summary>
-  /// <exception cref="InvalidOperationException">Thrown if the transaction has already finished (i.e. been committed, rolled
-  /// back, etc), or if this is not the topmost transaction on the transaction stack.
-  /// </exception>
-  /// <exception cref="TransactionAbortedException">Thrown if the attempt to commit the transaction failed because of a conflict
-  /// with another transaction.
-  /// </exception>
+  /// <exception cref="InvalidOperationException">Thrown if the transaction is no longer active.</exception>
+  /// <include file="documentation.xml" path="TX/STM/CheckConsistency/*" />
+  public void CheckConsistency()
+  {
+    if(!IsConsistent()) throw new TransactionAbortedException();
+  }
+
+  /// <include file="documentation.xml" path="TX/STM/Commit/*"/>
   public void Commit()
   {
-    if(refCount < 1 || this != Current) throw new InvalidOperationException();
-    else if(refCount == 1 && !TryCommit()) throw new TransactionAbortedException();
+    Commit(null);
+  }
+
+  /// <param name="postCommitAction">An action that will be executed after the transaction is successfully committed, or null if
+  /// there is nothing additional to execute. This is intended to be used for non-transactional side effects that should not
+  /// execute if a transaction is restarted. Using this parameter differs from simply running code after <see cref="Commit"/>
+  /// returns because in the case of a nested transaction, it will be queued and executed only if all enclosing transactions also
+  /// commit successfully. If the action throws an exception, it will not be caught by the <see cref="Commit"/> method, and will
+  /// prevent post commit actions from enclosing transactions from running.
+  /// </param>
+  /// <include file="documentation.xml" path="TX/STM/Commit/*"/>
+  public void Commit(Action postCommitAction)
+  {
+    if(this != Current) throw new InvalidOperationException();
+    else if(!TryCommit()) throw new TransactionAbortedException();
+
+    if(postCommitAction != null)
+    {
+      if(postCommitActions == null) postCommitActions = new Queue<Action>();
+      postCommitActions.Enqueue(postCommitAction);
+    }
+
+    if(parent == null) ExecutePostCommitActions();
+    else MergePostCommitActions();
   }
 
   /// <summary>Disposes the transaction, removing it from the transaction stack and decoupling it from any
@@ -219,12 +264,34 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   /// </summary>
   public void Dispose()
   {
-    if(refCount > 0 && Interlocked.Decrement(ref refCount) == 0)
+    // decouple the transaction from System.Transactions to prevent it from holding up other transactions
+    systemTransaction = null;
+    RemoveFromStack();
+  }
+
+  /// <exception cref="InvalidOperationException">Thrown if the transaction is no longer active.</exception>
+  /// <include file="documentation.xml" path="TX/STM/IsConsistent/*" />
+  public bool IsConsistent()
+  {
+    AssertActive();
+    // we only check variables that were opened by this transaction and were not opened by an enclosing transaction, since those
+    // are the only variables whose values might change if this transaction was restarted
+    if(readLog != null)
     {
-      // decouple the transaction from System.Transactions to prevent it from holding up other transactions
-      systemTransaction = null;
-      RemoveFromStack();
+      foreach(KeyValuePair<TransactionalVariable, object> pair in readLog)
+      {
+        // variables in the read log cannot have been opened by an enclosing transaction
+        if(GetCommittedValue(pair.Key) != pair.Value) return false;
+      }
     }
+    if(writeLog != null)
+    {
+      foreach(KeyValuePair<TransactionalVariable, WriteEntry> pair in writeLog)
+      {
+        if((parent == null || !IsOpenInEnclosure(pair.Key)) && GetCommittedValue(pair.Key) != pair.Value.OldValue) return false;
+      }
+    }
+    return true;
   }
 
   /// <inheritdoc/>
@@ -240,46 +307,23 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     private set { _current = value; }
   }
 
-  /// <summary>Creates a new <see cref="STMTransaction"/> makes it the current transaction for the thread, and returns it.</summary>
+  /// <summary>Creates a new <see cref="STMTransaction"/> using the default <see cref="STMOptions"/>, makes it the current
+  /// transaction for the thread, and returns it.
+  /// </summary>
   public static STMTransaction Create()
   {
-    return Create(false, false);
+    return Create(STMOptions.Default);
   }
 
-  /// <summary>Returns the current <see cref="STMTransaction"/> for the thread, potentially creating a new one first.</summary>
-  /// <param name="useExisting">If false, a new transaction will always be created, which is the normal behavior. If true, the
-  /// method may return an existing transaction from the transaction stack, and simply increase its reference count. Reusing a
-  /// transaction in this way can cause unexpected behavior and should only be done if the action being performed within the
-  /// transaction is inherently atomic. For instance, reading a single variable is an atomic operation, so as an optimization, a
-  /// transactional data structure may opt to reuse an existing transaction when implementing a method that only reads a single
-  /// variable. You must still call <see cref="Commit"/> and <see cref="Dispose"/> as normal, but the transaction will only be
-  /// committed and disposed when its reference count drops to zero.
-  /// </param>
-  public static STMTransaction Create(bool useExisting)
-  {
-    return Create(useExisting, false);
-  }
-
-  /// <summary>Returns the current <see cref="STMTransaction"/> for the thread, potentially creating a new one first.</summary>
-  /// <param name="useExisting">If false, a new transaction will always be created, which is the normal behavior. If true, the
-  /// method may return an existing transaction from the transaction stack, and simply increase its reference count. Reusing a
-  /// transaction in this way can cause unexpected behavior and should only be done if the action being performed within the
-  /// transaction is inherently atomic. For instance, reading a single variable is an atomic operation, so as an optimization, a
-  /// transactional data structure may opt to reuse an existing transaction when implementing a method that only reads a single
-  /// variable. You must still call <see cref="Commit"/> and <see cref="Dispose"/> as normal, but the transaction will only be
-  /// committed and disposed when its reference count drops to zero.
-  /// </param>
-  /// <param name="ignoreSystemTransaction">If true, no attempt will be made to integrate the STM transaction with the current
-  /// <see cref="Transaction"/>. This can improve performance of the <see cref="Create"/> call slightly if you know that
-  /// <see cref="Transaction.Current"/> is null. If false is passed, the <see cref="STMTransaction"/> will be integrated with the
-  /// current <see cref="Transaction"/> as normal.
-  /// </param>
-  public static STMTransaction Create(bool useExisting, bool ignoreSystemTransaction)
+  /// <summary>Creates a new <see cref="STMTransaction"/> using the given <see cref="STMOptions"/>, makes it the current
+  /// transaction for the thread, and returns it.
+  /// </summary>
+  public static STMTransaction Create(STMOptions options)
   {
     STMTransaction transaction = Current;
 
-    // if there's a current system transaction, enlist in it if we haven't already done so
-    Transaction systemTransaction = ignoreSystemTransaction ? null : Transaction.Current;
+    // if there's a current system transaction, enlist in it if we haven't already done so and aren't ignoring it
+    Transaction systemTransaction = (options & STMOptions.IgnoreSystemTransaction) != 0 ? null : Transaction.Current;
     if(systemTransaction != null)
     {
       // search for an enclosing transaction that is bound to the system transaction
@@ -295,15 +339,10 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
 
       // if there was none found, push a new transaction onto the stack that is bound to and under the control of the
       // system transaction. the user's transaction will be nested within that one
-      if(!found)
-      {
-        Current = transaction = new STMTransaction(transaction, systemTransaction);
-        useExisting = false; // don't return the transaction directly, since it's under the control of System.Transactions
-      }
+      if(!found) transaction = new STMTransaction(transaction, systemTransaction);
     }
 
-    if(!useExisting || transaction == null) Current = transaction = new STMTransaction(transaction);
-    else Interlocked.Increment(ref transaction.refCount);
+    Current = transaction = new STMTransaction(transaction, options);
     return transaction;
   }
 
@@ -322,6 +361,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
 
     // if no log entry exists, get the committed value of the variable, add it to the read log, and return it
     value = GetCommittedValue(variable);
+    if((options & STMOptions.EnsureConsistency) != 0) CheckConsistency();
     if(readLog == null) readLog = new Dictionary<TransactionalVariable, object>();
     readLog.Add(variable, value);
     return value;
@@ -447,6 +487,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     } while(transaction != null);
 
     if(transaction == null) entry.OldValue = GetCommittedValue(variable);
+    if((options & STMOptions.EnsureConsistency) != 0) CheckConsistency();
 
     // set the new value. if we don't have one, clone the old value into a private copy to create the new value
     entry.NewValue = useNewValue ? newValue : variable.Clone(entry.OldValue);
@@ -454,6 +495,15 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     if(writeLog == null) writeLog = new SortedDictionary<TransactionalVariable, WriteEntry>(VariableComparer.Instance);
     writeLog.Add(variable, entry);
     return entry;
+  }
+
+  /// <summary>Executes any registered post-commit actions.</summary>
+  void ExecutePostCommitActions()
+  {
+    if(postCommitActions != null)
+    {
+      foreach(Action action in postCommitActions) action();
+    }
   }
 
   /// <summary>Takes the status from <see cref="preparedStatus"/> (usually set by calling <see cref="PrepareToCommit"/>) and
@@ -571,6 +621,14 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
       }
     }
     return false;
+  }
+
+  /// <summary>Moves our post-commit actions into the parent so that the parent can execute them upon commit.</summary>
+  void MergePostCommitActions()
+  {
+    // the parent shouldn't have any yet because it hasn't been committed
+    parent.postCommitActions = postCommitActions;
+    postCommitActions        = null;
   }
 
   /// <summary>Prepares the transaction for committing by taking ownership of written variables, and places the transaction
@@ -750,7 +808,11 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   {
     try
     {
-      TryCommit();
+      if(TryCommit() && postCommitActions != null)
+      {
+        if(parent == null) ExecutePostCommitActions();
+        else MergePostCommitActions();
+      }
     }
     finally
     {
@@ -813,7 +875,11 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   Dictionary<TransactionalVariable, object> readLog;
   /// <summary>The write log, containing variables written by this transaction, or null if no variables have been written.</summary>
   SortedDictionary<TransactionalVariable, WriteEntry> writeLog;
-  int preparedStatus, status, refCount; // refCount is incremented whenever Create() returns the same transaction multiple times
+  /// <summary>A queue holding actions to be executed after a successful top-level commit, or null if none have been enqueued.</summary>
+  Queue<Action> postCommitActions;
+  int preparedStatus, status;
+  /// <summary>The <see cref="STMOptions"/> used to create the transaction.</summary>
+  readonly STMOptions options;
   bool removedFromStack;
 
   static int TryUpdateStatus(ref int status, int newStatus)
@@ -846,34 +912,20 @@ public abstract class TransactionalVariable
     value = initialValue;
   }
 
-  /// <summary>Opens the variable for read/write access and returns the current value. This method is meant to be used when the
-  /// variable's value needs to be read before writing it, or when it is an object whose methods and properties will be used to
-  /// mutate it. To replace the value completely, call <see cref="Set"/>.
-  /// </summary>
-  /// <exception cref="InvalidOperationException">Thrown if there is no active <see cref="STMTransaction"/> on this thread, or
-  /// if the current value's implementation of <see cref="ICloneable"/> is incorrect.
-  /// </exception>
+  /// <include file="documentation.xml" path="TX/STM/OpenForWrite/*" />
   public object OpenForWrite()
   {
     return GetTransaction().OpenForWrite(this);
   }
 
-  /// <summary>Opens the variable for read access and returns the current value. You must not call any methods or properties on
-  /// the returned object that would change it, without opening it in read/write mode (by calling <see cref="OpenForWrite"/>)
-  /// first! If the variable will later be opened for write access, it is more efficient to just open it once, for read/write
-  /// access, rather than opening it for read access and later reopening it for read/write access, although it is best to avoid
-  /// opening a variable in read/write mode if you can.
-  /// </summary>
-  /// <exception cref="InvalidOperationException">Thrown if there is no active <see cref="STMTransaction"/> on this thread.</exception>
+  /// <include file="documentation.xml" path="TX/STM/Read/*" />
   public object Read()
   {
-    return GetTransaction().OpenForRead(this);
+    STMTransaction transaction = STMTransaction.Current;
+    return transaction == null ? ReadWithoutOpening() : transaction.OpenForRead(this);
   }
 
-  /// <summary>Reads the value of this variable without opening it. This should only be done if the logic will not be affected by
-  /// the variable's value changing after it's read. If there is no current transaction, the most recently committed value will
-  /// be returned.
-  /// </summary>
+  /// <include file="documentation.xml" path="TX/STM/ReadWithoutOpening/*" />
   public object ReadWithoutOpening()
   {
     object value;
@@ -912,10 +964,7 @@ public abstract class TransactionalVariable
     ICloneable
   }
 
-  /// <summary>Opens the variable for writing and sets it to the given value. This method is meant to be used when the
-  /// variable's value will be replaced completely. To alter a mutable object through its methods and properties, use
-  /// <see cref="OpenForWrite"/> to return a mutable instance of it.
-  /// </summary>
+  /// <include file="documentation.xml" path="TX/STM/Set/*" />
   // NOTE: this is not public because it would allow type safety to be broken (i.e. non-T stored in TransactionalVariable<T>)
   protected void Set(object newValue)
   {
@@ -1020,62 +1069,38 @@ public abstract class TransactionalVariable
 /// <summary>Represents a slot within transactional memory. To create a new transactional variable, construct an instance of this
 /// type or call <see cref="STM.Allocate"/>.
 /// </summary>
+/// <include file="documentation.xml" path="TX/STM/TVarRemarks/*" />
 public sealed class TransactionalVariable<T> : TransactionalVariable
 {
   /// <summary>Allocates a new <see cref="TransactionalVariable{T}"/> with a default value.</summary>
-  /// <exception cref="NotSupportedException">Thrown if <typeparamref name="T"/> is not cloneable. See
-  /// <see cref="TransactionalVariable{T}"/> for more details.
-  /// </exception>
+  /// <include file="documentation.xml" path="TX/STM/NewTVar/*" />
   public TransactionalVariable() : this(default(T)) { }
   /// <summary>Allocates a new <see cref="TransactionalVariable{T}"/> with the given value.</summary>
-  /// <exception cref="NotSupportedException">Thrown if <typeparamref name="T"/> is not cloneable. See
-  /// <see cref="TransactionalVariable{T}"/> for more details.
-  /// </exception>
+  /// <include file="documentation.xml" path="TX/STM/NewTVar/*" />
   public TransactionalVariable(T initialValue) : base(initialValue)
   {
     ValidateCloneType(typeof(T)); // verify that the object can be cloned
   }
 
-  /// <summary>Opens the variable for read/write access and returns the current value. This method is meant to be used when the
-  /// variable's value needs to be read before writing it, or when it is an object whose methods and properties will be used to
-  /// mutate it. To replace the value completely, call <see cref="Set"/>.
-  /// </summary>
-  /// <exception cref="InvalidOperationException">Thrown if there is no active <see cref="STMTransaction"/> on this thread, or
-  /// if the current value's implementation of <see cref="ICloneable"/> is incorrect.
-  /// </exception>
+  /// <include file="documentation.xml" path="TX/STM/OpenForWrite/*" />
   public new T OpenForWrite()
   {
     return (T)base.OpenForWrite();
   }
 
-  /// <summary>Opens the variable for read access and returns the current value. You must not call any methods or properties on
-  /// the returned object that would change it, without opening it in read/write mode (by calling <see cref="OpenForWrite"/>)
-  /// first! If the variable will later be opened for write access, it is more efficient to just open it once, for read/write
-  /// access, rather than opening it for read access and later reopening it for read/write access, although it is best to avoid
-  /// opening a variable in read/write mode if you can.
-  /// </summary>
-  /// <exception cref="InvalidOperationException">Thrown if there is no active <see cref="STMTransaction"/> on this thread.</exception>
+  /// <include file="documentation.xml" path="TX/STM/Read/*" />
   public new T Read()
   {
     return (T)base.Read();
   }
 
-  /// <summary>Reads the value of this variable without opening it. This should only be done if the logic will not be affected by
-  /// the variable's value changing after it's read. If there is no current transaction, the most recently committed value will
-  /// be returned.
-  /// </summary>
+  /// <include file="documentation.xml" path="TX/STM/ReadWithoutOpening/*" />
   public new T ReadWithoutOpening()
   {
     return (T)base.ReadWithoutOpening();
   }
 
-  /// <summary>Opens the variable for writing and sets its value to the given value. This method is meant to be used when the
-  /// variable's value will be replaced completely. To alter a mutable object through its methods and properties, use
-  /// <see cref="OpenForWrite"/> to return the current instance of it.
-  /// </summary>
-  /// <exception cref="InvalidOperationException">Thrown if there is no active <see cref="STMTransaction"/> on this thread, or
-  /// if the current value's implementation of <see cref="ICloneable"/> is incorrect.
-  /// </exception>
+  /// <include file="documentation.xml" path="TX/STM/Set/*" />
   public void Set(T newValue)
   {
     base.Set(newValue);
@@ -1103,4 +1128,4 @@ public sealed class TransactionalVariable<T> : TransactionalVariable
 }
 #endregion
 
-} // namespace AdamMil.Transactions.STM
+} // namespace AdamMil.Transactions
