@@ -160,14 +160,18 @@ using(STMTransaction tx = STMTransaction.Create())
             </description>
           </item>
           <item>
-            Value types that contain no references to mutable reference types are copied bitwise if necessary.
-            You can customize the copying process by implementing <see cref="ICloneable" />, but this is rarely necessary.
+            <description>
+              Value types that contain no references to mutable reference types are copied bitwise if necessary.
+              You can customize the copying process by implementing <see cref="ICloneable" />, but this is rarely necessary.
+            </description>
           </item>
           <item>
-            Mutable reference types and value types that contain mutable reference types cannot be handled automatically by the
-            system, and must implement <see cref="ICloneable" />. Types that do not implement it cannot be used within a
-            <see cref="TransactionalVariable{T}" /> and will cause the constructor to throw a
-            <see cref="NotSupportedException" />.
+            <description>
+              Mutable reference types and value types that contain mutable reference types cannot be handled automatically by the
+              system, and must implement <see cref="ICloneable" />. Types that do not implement it cannot be used within a
+              <see cref="TransactionalVariable{T}" /> and will cause the constructor to throw a
+              <see cref="NotSupportedException" />.
+            </description>
           </item>
         </list>
       </remarks>

@@ -101,9 +101,26 @@ public class STMTests
     }
     AssertEqual(a, 1, b, 2, c, 3);
 
-    int ntValue = 0;
+    // test the Release() method
+    using(STMTransaction tx = STMTransaction.Create())
+    {
+      a.Set(10); // test that releasing a written variable discards changes
+      AssertEqual(a, 10);
+      b.Read(); // test that releasing a read variable prevents conflicts with other transactions
+      c.Read();
+      TestHelpers.RunInAnotherThread(delegate { STM.Retry(delegate { b.Set(20); c.Set(30); }); });
+      AssertEqual(b, 2);
+      a.Release();
+      b.Release();
+      c.Release();
+      b.Read();
+      AssertEqual(a, 1, b, 20);
+      tx.Commit();
+    }
+    AssertEqual(a, 1, b, 20, c, 30);
 
     // test post-commit actions
+    int ntValue = 0;
     using(STMTransaction tx = STMTransaction.Create())
     {
       a.Set(10);
@@ -111,7 +128,7 @@ public class STMTests
     }
     Assert.AreEqual(1, ntValue);
 
-    // ensure they're not executed unless the top-level transaction executes
+    // ensure they're not executed unless the top-level transaction commits
     using(STMTransaction otx = STMTransaction.Create())
     using(STMTransaction tx = STMTransaction.Create())
     {
@@ -320,6 +337,16 @@ public class STMTests
       STMTransaction tx = STMTransaction.Create();
       TestHelpers.TestException<InvalidOperationException>(delegate { otx.Commit(); });
     }
+
+    // test that STM.Retry() fails when a transaction times out
+    TestHelpers.TestException<TransactionAbortedException>(delegate
+    {
+      STM.Retry(delegate
+      {
+        a.Read();
+        TestHelpers.RunInAnotherThread(delegate { STM.Retry(delegate { a.Set(a.OpenForWrite()+1); }); });
+      }, 25);
+    });
   }
   #endregion
 
@@ -387,17 +414,7 @@ public class STMTests
     using(STMTransaction tx = STMTransaction.Create(STMOptions.EnsureConsistency))
     {
       a.Read();
-      Thread thread = new Thread((ThreadStart)delegate
-      {
-        using(STMTransaction tx2 = STMTransaction.Create())
-        {
-          a.Set(1);
-          tx2.Commit();
-        }
-      });
-      thread.Start();
-      thread.Join();
-
+      TestHelpers.RunInAnotherThread(delegate { STM.Retry(delegate { a.Set(1); }); });
       TestHelpers.TestException<TransactionAbortedException>(delegate { b.Read(); });
     }
 

@@ -97,12 +97,12 @@ public static class STM
     Retry(action, Timeout.Infinite);
   }
 
-  /// <summary>Executes an action until it successfully commits in a transaction, or until the given time limit has ellapsed.</summary>
+  /// <summary>Executes an action until it successfully commits in a transaction, or until the given time limit has elapsed.</summary>
   /// <param name="action">The action to execute.</param>
   /// <include file="documentation.xml" path="TX/STM/RetryWithTimeout/*"/>
   public static void Retry(Action action, int timeoutMs)
   {
-    Retry((Func<object>)delegate { action(); return null; });
+    Retry((Func<object>)delegate { action(); return null; }, timeoutMs);
   }
 
   /// <summary>Executes a function until it successfully commits in a transaction. The value returned from the function in the
@@ -114,7 +114,7 @@ public static class STM
     return Retry(function, Timeout.Infinite);
   }
 
-  /// <summary>Executes a function until it successfully commits in a transaction, or until the given time limit has ellapsed.
+  /// <summary>Executes a function until it successfully commits in a transaction, or until the given time limit has elapsed.
   /// The value returned from the function in the first successful transaction will then be returned.
   /// </summary>
   /// <param name="function">The function to execute.</param>
@@ -157,11 +157,11 @@ public static class STM
 #endregion
 
 #region STMImmutableAttribute
-/// <summary>An attribute that can be applied to a type to designate that it is immutable as far as STM is concerned, so it need
-/// not be copied when a variable of that type is opened in write mode, and need not implement <see cref="ICloneable"/>.
-/// (And even if <see cref="ICloneable"/> is implemented, it will not be used by the STM system.) This attribute can also be
-/// applied to immutable types used for fields within structures, allowing the STM system to copy the structure directly rather
-/// than requiring an <see cref="ICloneable"/> implementation.
+/// <summary>An attribute that can be applied to a type to designate that it is immutable as far as the STM system is concerned,
+/// so it need not be copied when a variable of that type is opened in write mode, and need not implement
+/// <see cref="ICloneable"/>. (And even if <see cref="ICloneable"/> is implemented, it will not be used by the STM system.) This
+/// attribute can also be applied to immutable types used for fields within structures, allowing the STM system to copy the
+/// structure directly rather than requiring an <see cref="ICloneable"/> implementation.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
 public class STMImmutableAttribute : Attribute
@@ -170,22 +170,24 @@ public class STMImmutableAttribute : Attribute
 #endregion
 
 #region STMOptions
-/// <summary>Options used during the creation of a transaction to control how the transaction behaves.</summary>
+/// <summary>Options used during the creation of a transaction to control how the transaction should behave.</summary>
 [Flags]
 public enum STMOptions
 {
-  /// <summary>Checks consistency when <see cref="STMTransaction.Commit"/> is called, and attempts to integrate with
+  /// <summary>Checks consistency only when <see cref="STMTransaction.Commit"/> is called, and attempts to integrate with
   /// System.Transactions.
   /// </summary>
   Default=0,
-  /// <summary>Checks consistency after each variable is opened, as well as during <see cref="STMTransaction.Commit"/> in order
+  /// <summary>Checks consistency after each variable is opened, as well as during <see cref="STMTransaction.Commit"/>, in order
   /// to ensure that the transaction always sees a consistent view of memory. This option incurs a substantial performance
-  /// penalty, and it is recommended to avoid it and call <see cref="STMTransaction.CheckConsistency"/> manually where
+  /// penalty, and it's recommended to avoid it and call <see cref="STMTransaction.CheckConsistency"/> manually where
   /// consistency is required, or better yet, write write your transactions so that they can tolerate inconsistency. See
-  /// <see cref="STMTransaction.CheckConsistency"/> for more details.
+  /// <see cref="STMTransaction.CheckConsistency"/> for details.
   /// </summary>
   EnsureConsistency=1,
-  /// <summary>No attempt will be made to integrate the STM transaction with the current <see cref="Transaction"/>.</summary>
+  /// <summary>No attempt will be made to integrate the STM transaction with System.Transactions, but if an enclosing transaction
+  /// was already integrated, then the newly created one will be implicitly integrated as well.
+  /// </summary>
   IgnoreSystemTransaction=2
 }
 #endregion
@@ -198,13 +200,14 @@ public enum STMOptions
 /// </summary>
 /// <remarks>
 /// <para>Transactions can be composed by nesting them, in which case the changes are not really committed until the outermost
-/// transaction is committed. If a nested <see cref="STMTransaction"/> aborts, it can be retried and does not force the parent
-/// <see cref="STMTransaction"/> to abort.
+/// transaction is committed. If a nested <see cref="STMTransaction"/> aborts, it can be retried and does not necessarily force
+/// the parent transaction to abort.
 /// </para>
-/// <para>By default, <see cref="STMTransaction"/> objects integrate with the .NET <see cref="Transaction"/> class. When
-/// <see cref="Create"/> is called to create a new <see cref="STMTransaction"/>, it will be enlisted in the current
+/// <para>By default, <see cref="STMTransaction"/> objects integrate with the System.Transactions <see cref="Transaction"/>
+/// class. When <see cref="Create"/> is called to create a new <see cref="STMTransaction"/>, it will be enlisted in the current
 /// <see cref="Transaction"/> if there is one, and the changes will not be committed until the <see cref="STMTransaction"/> and
-/// the <see cref="Transaction"/> are both committed.
+/// the <see cref="Transaction"/> are both committed. Integration with System.Transactions can be disabled using
+/// <see cref="STMOptions.IgnoreSystemTransaction"/>.
 /// </para>
 /// </remarks>
 /// <include file="documentation.xml" path="TX/STM/ConsistencyRemarks/*" />
@@ -213,7 +216,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   internal STMTransaction(STMTransaction parent, STMOptions options)
   {
     this.parent  = parent;
-    this.id      = (ulong)Interlocked.Increment(ref nextId);
+    this.id      = (ulong)Interlocked.Increment(ref idCounter);
     this.options = options;
   }
 
@@ -224,6 +227,10 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   }
 
   /// <exception cref="InvalidOperationException">Thrown if the transaction is no longer active.</exception>
+  /// <remarks>If you are using <see cref="STM.Retry"/>, you can check the consistency of the current transaction using
+  /// <see cref="STM.CheckConsistency"/>.
+  /// </remarks>
+  /// <seealso cref="STM.CheckConsistency"/>
   /// <include file="documentation.xml" path="TX/STM/CheckConsistency/*" />
   public void CheckConsistency()
   {
@@ -241,7 +248,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   /// execute if a transaction is restarted. Using this parameter differs from simply running code after <see cref="Commit"/>
   /// returns because in the case of a nested transaction, it will be queued and executed only if all enclosing transactions also
   /// commit successfully. If the action throws an exception, it will not be caught by the <see cref="Commit"/> method, and will
-  /// prevent post commit actions from enclosing transactions from running.
+  /// prevent post-commit actions from enclosing transactions from running.
   /// </param>
   /// <include file="documentation.xml" path="TX/STM/Commit/*"/>
   public void Commit(Action postCommitAction)
@@ -270,28 +277,15 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   }
 
   /// <exception cref="InvalidOperationException">Thrown if the transaction is no longer active.</exception>
+  /// <remarks>If you are using <see cref="STM.Retry"/>, you can check the consistency of the current transaction using
+  /// <see cref="STM.IsConsistent"/>.
+  /// </remarks>
+  /// <seealso cref="STM.IsConsistent"/>
   /// <include file="documentation.xml" path="TX/STM/IsConsistent/*" />
   public bool IsConsistent()
   {
     AssertActive();
-    // we only check variables that were opened by this transaction and were not opened by an enclosing transaction, since those
-    // are the only variables whose values might change if this transaction was restarted
-    if(readLog != null)
-    {
-      foreach(KeyValuePair<TransactionalVariable, object> pair in readLog)
-      {
-        // variables in the read log cannot have been opened by an enclosing transaction
-        if(GetCommittedValue(pair.Key) != pair.Value) return false;
-      }
-    }
-    if(writeLog != null)
-    {
-      foreach(KeyValuePair<TransactionalVariable, WriteEntry> pair in writeLog)
-      {
-        if((parent == null || !IsOpenInEnclosure(pair.Key)) && GetCommittedValue(pair.Key) != pair.Value.OldValue) return false;
-      }
-    }
-    return true;
+    return IsConsistent(true);
   }
 
   /// <inheritdoc/>
@@ -361,6 +355,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
 
     // if no log entry exists, get the committed value of the variable, add it to the read log, and return it
     value = GetCommittedValue(variable);
+    // if we're supposed to check consistency, do it before adding the log entry because the new entry needn't be checked
     if((options & STMOptions.EnsureConsistency) != 0) CheckConsistency();
     if(readLog == null) readLog = new Dictionary<TransactionalVariable, object>();
     readLog.Add(variable, value);
@@ -370,12 +365,11 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   internal object OpenForWrite(TransactionalVariable variable)
   {
     AssertActive();
-    // if the variable has been opened for writing by this transaction, return the current value from the write log
+    // if the variable has been opened for writing by this transaction, return the current value from the write log. otherwise,
+    // create a new entry using the most recently committed value
     WriteEntry entry;
-    if(writeLog != null && writeLog.TryGetValue(variable, out entry)) return entry.NewValue;
-
-    // otherwise, create a new entry in the write log
-    return CreateWriteEntry(variable, null, false).NewValue;
+    return (writeLog != null && writeLog.TryGetValue(variable, out entry) ? entry : CreateWriteEntry(variable, null, false))
+           .NewValue;
   }
 
   internal object ReadWithoutOpening(TransactionalVariable variable, bool useNewValue)
@@ -398,10 +392,17 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
       transaction = transaction.parent;
     } while(transaction != null);
 
-    // otherwise, get the current value. if it's currently locked by another transaction, read it from that transaction's log
+    // otherwise, get the current value. if it's locked by another transaction, read it from that transaction's log
     value = variable.value;
     STMTransaction owningTransaction = value as STMTransaction;
     return owningTransaction == null ? value : owningTransaction.ReadWithoutOpening(variable, false);
+  }
+
+  internal void Release(TransactionalVariable variable)
+  {
+    // try removing it from the read log first, since a released variable is almost certain to have been opened in read-only
+    // mode, and if it's not found there, then try removing it from the write log
+    if((readLog == null || !readLog.Remove(variable)) && writeLog != null) writeLog.Remove(variable);
   }
 
   internal void Set(TransactionalVariable variable, object value)
@@ -422,8 +423,9 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     /// <summary>The transaction is in the process of committing, and is checking opened variables for conflicts.</summary>
     public const int ReadCheck=1;
     /// <summary>The transaction is prepared to commit successfully, and will do so as soon as <see cref="FinishCommit"/> is
-    /// called. (This is useful for two-stage commit, to prevent a prepared transaction tied to System.Transactions from being
-    /// aborted, which would violate the contract that a resource manager is supposed to implement.)
+    /// called. This is used to establishing a point after the read check where a transaction tied to System.Transactions can no
+    /// longer be aborted, since the abortion of a prepared System.Transactions transaction would violate the contract that a
+    /// resource manager is supposed to implement.
     /// </summary>
     public const int Prepared=2;
     /// <summary>The transaction has been successfully committed.</summary>
@@ -465,7 +467,10 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
 
   void AssertActive()
   {
-    if(status != Status.Undetermined) throw new InvalidOperationException("The transaction is no longer active.");
+    if(status != Status.Undetermined)
+    {
+      throw new InvalidOperationException("The transaction is no longer active. Either Dispose() or Commit() has been called.");
+    }
   }
 
   WriteEntry CreateWriteEntry(TransactionalVariable variable, object newValue, bool useNewValue)
@@ -487,6 +492,8 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     } while(transaction != null);
 
     if(transaction == null) entry.OldValue = GetCommittedValue(variable);
+
+    // if we're supposed to check consistency, do it before adding the log entry because the new entry needn't be checked
     if((options & STMOptions.EnsureConsistency) != 0) CheckConsistency();
 
     // set the new value. if we don't have one, clone the old value into a private copy to create the new value
@@ -502,7 +509,14 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   {
     if(postCommitActions != null)
     {
-      foreach(Action action in postCommitActions) action();
+      try
+      {
+        foreach(Action action in postCommitActions) action();
+      }
+      finally
+      {
+        postCommitActions = null;
+      }
     }
   }
 
@@ -516,7 +530,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     if(preparedStatus == Status.Undetermined) throw new InvalidOperationException();
     int currentStatus = TryUpdateStatus(ref status, preparedStatus);
 
-    if(parent == null || currentStatus != Status.Committed) // if this is a top-level or unsuccessful transaction...
+    if(parent == null) // if this is a top-level transaction...
     {
       if(writeLog != null) // if we have variables to unlock...
       {
@@ -528,7 +542,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
         }
       }
     }
-    else // this is a successful nested transaction, so commit into the parent transaction by copying our log entries into it
+    else if(status == Status.Committed) // this is a successful nested transaction, so commit into the parent transaction
     {
       parent.AssertActive(); // make sure the parent transaction is still active
       // despite the fact that FinishCommit() must be thread-safe in general, we don't have to protect access to the log data
@@ -581,12 +595,14 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
       WriteEntry entry = owningTransaction.writeLog[variable]; // then grab the entry from the owning transaction's write log
       if(owningTransaction.status == Status.ReadCheck) // if the other transaction is performing its read check...
       {
-        // if we aren't performing our read check yet, then they started to commit first, so we should help them commit.
-        // otherwise, we are both trying to commit, so help them commit only if they started executing first (i.e. have a lower
-        // id). (it's not actually critical that they started executing first. it's only important that there exists some global
-        // ordering of transactions that can be used to resolve conflicts). if we don't help them commit, then abort them. also,
-        // we can't help transactions tied to System.Transactions to commit because they would only be in the preparation phase,
-        // and we don't know whether the transaction manager will actually commit them. so we'll play it safe and abort them
+        // in general we want to help the other transaction commit, but if the other transaction is performing its read check and
+        // so is ours, then there is the possibility of a cycle whereby in our read check, we've locked a location read by the
+        // other transaction, and the other transaction has locked a location that we've read. this would result in an infinite
+        // recursion whereby each tries to help the other to commit. the solution is to abort one of them, but the logic must be
+        // careful not to abort both, as that would downgrade the guarantee of lock-freedom to mere obstruction-freedom. so if
+        // we're both performing our read check, then the transaction with the greater ID will be aborted. also, we can't help
+        // transactions tied to System.Transactions to commit because they would only be in the preparation phase, and we don't
+        // know whether the transaction manager will actually decide to commit them. so we'll play it safe and abort them
         if(owningTransaction.systemTransaction == null && (status != Status.ReadCheck || id > owningTransaction.id))
         {
           owningTransaction.TryCommit(); // help it commit
@@ -598,15 +614,47 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
       }
       else if(owningTransaction.status == Status.Prepared && status == Status.Undetermined)
       {
-        // if the other transaction is prepared to commit, so it will probably do so very shortly, and our transaction is still
-        // active. if we take the old value, we will almost certainly abort later, so it may be worth waiting a short time to get
-        // the new value and reduce our chance of having to abort
+        // the other transaction is prepared to commit, so it will probably do so very shortly. if our transaction is still
+        // active, then if we take the old value, we will almost certainly abort later, so it may be worth waiting a short time
+        // to get the new value and reduce our chance of having to abort
         Thread.Sleep(0);
       }
       // if the owning transaction committed directly to the variable, return the new value. otherwise, return the old value
       value = owningTransaction.parent == null && owningTransaction.status == Status.Committed ? entry.NewValue : entry.OldValue;
     }
     return value;
+  }
+
+  bool IsConsistent(bool checkWriteLog)
+  {
+    // we only check variables that were opened by this transaction and were not opened by an enclosing transaction, since those
+    // are the only variables whose values might change if this transaction was restarted
+    if(readLog != null)
+    {
+      // go through all the variables opened for reading and check if they've been changed by another transaction. unlike the
+      // checks for the write log, we don't have to worry about variables changed by an enclosing transaction because in that
+      // case they won't have been added to our read log. rather, they'd have been read directly from the enclosing transaction's
+      // write log
+      foreach(KeyValuePair<TransactionalVariable, object> pair in readLog)
+      {
+        // variables in the read log cannot have been opened by an enclosing transaction
+        if(GetCommittedValue(pair.Key) != pair.Value) return false;
+      }
+    }
+
+    // if this is a nested transaction, we have to check the variables in the write log for changes, too, since we didn't
+    // do it above in the lock code
+    if(checkWriteLog && writeLog != null)
+    {
+      foreach(KeyValuePair<TransactionalVariable, WriteEntry> pair in writeLog)
+      {
+        // if another transaction committed a change and we didn't inherit the original value from an enclosing transaction,
+        // we fail. we don't fail if we inherited the value, because retrying the transaction would never succeed. instead, we'll
+        // let the enclosing transaction deal with the failure, since that's the one that needs to be retried
+        if((parent == null || !IsOpenInEnclosure(pair.Key)) && GetCommittedValue(pair.Key) != pair.Value.OldValue) return false;
+      }
+    }
+    return true;
   }
 
   /// <summary>Determines whether the variable has been opened in an enclosing transaction.</summary>
@@ -660,8 +708,8 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
           // another transaction already has it locked for committing, but we can help that transaction commit and then check
           // again. if the transaction aborts, we can lock it. however, we can't simply commit a transaction tied to
           // System.Transactions because we don't know if the transaction manager will actually want to commit it. in that case,
-          // if its ultimate fate hasn't been decided yet, we may have to roll it back or abort ourselves instead. (we can't
-          // simply abort it because we could get stuck in an infinite loop if it never gets around to undoing its changes)
+          // if its ultimate fate hasn't been decided yet, we may have to abort ourselves instead. (we can't simply abort it
+          // because we could get stuck in an infinite loop if it never gets around to undoing its changes)
           int otherStatus = owningTransaction.status;
           if(owningTransaction.systemTransaction == null ||
              (otherStatus == Status.Aborted || otherStatus == Status.Committed))
@@ -690,34 +738,12 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     // move from the Undetermined phase to the ReadCheck phase. this is done with CAS because of the reentrancy requirement
     Interlocked.CompareExchange(ref status, Status.ReadCheck, Status.Undetermined);
 
-    if(readLog != null)
+    if(IsConsistent(parent != null) && status != Status.Aborted)
     {
-      // go through all the variables opened for reading and check if they've been changed by another transaction. unlike the
-      // checks for the write log, above and below, we don't have to worry about variables changed by an enclosing transaction
-      // because in that case they won't have been added to our read log. rather, they'd have been read directly from the
-      // enclosing transaction's write log
-      foreach(KeyValuePair<TransactionalVariable, object> pair in readLog)
-      {
-        if(GetCommittedValue(pair.Key) != pair.Value) goto decide; // if another transaction committed a change, we fail
-      }
+      // at this point, it looks like we're going to succeed, but it's still possible that another transaction has already
+      // aborted us, or will do so shortly
+      newStatus = Status.Committed;
     }
-
-    // if this is a nested transaction, we have to check the variables in the write log for changes, too, since we didn't
-    // do it above in the lock code
-    if(parent != null && writeLog != null)
-    {
-      foreach(KeyValuePair<TransactionalVariable, WriteEntry> pair in writeLog)
-      {
-        // if another transaction committed a change and we didn't inherit the original value from an enclosing transaction,
-        // we fail. we don't fail if we inherited the value, because retrying the transaction would never succeed. instead, we'll
-        // let the enclosing transaction deal with the failure, since that's the one that needs to be retried
-        if(!IsOpenInEnclosure(pair.Key) && GetCommittedValue(pair.Key) != pair.Value.OldValue) goto decide;
-      }
-    }
-
-    // at this point, it looks like we're going to succeed, but it's still possible that another transaction has already aborted
-    // us, or will do so shortly
-    if(status != Status.Aborted) newStatus = Status.Committed; // if another transaction aborted us, detect it sooner
 
     decide:
     int currentStatus = TryUpdateStatus(ref preparedStatus, newStatus);
@@ -749,19 +775,13 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
         // abort transactions that haven't been committed
         while(true) // for this transaction and nested transactions...
         {
-          while(true) // while we're trying to abort them...
-          {
-            int status = top.status;
-            if(status == Status.Committed || status == Status.Aborted) break;
-            Interlocked.CompareExchange(ref top.status, Status.Aborted, status);
-          }
+          TryUpdateStatus(ref top.status, Status.Aborted);
+          top.removedFromStack = true; // mark transactions as having been removed from the stack
           if(top == this) break;
-          top.removedFromStack = true; // mark nested transactions as having been removed from the stack
           top = top.parent;
         }
 
         STMTransaction.Current = parent; // remove this transaction and all nested transactions
-        removedFromStack = true;
       }
     }
   }
@@ -825,8 +845,8 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   {
     // roll our changes back if the transaction is in doubt, to at least put the variables in a consistent state. although the
     // rest of the transaction might have completed successfully, we'll never find out. if we take no action, our changes won't
-    // get committed -- the variables may just be left in a locked state -- so we might as well roll them back to return them to
-    // a consistent state sooner
+    // get committed -- the variables may be left temporarily in a locked state -- so we might as well roll them back to return
+    // them to an unlocked state sooner
     try
     {
       RollBack();
@@ -871,9 +891,9 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   readonly STMTransaction parent;
   /// <summary>The .NET <see cref="Transaction"/> in which this STM transaction is enlisted, or null if none.</summary>
   Transaction systemTransaction;
-  /// <summary>The read log, containing variables opened in read mode by this transaction, or null if none have been opened.</summary>
+  /// <summary>The read log, containing variables opened in read-only mode by this transaction, or null if none have been.</summary>
   Dictionary<TransactionalVariable, object> readLog;
-  /// <summary>The write log, containing variables written by this transaction, or null if no variables have been written.</summary>
+  /// <summary>The write log, containing variables open in write mode by this transaction, or null if none have been.</summary>
   SortedDictionary<TransactionalVariable, WriteEntry> writeLog;
   /// <summary>A queue holding actions to be executed after a successful top-level commit, or null if none have been enqueued.</summary>
   Queue<Action> postCommitActions;
@@ -896,7 +916,8 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   }
 
   [ThreadStatic] static STMTransaction _current;
-  static long nextId;
+  // the counter can provide 10 billion IDs/second for 58 years before overflowing, which should be enough to ensure uniqueness
+  static long idCounter;
 }
 #endregion
 
@@ -922,26 +943,69 @@ public abstract class TransactionalVariable
   public object Read()
   {
     STMTransaction transaction = STMTransaction.Current;
-    return transaction == null ? ReadWithoutOpening() : transaction.OpenForRead(this);
+    return transaction == null ? ReadCommitted() : transaction.OpenForRead(this);
   }
 
   /// <include file="documentation.xml" path="TX/STM/ReadWithoutOpening/*" />
   public object ReadWithoutOpening()
   {
-    object value;
     STMTransaction transaction = STMTransaction.Current;
-    if(transaction != null) // if there is a transaction on this thread...
-    {
-      value = transaction.ReadWithoutOpening(this, true); // get the current value from it
-    }
-    else // otherwise, there is no current transaction on this thread
-    {
-      value = this.value; // get the most recently committed value
-      // if the variable is currently locked by some other transaction, get the old value from its log
-      transaction = value as STMTransaction;
-      if(transaction != null) value = transaction.ReadWithoutOpening(this, false);
-    }
-    return value;
+    return transaction == null ? ReadCommitted() : transaction.ReadWithoutOpening(this, true);
+  }
+
+  /// <summary>Causes the transaction to forget that this variable has been opened. A variable opened in write mode will have any
+  /// changes discarded, and in any case, the variable will be excluded from later consistency checks unless it is opened again.
+  /// This method must be used with great care, as it can destroy the consistency of a system by allowing transactions to make
+  /// decisions based on inconsistent data. As such, you should not use this method unless you know exactly what you're doing.
+  /// </summary>
+  /// <remarks>
+  /// <para>
+  /// This method can be used to implement certain optimizations, and is useful in the construction of efficient transactional
+  /// data structures. To use this method successfully, you must ensure that when the transaction commits, the variables that
+  /// remain open suffice to detect any inconsistency that could meaningfully affect the result. Be aware that calling this
+  /// method releases the variable regardless of how many times it has been opened in the same transaction. That is to say, the
+  /// variables are not reference counted.
+  /// </para>
+  /// <para>As an example, imagine a sorted linked list A -> B -> D -> E. If C is inserted between B and D, then B will need to
+  /// be updated. This change may cause a transaction that is searching for E to abort because it opened the preceding items
+  /// (including B) for read access. However, the insertion and the search are not actually in conflict. Releasing variables to
+  /// avoid this kind of false conflict can greatly increase scalability. The solution is the following:
+  /// <list type="bullet">
+  ///   <item><description>A transaction searching for an item need only keep the node currently being checked and the previous
+  ///   node open for reading. Nodes before that can be released.
+  ///   </description></item>
+  ///   <item><description>A transaction inserting an item needs to keep the node being modified open for writing and the
+  ///   previous node open for reading. (While searching for the place to insert the item, it can follow the searching behavior
+  ///   described above.)
+  ///   </description></item>
+  ///   <item><description>A transaction removing an item needs to have both the node being removed and the previous node open
+  ///   for writing, but can release items before that.
+  ///   </description></item>
+  /// </list>
+  /// To see that this solution is correct, first consider what is needed for a search. If a search finds an item, it should
+  /// still exist within the list at the point that the search transaction commits. That is, it must not have been removed. When
+  /// a node is removed from a linked list, it and/or the previous node must be modified. By keeping the found node and the
+  /// previous node open for read access, a search ensures that neither have been modified, and therefore the node could not have
+  /// been removed. Similarly, if a search doesn't find an item, it should not exist in the list at the time the search commits.
+  /// Since the list is sorted, the search would stop as soon as it finds an item greater than the search key. Since the previous
+  /// node must have been less than the search key, the key must be inserted between those two nodes in order to add it to the
+  /// list. To do this, the lesser node must be modified, but since it's held open by the search, it cannot be.
+  /// </para>
+  /// <para>Next, consider what is needed for an insertion to succeed. The node before the one being inserted must not be removed
+  /// or modified. Ensuring this works the same way as for the search. Finally, consider what is necessary for a removal to
+  /// succeed. The node being removed and/or the previous node must be modified, and the subsequent node must not be removed, and
+  /// nothing can be inserted immediately after the previous node or the node to be removed. Opening both the node to remove and
+  /// the previous node for write access ensures both of these conditions. If the next node was removed or something was inserted
+  /// after the node being removed, it would require the modification of the node being removed, which is prevented by it being
+  /// kept open. If something was to be inserted after the previous node, the previous node would need to be modified, and
+  /// keeping it open prevents that. Therefore, all three operations can be supported by keeping only two nodes open at a time.
+  /// This type of analysis may quickly grow complex, but is necessary to ensure correct usage of this method. If in doubt, don't
+  /// release your variables.
+  /// </para>
+  /// </remarks>
+  public void Release()
+  {
+    GetTransaction().Release(this);
   }
 
   /// <summary>Gets the string representation of the <see cref="TransactionalVariable"/>'s value for the current thread. This is
@@ -1015,6 +1079,18 @@ public abstract class TransactionalVariable
   /// <summary>The most recently committed value, or a reference to the transaction currently committing this .</summary>
   internal object value;
 
+  /// <summary>Reads the value most recently committed to this variable, without regard for whether it has been opened by the
+  /// current transaction.
+  /// </summary>
+  object ReadCommitted()
+  {
+    object value = this.value; // get the most recently committed value
+    // if the variable is currently locked by some other transaction, get the old value from its log
+    STMTransaction transaction = value as STMTransaction;
+    if(transaction != null) value = transaction.ReadWithoutOpening(this, false);
+    return value;
+  }
+
   /// <summary>Gets the current <see cref="STMTransaction"/> for this thread, or throws an exception if there is no current
   /// transaction.
   /// </summary>
@@ -1039,6 +1115,7 @@ public abstract class TransactionalVariable
     foreach(FieldInfo field in type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
     {
       Type fieldType = field.FieldType;
+      if(typesSeen != null && typesSeen.Contains(fieldType)) continue;
 
       if(Type.GetTypeCode(fieldType) == TypeCode.Object) // if the field may not be copyable...
       {
@@ -1061,6 +1138,7 @@ public abstract class TransactionalVariable
 
   static readonly Dictionary<Type, CloneType> cloneTypes = new Dictionary<Type, CloneType>();
   static readonly ReaderWriterLockSlim typeLock = new ReaderWriterLockSlim();
+  // the counter can provide 10 billion IDs/second for 58 years before overflowing, which should be enough to ensure uniqueness
   static long idCounter;
 }
 #endregion
