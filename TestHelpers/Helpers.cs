@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Threading;
 using NUnit.Framework;
 
 namespace AdamMil.Tests
@@ -23,17 +24,18 @@ public static class TestHelpers
                     expected + " and " + actual);
   }
 
-  static object GetPropertyValue(object obj, string propertyName)
+  public static void RunInAnotherThread(Action action)
   {
-    Type type = obj.GetType();
-
-    PropertyInfo property = type.GetProperty(propertyName, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-    if(property != null) return property.GetValue(obj, null);
-
-    FieldInfo field = type.GetField(propertyName, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-    if(field != null) return field.GetValue(obj);
-
-    throw new ArgumentException("Expected " + obj.ToString() + " to have a property or field called \"" + propertyName + "\".");
+    if(action == null) throw new ArgumentNullException();
+    Exception exception = null;
+    Thread thread = new Thread((ThreadStart)delegate
+    {
+      try { action(); }
+      catch(Exception ex) { exception = ex; }
+    });
+    thread.Start();
+    thread.Join();
+    if(exception != null) throw exception;
   }
 
   public static void TestEnumerator<T>(ICollection<T> collection)
@@ -83,6 +85,19 @@ public static class TestHelpers
       threw = true;
     }
     Assert.That(threw, "A "+typeof(T).Name+" exception was expected, but did not occur.");
+  }
+
+  static object GetPropertyValue(object obj, string propertyName)
+  {
+    Type type = obj.GetType();
+
+    PropertyInfo property = type.GetProperty(propertyName, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+    if(property != null) return property.GetValue(obj, null);
+
+    FieldInfo field = type.GetField(propertyName, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+    if(field != null) return field.GetValue(obj);
+
+    throw new ArgumentException("Expected " + obj.ToString() + " to have a property or field called \"" + propertyName + "\".");
   }
 }
 
