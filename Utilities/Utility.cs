@@ -95,6 +95,12 @@ public static class Utility
     b = temp;
   }
 
+  /// <summary>Validates that the given range exists within a list of the given size.</summary>
+  public static void ValidateRange(int listSize, int index, int count)
+  {
+    if(index < 0 || count < 0 || index + count > listSize) throw new ArgumentOutOfRangeException();
+  }
+
   /// <summary>Validates that the given list is not null, and the given range exists within the list.</summary>
   public static void ValidateRange(System.Collections.IList list, int index, int count)
   {

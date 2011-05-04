@@ -90,43 +90,87 @@ public static class STM
   }
 
   /// <summary>Executes an action until it successfully commits in a transaction.</summary>
-  /// <include file="documentation.xml" path="TX/STM/Retry/*[@name != 'options']"/>
+  /// <include file="documentation.xml" path="TX/STM/Retry/*[@name != 'options' and @name != 'postCommitAction']"/>
   public static void Retry(Action action)
   {
-    Retry(action, Timeout.Infinite, STMOptions.Default);
+    Retry(Timeout.Infinite, STMOptions.Default, action, null);
+  }
+
+  /// <summary>Executes an action until it successfully commits in a transaction.</summary>
+  /// <param name="action">The action to execute.</param>
+  /// <include file="documentation.xml" path="TX/STM/Retry/*[@name != 'options']"/>
+  public static void Retry(Action action, Action postCommitAction)
+  {
+    Retry(Timeout.Infinite, STMOptions.Default, action, postCommitAction);
+  }
+
+  /// <summary>Executes an action until it successfully commits in a transaction.</summary>
+  /// <param name="action">The action to execute.</param>
+  /// <include file="documentation.xml" path="TX/STM/Retry/*[@name != 'postCommitAction']"/>
+  public static void Retry(STMOptions options, Action action)
+  {
+    Retry(Timeout.Infinite, options, action, null);
   }
 
   /// <summary>Executes an action until it successfully commits in a transaction.</summary>
   /// <param name="action">The action to execute.</param>
   /// <include file="documentation.xml" path="TX/STM/Retry/*"/>
-  public static void Retry(Action action, STMOptions options)
+  public static void Retry(STMOptions options, Action action, Action postCommitAction)
   {
-    Retry(action, Timeout.Infinite, options);
+    Retry(Timeout.Infinite, options, action, postCommitAction);
   }
 
   /// <summary>Executes an action until it successfully commits in a transaction, or until the given time limit has elapsed.</summary>
   /// <param name="action">The action to execute.</param>
-  /// <include file="documentation.xml" path="TX/STM/RetryWithTimeout/*[@name != 'options']"/>
-  public static void Retry(Action action, int timeoutMs)
+  /// <include file="documentation.xml" path="TX/STM/RetryWithTimeout/*[@name != 'options' and @name != 'postCommitAction']"/>
+  public static void Retry(int timeoutMs, Action action)
   {
-    Retry(action, timeoutMs, STMOptions.Default);
+    Retry(timeoutMs, STMOptions.Default, action, null);
+  }
+
+  /// <summary>Executes an action until it successfully commits in a transaction, or until the given time limit has elapsed.</summary>
+  /// <param name="action">The action to execute.</param>
+  /// <include file="documentation.xml" path="TX/STM/RetryWithTimeout/*[@name != 'postCommitAction']"/>
+  public static void Retry(int timeoutMs, STMOptions options, Action action)
+  {
+    Retry(timeoutMs, options, action, null);
   }
 
   /// <summary>Executes an action until it successfully commits in a transaction, or until the given time limit has elapsed.</summary>
   /// <param name="action">The action to execute.</param>
   /// <include file="documentation.xml" path="TX/STM/RetryWithTimeout/*"/>
-  public static void Retry(Action action, int timeoutMs, STMOptions options)
+  public static void Retry(int timeoutMs, STMOptions options, Action action, Action postCommitAction)
   {
-    Retry((Func<object>)delegate { action(); return null; }, timeoutMs, options);
+    Retry(timeoutMs, options, (Func<object>)delegate { action(); return null; }, postCommitAction);
   }
 
   /// <summary>Executes a function until it successfully commits in a transaction. The value returned from the function in the
   /// first successful transaction will then be returned.
   /// </summary>
-  /// <include file="documentation.xml" path="TX/STM/Retry/*[@name != 'options']"/>
+  /// <include file="documentation.xml" path="TX/STM/Retry/*[@name != 'options' and @name != 'postCommitAction']"/>
   public static T Retry<T>(Func<T> function)
   {
-    return Retry(function, Timeout.Infinite, STMOptions.Default);
+    return Retry(Timeout.Infinite, STMOptions.Default, function, null);
+  }
+
+  /// <summary>Executes a function until it successfully commits in a transaction. The value returned from the function in the
+  /// first successful transaction will then be returned.
+  /// </summary>
+  /// <param name="function">The function to execute.</param>
+  /// <include file="documentation.xml" path="TX/STM/Retry/*[@name != 'options']"/>
+  public static T Retry<T>(Func<T> function, Action postCommitAction)
+  {
+    return Retry(Timeout.Infinite, STMOptions.Default, function, postCommitAction);
+  }
+
+  /// <summary>Executes a function until it successfully commits in a transaction. The value returned from the function in the
+  /// first successful transaction will then be returned.
+  /// </summary>
+  /// <param name="function">The function to execute.</param>
+  /// <include file="documentation.xml" path="TX/STM/Retry/*[@name != 'postCommitAction']"/>
+  public static T Retry<T>(STMOptions options, Func<T> function)
+  {
+    return Retry(Timeout.Infinite, options, function, null);
   }
 
   /// <summary>Executes a function until it successfully commits in a transaction. The value returned from the function in the
@@ -134,19 +178,29 @@ public static class STM
   /// </summary>
   /// <param name="function">The function to execute.</param>
   /// <include file="documentation.xml" path="TX/STM/Retry/*"/>
-  public static T Retry<T>(Func<T> function, STMOptions options)
+  public static T Retry<T>(STMOptions options, Func<T> function, Action postCommitAction)
   {
-    return Retry(function, Timeout.Infinite, options);
+    return Retry(Timeout.Infinite, options, function, postCommitAction);
   }
 
   /// <summary>Executes a function until it successfully commits in a transaction, or until the given time limit has elapsed.
   /// The value returned from the function in the first successful transaction will then be returned.
   /// </summary>
   /// <param name="function">The function to execute.</param>
-  /// <include file="documentation.xml" path="TX/STM/RetryWithTimeout/*[@name != 'options']"/>
-  public static T Retry<T>(Func<T> function, int timeoutMs)
+  /// <include file="documentation.xml" path="TX/STM/RetryWithTimeout/*[@name != 'options' and @name != 'postCommitAction']"/>
+  public static T Retry<T>(int timeoutMs, Func<T> function)
   {
-    return Retry(function, timeoutMs, STMOptions.Default);
+    return Retry(timeoutMs, STMOptions.Default, function, null);
+  }
+
+  /// <summary>Executes a function until it successfully commits in a transaction, or until the given time limit has elapsed.
+  /// The value returned from the function in the first successful transaction will then be returned.
+  /// </summary>
+  /// <param name="function">The function to execute.</param>
+  /// <include file="documentation.xml" path="TX/STM/RetryWithTimeout/*[@name != 'postCommitAction']"/>
+  public static T Retry<T>(int timeoutMs, STMOptions options, Func<T> function)
+  {
+    return Retry(timeoutMs, options, function, null);
   }
 
   /// <summary>Executes a function until it successfully commits in a transaction, or until the given time limit has elapsed.
@@ -154,7 +208,7 @@ public static class STM
   /// </summary>
   /// <param name="function">The function to execute.</param>
   /// <include file="documentation.xml" path="TX/STM/RetryWithTimeout/*"/>
-  public static T Retry<T>(Func<T> function, int timeoutMs, STMOptions options)
+  public static T Retry<T>(int timeoutMs, STMOptions options, Func<T> function, Action postCommitAction)
   {
     if(function == null) throw new ArgumentNullException();
     Stopwatch timer = timeoutMs == Timeout.Infinite ? null : Stopwatch.StartNew();
@@ -165,7 +219,7 @@ public static class STM
       try
       {
         T value = function();
-        tx.Commit();
+        tx.Commit(postCommitAction);
         return value;
       }
       catch(TransactionAbortedException) { }

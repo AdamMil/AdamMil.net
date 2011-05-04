@@ -114,6 +114,11 @@ using(STMTransaction tx = STMTransaction.Create())
     </ReadWithoutOpening>
     <Retry>
       <param name="options"><see cref="STMOptions" /> to use when creating the transaction.</param>
+      <param name="postCommitAction">
+        An action that will be executed after the transaction is successfully committed. Using this parameter differs from simply
+        running code after the method returns because in the case of a nested transaction, it will be queued and executed only if
+        all enclosing transactions also commit successfully.
+      </param>
       <remarks>If <see cref="TransactionAbortedException"/> is thrown from the delegate, it will cause the transaction to be
       restarted. If another type of exception is thrown, a consistency check will be done. If the transaction is consistent,
       the exception will be considered to be legitimate and will be rethrown. If the consistency check fails, the exception will
@@ -125,6 +130,11 @@ using(STMTransaction tx = STMTransaction.Create())
         <see cref="Timeout.Infinite"/> is given, the method will only stop when the delegate succeeds.
       </param>
       <param name="options"><see cref="STMOptions" /> to use when creating the transaction.</param>
+      <param name="postCommitAction">
+        An action that will be executed after the transaction is successfully committed. Using this parameter differs from simply
+        running code after the method returns because in the case of a nested transaction, it will be queued and executed only if
+        all enclosing transactions also commit successfully.
+      </param>
       <remarks>
         If <see cref="TransactionAbortedException"/> is thrown from the delegate, it will cause the transaction to be
         restarted. If another type of exception is thrown, a consistency check will be done. If the transaction is consistent,

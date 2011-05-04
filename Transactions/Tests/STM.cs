@@ -150,6 +150,20 @@ public class STMTests
       otx.Commit(delegate { ntValue++; });
     }
     Assert.AreEqual(3, ntValue);
+
+    // ensure that post-commit actions given to STM.Retry() work and aren't executed multiple times if the transaction restarts
+    bool first = true;
+    STM.Retry(
+      delegate
+      {
+        if(first)
+        {
+          first = false;
+          throw new TransactionAbortedException();
+        }
+      },
+      delegate { ntValue++; });
+    Assert.AreEqual(4, ntValue);
   }
   #endregion
 
@@ -356,12 +370,41 @@ public class STMTests
     // test that STM.Retry() fails when a transaction times out
     TestHelpers.TestException<TransactionAbortedException>(delegate
     {
-      STM.Retry(delegate
+      STM.Retry(25, delegate
       {
         a.Read();
         TestHelpers.RunInAnotherThread(delegate { STM.Retry(delegate { a.Set(a.OpenForWrite()+1); }); });
-      }, 25);
+      });
     });
+
+    // test that STM.Retry() doesn't loop infinitely if a transaction was consistent when an exception was thrown
+    TransactionalVariable<int> c = STM.Allocate(0);
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate
+    {
+      STM.Retry(delegate
+      {
+        a.Read();
+        c.Set(42);
+        throw new ArgumentOutOfRangeException();
+      });
+    });
+    AssertEqual(c, 0);
+
+    // but test that STM.Retry() does retry if the transaction was inconsistent
+    STM.Retry(delegate { a.Set(0); });
+    bool first = true;
+    STM.Retry(delegate
+    {
+      int aValue = a.Read();
+      c.Set(42);
+      if(first)
+      {
+        first = false;
+        TestHelpers.RunInAnotherThread(delegate { STM.Retry(delegate { a.Set(a.OpenForWrite()+1); }); });
+      }
+      if(aValue == 0) throw new ArgumentOutOfRangeException();
+    });
+    AssertEqual(c, 42);
   }
   #endregion
 

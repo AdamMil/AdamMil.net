@@ -45,24 +45,24 @@ public static class PathUtility
     return directory + Path.GetFileNameWithoutExtension(filename) + suffix + Path.GetExtension(filename);
   }
 
-  /// <summary>Works like <see cref="Directory.GetFiles"/>, but without the unintuitive behavior regarding wildcards with
-  /// 3-character extensions.
+  /// <summary>Works like <see cref="Directory.GetFiles(string,string)"/>, but without the unintuitive behavior regarding
+  /// wildcards with 3-character extensions.
   /// </summary>
   public static string[] GetFiles(string directory, string pattern)
   {
     return GetFiles(directory, pattern, SearchOption.TopDirectoryOnly);
   }
 
-  /// <summary>Works like <see cref="Directory.GetFiles" />, but without the unintuitive behavior regarding wildcards with
-  /// 3-character extensions.
+  /// <summary>Works like <see cref="Directory.GetFiles(string,string,SearchOption)" />, but without the unintuitive behavior
+  /// regarding wildcards with 3-character extensions.
   /// </summary>
   public static string[] GetFiles(string directory, string pattern, SearchOption options)
   {
     return FilterFiles(Directory.GetFiles(directory, pattern, options), pattern);
   }
 
-  /// <summary>Works like <see cref="Directory.GetFileSystemEntries" />, but without the unintuitive behavior regarding wildcards
-  /// with 3-character extensions.
+  /// <summary>Works like <see cref="Directory.GetFileSystemEntries(string,string)" />, but without the unintuitive behavior
+  /// regarding wildcards with 3-character extensions.
   /// </summary>
   public static string[] GetFileSystemEntries(string directory, string pattern)
   {

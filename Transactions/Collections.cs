@@ -23,14 +23,14 @@ using System.Collections.Generic;
 using AdamMil.Utilities;
 
 // TODO: recheck the performance of MemberwiseClone() versus manual cloning to see if it's improved in .NET 4
-// TODO: use Release() to improve performance of the collections
+// TODO: use Release() to improve performance of the collections, if possible
 
 namespace AdamMil.Transactions
 {
 
 #region TransactionalArray
-/// <summary>Implements an array whose members are transactional variables. The array's length cannot be changed after it is
-/// created, so the array does not support methods that add or remove members.
+/// <summary>Implements an array whose members are transactional variables. The array does not support methods that add or remove
+/// individual items, but the array can be enlarged by calling <see cref="Enlarge"/>.
 /// </summary>
 public sealed class TransactionalArray<T> : IList<T>
 {
@@ -67,6 +67,78 @@ public sealed class TransactionalArray<T> : IList<T>
     this.comparer = comparer == null ? EqualityComparer<T>.Default :  comparer;
   }
 
+  /// <summary>Determines whether the given item exists in a given range within the array.</summary>
+  public bool Contains(T item, int index, int count)
+  {
+    Utility.ValidateRange(Count, index, count);
+    return STM.Retry(delegate
+    {
+      for(int i=index, end=index+count; i<end; i++)
+      {
+        if(comparer.Equals(item, array[i].Read())) // if an item is found, changes to previous items won't affect the result,
+        {                                          // so we can release them to avoid false conflicts
+          while(i > index) array[--i].Release();
+          return true;
+        }
+      }
+      return false;
+    });
+  }
+
+  /// <summary>Copies a specified number of items into an array.</summary>
+  public void CopyTo(int sourceIndex, T[] destination, int destinationIndex, int count)
+  {
+    Utility.ValidateRange(Count, sourceIndex, count);
+    Utility.ValidateRange(destination, destinationIndex, count);
+    STM.Retry(delegate
+    {
+      for(int i=0; i<count; i++) destination[destinationIndex+i] = array[sourceIndex+i].Read();
+    });
+  }
+
+  /// <summary>Enlarges the array to accomodate the given number of elements. Transactions accessing existing elements of the
+  /// current array will not be disturbed (although the value of the <see cref="Count"/> property will be seen to increase). If
+  /// the number is less than the current size, the array will not be shrunk.
+  /// This method is not transactional, but is thread-safe.
+  /// </summary>
+  public void Enlarge(int newSize)
+  {
+    if(newSize < 0) throw new ArgumentOutOfRangeException();
+    lock(this)
+    {
+      if(newSize > array.Length)
+      {
+        TransactionalVariable<T>[] newArray = new TransactionalVariable<T>[newSize];
+        Array.Copy(array, newArray, array.Length);
+        for(int i=array.Length; i < newArray.Length; i++) newArray[i] = new TransactionalVariable<T>();
+        array = newArray;
+      }
+    }
+  }
+
+  /// <summary>Gets an <see cref="IEnumerator{T}"/> that enumerates items within the given range.</summary>
+  public IEnumerator<T> GetEnumerator(int index, int count)
+  {
+    Utility.ValidateRange(Count, index, count);
+    return new Enumerator(array, index, count);
+  }
+
+  /// <summary>Returns the index of the first item in the given region of the array equal to the given item, or -1 if no such
+  /// item could be found.
+  /// </summary>
+  public int IndexOf(T item, int index, int count)
+  {
+    Utility.ValidateRange(Count, index, count);
+    return STM.Retry(delegate
+    {
+      for(int end=index+count; index<end; index++)
+      {
+        if(comparer.Equals(item, array[index].Read())) return index;
+      }
+      return -1;
+    });
+  }
+
   #region IList<T> Members
   /// <inheritdoc/>
   public T this[int index]
@@ -78,14 +150,7 @@ public sealed class TransactionalArray<T> : IList<T>
   /// <inheritdoc/>
   public int IndexOf(T item)
   {
-    return STM.Retry(delegate
-    {
-      for(int i=0; i<array.Length; i++)
-      {
-        if(comparer.Equals(item, array[i].Read())) return i;
-      }
-      return -1;
-    });
+    return IndexOf(item, 0, Count);
   }
 
   void IList<T>.Insert(int index, T item)
@@ -115,29 +180,13 @@ public sealed class TransactionalArray<T> : IList<T>
   /// <inheritdoc/>
   public bool Contains(T item)
   {
-    return STM.Retry(delegate
-    {
-      for(int i=0; i<array.Length; i++)
-      {
-        if(comparer.Equals(item, array[i].Read())) // if an item is found, changes to previous items won't affect the result,
-        {                                          // so we can release them to avoid false conflicts
-          while(i > 0) array[--i].Release();
-          return true;
-        }
-      }
-      return false;
-    });
+    return Contains(item, 0, Count);
   }
 
   /// <inheritdoc/>
   public void CopyTo(T[] array, int arrayIndex)
   {
-    if(array == null) throw new ArgumentNullException();
-    if(arrayIndex < 0 || arrayIndex+Count > array.Length) throw new ArgumentOutOfRangeException();
-    STM.Retry(delegate
-    {
-      for(int i=0; i<this.array.Length; i++) array[arrayIndex+i] = this.array[i].Read();
-    });
+    CopyTo(0, array, arrayIndex, Count);
   }
 
   void ICollection<T>.Add(T item)
@@ -160,7 +209,7 @@ public sealed class TransactionalArray<T> : IList<T>
   /// <inheritdoc/>
   public IEnumerator<T> GetEnumerator()
   {
-    return new Enumerator(array);
+    return new Enumerator(array, 0, array.Length);
   }
   #endregion
 
@@ -174,25 +223,27 @@ public sealed class TransactionalArray<T> : IList<T>
   #region Enumerator
   sealed class Enumerator : IEnumerator<T>
   {
-    public Enumerator(TransactionalVariable<T>[] array)
+    public Enumerator(TransactionalVariable<T>[] array, int start, int count)
     {
       this.array = array;
-      index      = -1;
+      this.start = start;
+      this.end   = start + count;
+      index      = start-1;
     }
 
     public T Current
     {
       get
       {
-        if((uint)index >= (uint)array.Length) throw new InvalidOperationException();
+        if(index < start || index >= end) throw new InvalidOperationException();
         return current;
       }
     }
 
     public bool MoveNext()
     {
-      if(index == array.Length) return false;
-      if(++index == array.Length)
+      if(index == end) return false;
+      if(++index == end)
       {
         current = default(T);
         return false;
@@ -206,7 +257,7 @@ public sealed class TransactionalArray<T> : IList<T>
 
     public void Reset()
     {
-      index = -1;
+      index = start-1;
     }
 
     object System.Collections.IEnumerator.Current
@@ -218,36 +269,204 @@ public sealed class TransactionalArray<T> : IList<T>
 
     readonly TransactionalVariable<T>[] array;
     T current;
+    readonly int start, end;
     int index;
   }
   #endregion
 
-  readonly TransactionalVariable<T>[] array;
+  TransactionalVariable<T>[] array;
   readonly IEqualityComparer<T> comparer;
 }
 #endregion
 
 #region TransactionalDictionary
-public sealed class TransactionalDictionary<K, V> : IDictionary<K, V>
+/// <summary>Provides a transactional hash table, meant to be used with <see cref="STMTransaction"/> or
+/// <see cref="System.Transactions.Transaction"/>.
+/// </summary>
+/// <remarks>The <see cref="TransactionalDictionary{K,V}"/> is meant to provide a full-feature implementation of the standard
+/// <see cref="IDictionary{K,V}"/> interface, and is not particularly scalable with regard to concurrent writes. In particular,
+/// due to the need to keep track of the <see cref="ICollection{T}.Count"/> of items in the hash table, all additions and
+/// removals will conflict with each other, even if they don't alter the same buckets within the hash table, because all must
+/// update the item count.
+/// </remarks>
+public class TransactionalDictionary<K, V> : IDictionary<K, V>
 {
+  /// <summary>Initializes a new, empty <see cref="TransactionalDictionary{K,V}"/>.</summary>
   public TransactionalDictionary() : this(0, null) { }
+  /// <summary>Initializes a new, empty <see cref="TransactionalDictionary{K,V}"/> with the given capacity.</summary>
   public TransactionalDictionary(int initialCapacity) : this(initialCapacity, null) { }
+  /// <summary>Initializes a new, empty <see cref="TransactionalDictionary{K,V}"/> with the given
+  /// <see cref="IEqualityComparer{T}"/>, which will be used to compare keys for equality.
+  /// </summary>
   public TransactionalDictionary(IEqualityComparer<K> comparer) : this(0, comparer) { }
+  /// <summary>Initializes a new, empty <see cref="TransactionalDictionary{K,V}"/> with the given capacity and the given
+  /// <see cref="IEqualityComparer{T}"/>, which will be used to compare keys for equality.
+  /// </summary>
   public TransactionalDictionary(int initialCapacity, IEqualityComparer<K> comparer)
   {
     if(initialCapacity < 0) throw new ArgumentOutOfRangeException();
     this.comparer = comparer ?? EqualityComparer<K>.Default;
-    //this.count    = STM.Allocate<int>();
+    //this.count  = new TransactionalVariable<int>();
     if(initialCapacity != 0) Allocate(initialCapacity);
   }
 
+  /// <summary>Initializes a new <see cref="TransactionalDictionary{K,V}"/> with items taken from the given
+  /// <see cref="IDictionary{K,V}"/>.
+  /// </summary>
   public TransactionalDictionary(IDictionary<K, V> initialItems) : this(initialItems, null) { }
+  /// <summary>Initializes a new <see cref="TransactionalDictionary{K,V}"/> with items taken from the given
+  /// <see cref="IDictionary{K,V}"/>, using the given <see cref="IEqualityComparer{T}"/> to compare keys for equality.
+  /// </summary>
   public TransactionalDictionary(IDictionary<K, V> initialItems, IEqualityComparer<K> comparer) : this(0, comparer)
   {
     if(initialItems == null) throw new ArgumentNullException();
     Allocate(initialItems.Count);
     foreach(KeyValuePair<K, V> pair in initialItems) Add(pair.Key, pair.Value);
   }
+
+  #region KeyCollection
+  /// <summary>A read-only collection containing the keys within a <see cref="TransactionalDictionary{K,V}"/>.</summary>
+  public sealed class KeyCollection : ICollection<K>
+  {
+    internal KeyCollection(TransactionalDictionary<K, V> dictionary)
+    {
+      this.dictionary = dictionary;
+    }
+
+    #region ICollection<K> Members
+    /// <inheritdoc/>
+    public int Count
+    {
+      get { return dictionary.Count; }
+    }
+
+    /// <inheritdoc/>
+    public bool IsReadOnly
+    {
+      get { return true; }
+    }
+
+    /// <inheritdoc/>
+    public bool Contains(K item)
+    {
+      return dictionary.ContainsKey(item);
+    }
+
+    /// <inheritdoc/>
+    public void CopyTo(K[] array, int arrayIndex)
+    {
+      Utility.ValidateRange(array, arrayIndex, dictionary.Count);
+      foreach(KeyValuePair<K, V> pair in dictionary) array[arrayIndex++] = pair.Key;
+    }
+
+    void ICollection<K>.Add(K item)
+    {
+      throw new NotSupportedException();
+    }
+
+    void ICollection<K>.Clear()
+    {
+      throw new NotSupportedException();
+    }
+
+    bool ICollection<K>.Remove(K item)
+    {
+      throw new NotImplementedException();
+    }
+    #endregion
+
+    #region IEnumerable<K> Members
+    /// <inheritdoc/>
+    public IEnumerator<K> GetEnumerator()
+    {
+      foreach(KeyValuePair<K, V> pair in dictionary) yield return pair.Key;
+    }
+    #endregion
+
+    #region IEnumerable Members
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+    {
+      return GetEnumerator();
+    }
+    #endregion
+
+    readonly TransactionalDictionary<K, V> dictionary;
+  }
+  #endregion
+
+  #region ValueCollection
+  /// <summary>A read-only collection containing the values within a <see cref="TransactionalDictionary{K,V}"/>.</summary>
+  public sealed class ValueCollection : ICollection<V>
+  {
+    internal ValueCollection(TransactionalDictionary<K, V> dictionary)
+    {
+      this.dictionary = dictionary;
+    }
+
+    #region ICollection<K> Members
+    /// <inheritdoc/>
+    public int Count
+    {
+      get { return dictionary.Count; }
+    }
+
+    /// <inheritdoc/>
+    public bool IsReadOnly
+    {
+      get { return true; }
+    }
+
+    /// <inheritdoc/>
+    public bool Contains(V item)
+    {
+      foreach(V testItem in this)
+      {
+        if(object.Equals(item, testItem)) return true;
+      }
+      return false;
+    }
+
+    /// <inheritdoc/>
+    public void CopyTo(V[] array, int arrayIndex)
+    {
+      Utility.ValidateRange(array, arrayIndex, dictionary.Count);
+      foreach(KeyValuePair<K, V> pair in dictionary) array[arrayIndex++] = pair.Value;
+    }
+
+    void ICollection<V>.Add(V item)
+    {
+      throw new NotSupportedException();
+    }
+
+    void ICollection<V>.Clear()
+    {
+      throw new NotSupportedException();
+    }
+
+    bool ICollection<V>.Remove(V item)
+    {
+      throw new NotImplementedException();
+    }
+    #endregion
+
+    #region IEnumerable<V> Members
+    /// <inheritdoc/>
+    public IEnumerator<V> GetEnumerator()
+    {
+      foreach(KeyValuePair<K, V> pair in dictionary) yield return pair.Value;
+    }
+    #endregion
+
+    #region IEnumerable Members
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+    {
+      return GetEnumerator();
+    }
+    #endregion
+
+    readonly TransactionalDictionary<K, V> dictionary;
+  }
+  #endregion
 
   #region IDictionary<K,V> Members
   /// <inheritdoc/>
@@ -265,16 +484,36 @@ public sealed class TransactionalDictionary<K, V> : IDictionary<K, V>
     }
   }
 
-  /// <inheritdoc/>
-  public ICollection<K> Keys
+  /// <summary>Gets a read-only collection containing the keys within the dictionary.</summary>
+  public KeyCollection Keys
   {
-    get { throw new NotImplementedException(); }
+    get
+    {
+      if(_keys == null)
+      {
+        lock(this)
+        {
+          if(_keys == null) _keys = new KeyCollection(this);
+        }
+      }
+      return _keys;
+    }
   }
 
-  /// <inheritdoc/>
-  public ICollection<V> Values
+  /// <summary>Gets a read-only collection containing the values within the dictionary.</summary>
+  public ValueCollection Values
   {
-    get { throw new NotImplementedException(); }
+    get
+    {
+      if(_values == null)
+      {
+        lock(this)
+        {
+          if(_values == null) _values = new ValueCollection(this);
+        }
+      }
+      return _values;
+    }
   }
 
   /// <inheritdoc/>
@@ -358,6 +597,16 @@ public sealed class TransactionalDictionary<K, V> : IDictionary<K, V>
       return true;
     }
   }
+
+  ICollection<K> IDictionary<K, V>.Keys
+  {
+    get { return Keys; }
+  }
+
+  ICollection<V> IDictionary<K, V>.Values
+  {
+    get { return Values; }
+  }
   #endregion
 
   #region ICollection<KeyValuePair<K,V>> Members
@@ -379,17 +628,16 @@ public sealed class TransactionalDictionary<K, V> : IDictionary<K, V>
     if(array != null)
     {
       Array.Clear(array, 0, array.Length);
-      for(int i=0; i<array.Length; i++) array[i].Next = Empty;
+      for(int i=0; i<array.Length; i++) array[i].First = array[i].Next = Empty;
       freeSlot = array.Length - 1;
-      _count        = 0;
+      _count   = 0;
     }
   }
 
   /// <inheritdoc/>
   public void CopyTo(KeyValuePair<K, V>[] array, int arrayIndex)
   {
-    if(array == null) throw new ArgumentNullException();
-    if(arrayIndex < 0 || arrayIndex + Count > array.Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(array, arrayIndex, Count);
     foreach(KeyValuePair<K,V> pair in this) array[arrayIndex++] = pair;
   }
 
@@ -406,7 +654,8 @@ public sealed class TransactionalDictionary<K, V> : IDictionary<K, V>
 
   bool ICollection<KeyValuePair<K, V>>.Remove(KeyValuePair<K, V> item)
   {
-    throw new NotImplementedException();
+    V value;
+    return TryGetValue(item.Key, out value) && object.Equals(value, item.Value) && Remove(item.Key);
   }
   #endregion
 
@@ -466,7 +715,7 @@ public sealed class TransactionalDictionary<K, V> : IDictionary<K, V>
     {
       get
       {
-        if(index < 0 || index >= array.Length) throw new InvalidOperationException();
+        if((uint)index >= (uint)array.Length) throw new InvalidOperationException();
         return _current;
       }
     }
@@ -617,6 +866,8 @@ public sealed class TransactionalDictionary<K, V> : IDictionary<K, V>
   readonly IEqualityComparer<K> comparer;
   Bucket[] array;
   //readonly TransactionalVariable<int> count;
+  KeyCollection _keys;
+  ValueCollection _values;
   int _count, freeSlot;
 
   static int GetPrimeSize(int minimum)
@@ -647,7 +898,7 @@ public sealed class TransactionalDictionary<K, V> : IDictionary<K, V>
 
   static readonly int[] primes =
   {
-    5, 7, 11, 17, 23, 29, 37, 47, 59, 71, 89, 107, 131, 163, 197, 239, 293, 353, 431, 521, 631, 761, 919, 1103, 1327, 1597, 1931,
+    3, 7, 11, 17, 23, 29, 37, 47, 59, 71, 89, 107, 131, 163, 197, 239, 293, 353, 431, 521, 631, 761, 919, 1103, 1327, 1597, 1931,
     2333, 2801, 3371, 4049, 4861, 5839, 7013, 8419, 10103, 12143, 14591, 17519, 21023, 25229, 30293, 36353, 43627, 52361, 62851,
     75431, 90523, 108631, 130363, 156437, 187751, 225307, 270371, 324449, 389357, 467237, 560689, 672827, 807403, 968897,
     1162687, 1395263, 1674319, 2009191, 2411033, 2893249, 3471899, 4166287, 4999559, 5999471, 7199369
@@ -655,220 +906,134 @@ public sealed class TransactionalDictionary<K, V> : IDictionary<K, V>
 }
 #endregion
 
-#region TransactionalSortedDictionary
-public sealed class TransactionalSortedDictionary<K, V> : IDictionary<K, V>
+#region TransactionalList
+/// <summary>Provides a transactional list, meant to be used with <see cref="STMTransaction"/> or
+/// <see cref="System.Transactions.Transaction"/>.
+/// </summary>
+/// <remarks>The <see cref="TransactionalList{T}"/> is meant to provide a full-feature implementation of the standard
+/// <see cref="IList{T}"/> interface, and is not particularly scalable with regard to concurrent writes. In particular,
+/// due to the need to keep track of the <see cref="ICollection{T}.Count"/> of items in the list, all additions and removals will
+/// conflict with each other, even if they don't alter the same parts of the list, because all must update the item count.
+/// </remarks>
+public class TransactionalList<T> : IList<T>
 {
-  public TransactionalSortedDictionary() : this((IComparer<K>)null) { }
-  public TransactionalSortedDictionary(IComparer<K> comparer)
+  /// <summary>Initializes a new, empty <see cref="TransactionalList{T}"/>.</summary>
+  public TransactionalList() : this(0, null) { }
+  /// <summary>Initializes a new, empty <see cref="TransactionalList{T}"/> with the given capacity.</summary>
+  public TransactionalList(int capacity) : this(capacity, null) { }
+  /// <summary>Initializes a new, empty <see cref="TransactionalList{T}"/> with the given <see cref="IEqualityComparer{T}"/>,
+  /// which will be used to compare items for equality.
+  /// </summary>
+  public TransactionalList(IEqualityComparer<T> comparer) : this(0, comparer) { }
+  /// <summary>Initializes a new, empty <see cref="TransactionalList{T}"/> with the given capacity and the given
+  /// <see cref="IEqualityComparer{T}"/>, which will be used to compare items for equality.
+  /// </summary>
+  public TransactionalList(int capacity, IEqualityComparer<T> comparer)
   {
-    this.comparer = comparer ?? Comparer<K>.Default;
-    this.root     = STM.Allocate(Leaf);
-    this.count    = STM.Allocate<int>();
+    array  = new TransactionalArray<T>(capacity, comparer);
+    _count = new TransactionalVariable<int>();
   }
 
-  public TransactionalSortedDictionary(IDictionary<K, V> initialItems) : this(initialItems, null) { }
-  public TransactionalSortedDictionary(IDictionary<K, V> initialItems, IComparer<K> comparer) : this(comparer)
+  /// <summary>Initializes a new <see cref="TransactionalList{T}"/> with the given items.</summary>
+  public TransactionalList(IEnumerable<T> initialItems) : this(initialItems, null) { }
+  /// <summary>Initializes a new <see cref="TransactionalList{T}"/> with the given items, and an
+  /// <see cref="IEqualityComparer{T}"/>, which will be used to compare items for equality.
+  /// </summary>
+  public TransactionalList(IEnumerable<T> initialItems, IEqualityComparer<T> comparer)
   {
-    if(initialItems == null) throw new ArgumentNullException();
-    using(STMTransaction tx = STMTransaction.Create())
-    {
-      foreach(KeyValuePair<K, V> pair in initialItems) Add(pair.Key, pair.Value);
-      tx.Commit();
-    }
+    array  = new TransactionalArray<T>(initialItems, comparer);
+    _count = new TransactionalVariable<int>(array.Count);
   }
 
-  #region IDictionary<K,V> Members
-  /// <inheritdoc/>
-  public V this[K key]
+  /// <summary>Adds the given items to the end of the list.</summary>
+  public void AddRange(IEnumerable<T> items)
   {
-    get
-    {
-      Node node = FindNode(key);
-      if(node == null) throw new KeyNotFoundException();
-      return node.Value;
-    }
-    set
-    {
-      throw new NotImplementedException();
-    }
-  }
-
-  /// <inheritdoc/>
-  public ICollection<K> Keys
-  {
-    get { throw new NotImplementedException(); }
-  }
-
-  /// <inheritdoc/>
-  public ICollection<V> Values
-  {
-    get { throw new NotImplementedException(); }
-  }
-
-  /// <inheritdoc/>
-  public void Add(K key, V value)
-  {
+    if(items == null) throw new ArgumentNullException();
     STM.Retry(delegate
     {
-      // first, find the place where the node needs to be inserted
-      TransactionalVariable<Node> nodeVar = root, newVar;
-      Node node = root.Read(), newNode;
-      if(node == Leaf) // if the tree is empty, then it becomes the new root and we're done
+      int count = _count.OpenForWrite();
+      foreach(T item in items)
       {
-        newVar  = root;
-        newNode = new Node(null, key, value);
-        root.Set(newNode);
+        EnlargeForAdd(count);
+        array[count++] = item;
       }
-      else // otherwise, we need to find the location in the tree where it should be inserted
-      {
-        while(true)
-        {
-          int cmp = comparer.Compare(key, node.Key);
-          if(cmp == 0) throw new ArgumentException(); // if the key already exists, that's an error
-
-          TransactionalVariable<Node> nextVar = cmp < 0 ? node.Left : node.Right;
-          if(nextVar == LeafVariable) // this is where it needs to be inserted
-          {
-            newNode = new Node(nodeVar, key, value);
-            newNode.Color = Color.Red;
-            newVar = STM.Allocate(Leaf);
-            newVar.Set(newNode);
-
-            node = nodeVar.OpenForWrite();
-            if(cmp < 0) node.Left = newVar;
-            else node.Right = newVar;
-            break;
-          }
-          node = nodeVar.Read();
-        }
-
-        // at this point, the node has been inserted into the right place, but we may need to rebalance the tree. we just
-        // replaced a black leaf with a red node having 2 black children. the tree has the following invariants:
-        // 1. the root is black
-        // 2. both children of every red node are black
-        // 3. every simple path from from a node to a leaf has the same number of black nodes
-        // we haven't changed the root, so #1 holds. we've replaced ? -> black with ? -> red -> black, leaving the number of
-        // black nodes equal along all paths to leaves, so #3 holds. if the parent is black, then #2 is also not violated, so
-        // we're done. but if the parent is red, then #2 has been violated
-        restart:
-        if(node.Color == Color.Red) // if the parent is red...
-        {
-          // at this point, we can assume the grandparent is black because of #2. if the uncle (i.e. parent's sibling) is red as
-          // well, then we can repaint both the parent and uncle from red to black, and the grandparent from black to red. this
-          // transformation may violate #1 or #2.
-          TransactionalVariable<Node> uncleVar = newVar == node.Left ? node.Right : node.Left;
-          Node uncle = uncleVar.Read();
-          if(uncle.Color == Color.Red)
-          {
-            node = nodeVar.OpenForWrite();
-            node.Color = Color.Black;
-            uncle = uncleVar.OpenForWrite();
-            uncle.Color = Color.Black;
-
-            newVar = node.Parent; // newVar = grandparent
-            // if the grandparent was the root, repainting it red would violate #1, so we won't do that. in that case, we're done
-            if(newVar != root) // if it's not the root...
-            {
-              // then we'll color the grandparent red. this may violate #2
-              newNode = newVar.OpenForWrite();
-              newNode.Color = Color.Red;
-              nodeVar = newNode.Parent;
-              node    = nodeVar.Read();
-              goto restart; // this is analogous to our original situation, so we'll restart
-            }
-          }
-          else // the new node is red but the uncle is black
-          {
-            // if the node is the right child of the parent and the parent node is the left child of the grandparent, or vice
-            // versa, then we'll perform a rotation so they're on the same side
-            TransactionalVariable<Node> gpVar = node.Parent;
-            Node gp = gpVar.OpenForWrite();
-            node = nodeVar.OpenForWrite();
-            bool rotated = false;
-            if(newVar == node.Left)
-            {
-              if(nodeVar == gp.Right)
-              {
-                RotateLeft(newNode, node, gp);
-                rotated = true;
-              }
-            }
-            else
-            {
-              if(nodeVar == gp.Left)
-              {
-                RotateRight(newNode, node, gp);
-                rotated = true;
-              }
-            }
-
-            if(rotated) // if the nodes were rotated, nodeVar/node and newVar/newNode got swapped
-            {
-              Utility.Swap(ref nodeVar, ref newVar);
-              Utility.Swap(ref node, ref newNode);
-            }
-
-            node.Color = Color.Black;
-            gp.Color   = Color.Red;
-
-            if(nodeVar == gp.Left) RotateRight(node, gp, gp.Parent.OpenForWrite());
-            else RotateLeft(node, gp, gp.Parent.OpenForWrite());
-          }
-        }
-      }
-
-      // finally, increment the item count
-      count.Set(count.OpenForWrite() + 1);
+      _count.Set(count);
     });
   }
 
-  /// <inheritdoc/>
-  public bool ContainsKey(K key)
-  {
-    return FindNode(key) != null;
-  }
-
-  /// <inheritdoc/>
-  public bool Remove(K key)
+  /// <summary>Returns an array containing all of the items in the list.</summary>
+  public T[] ToArray()
   {
     return STM.Retry(delegate
     {
-      TransactionalVariable<Node> variable;
-      Node node = FindNode(key, out variable);
-      if(node == null)
+      T[] array = new T[Count];
+      for(int i=0; i<array.Length; i++) array[i] = this.array[i];
+      return array;
+    });
+  }
+
+  #region IList<T> Members
+  /// <inheritdoc/>
+  public T this[int index]
+  {
+    get
+    {
+      return STM.Retry(delegate
       {
-        return false;
-      }
-      else
+        if((uint)index >= (uint)Count) throw new ArgumentOutOfRangeException();
+        return array[index];
+      });
+    }
+    set
+    {
+      STM.Retry(delegate
       {
-        Remove(variable);
-        return true;
-      }
+        if((uint)index >= (uint)Count) throw new ArgumentOutOfRangeException();
+        array[index] = value;
+      });
+    }
+  }
+
+  /// <inheritdoc/>
+  public int IndexOf(T item)
+  {
+    return STM.Retry(delegate { return array.IndexOf(item, 0, Count); });
+  }
+
+  /// <inheritdoc/>
+  public void Insert(int index, T item)
+  {
+    STM.Retry(delegate
+    {
+      int count = _count.OpenForWrite();
+      if((uint)index > (uint)count) throw new ArgumentOutOfRangeException();
+      EnlargeForAdd(count);
+      for(int i=count; i > index; i--) array[i] = array[i-1];
+      array[index] = item;
+      _count.Set(count+1);
     });
   }
 
   /// <inheritdoc/>
-  public bool TryGetValue(K key, out V value)
+  public void RemoveAt(int index)
   {
-    Node node = FindNode(key);
-    if(node == null)
+    STM.Retry(delegate
     {
-      value = default(V);
-      return false;
-    }
-    else
-    {
-      value = node.Value;
-      return true;
-    }
+      int count = _count.OpenForWrite();
+      if((uint)index >= (uint)count) throw new ArgumentOutOfRangeException();
+      count--;
+      for(; index < count; index++) array[index] = array[index+1];
+      array[count] = default(T);
+      _count.Set(count);
+    });
   }
   #endregion
 
-  #region ICollection<KeyValuePair<K,V>> Members
+  #region ICollection<T> Members
   /// <inheritdoc/>
   public int Count
   {
-    get { return count.Read(); }
+    get { return _count.Read(); }
   }
 
   /// <inheritdoc/>
@@ -878,63 +1043,60 @@ public sealed class TransactionalSortedDictionary<K, V> : IDictionary<K, V>
   }
 
   /// <inheritdoc/>
+  public void Add(T item)
+  {
+    STM.Retry(delegate
+    {
+      int count = _count.OpenForWrite();
+      EnlargeForAdd(count);
+      array[count] = item;
+      _count.Set(count+1);
+    });
+  }
+
+  /// <inheritdoc/>
   public void Clear()
   {
     STM.Retry(delegate
     {
-      root.Set(Leaf);
-      count.Set(0);
+      int count = _count.OpenForWrite();
+      if(!typeof(T).UnderlyingSystemType.IsPrimitive) // if the items may contain references that should be cleared...
+      {
+        for(int i=0; i<count; i++) array[i] = default(T); // then clear them
+      }
+      _count.Set(0);
     });
   }
 
   /// <inheritdoc/>
-  public void CopyTo(KeyValuePair<K, V>[] array, int arrayIndex)
+  public bool Contains(T item)
   {
-    if(array == null) throw new ArgumentNullException();
-    if(arrayIndex < 0) throw new ArgumentOutOfRangeException();
-    STM.Retry(delegate
-    {
-      if(arrayIndex + Count > array.Length) throw new ArgumentOutOfRangeException();
-      int index = arrayIndex;
-      foreach(KeyValuePair<K, V> pair in this) array[index++] = pair;
-    });
+    return STM.Retry(delegate { return array.Contains(item, 0, Count); });
   }
 
-  void ICollection<KeyValuePair<K, V>>.Add(KeyValuePair<K, V> item)
+  /// <inheritdoc/>
+  public void CopyTo(T[] array, int arrayIndex)
   {
-    Add(item.Key, item.Value);
+    STM.Retry(delegate { this.array.CopyTo(0, array, arrayIndex, Count); });
   }
 
-  bool ICollection<KeyValuePair<K, V>>.Contains(KeyValuePair<K, V> item)
-  {
-    V value;
-    return TryGetValue(item.Key, out value) && object.Equals(value, item.Value);
-  }
-
-  bool ICollection<KeyValuePair<K, V>>.Remove(KeyValuePair<K, V> item)
+  /// <inheritdoc/>
+  public bool Remove(T item)
   {
     return STM.Retry(delegate
     {
-      TransactionalVariable<Node> variable;
-      Node node = FindNode(item.Key, out variable);
-      if(node == null || !object.Equals(node.Value, item.Value))
-      {
-        return false;
-      }
-      else
-      {
-        Remove(variable);
-        return true;
-      }
+      int index = IndexOf(item);
+      if(index != -1) RemoveAt(index);
+      return index != -1;
     });
   }
   #endregion
 
-  #region IEnumerable<KeyValuePair<K,V>> Members
+  #region IEnumerable<T> Members
   /// <inheritdoc/>
-  public IEnumerator<KeyValuePair<K, V>> GetEnumerator()
+  public IEnumerator<T> GetEnumerator()
   {
-    throw new NotImplementedException();
+    return array.GetEnumerator(0, Count);
   }
   #endregion
 
@@ -945,122 +1107,13 @@ public sealed class TransactionalSortedDictionary<K, V> : IDictionary<K, V>
   }
   #endregion
 
-  #region Color
-  enum Color : byte
+  void EnlargeForAdd(int currentCount)
   {
-    Black=0, Red=1
-  }
-  #endregion
-
-  #region Node
-  sealed class Node : ICloneable
-  {
-    public Node() { }
-
-    public Node(TransactionalVariable<Node> parent, K key, V value)
-    {
-      Parent = parent;
-      Key    = key;
-      Value  = value;
-    }
-
-    public object Clone()
-    {
-      Node node = new Node(); // return MemberwiseClone(); could also be used, but unfortunately it's much slower :-(
-      node.Parent = Parent;
-      node.Left   = Left;
-      node.Right  = Right;
-      node.Key    = Key;
-      node.Value  = Value;
-      node.Color  = Color;
-      return node;
-    }
-
-    public TransactionalVariable<Node> Parent, Left, Right;
-    public K Key;
-    public V Value;
-    public Color Color;
-  }
-  #endregion
-
-  Node FindNode(K key)
-  {
-    TransactionalVariable<Node> variable;
-    return STM.Retry(delegate { return FindNode(key, out variable); });
+    if(currentCount == array.Count) array.Enlarge(currentCount < 2 ? 4 : currentCount * 2);
   }
 
-  Node FindNode(K key, out TransactionalVariable<Node> variable)
-  {
-    TransactionalVariable<Node> nodeVar = root;
-    Node node = root.Read();
-    while(node != Leaf)
-    {
-      int cmp = comparer.Compare(key, node.Key);
-      if(cmp == 0) break;
-      nodeVar = cmp < 0 ? node.Left : node.Right;
-      node    = nodeVar.Read();
-    }
-    variable = nodeVar;
-    return node == Leaf ? null : node;
-  }
-
-  void Remove(TransactionalVariable<Node> variable)
-  {
-    throw new NotImplementedException();
-  }
-
-  /// <summary>Performs a left rotation, assuming all three nodes are open for writing.</summary>
-  void RotateLeft(Node n, Node p, Node parent)
-  {
-    //    /           /
-    //   P           N
-    // A   N  -->  P   C
-    //    B C     A B
-
-    TransactionalVariable<Node> pVar = n.Parent, nVar = p.Right;
-
-    // make N the new parent
-    parent.Left = p.Right;
-    n.Parent    = p.Parent;
-
-    // put B under P
-    p.Right = n.Left;
-    if(p.Right != LeafVariable) p.Right.OpenForWrite().Parent = pVar;
-
-    // put P under N
-    n.Left   = pVar;
-    p.Parent = nVar;
-  }
-
-  /// <summary>Performs a right rotation, assuming the all variables are open for writing.</summary>
-  void RotateRight(Node n, Node p, Node parent)
-  {
-    //   \         \
-    //    P         N
-    //  N   C --> A   P
-    // A B           B C
-
-    TransactionalVariable<Node> pVar = n.Parent, nVar = p.Right;
-
-    // make N the new parent
-    parent.Right = p.Left;
-    n.Parent     = p.Parent;
-
-    // put B under P
-    p.Left = n.Right;
-    if(p.Left != LeafVariable) p.Left.OpenForWrite().Parent = pVar;
-
-    // put P under N
-    n.Right  = pVar;
-    p.Parent = nVar;
-  }
-
-  readonly IComparer<K> comparer;
-  readonly TransactionalVariable<Node> root;
-  readonly TransactionalVariable<int> count;
-
-  static readonly Node Leaf = new Node();
-  static readonly TransactionalVariable<Node> LeafVariable = STM.Allocate(Leaf);
+  readonly TransactionalArray<T> array;
+  readonly TransactionalVariable<int> _count;
 }
 #endregion
 

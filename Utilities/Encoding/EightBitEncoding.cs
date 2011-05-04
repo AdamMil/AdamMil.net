@@ -18,12 +18,14 @@ public sealed class EightBitDecoder : Decoder
     this.decoder = decoder;
   }
 
+  /// <inheritdoc/>
   public override int GetCharCount(byte[] bytes, int index, int count)
   {
     if(decoder != null) decoder.Reset();
     return GetCharCount(bytes, index, count, true);
   }
 
+  /// <inheritdoc/>
   [CLSCompliant(false)]
   public unsafe override int GetCharCount(byte* bytes, int count, bool simulateFlush)
   {
@@ -31,18 +33,21 @@ public sealed class EightBitDecoder : Decoder
     return decoder == null ? count : decoder.GetByteCount(bytes, count, simulateFlush);
   }
 
+  /// <inheritdoc/>
   public unsafe override int GetCharCount(byte[] bytes, int index, int count, bool simulateFlush)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
     return decoder == null ? count : decoder.GetByteCount(bytes, index, count, simulateFlush);
   }
 
+  /// <inheritdoc/>
   public override int GetChars(byte[] bytes, int byteIndex, int byteCount, char[] chars, int charIndex)
   {
     if(decoder != null) decoder.Reset();
     return GetChars(bytes, byteIndex, byteCount, chars, charIndex, true);
   }
 
+  /// <inheritdoc/>
   [CLSCompliant(false)]
   public unsafe override int GetChars(byte* bytes, int byteCount, char* chars, int charCount, bool flush)
   {
@@ -76,6 +81,7 @@ public sealed class EightBitDecoder : Decoder
     return byteCount;
   }
 
+  /// <inheritdoc/>
   public unsafe override int GetChars(byte[] bytes, int byteIndex, int byteCount, char[] chars, int charIndex, bool flush)
   {
     Utility.ValidateRange(bytes, byteIndex, byteCount);
@@ -110,6 +116,7 @@ public sealed class EightBitEncoder : Encoder
     this.encoder = encoder;
   }
 
+  /// <inheritdoc/>
   [CLSCompliant(false)]
   public unsafe override int GetByteCount(char* chars, int count, bool simulateFlush)
   {
@@ -117,6 +124,7 @@ public sealed class EightBitEncoder : Encoder
     return encoder == null ? count : encoder.GetByteCount(Encode(chars, count), 0, count, simulateFlush);
   }
 
+  /// <inheritdoc/>
   public unsafe override int GetByteCount(char[] chars, int index, int count, bool simulateFlush)
   {
     Utility.ValidateRange(chars, index, count);
@@ -124,6 +132,7 @@ public sealed class EightBitEncoder : Encoder
     fixed(char* charPtr=chars) return encoder.GetByteCount(Encode(charPtr+index, count), 0, count, simulateFlush);
   }
 
+  /// <inheritdoc/>
   [CLSCompliant(false)]
   public unsafe override int GetBytes(char* chars, int charCount, byte* bytes, int byteCount, bool flush)
   {
@@ -172,6 +181,7 @@ public sealed class EightBitEncoder : Encoder
     }
   }
 
+  /// <inheritdoc/>
   public unsafe override int GetBytes(char[] chars, int charIndex, int charCount, byte[] bytes, int byteIndex, bool flush)
   {
     Utility.ValidateRange(chars, charIndex, charCount);
@@ -230,12 +240,14 @@ public class EightBitEncoding : EncoderDecoderEncoding
     this.decoder = decoder;
   }
 
+  /// <inheritdoc/>
   public override int GetMaxByteCount(int charCount)
   {
     if(charCount < 0) throw new ArgumentOutOfRangeException();
     return encoder == null ? charCount : encoder.GetMaxBytes(charCount);
   }
 
+  /// <inheritdoc/>
   public override int GetMaxCharCount(int byteCount)
   {
     if(byteCount < 0) throw new ArgumentOutOfRangeException();

@@ -62,11 +62,13 @@ public sealed class Matrix3
 
   public unsafe double this[int index]
   { get
-    { if(index<0 || index>=Length) throw new ArgumentOutOfRangeException();
+    {
+      if((uint)index >= (uint)Length) throw new ArgumentOutOfRangeException();
       fixed(double* data=&M00) return data[index];
     }
     set
-    { if(index<0 || index>=Length) throw new ArgumentOutOfRangeException();
+    {
+      if((uint)index >= (uint)Length) throw new ArgumentOutOfRangeException();
       fixed(double* data=&M00) data[index]=value;
     }
   }
@@ -74,12 +76,12 @@ public sealed class Matrix3
   public unsafe double this[int i, int j]
   { get
     {
-      if(i<0 || i>=Height || j<0 || j>=Width) throw new ArgumentOutOfRangeException();
+      if((uint)i >= (uint)Height || (uint)j >= (uint)Width) throw new ArgumentOutOfRangeException();
       fixed(double* data=&M00) return data[i*Height+j];
     }
     set
     {
-      if(i<0 || i>=Height || j<0 || j>=Width) throw new ArgumentOutOfRangeException();
+      if((uint)i >= (uint)Height || (uint)j >= (uint)Width) throw new ArgumentOutOfRangeException();
       fixed(double* data=&M00) data[i*Height+j]=value;
     }
   }
@@ -301,12 +303,12 @@ public sealed class Matrix4
   public unsafe double this[int index]
   { get
     {
-      if(index<0 || index>=Length) throw new ArgumentOutOfRangeException();
+      if((uint)index >= (uint)Length) throw new ArgumentOutOfRangeException();
       fixed(double* data=&M00) return data[index];
     }
     set
     {
-      if(index<0 || index>=Length) throw new ArgumentOutOfRangeException();
+      if((uint)index >= (uint)Length) throw new ArgumentOutOfRangeException();
       fixed(double* data=&M00) data[index]=value;
     }
   }
@@ -314,12 +316,12 @@ public sealed class Matrix4
   public unsafe double this[int i, int j]
   { get
     {
-      if(i<0 || i>=Height || j<0 || j>=Width) throw new ArgumentOutOfRangeException();
+      if((uint)i >= (uint)Height || (uint)j >= (uint)Width) throw new ArgumentOutOfRangeException();
       fixed(double* data=&M00) return data[i*Height+j];
     }
     set
     {
-      if(i<0 || i>=Height || j<0 || j>=Width) throw new ArgumentOutOfRangeException();
+      if((uint)i >= (uint)Height || (uint)j >= (uint)Width) throw new ArgumentOutOfRangeException();
       fixed(double* data=&M00) data[i*Height+j]=value;
     }
   }
