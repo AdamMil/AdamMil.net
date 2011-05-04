@@ -30,6 +30,7 @@ namespace AdamMil.Collections
 /// </summary>
 public sealed class EmptyEnumerable<T> : IEnumerable<T>, IEnumerator<T>
 {
+  /// <inheritdoc/>
   public IEnumerator<T> GetEnumerator()
   {
     return this;

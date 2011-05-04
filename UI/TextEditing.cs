@@ -534,8 +534,8 @@ public abstract class EditableTextBuffer
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/CopyTo3/*"/>
   public virtual void CopyTo(TextWriter writer, int srcIndex, int count)
   {
-    if(srcIndex < 0 || count < 0 || srcIndex+count > Length) throw new ArgumentOutOfRangeException();
     if(writer == null) throw new ArgumentNullException();
+    Utility.ValidateRange(Length, srcIndex, count);
 
     char[] buffer = new char[4096];
     while(count != 0)
@@ -716,8 +716,8 @@ public class GapTextBuffer : EditableTextBuffer
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/CopyTo4/*"/>
   public override void CopyTo(int srcIndex, char[] destArray, int destIndex, int count)
   {
+    Utility.ValidateRange(length, srcIndex, count);
     Utility.ValidateRange(destArray, destIndex, count);
-    if(srcIndex < 0 || srcIndex + count > length) throw new ArgumentOutOfRangeException();
 
     // if the source index is before the gap, copy the text up to the gap
     if(srcIndex < gapStart)
@@ -737,30 +737,33 @@ public class GapTextBuffer : EditableTextBuffer
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Delete2/*"/>
   public override void Delete(int index, int count)
   {
-    if(index < 0 || count < 0 || index+count >= length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(length, index, count);
 
-    if(index <= gapStart && index+count >= gapStart) // we're deleting from the edges of the gap,
-    {                                                // so we can do it quickly by just updating the gap boundaries
-      // the portion removed from the right side is the portion not removed from the left side
-      gapEnd  += count - (gapStart - index);
-      gapStart = index; // we're removing all of the left side starting from the index
-    }
-    else if(index < gapStart) // we're deleting an inner portion of the left side. we want to center the gap on the
-    {                         // deleted area, so move the data after the deleted portion to the right side of the gap
-      int leftOver = gapStart - (index+count);
-      Array.Copy(buffer, index+count, buffer, gapEnd-leftOver, leftOver);
-      gapStart = index;
-      gapEnd  -= leftOver;
-    }
-    else // we're deleting an inner potion of the right side, so to center the gap on the index, we'll move the data
-    {    // before it to the left side of the gap
-      int leftOver = index - gapStart;
-      Array.Copy(buffer, gapEnd, buffer, gapStart, leftOver);
-      gapStart += leftOver;
-      gapEnd    = index+count;
-    }
+    if(count != 0)
+    {
+      if(index <= gapStart && index+count >= gapStart) // we're deleting from the edges of the gap,
+      {                                                // so we can do it quickly by just updating the gap boundaries
+        // the portion removed from the right side is the portion not removed from the left side
+        gapEnd  += count - (gapStart - index);
+        gapStart = index; // we're removing all of the left side starting from the index
+      }
+      else if(index < gapStart) // we're deleting an inner portion of the left side. we want to center the gap on the
+      {                         // deleted area, so move the data after the deleted portion to the right side of the gap
+        int leftOver = gapStart - (index+count);
+        Array.Copy(buffer, index+count, buffer, gapEnd-leftOver, leftOver);
+        gapStart = index;
+        gapEnd  -= leftOver;
+      }
+      else // we're deleting an inner potion of the right side, so to center the gap on the index, we'll move the data
+      {    // before it to the left side of the gap
+        int leftOver = index - gapStart;
+        Array.Copy(buffer, gapEnd, buffer, gapStart, leftOver);
+        gapStart += leftOver;
+        gapEnd    = index+count;
+      }
 
-    length -= count;
+      length -= count;
+    }
   }
 
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/FindNext/*"/>
@@ -790,8 +793,8 @@ public class GapTextBuffer : EditableTextBuffer
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertArray/*"/>
   public override void Insert(int destIndex, char[] srcArray, int srcIndex, int count)
   {
+    if((uint)destIndex > (uint)length) throw new ArgumentOutOfRangeException();
     Utility.ValidateRange(srcArray, srcIndex, count);
-    if(destIndex < 0 || destIndex > length) throw new ArgumentOutOfRangeException();
 
     MoveAndResizeGap(destIndex, count);
     Array.Copy(srcArray, srcIndex, buffer, gapStart, count);
@@ -982,7 +985,7 @@ public class TextDocument
   /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Delete2/*"/>
   public void Delete(int index, int count)
   {
-    if(index < 0 || count < 0 || index+count > Length) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(Length, index, count);
 
     int end = index+count, newlineAt = index, line, column;
     lineStorage.CharToLine(index, out line, out column);

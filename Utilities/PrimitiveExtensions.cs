@@ -18,6 +18,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
+using System;
 using System.Globalization;
 
 namespace AdamMil.Utilities
@@ -39,12 +40,14 @@ public static class PrimitiveExtensions
   }
 
   /// <summary>Converts the value to a string using the invariant culture.</summary>
+  [CLSCompliant(false)]
   public static string ToInvariantString(this uint value)
   {
     return value.ToString(CultureInfo.InvariantCulture);
   }
 
   /// <summary>Converts the value to a string using the invariant culture.</summary>
+  [CLSCompliant(false)]
   public static string ToInvariantString(this ulong value)
   {
     return value.ToString(CultureInfo.InvariantCulture);

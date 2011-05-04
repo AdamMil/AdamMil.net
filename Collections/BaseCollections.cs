@@ -35,51 +35,62 @@ namespace AdamMil.Collections
 [Serializable]
 public abstract class AccessLimitedCollectionBase<T> : IList<T>
 {
+  /// <summary>Initializes an empty <see cref="AccessLimitedCollectionBase{T}"/>.</summary>
   protected AccessLimitedCollectionBase()
   {
     Items = new List<T>();
   }
 
+  /// <summary>Initializes an <see cref="AccessLimitedCollectionBase{T}"/> with the given items.</summary>
   protected AccessLimitedCollectionBase(IEnumerable<T> items) : this()
   {
+    if(items == null) throw new ArgumentNullException();
     Items.AddRange(items);
   }
 
+  /// <inheritdoc/>
   public T this[int index]
   {
     get { return Items[index]; }
   }
 
+  /// <inheritdoc/>
   public int Count
   {
     get { return Items.Count; }
   }
 
+  /// <inheritdoc/>
   public virtual bool IsReadOnly
   {
     get { return false; }
   }
 
+  /// <inheritdoc/>
   public bool Contains(T item)
   {
     return IndexOf(item) != -1;
   }
 
+  /// <inheritdoc/>
   public void CopyTo(T[] array, int arrayIndex)
   {
     Items.CopyTo(array, arrayIndex);
   }
 
+  /// <inheritdoc/>
   public IEnumerator<T> GetEnumerator()
   {
     return Items.GetEnumerator();
   }
 
+  /// <inheritdoc/>
   public virtual int IndexOf(T item)
   {
     return Items.IndexOf(item);
   }
 
+  /// <summary>Returns an array containing all of the items in the collection.</summary>
   public T[] ToArray()
   {
     T[] array = new T[Count];
@@ -87,6 +98,7 @@ public abstract class AccessLimitedCollectionBase<T> : IList<T>
     return array;
   }
 
+  /// <summary>Gets the underlying, writable list that contains the items.</summary>
   protected List<T> Items
   {
     get; private set;
@@ -137,7 +149,7 @@ public abstract class AccessLimitedCollectionBase<T> : IList<T>
 #endregion
 
 #region CollectionBase
-/// <summary>Provides a flexible base class for new collections.</summary>
+/// <summary>Provides a flexible base class for new list-like collections.</summary>
 [Serializable]
 public abstract class CollectionBase<T> : IList<T>
 {
@@ -387,6 +399,7 @@ public class NonNullCollection<T> : ValidatedCollection<T> where T : class
 [Serializable]
 public class NonEmptyStringCollection : ValidatedCollection<string>
 {
+  /// <summary>Initializes a new, empty <see cref="NonEmptyStringCollection"/>.</summary>
   public NonEmptyStringCollection() { }
 
   /// <include file="documentation.xml" path="//ValidatedCollection/ValidateItem/*"/>
@@ -398,16 +411,20 @@ public class NonEmptyStringCollection : ValidatedCollection<string>
 #endregion
 
 #region DictionaryBase
+/// <summary>Provides a flexible base class for new dictionary-like collections.</summary>
 [Serializable]
 public abstract class DictionaryBase<K, V> : IDictionary<K, V>
 {
+  /// <summary>Initializes a new, empty <see cref="DictionaryBase"/>.</summary>
   protected DictionaryBase() { }
 
+  /// <summary>Initializes a new <see cref="DictionaryBase"/> containing the items from the given dictionary.</summary>
   protected DictionaryBase(IDictionary<K, V> initialItems)
   {
     items = new Dictionary<K, V>(initialItems);
   }
 
+  /// <inheritdoc/>
   public V this[K key]
   {
     get
@@ -422,49 +439,58 @@ public abstract class DictionaryBase<K, V> : IDictionary<K, V>
     }
   }
 
+  /// <inheritdoc/>
   public int Count
   {
     get { return items == null ? 0 : items.Count; }
   }
 
+  /// <inheritdoc/>
   public virtual bool IsReadOnly
   {
     get { return false; }
   }
 
+  /// <inheritdoc/>
   public ICollection<K> Keys
   {
     get { return items == null ? (ICollection<K>)new K[0] : items.Keys; }
   }
 
+  /// <inheritdoc/>
   public ICollection<V> Values
   {
     get { return items == null ? (ICollection<V>)new V[0] : items.Values; }
   }
 
+  /// <inheritdoc/>
   public void Add(K key, V value)
   {
     AssertWritable();
     AddItem(key, value);
   }
 
+  /// <inheritdoc/>
   public virtual void Clear()
   {
     AssertWritable();
     if(Count != 0) ClearItems();
   }
 
+  /// <inheritdoc/>
   public bool ContainsKey(K key)
   {
     return items != null && items.ContainsKey(key);
   }
 
+  /// <inheritdoc/>
   public bool Remove(K key)
   {
     AssertWritable();
     return items != null && RemoveItem(key);
   }
 
+  /// <inheritdoc/>
   public bool TryGetValue(K key, out V value)
   {
     if(items == null)
@@ -478,6 +504,7 @@ public abstract class DictionaryBase<K, V> : IDictionary<K, V>
     }
   }
 
+  /// <summary>Gets the underlying, writeable dictionary containing the items.</summary>
   protected Dictionary<K, V> Items
   {
     get
@@ -563,6 +590,7 @@ public abstract class DictionaryBase<K, V> : IDictionary<K, V>
   #endregion
 
   #region IEnumerable<KeyValuePair<K,V>> Members
+  /// <inheritdoc/>
   public IEnumerator<KeyValuePair<K, V>> GetEnumerator()
   {
     return items == null ? (IEnumerator<KeyValuePair<K, V>>)new EmptyEnumerable<KeyValuePair<K, V>>() : items.GetEnumerator();
@@ -583,8 +611,12 @@ public abstract class DictionaryBase<K, V> : IDictionary<K, V>
 [Serializable]
 public abstract class ValidatedDictionary<K, V> : DictionaryBase<K, V>
 {
+  /// <summary>Initializes a new, empty <see cref="ValidatedDictionary{K,V}"/>.</summary>
   protected ValidatedDictionary() { }
 
+  /// <summary>Initializes a new <see cref="ValidatedDictionary{K,V}"/> containing the given items. The items will be validated by
+  /// calling <see cref="ValidateItem"/> as usual.
+  /// </summary>
   protected ValidatedDictionary(IDictionary<K, V> initialItems)
   {
     if(initialItems == null) throw new ArgumentNullException();
@@ -595,18 +627,21 @@ public abstract class ValidatedDictionary<K, V> : DictionaryBase<K, V>
     }
   }
 
+  /// <summary>Calls <see cref="ValidateItem"/> to validate the item, and then adds it if it passes validation.</summary>
   protected override void AddItem(K key, V value)
   {
     ValidateItem(key, value);
     base.AddItem(key, value);
   }
 
+  /// <summary>Calls <see cref="ValidateItem"/> to validate the item, and then adds it if it passes validation.</summary>
   protected override void SetItem(K key, V value)
   {
     ValidateItem(key, value);
     base.SetItem(key, value);
   }
 
+  /// <summary>Called to validate items being added to the dictionary.</summary>
   protected abstract void ValidateItem(K key, V value);
 }
 #endregion
@@ -616,8 +651,10 @@ public abstract class ValidatedDictionary<K, V> : DictionaryBase<K, V>
 [Serializable]
 public class NonEmptyStringDictionary : ValidatedDictionary<string, string>
 {
+  /// <summary>Initializes a new, empty <see cref="NonEmptyStringDictionary"/>.</summary>
   public NonEmptyStringDictionary() { }
 
+  /// <inheritdoc/>
   protected override void ValidateItem(string key, string value)
   {
     if(string.IsNullOrEmpty(key) || string.IsNullOrEmpty(value)) throw new ArgumentException();
@@ -626,13 +663,17 @@ public class NonEmptyStringDictionary : ValidatedDictionary<string, string>
 #endregion
 
 #region MultiValuedDictionaryBase
+/// <summary>Provides a base class for implementing dictionaries that map a single key onto multiple items.</summary>
 [Serializable]
 public abstract class MultiValuedDictionaryBase<TKey, TValue, TValueCollection>
   : Dictionary<TKey, TValueCollection> where TValueCollection : ICollection<TValue>
 {
+  /// <summary>Initializes a new, empty <see cref="MultiValuedDictionaryBase{K,V,C}"/>.</summary>
   protected MultiValuedDictionaryBase() { }
+  /// <summary>Deserializes a new <see cref="MultiValuedDictionaryBase{K,V,C}"/>.</summary>
   protected MultiValuedDictionaryBase(SerializationInfo info, StreamingContext context) : base(info, context) { }
 
+  /// <summary>Adds a new item to the collection associated with the given key.</summary>
   public void Add(TKey key, TValue value)
   {
     TValueCollection list;
@@ -640,6 +681,7 @@ public abstract class MultiValuedDictionaryBase<TKey, TValue, TValueCollection>
     list.Add(value);
   }
 
+  /// <summary>Adds a series of values to the collection associated with the given key.</summary>
   public void AddRange(TKey key, IEnumerable<TValue> values)
   {
     TValueCollection list;
@@ -647,47 +689,63 @@ public abstract class MultiValuedDictionaryBase<TKey, TValue, TValueCollection>
     AddRange(list, values);
   }
 
+  /// <summary>Determines whether the collection associated with the given key contains the given item.</summary>
   public bool Contains(TKey key, TValue value)
   {
     TValueCollection list;
     return TryGetValue(key, out list) && list.Contains(value);
   }
 
+  /// <summary>Returns an enumerable object that can be used to enumerate the items associated with the given key.</summary>
   public IEnumerable<TValue> Enumerate(TKey key)
   {
     TValueCollection list;
     return TryGetValue(key, out list) ? (IEnumerable<TValue>)list : new EmptyEnumerable<TValue>();
   }
 
+  /// <summary>Attempts to remove an item from the collection associated with the given key. Returns true if the item was found
+  /// and removed, and false if it was not found.
+  /// </summary>
   public bool Remove(TKey key, TValue value)
   {
     TValueCollection list;
     return TryGetValue(key, out list) && list.Remove(value);
   }
 
+  /// <summary>Adds a series of values to the given collection. The default collection iterates through the items one by one,
+  /// but this method can be overriden if the collection supports a more efficient implementation.
+  /// </summary>
   protected virtual void AddRange(TValueCollection collection, IEnumerable<TValue> items)
   {
     if(collection == null || items == null) throw new ArgumentNullException();
     foreach(TValue item in items) collection.Add(item);
   }
 
+  /// <summary>Called to create a collection to store values associated with a key.</summary>
   protected abstract TValueCollection CreateCollection();
 }
 #endregion
 
 #region MultiValuedDictionary
+/// <summary>Represents a dictionary that associates a <see cref="List{T}"/> of items with each key. The list associated with a
+/// key is capable of storing the same value multiple times.
+/// </summary>
 [Serializable]
 public class MultiValuedDictionary<TKey, TValue> : MultiValuedDictionaryBase<TKey, TValue, List<TValue>>
 {
+  /// <summary>Initializes a new, empty <see cref="MultiValuedDictionary{K,V}"/>.</summary>
   public MultiValuedDictionary() { }
+  /// <summary>Deserializes a new <see cref="MultiValuedDictionary{K,V}"/>.</summary>
   protected MultiValuedDictionary(SerializationInfo info, StreamingContext context) : base(info, context) { }
 
+  /// <summary>Adds a series of values to the given collection.</summary>
   protected override void AddRange(List<TValue> collection, IEnumerable<TValue> items)
   {
     if(collection == null) throw new ArgumentNullException();
     collection.AddRange(items);
   }
 
+  /// <inheritdoc/>
   protected override List<TValue> CreateCollection()
   {
     return new List<TValue>();
@@ -696,12 +754,18 @@ public class MultiValuedDictionary<TKey, TValue> : MultiValuedDictionaryBase<TKe
 #endregion
 
 #region HashSetDictionary
+/// <summary>Represents a dictionary that associates a <see cref="HashSet{T}"/> of items with each key. The set associated with
+/// a key stores each item only once.
+/// </summary>
 [Serializable]
 public class HashSetDictionary<TKey, TValue> : MultiValuedDictionaryBase<TKey, TValue, HashSet<TValue>>
 {
+  /// <summary>Initializes a new, empty <see cref="HashSetDictionary{K,V}"/>.</summary>
   public HashSetDictionary() { }
+  /// <summary>Deserializes a new <see cref="HashSetDictionary{K,V}"/>.</summary>
   protected HashSetDictionary(SerializationInfo info, StreamingContext context) : base(info, context) { }
 
+  /// <inheritdoc/>
   protected override HashSet<TValue> CreateCollection()
   {
     return new HashSet<TValue>();

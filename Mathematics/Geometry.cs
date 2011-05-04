@@ -1616,12 +1616,12 @@ public sealed class Polygon : ICloneable, ISerializable
   {
     get
     {
-      if(index<0 || index>=pointCount) throw new ArgumentOutOfRangeException();
+      if((uint)index >= (uint)pointCount) throw new ArgumentOutOfRangeException();
       return points[index];
     }
     set
     {
-      if(index<0 || index>=pointCount) throw new ArgumentOutOfRangeException();
+      if((uint)index >= (uint)pointCount) throw new ArgumentOutOfRangeException();
       points[index]=value;
     }
   }
@@ -1961,7 +1961,7 @@ public sealed class Polygon : ICloneable, ISerializable
   /// </exception>
   public void RemovePoint(int index)
   {
-    if(index<0 || index>=pointCount) throw new ArgumentOutOfRangeException("index");
+    if((uint)index >= (uint)pointCount) throw new ArgumentOutOfRangeException();
     if(index != --pointCount) for(int i=index; i<pointCount; i++) points[i]=points[i+1];
   }
 
@@ -1974,8 +1974,8 @@ public sealed class Polygon : ICloneable, ISerializable
   {
     if(length==0) return;
     int end = start+length;
-    if(start<0 || end<0 || end>this.pointCount || start>=this.pointCount) throw new ArgumentOutOfRangeException();
-    for(; end<this.pointCount; end++) points[end-length]=points[end];
+    if((uint)start >= (uint)pointCount || (uint)end > (uint)pointCount) throw new ArgumentOutOfRangeException();
+    for(; end<pointCount; end++) points[end-length]=points[end];
     this.pointCount -= length;
   }
 
@@ -2322,7 +2322,7 @@ public struct Rectangle
   /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="i"/> is less than 0 or greater than 3.</exception>
   public Line GetEdge(int i)
   {
-    if(i<0 || i>3) throw new ArgumentOutOfRangeException("i", i, "must be from 0 to 3");
+    if((uint)i > (uint)3) throw new ArgumentOutOfRangeException("i", i, "must be from 0 to 3");
     switch(i)
     {
       case 0: return new Line(X, Y, 0, Height);       // left
@@ -2340,7 +2340,7 @@ public struct Rectangle
   /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="i"/> is less than 0 or greater than 3.</exception>
   public Point GetPoint(int i)
   {
-    if(i<0 || i>3) throw new ArgumentOutOfRangeException("i", i, "must be from 0 to 3");
+    if((uint)i > (uint)3) throw new ArgumentOutOfRangeException("i", i, "must be from 0 to 3");
     switch(i)
     {
       case 0: return new Point(X, Y);

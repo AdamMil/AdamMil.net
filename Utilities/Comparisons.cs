@@ -35,6 +35,7 @@ public sealed class DelegateComparer<T> : IComparer<T>
     cmp = comparer;
   }
 
+  /// <summary>Compares two items using the <see cref="Comparison{T}"/> delegate passed to the constructor.</summary>
   public int Compare(T a, T b)
   {
     return cmp(a, b);

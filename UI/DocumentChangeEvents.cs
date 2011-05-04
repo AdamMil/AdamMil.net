@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 using System;
 using System.Text;
+using AdamMil.Utilities;
 
 namespace AdamMil.UI.RichDocument
 {
@@ -584,7 +585,7 @@ public class DeleteTextChange : ChangeEvent
   public DeleteTextChange(TextNode textNode, int index, int count) : base(textNode)
   {
     if(textNode.Locked) throw new ArgumentException("The node to set is locked.");
-    if(index < 0 || count < 0 || index+count > textNode.TextLength) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(textNode.TextLength, index, count);
 
     this.textNode = textNode;
     this.index    = index;
@@ -687,7 +688,7 @@ public class ReplaceTextChange : ChangeEvent
   public ReplaceTextChange(TextNode textNode, int index, int count, string text) : base(textNode)
   {
     if(textNode.Locked) throw new ArgumentException("The node to set is locked.");
-    if(index < 0 || count < 0 || index+count > textNode.TextLength) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(textNode.TextLength, index, count);
     if(text == null) throw new ArgumentNullException();
 
     this.textNode = textNode;

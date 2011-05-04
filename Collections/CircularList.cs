@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 using System;
 using System.Collections.Generic;
+using AdamMil.Utilities;
 
 namespace AdamMil.Collections
 {
@@ -397,7 +398,7 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
   /// <returns>The index at which the item is located, or -1 if the item is not in the list.</returns>
   public int IndexOf(T item, int startIndex, int count)
   {
-    if(count < 0 || startIndex+count > this.count) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(this.count, startIndex, count);
     startIndex = GetRawIndex(startIndex);
 
     int index;
@@ -497,11 +498,8 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
   /// <param name="count">The number of items to copy.</param>
   public void CopyTo(int sourceIndex, T[] array, int destIndex, int count)
   {
-    if(array == null) throw new ArgumentNullException();
-    if(count < 0 || sourceIndex+count > this.count || destIndex+count > array.Length)
-    {
-      throw new ArgumentOutOfRangeException();
-    }
+    Utility.ValidateRange(array, destIndex, count);
+    Utility.ValidateRange(this.count, sourceIndex, count);
 
     if(this.count != 0)
     {

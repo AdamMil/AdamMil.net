@@ -190,8 +190,8 @@ public class ArrayBuffer<T> : ICollection<T>
   /// <summary>Copies the given portion of the buffer (represented by the logical source index and count) to the given array.</summary>
   public void CopyTo(int sourceIndex, T[] destination, int destinationIndex, int count)
   {
+    Utility.ValidateRange(Count, sourceIndex, count);
     Utility.ValidateRange(destination, destinationIndex, count);
-    if(sourceIndex < 0 || sourceIndex + count > Count) throw new ArgumentOutOfRangeException();
     Array.Copy(Buffer, Offset+sourceIndex, destination, destinationIndex, count);
   }
 
@@ -271,7 +271,7 @@ public class ArrayBuffer<T> : ICollection<T>
   /// </summary>
   public int IndexOf(T item, int start, int count)
   {
-    if(count < 0 || start+count > Count) throw new ArgumentOutOfRangeException();
+    Utility.ValidateRange(Count, start, count);
     int index = Array.IndexOf(Buffer, item, GetRawIndex(start), count);
     return index == -1 ? index : index - Offset;
   }
@@ -356,41 +356,53 @@ public class ArrayBuffer<T> : ICollection<T>
 /// <summary>Provides convenient extensions for working with arrays.</summary>
 public static class ArrayExtensions
 {
+  /// <summary>Determines whether a specified item exists within an array.</summary>
   public static bool Contains(this Array array, object item)
   {
     return Array.IndexOf(array, item) != -1;
   }
 
+  /// <summary>Determines whether a specified item exists within an array, searching from a given index.</summary>
   public static bool Contains(this Array array, object item, int startIndex)
   {
     return Array.IndexOf(array, item, startIndex) != -1;
   }
 
+  /// <summary>Determines whether a specified item exists within an array.</summary>
   public static bool Contains<T>(this T[] array, T item)
   {
     return Array.IndexOf<T>(array, item) != -1;
   }
 
+  /// <summary>Determines whether a specified item exists within an array, searching from a given index.</summary>
   public static bool Contains<T>(this T[] array, T item, int startIndex)
   {
     return Array.IndexOf<T>(array, item, startIndex) != -1;
   }
 
+  /// <summary>Returns the index of the first element of an arrey equal to the given item, or -1 if the item cannot be found.</summary>
   public static int IndexOf(this Array array, object item)
   {
     return Array.IndexOf(array, item);
   }
 
+  /// <summary>Returns the index of the first element of an arrey equal to the given item, searching from a given index, or -1
+  /// if the item cannot be found.
+  /// </summary>
   public static int IndexOf(this Array array, object item, int startIndex)
   {
     return Array.IndexOf(array, item, startIndex);
   }
 
+  /// <summary>Returns the index of the first element of an arrey equal to the given item, or -1 if the item cannot be found.</summary>
   public static int IndexOf<T>(this T[] array, T item)
   {
     return Array.IndexOf<T>(array, item);
   }
 
+  /// <summary>Returns the index of the first element of an arrey equal to the given item, searching from a given index, or -1
+  /// if the item cannot be found.
+  /// </summary>
   public static int IndexOf<T>(this T[] array, T item, int startIndex)
   {
     return Array.IndexOf<T>(array, item, startIndex);
@@ -414,6 +426,7 @@ public sealed class ArraySegmentEnumerable<T> : IEnumerable<T>
     this.count = count;
   }
 
+  /// <inheritdoc/>
   public IEnumerator<T> GetEnumerator()
   {
     return new ArraySegmentEnumerator<T>(array, start, count);
