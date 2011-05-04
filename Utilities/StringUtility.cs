@@ -28,6 +28,31 @@ namespace AdamMil.Utilities
 /// <summary>Provides useful string utilities and extensions.</summary>
 public static class StringUtility
 {
+  /// <summary>Returns the first string that is not empty, or null if all strings are null or empty.</summary>
+  public static string Coallesce(string str1, string str2)
+  {
+    return !string.IsNullOrEmpty(str1) ? str1 : !string.IsNullOrEmpty(str2) ? str2 : null;
+  }
+
+  /// <summary>Returns the first string that is not empty, or null if all strings are null or empty.</summary>
+  public static string Coallesce(string str1, string str2, string str3)
+  {
+    return Coallesce(Coallesce(str1, str2), str3);
+  }
+
+  /// <summary>Returns the first string that is not empty, or null if all strings are null or empty.</summary>
+  public static string Coallesce(params string[] strings)
+  {
+    if(strings != null)
+    {
+      foreach(string str in strings)
+      {
+        if(!string.IsNullOrEmpty(str)) return str;
+      }
+    }
+    return null;
+  }
+
   /// <summary>Determines whether a string contains a given character.</summary>
   public static bool Contains(this string strToSearch, char charToSearchFor)
   {

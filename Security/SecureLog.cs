@@ -269,7 +269,7 @@ public abstract class SecureLog
       }
       else
       {
-        SecurityUtility.ProcessSecureString(hashKey, delegate(byte[] keyBytes)
+        hashKey.Process(delegate(byte[] keyBytes)
         {
           if(keyBytes.Length < 64) // if the key is shorter than 64 bytes, pad it until it becomes 64 bytes
           {

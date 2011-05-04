@@ -74,7 +74,7 @@ public class CollectionTests
   }
 
   [Test]
-  public void T02_TestSortedDictionary()
+  public void T02_TestDictionary()
   {
     throw new NotImplementedException();
   }

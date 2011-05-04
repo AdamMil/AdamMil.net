@@ -29,6 +29,76 @@ namespace AdamMil.Utilities
 /// <summary>Provides additional LINQ extensions for <see cref="IEnumerable{T}"/>.</summary>
 public static class EnumerableExtensions
 {
+  /// <summary>Returns the maximum <see cref="DateTime"/> value from a sequence.</summary>
+  /// <exception cref="InvalidOperationException">Thrown if <paramref name="items"/> is empty.</exception>
+  public static DateTime Max<T>(this IEnumerable<T> items, Func<T, DateTime> dateSelector)
+  {
+    if(items == null || dateSelector == null) throw new ArgumentNullException();
+    DateTime max = DateTime.MinValue;
+    bool hadElement = false;
+
+    foreach(T item in items)
+    {
+      DateTime time = dateSelector(item);
+      if(time > max) max = time;
+      hadElement = true;
+    }
+
+    if(!hadElement) throw new InvalidOperationException();
+    return max;
+  }
+
+  /// <summary>Returns the maximum <see cref="DateTime"/> value from a sequence, or null if the sequence is empty or contains only
+  /// null values.
+  /// </summary>
+  public static DateTime? Max<T>(this IEnumerable<T> items, Func<T, DateTime?> dateSelector)
+  {
+    if(items == null || dateSelector == null) throw new ArgumentNullException();
+
+    DateTime? max = null;
+    foreach(T item in items)
+    {
+      DateTime? time = dateSelector(item);
+      if(time.HasValue && (!max.HasValue || time.Value > max.Value)) max = time;
+    }
+    return max;
+  }
+
+  /// <summary>Returns the minimum <see cref="DateTime"/> value from a sequence.</summary>
+  /// <exception cref="InvalidOperationException">Thrown if <paramref name="items"/> is empty.</exception>
+  public static DateTime Min<T>(this IEnumerable<T> items, Func<T,DateTime> dateSelector)
+  {
+    if(items == null || dateSelector == null) throw new ArgumentNullException();
+    DateTime min = DateTime.MaxValue;
+    bool hadElement = false;
+
+    foreach(T item in items)
+    {
+      DateTime time = dateSelector(item);
+      if(time < min) min = time;
+      hadElement = true;
+    }
+
+    if(!hadElement) throw new InvalidOperationException();
+    return min;
+  }
+
+  /// <summary>Returns the minimum <see cref="DateTime"/> value from a sequence, or null if the sequence is empty or contains only
+  /// null values.
+  /// </summary>
+  public static DateTime? Min<T>(this IEnumerable<T> items, Func<T, DateTime?> dateSelector)
+  {
+    if(items == null || dateSelector == null) throw new ArgumentNullException();
+
+    DateTime? min = null;
+    foreach(T item in items)
+    {
+      DateTime? time = dateSelector(item);
+      if(time.HasValue && (!min.HasValue || time.Value < min.Value)) min = time;
+    }
+    return min;
+  }
+
   /// <summary>Returns the items in ascending order.</summary>
   public static IOrderedEnumerable<T> Order<T>(this IEnumerable<T> items)
   {

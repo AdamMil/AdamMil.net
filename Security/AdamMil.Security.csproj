@@ -58,6 +58,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Exceptions.cs" />
+    <Compile Include="Extensions.cs" />
     <Compile Include="GPG.cs" />
     <Compile Include="GPGMessages.cs" />
     <Compile Include="Impersonation.cs" />

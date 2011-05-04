@@ -11,7 +11,7 @@ namespace AdamMil.IO.Tests
 public class BinaryReaderWriterTest
 {
   [Test]
-  public void Test()
+  public void TestBasics()
   {
     MemoryStream ms = new MemoryStream();
     for(int i=0; i<500; i++)

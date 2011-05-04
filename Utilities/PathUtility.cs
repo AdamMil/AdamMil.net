@@ -78,6 +78,7 @@ public static class PathUtility
   /// <summary>Creates a new file in the given directory (which must exist), with the given extension.</summary>
   public static string GetTempFileNameWithExtension(string tempDirectory, string extension)
   {
+    if(!Directory.Exists(tempDirectory)) throw new ArgumentException();
     Random random = new Random();
 
     // make sure the extension starts with a period
@@ -95,15 +96,42 @@ public static class PathUtility
 
       try
       {
-        using(FileStream file = new FileStream(fileName, FileMode.CreateNew, FileAccess.Write)) { }
+        using(new FileStream(fileName, FileMode.CreateNew, FileAccess.Write)) { }
         return fileName;
       }
-      catch { }
+      catch(IOException) { }
     }
 
     throw new IOException("Unable to allocate a temporary file.");
   }
 
+
+  /// <summary>Creates a new file in the given directory (which must exist), with a name similar to the given file name.</summary>
+  public static string GetUniqueFileName(string directory, string fileName)
+  {
+    if(!Directory.Exists(directory)) throw new ArgumentException();
+
+    fileName = Path.GetFileName(fileName);
+    string testPath = Path.Combine(directory, fileName);
+    int suffix = 1;
+    do
+    {
+      if(!File.Exists(testPath))
+      {
+        try
+        {
+          using(new FileStream(testPath, FileMode.CreateNew, FileAccess.Write)) { }
+          return testPath;
+        }
+        catch(IOException) { }
+      }
+
+      ++suffix;
+      testPath = Path.Combine(directory, AppendToFileName(fileName, suffix.ToInvariantString()));
+    } while(suffix <= int.MaxValue);
+
+    return GetTempFileNameWithExtension(directory, Path.GetExtension(fileName));
+  }
 
   /// <summary>Removes invalid filename characters from the given string, and returns it.</summary>
   public static string StripInvalidFileNameChars(string name)

@@ -115,7 +115,18 @@ public sealed class TransactionalArray<T> : IList<T>
   /// <inheritdoc/>
   public bool Contains(T item)
   {
-    return IndexOf(item) != -1;
+    return STM.Retry(delegate
+    {
+      for(int i=0; i<array.Length; i++)
+      {
+        if(comparer.Equals(item, array[i].Read())) // if an item is found, changes to previous items won't affect the result,
+        {                                          // so we can release them to avoid false conflicts
+          while(i > 0) array[--i].Release();
+          return true;
+        }
+      }
+      return false;
+    });
   }
 
   /// <inheritdoc/>
@@ -216,6 +227,434 @@ public sealed class TransactionalArray<T> : IList<T>
 }
 #endregion
 
+#region TransactionalDictionary
+public sealed class TransactionalDictionary<K, V> : IDictionary<K, V>
+{
+  public TransactionalDictionary() : this(0, null) { }
+  public TransactionalDictionary(int initialCapacity) : this(initialCapacity, null) { }
+  public TransactionalDictionary(IEqualityComparer<K> comparer) : this(0, comparer) { }
+  public TransactionalDictionary(int initialCapacity, IEqualityComparer<K> comparer)
+  {
+    if(initialCapacity < 0) throw new ArgumentOutOfRangeException();
+    this.comparer = comparer ?? EqualityComparer<K>.Default;
+    //this.count    = STM.Allocate<int>();
+    if(initialCapacity != 0) Allocate(initialCapacity);
+  }
+
+  public TransactionalDictionary(IDictionary<K, V> initialItems) : this(initialItems, null) { }
+  public TransactionalDictionary(IDictionary<K, V> initialItems, IEqualityComparer<K> comparer) : this(0, comparer)
+  {
+    if(initialItems == null) throw new ArgumentNullException();
+    Allocate(initialItems.Count);
+    foreach(KeyValuePair<K, V> pair in initialItems) Add(pair.Key, pair.Value);
+  }
+
+  #region IDictionary<K,V> Members
+  /// <inheritdoc/>
+  public V this[K key]
+  {
+    get
+    {
+      int index = Find(key);
+      if(index == -1) throw new KeyNotFoundException();
+      return array[index].Value;
+    }
+    set
+    {
+      Add(key, value, true);
+    }
+  }
+
+  /// <inheritdoc/>
+  public ICollection<K> Keys
+  {
+    get { throw new NotImplementedException(); }
+  }
+
+  /// <inheritdoc/>
+  public ICollection<V> Values
+  {
+    get { throw new NotImplementedException(); }
+  }
+
+  /// <inheritdoc/>
+  public void Add(K key, V value)
+  {
+    Add(key, value, false);
+  }
+
+  /// <inheritdoc/>
+  public bool ContainsKey(K key)
+  {
+    return Find(key) != -1;
+  }
+
+  /// <inheritdoc/>
+  public bool Remove(K key)
+  {
+    if(array != null)
+    {
+      int addressableSize = GetAddressableSize(), hash = comparer.GetHashCode(key) % addressableSize, index = array[hash].First;
+      if(index != Empty)
+      {
+        int prevIndex = -1;
+        while(true)
+        {
+          if(comparer.Equals(key, array[index].Key)) // if we found the item to remove...
+          {
+            int nextIndex = array[index].Next;
+            // if we can move an item out of the cellar, do so, since it can greatly improve the efficiency of GetFreeSlot()
+            if(index < addressableSize && nextIndex >= addressableSize)
+            {
+              array[index].Key   = array[nextIndex].Key; // move the next item in the chain into this slot
+              array[index].Value = array[nextIndex].Value;
+              array[index].Next  = array[nextIndex].Next;
+              prevIndex = index;
+              index     = nextIndex;
+              nextIndex = array[index].Next;
+            }
+
+            if(prevIndex != -1) array[prevIndex].Next = nextIndex; // if there's a previous item, unlink this item from it
+            else if(nextIndex == Null) array[hash].First = Empty; // if this is the only item in the chain, remove the chain
+            else if(array[hash].First == index) array[hash].First = nextIndex; // if this is the first item in the chain, make
+            array[index].Key   = default(K);                                   // the chain's head point to the next item
+            array[index].Value = default(V);
+            array[index].Next  = Empty;
+
+            // adjust the free slot if the new empty space is closer to the end of the array or if both are in the cellar
+            if(freeSlot < index || index >= addressableSize)
+            {
+              // if both are within the cellar, make a link from it to the previous free space so we can easily find it again.
+              // we encode it as a negative number, and subtract three because 0, -1, and -2 already have other meanings
+              if(index >= addressableSize && freeSlot >= addressableSize) array[index].Next = -freeSlot - 3;
+              freeSlot = index;
+            }
+            _count--;
+            return true;
+          }
+
+          prevIndex = index;
+          index = array[index].Next;
+          if(index == Null) break;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /// <inheritdoc/>
+  public bool TryGetValue(K key, out V value)
+  {
+    int index = Find(key);
+    if(index == -1)
+    {
+      value = default(V);
+      return false;
+    }
+    else
+    {
+      value = array[index].Value;
+      return true;
+    }
+  }
+  #endregion
+
+  #region ICollection<KeyValuePair<K,V>> Members
+  /// <inheritdoc/>
+  public int Count
+  {
+    get { return _count; }
+  }
+
+  /// <inheritdoc/>
+  public bool IsReadOnly
+  {
+    get { return false; }
+  }
+
+  /// <inheritdoc/>
+  public void Clear()
+  {
+    if(array != null)
+    {
+      Array.Clear(array, 0, array.Length);
+      for(int i=0; i<array.Length; i++) array[i].Next = Empty;
+      freeSlot = array.Length - 1;
+      _count        = 0;
+    }
+  }
+
+  /// <inheritdoc/>
+  public void CopyTo(KeyValuePair<K, V>[] array, int arrayIndex)
+  {
+    if(array == null) throw new ArgumentNullException();
+    if(arrayIndex < 0 || arrayIndex + Count > array.Length) throw new ArgumentOutOfRangeException();
+    foreach(KeyValuePair<K,V> pair in this) array[arrayIndex++] = pair;
+  }
+
+  void ICollection<KeyValuePair<K, V>>.Add(KeyValuePair<K, V> item)
+  {
+    Add(item.Key, item.Value);
+  }
+
+  bool ICollection<KeyValuePair<K, V>>.Contains(KeyValuePair<K, V> item)
+  {
+    V value;
+    return TryGetValue(item.Key, out value) && object.Equals(value, item.Value);
+  }
+
+  bool ICollection<KeyValuePair<K, V>>.Remove(KeyValuePair<K, V> item)
+  {
+    throw new NotImplementedException();
+  }
+  #endregion
+
+  #region IEnumerable<KeyValuePair<K,V>> Members
+  /// <inheritdoc/>
+  public IEnumerator<KeyValuePair<K, V>> GetEnumerator()
+  {
+    return new Enumerator(array);
+  }
+  #endregion
+
+  #region IEnumerable Members
+  System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+  {
+    return GetEnumerator();
+  }
+  #endregion
+
+  #region Bucket
+  const int Null = -1, Empty = -2;
+
+  struct Bucket
+  {
+    #if DEBUG
+    public override string ToString()
+    {
+      string str;
+      if(Next == Empty) str = "Empty";
+      else if(Next < Empty) str = "Empty -> " + (-(Next+3)).ToInvariantString();
+      else
+      {
+        str = Convert.ToString(Key);
+        if(Next != Null) str += " -> " + Next.ToInvariantString();
+      }
+
+      if(First != Empty) str += " (" + First.ToInvariantString() + ")";
+      return str;
+    }
+    #endif
+
+    public K Key;
+    public V Value;
+    public int Next, First;
+  }
+  #endregion
+
+  #region Enumerator
+  sealed class Enumerator : IEnumerator<KeyValuePair<K,V>>
+  {
+    public Enumerator(Bucket[] array)
+    {
+      this.array = array;
+      index      = -1;
+    }
+
+    public KeyValuePair<K,V> Current
+    {
+      get
+      {
+        if(index < 0 || index >= array.Length) throw new InvalidOperationException();
+        return _current;
+      }
+    }
+
+    public bool MoveNext()
+    {
+      if(array == null || index == array.Length) return false;
+      do index++; while(index < array.Length && array[index].Next == Empty);
+
+      if(index == array.Length)
+      {
+        _current = default(KeyValuePair<K,V>);
+        return false;
+      }
+      else
+      {
+        _current = new KeyValuePair<K, V>(array[index].Key, array[index].Value);
+        return true;
+      }
+    }
+
+    public void Reset()
+    {
+      index = -1;
+    }
+
+    object System.Collections.IEnumerator.Current
+    {
+      get { return Current; }
+    }
+
+    void IDisposable.Dispose() { }
+
+    readonly Bucket[] array;
+    KeyValuePair<K,V> _current;
+    int index;
+  }
+  #endregion
+
+  void Add(K key, V value, bool canOverwrite)
+  {
+    if(array == null || Count == array.Length)
+    {
+      Bucket[] oldArray = array;
+
+      // the addressable area is about 86% of the total area
+      Allocate((array == null ? 0 : GetAddressableSize()*2) + 1);
+      _count = 0;
+
+      // rehash the data from the old array, if it exists
+      if(oldArray != null)
+      {
+        for(int i=0; i<oldArray.Length; i++)
+        {
+          if(oldArray[i].Next != Empty) Add(oldArray[i].Key, oldArray[i].Value, false);
+        }
+      }
+    }
+
+    int addressSize = GetAddressableSize(), hash = comparer.GetHashCode(key) % addressSize, index = hash;
+    if(array[hash].First != Empty) // if data for this hash code already exists...
+    {
+      index = array[hash].First; // jump to the first bucket servicing this hash code
+      while(true) // search that hash code's chain for the key
+      {
+        if(comparer.Equals(key, array[index].Key)) // if we found the key...
+        {
+          if(!canOverwrite) throw new ArgumentException(); // if we can't overwrite, then throw an exception
+          array[index].Value = value; // otherwise, overwrite the value and return
+          return;
+        }
+
+        int nextIndex = array[index].Next;
+        if(nextIndex == Null) break;
+        index = nextIndex;
+      }
+
+      int slot = GetFreeSlot(addressSize);
+      array[index].Next = slot; // link the new slot into the end of the chain
+      index = slot;
+    }
+    else // no data exists for this hash code...
+    {
+      // find a place for the first item if we can't use the slot at the hash index
+      if(array[hash].Next > Empty) index = GetFreeSlot(addressSize);
+      array[hash].First = index; // and establish the new chain at that location
+    }
+
+    array[index].Key   = key;
+    array[index].Value = value;
+    array[index].Next  = Null;
+    _count++;
+  }
+
+  void Allocate(int capacity)
+  {
+    // check the capacity against the largest prime size that will fit in an int after adding the cellar and the offset (3)
+    // for free links
+    if(capacity > 1846835911) throw new OutOfMemoryException();
+    array = new Bucket[(GetPrimeSize(capacity)*50 + 22) / 43];
+    freeSlot = array.Length - 1;
+    for(int i=0; i<array.Length; i++) array[i].First = array[i].Next = Empty; // mark the buckets as empty
+  }
+
+  int Find(K key)
+  {
+    if(array != null)
+    {
+      int index = array[comparer.GetHashCode(key) % GetAddressableSize()].First;
+      if(index != Empty)
+      {
+        do
+        {
+          if(comparer.Equals(key, array[index].Key)) return index;
+          index = array[index].Next;
+        } while(index != Null);
+      }
+    }
+    return -1;
+  }
+
+  int GetAddressableSize()
+  {
+    return (int)((array.Length*43L + 25)/50); // the addressable area is 86% of the total area
+  }
+
+  int GetFreeSlot(int addressSize)
+  {
+    // if the collision spot is in the addressable area, then it may not be free any longer
+    if(freeSlot < addressSize) // if it's in the addressable area, make sure it's still available...
+    {
+      while(freeSlot >= 0 && array[freeSlot].Next != Empty) freeSlot--;
+    }
+
+    int slot = freeSlot, nextFreeSlot = array[freeSlot].Next;
+    if(nextFreeSlot != Empty)
+    {
+      freeSlot = -(nextFreeSlot+3); // if we have a pointer to the next free slot, use it
+    }
+    else
+    {
+      // otherwise, search for the next free slot in the cellar
+      do freeSlot--; while(freeSlot >= addressSize && array[freeSlot].Next != Empty);
+    }
+    return slot;
+  }
+
+  readonly IEqualityComparer<K> comparer;
+  Bucket[] array;
+  //readonly TransactionalVariable<int> count;
+  int _count, freeSlot;
+
+  static int GetPrimeSize(int minimum)
+  {
+    for(int i=0; i<primes.Length; i++)
+    {
+      if(primes[i] >= minimum) return primes[i];
+    }
+    for(int i=minimum|1; i<int.MaxValue; i += 2)
+    {
+      if(IsPrime(i)) return i;
+    }
+    throw new OutOfMemoryException();
+  }
+
+  static bool IsPrime(int n) // it is assumed that n is a large, odd number
+  {
+    // this makes use of the fact that all primes except 2 and 3 are divisible by 6k+1 or 6k-1 for some positive integer k. this
+    // works because all integers can be represented as 6k+i for some integer k where -1 <= i <= 4. 2 divides 6k + {0,2,4}
+    // and 3 divides 6k+3, leaving only 6k+1 and 6k-1 to check. we don't need to handle n == 3 because n is assumed to be large
+    for(int i=6, end=(int)Math.Sqrt(n); i < end; i += 6) // we use i < end rather than i <= end because
+    {                                                    // the +1 inside the loop would check 'end'
+      if(n % (i-1) == 0 || n % (i+1) == 0) return false;
+    }
+
+    return true;
+  }
+
+  static readonly int[] primes =
+  {
+    5, 7, 11, 17, 23, 29, 37, 47, 59, 71, 89, 107, 131, 163, 197, 239, 293, 353, 431, 521, 631, 761, 919, 1103, 1327, 1597, 1931,
+    2333, 2801, 3371, 4049, 4861, 5839, 7013, 8419, 10103, 12143, 14591, 17519, 21023, 25229, 30293, 36353, 43627, 52361, 62851,
+    75431, 90523, 108631, 130363, 156437, 187751, 225307, 270371, 324449, 389357, 467237, 560689, 672827, 807403, 968897,
+    1162687, 1395263, 1674319, 2009191, 2411033, 2893249, 3471899, 4166287, 4999559, 5999471, 7199369
+  };
+}
+#endregion
+
 #region TransactionalSortedDictionary
 public sealed class TransactionalSortedDictionary<K, V> : IDictionary<K, V>
 {
@@ -227,8 +666,8 @@ public sealed class TransactionalSortedDictionary<K, V> : IDictionary<K, V>
     this.count    = STM.Allocate<int>();
   }
 
-  public TransactionalSortedDictionary(IEnumerable<KeyValuePair<K, V>> initialItems) : this(initialItems, null) { }
-  public TransactionalSortedDictionary(IEnumerable<KeyValuePair<K, V>> initialItems, IComparer<K> comparer) : this(comparer)
+  public TransactionalSortedDictionary(IDictionary<K, V> initialItems) : this(initialItems, null) { }
+  public TransactionalSortedDictionary(IDictionary<K, V> initialItems, IComparer<K> comparer) : this(comparer)
   {
     if(initialItems == null) throw new ArgumentNullException();
     using(STMTransaction tx = STMTransaction.Create())

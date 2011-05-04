@@ -62,10 +62,10 @@ public enum LoginType
 /// </summary>
 public sealed class Impersonation : IDisposable
 {
-  /// <summary>A user token that can be used to run code as the user who started the process.</summary>
+  /// <summary>A logon token that can be used to run code as the user who started the process.</summary>
   public static readonly IntPtr RevertToSelf = IntPtr.Zero;
 
-  /// <summary>Impersonates the user referenced by the given user token, as returned from operating system API calls.</summary>
+  /// <summary>Impersonates the user referenced by the given logon token, as returned from operating system API calls.</summary>
   public Impersonation(IntPtr userToken) : this(userToken, false) { }
 
   /// <summary>Impersonates the user referenced by the given <see cref="WindowsIdentity"/>.</summary>
@@ -85,7 +85,7 @@ public sealed class Impersonation : IDisposable
   /// The impersonation ends when the class is disposed.
   /// </summary>
   public Impersonation(string domain, string userName, string password, LoginType loginType)
-    : this(LogonUser(domain, userName, password, loginType), true) { }
+    : this(LogOnUser(domain, userName, password, loginType), true) { }
 
   /// <summary>Impersonates the user with the given user name and password. The user name can be in either DOMAIN\user or
   /// user@domain format. The impersonation ends when the class is disposed.
@@ -97,12 +97,12 @@ public sealed class Impersonation : IDisposable
   /// The impersonation ends when the class is disposed.
   /// </summary>
   public Impersonation(string domain, string userName, SecureString password, LoginType loginType)
-    : this(LogonUser(domain, userName, password, loginType), true) { }
+    : this(LogOnUser(domain, userName, password, loginType), true) { }
 
-  Impersonation(IntPtr userToken, bool ownToken)
+  Impersonation(IntPtr logonToken, bool ownToken)
   {
-    if(ownToken) ownedToken = userToken;
-    context = WindowsIdentity.Impersonate(userToken);
+    if(ownToken) ownedToken = logonToken;
+    context = WindowsIdentity.Impersonate(logonToken);
   }
 
   /// <summary>Releases all unmanaged resources used by this object.</summary>
@@ -118,7 +118,56 @@ public sealed class Impersonation : IDisposable
     GC.SuppressFinalize(this);
   }
 
-  /// <summary>Runs the given delegate as the user referenced by the given user token, optionally executing it in a new thread.</summary>
+  /// <summary>Logs off the user represented by the given logon token.</summary>
+  public static void LogOffUser(IntPtr logonToken)
+  {
+    CloseHandle(logonToken);
+  }
+
+  /// <summary>Logs on the given user, returning the corresponding logon token.</summary>
+  public static IntPtr LogOnUser(string userName, string password, LoginType loginType)
+  {
+    return LogOnUser(GetDomain(userName), GetUserName(userName), password, loginType);
+  }
+
+  /// <summary>Logs on the given user, returning the corresponding logon token.</summary>
+  public static IntPtr LogOnUser(string domain, string userName, string password, LoginType loginType)
+  {
+    ValidateLogonArguments(domain, userName, password);
+    IntPtr handle;
+    int logonType = GetNTLogonType(loginType);
+    if(!LogOnUser(userName, domain, password, logonType, LOGON32_PROVIDER_DEFAULT, out handle))
+    {
+      throw new Win32Exception();
+    }
+    return handle;
+  }
+
+  /// <summary>Logs on the given user, returning the corresponding logon token.</summary>
+  public static IntPtr LogOnUser(string userName, SecureString password, LoginType loginType)
+  {
+    return LogOnUser(GetDomain(userName), GetUserName(userName), password, loginType);
+  }
+
+  /// <summary>Logs on the given user, returning the corresponding logon token.</summary>
+  public static IntPtr LogOnUser(string domain, string userName, SecureString password, LoginType loginType)
+  {
+    ValidateLogonArguments(domain, userName, password);
+    IntPtr handle, passwordStr = IntPtr.Zero;
+    int logonType = GetNTLogonType(loginType);
+    try
+    {
+      passwordStr = Marshal.SecureStringToGlobalAllocUnicode(password);
+      if(!LogOnUser(userName, domain, passwordStr, logonType, LOGON32_PROVIDER_DEFAULT, out handle)) throw new Win32Exception();
+    }
+    finally
+    {
+      if(passwordStr != IntPtr.Zero) Marshal.ZeroFreeGlobalAllocUnicode(passwordStr);
+    }
+    return handle;
+  }
+
+  /// <summary>Runs the given delegate as the user referenced by the given logon token, optionally executing it in a new thread.</summary>
   public static void RunWithImpersonation(IntPtr userToken, bool runInANewThread, Action code)
   {
     if(code == null) throw new ArgumentException();
@@ -141,7 +190,7 @@ public sealed class Impersonation : IDisposable
                                           Action code)
   {
     if(code == null) throw new ArgumentException();
-    Run(LogonUser(GetDomain(userName), GetUserName(userName), password, loginType), true, code, runInANewThread);
+    Run(LogOnUser(GetDomain(userName), GetUserName(userName), password, loginType), true, code, runInANewThread);
   }
 
   /// <summary>Runs the given delegate as the given user, optionally executing it in a new thread. The user name can be in either
@@ -151,7 +200,7 @@ public sealed class Impersonation : IDisposable
                                           Action code)
   {
     if(code == null) throw new ArgumentException();
-    Run(LogonUser(GetDomain(userName), GetUserName(userName), password, loginType), true, code, runInANewThread);
+    Run(LogOnUser(GetDomain(userName), GetUserName(userName), password, loginType), true, code, runInANewThread);
   }
 
   /// <summary>Runs the given delegate as the given user, optionally executing it in a new thread.</summary>
@@ -159,7 +208,7 @@ public sealed class Impersonation : IDisposable
                                           bool runInANewThread, Action code)
   {
     if(code == null) throw new ArgumentException();
-    Run(LogonUser(domain, userName, password, loginType), true, code, runInANewThread);
+    Run(LogOnUser(domain, userName, password, loginType), true, code, runInANewThread);
   }
 
   /// <summary>Runs the given delegate as the given user, optionally executing it in a new thread.</summary>
@@ -167,7 +216,7 @@ public sealed class Impersonation : IDisposable
                                           bool runInANewThread, Action code)
   {
     if(code == null) throw new ArgumentException();
-    Run(LogonUser(domain, userName, password, loginType), true, code, runInANewThread);
+    Run(LogOnUser(domain, userName, password, loginType), true, code, runInANewThread);
   }
 
   void Dispose(bool finalizing)
@@ -191,7 +240,7 @@ public sealed class Impersonation : IDisposable
   delegate Impersonation ImpersonationMaker();
 
   /// <summary>Retrieves the domain name from a user name in either user@domain or DOMAIN\user format, suitable for passing to
-  /// the <see cref="LogonUser"/> method.
+  /// the <see cref="LogOnUser"/> method.
   /// </summary>
   static string GetDomain(string userName)
   {
@@ -206,7 +255,7 @@ public sealed class Impersonation : IDisposable
     throw new ArgumentException("Unable to determine the domain from the user name " + userName);
   }
 
-  /// <summary>Converts a <see cref="LoginType"/> value into a value suitable for passing to <see cref="LogonUser"/>.</summary>
+  /// <summary>Converts a <see cref="LoginType"/> value into a value suitable for passing to <see cref="LogOnUser"/>.</summary>
   static int GetNTLogonType(LoginType type)
   {
     switch(type)
@@ -220,7 +269,7 @@ public sealed class Impersonation : IDisposable
   }
 
   /// <summary>Retrieves the user name from a user name in either user@domain or DOMAIN\user format, suitable for passing to
-  /// the <see cref="LogonUser"/> method.
+  /// the <see cref="LogOnUser"/> method.
   /// </summary>
   static string GetUserName(string userName)
   {
@@ -236,37 +285,6 @@ public sealed class Impersonation : IDisposable
   static bool IsUPN(string userName)
   {
     return userName.IndexOf('@') != -1;
-  }
-
-  /// <summary>Logs on the given user, returning the corresponding user token.</summary>
-  static IntPtr LogonUser(string domain, string userName, string password, LoginType loginType)
-  {
-    ValidateLogonArguments(domain, userName, password);
-    IntPtr handle;
-    int logonType = GetNTLogonType(loginType);
-    if(!LogonUser(userName, domain, password, logonType, LOGON32_PROVIDER_DEFAULT, out handle))
-    {
-      throw new Win32Exception();
-    }
-    return handle;
-  }
-
-  /// <summary>Logs on the given user, returning the corresponding user token.</summary>
-  static IntPtr LogonUser(string domain, string userName, SecureString password, LoginType loginType)
-  {
-    ValidateLogonArguments(domain, userName, password);
-    IntPtr handle, passwordStr = IntPtr.Zero;
-    int logonType = GetNTLogonType(loginType);
-    try
-    {
-      passwordStr = Marshal.SecureStringToGlobalAllocUnicode(password);
-      if(!LogonUser(userName, domain, passwordStr, logonType, LOGON32_PROVIDER_DEFAULT, out handle)) throw new Win32Exception();
-    }
-    finally
-    {
-      if(passwordStr != IntPtr.Zero) Marshal.ZeroFreeGlobalAllocUnicode(passwordStr);
-    }
-    return handle;
   }
 
   static void Run(WindowsIdentity identity, Action code, bool runInANewThread)
@@ -323,19 +341,19 @@ public sealed class Impersonation : IDisposable
   const int LOGON32_LOGON_INTERACTIVE = 2, LOGON32_LOGON_NETWORK = 3, LOGON32_LOGON_BATCH = 4, LOGON32_LOGON_SERVICE = 5;
   const int LOGON32_PROVIDER_DEFAULT = 0;
 
-  [DllImport("advapi32.dll", SetLastError=true)]
-  [return: MarshalAs(UnmanagedType.Bool)]
-  static extern bool LogonUser(string userName, string domain, string password, int logonType, int logonProvider,
-                               out IntPtr userToken);
-
-  [DllImport("advapi32.dll", SetLastError=true)]
-  [return: MarshalAs(UnmanagedType.Bool)]
-  static extern bool LogonUser(string userName, string domain, IntPtr password, int logonType, int logonProvider,
-                               out IntPtr userToken);
-
   [DllImport("kernel32.dll", ExactSpelling=true)]
   [return: MarshalAs(UnmanagedType.Bool)]
   static extern bool CloseHandle(IntPtr handle);
+
+  [DllImport("advapi32.dll", SetLastError=true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  static extern bool LogOnUser(string userName, string domain, string password, int logonType, int logonProvider,
+                               out IntPtr userToken);
+
+  [DllImport("advapi32.dll", SetLastError=true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  static extern bool LogOnUser(string userName, string domain, IntPtr password, int logonType, int logonProvider,
+                               out IntPtr userToken);
 }
 #endregion
 
