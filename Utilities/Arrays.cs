@@ -50,8 +50,16 @@ public class ArrayBuffer<T> : ICollection<T>
   /// </summary>
   public T this[int logicalIndex]
   {
-    get { return Buffer[Offset + logicalIndex]; }
-    set { Buffer[Offset + logicalIndex] = value; }
+    get
+    {
+      System.Diagnostics.Debug.Assert(logicalIndex >= 0 && logicalIndex < Count);
+      return Buffer[Offset + logicalIndex]; 
+    }
+    set
+    {
+      System.Diagnostics.Debug.Assert(logicalIndex >= 0 && logicalIndex < Count);
+      Buffer[Offset + logicalIndex] = value;
+    }
   }
 
   /// <summary>Gets the buffer containing the data. The data is stored in a range starting from <see cref="Offset"/> and extending
@@ -196,7 +204,9 @@ public class ArrayBuffer<T> : ICollection<T>
 
   /// <summary>Returns a reference to the buffer after ensuring that there is enough space at the end to hold the given number of
   /// additional items. This method may enlarge the buffer or shift data within it to ensure that there is sufficient space
-  /// starting from <see cref="End"/> (which the method may also change) to hold the given number of items.
+  /// starting from <see cref="End"/> (which the method may also change) to hold the given number of new items. This method does
+  /// not assume the items will be added and so does not update <see cref="Count"/>. You must call <see cref="AddCount"/> later
+  /// if you add items to the array.
   /// </summary>
   /// <param name="elementsToAdd">The number of items that are expected to be added to the array.</param>
   public T[] GetArrayForWriting(int elementsToAdd)

@@ -41,7 +41,7 @@
           inconsistency can only be resolved by restarting an enclosing transaction. In that case, aborting the nested
           transaction could lead to an infinite loop where the transaction restarts but can never escape the inconsistency.
           This type of inconsistency should be "safe" in that it should not impact the behavior of the nested transaction, so
-          the nested transaction will be allowed to commit successfull, but the enclosing transaction will eventually abort.
+          the nested transaction will be allowed to commit successfully, but the enclosing transaction will eventually abort.
         </para>
         <para>
           Calling this method can incur a significant performance penalty. If inconsistency would merely lead to the transaction
@@ -113,6 +113,7 @@ using(STMTransaction tx = STMTransaction.Create())
       </summary>
     </ReadWithoutOpening>
     <Retry>
+      <param name="options"><see cref="STMOptions" /> to use when creating the transaction.</param>
       <remarks>If <see cref="TransactionAbortedException"/> is thrown from the delegate, it will cause the transaction to be
       restarted. If another type of exception is thrown, a consistency check will be done. If the transaction is consistent,
       the exception will be considered to be legitimate and will be rethrown. If the consistency check fails, the exception will
@@ -123,6 +124,7 @@ using(STMTransaction tx = STMTransaction.Create())
       <param name="timeoutMs">The amount of time, in milliseconds, before the method will stop retrying the code. If
         <see cref="Timeout.Infinite"/> is given, the method will only stop when the delegate succeeds.
       </param>
+      <param name="options"><see cref="STMOptions" /> to use when creating the transaction.</param>
       <remarks>
         If <see cref="TransactionAbortedException"/> is thrown from the delegate, it will cause the transaction to be
         restarted. If another type of exception is thrown, a consistency check will be done. If the transaction is consistent,

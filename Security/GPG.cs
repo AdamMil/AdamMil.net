@@ -1103,8 +1103,7 @@ public class ExeGPG : GPG
       if(options.Password != null && options.Password.Length != 0)
       {
         cmd.Process.StandardInput.Write("Passphrase: ");
-        SecurityUtility.ProcessSecureString(options.Password,
-                                            delegate(char[] chars) { cmd.Process.StandardInput.WriteLine(chars); });
+        options.Password.Process(delegate(char[] chars) { cmd.Process.StandardInput.WriteLine(chars); });
       }
 
       // GPG doesn't allow separate expiration dates for the primary key and subkey during key creation, so we'll
@@ -1682,8 +1681,7 @@ public class ExeGPG : GPG
       }
       else
       {
-        SecurityUtility.ProcessSecureString(password,
-          delegate(byte[] bytes) { commandStream.Write(bytes, 0, bytes.Length); });
+        password.Process(delegate(byte[] bytes) { commandStream.Write(bytes, 0, bytes.Length); });
         commandStream.WriteByte((byte)'\n'); // the password must be EOL-terminated for GPG to accept it
         commandStream.Flush();
       }

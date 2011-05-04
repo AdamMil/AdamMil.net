@@ -516,6 +516,14 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     throw new NotSupportedException(); // throw an exception if the character didn't fit within 16 bytes
   }
 
+  /// <summary>Reads a <see cref="DateTime"/> object from the binary reader. The <see cref="DateTime"/> is assumed to have been
+  /// written with <see cref="BinaryWriter.Write(DateTime)"/>.
+  /// </summary>
+  public DateTime ReadDateTime()
+  {
+    return new DateTime(ReadInt64(), (DateTimeKind)ReadByte());
+  }
+
   /// <summary>Reads a variable-length signed integer from the stream.</summary>
   public int ReadEncodedInt32()
   {
@@ -708,6 +716,21 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
       count -= charsRead;
     }
     return totalRead;
+  }
+
+  /// <summary>Reads an array of <see cref="DateTime"/> objects from the stream.</summary>
+  public DateTime[] ReadDateTimes(int count)
+  {
+    DateTime[] data = new DateTime[count];
+    ReadDateTimes(data, 0, count);
+    return data;
+  }
+
+  /// <summary>Reads an array of <see cref="DateTime"/> objects from the stream.</summary>
+  public void ReadDateTimes(DateTime[] array, int index, int count)
+  {
+    Utility.ValidateRange(array, index, count);
+    for(int end=index+count; index < end; index++) array[index] = ReadDateTime();
   }
 
   /// <summary>Reads an array of <see cref="Guid"/> objects from the stream.</summary>
@@ -1442,6 +1465,51 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
       }
     }
     return spaceNeeded;
+  }
+
+  /// <summary>Writes a <see cref="DateTime"/> to the stream as an sequence of 7 bytes. The <see cref="DateTime"/> may later be
+  /// read with <see cref="BinaryReader.ReadDateTime"/>.
+  /// </summary>
+  public void Write(DateTime dateTime)
+  {
+    Write(dateTime.Ticks);
+    Write((byte)dateTime.Kind);
+  }
+
+  /// <summary>Writes an array of <see cref="DateTime"/> objects to the stream.</summary>
+  public void Write(DateTime[] dateTimes)
+  {
+    if(dateTimes == null) throw new ArgumentNullException();
+    Write(dateTimes, 0, dateTimes.Length);
+  }
+
+  /// <summary>Writes an array of <see cref="DateTime"/> objects to the stream.</summary>
+  public void Write(DateTime[] dateTimes, int index, int count)
+  {
+    Utility.ValidateRange(dateTimes, index, count);
+    for(int end = index+count; index < end; index++) Write(dateTimes[index]);
+  }
+
+  /// <summary>Writes a <see cref="Guid"/> to the stream as an sequence of 16 bytes. The <see cref="Guid"/> may later be read
+  /// with <see cref="BinaryReader.ReadGuid"/>.
+  /// </summary>
+  public void Write(Guid guid)
+  {
+    Write(guid.ToByteArray());
+  }
+
+  /// <summary>Writes an array of <see cref="Guid"/> objects to the stream.</summary>
+  public void Write(Guid[] guids)
+  {
+    if(guids == null) throw new ArgumentNullException();
+    Write(guids, 0, guids.Length);
+  }
+
+  /// <summary>Writes an array of <see cref="Guid"/> objects to the stream.</summary>
+  public void Write(Guid[] guids, int index, int count)
+  {
+    Utility.ValidateRange(guids, index, count);
+    for(int end = index+count; index < end; index++) Write(guids[index]);
   }
 
   /// <summary>Writes an array of signed two-byte integers to the stream.</summary>

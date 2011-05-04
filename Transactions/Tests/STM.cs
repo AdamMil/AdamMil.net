@@ -285,6 +285,21 @@ public class STMTests
     }
     AssertEqual(a, 10);
 
+    // test that ignoring system transactions is inherited
+    using(STMTransaction otx = STMTransaction.Create(STMOptions.IgnoreSystemTransaction))
+    {
+      using(new TransactionScope())
+      {
+        using(STMTransaction tx = STMTransaction.Create())
+        {
+          a.Set(1);
+          tx.Commit();
+        }
+      }
+      otx.Commit();
+    }
+    AssertEqual(a, 1);
+
     // test post-commit actions
     int ntValue = 0;
 
@@ -413,8 +428,16 @@ public class STMTests
     TransactionalVariable<int> a = STM.Allocate<int>(), b = STM.Allocate<int>();
     using(STMTransaction tx = STMTransaction.Create(STMOptions.EnsureConsistency))
     {
+      Assert.IsTrue(tx.EnsureConsistency);
       a.Read();
+      Assert.IsTrue(a.IsConsistent());
+      Assert.IsTrue(tx.IsConsistent());
+      a.CheckConsistency();
       TestHelpers.RunInAnotherThread(delegate { STM.Retry(delegate { a.Set(1); }); });
+      Assert.IsFalse(a.IsConsistent());
+      Assert.IsFalse(tx.IsConsistent());
+      TestHelpers.TestException<TransactionAbortedException>(delegate { a.CheckConsistency(); });
+      TestHelpers.TestException<TransactionAbortedException>(delegate { tx.CheckConsistency(); });
       TestHelpers.TestException<TransactionAbortedException>(delegate { b.Read(); });
     }
 

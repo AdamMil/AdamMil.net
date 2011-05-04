@@ -21,23 +21,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // this is a software transactional memory (STM) system based on the ideas (particularly OSTM) laid out in the paper "Concurrent
 // programming without locks" [Fraser and Harris, 2007]. the system should be lock-free, meaning that it is free from deadlock
 // and livelock, and a transaction should be guaranteed to eventually commit if it is retried enough times. the system also
-// incorporates features based on the Haskell STM system originally described in "Composable Memory Transactions" [Harris,
-// Marlow, Jones, and Herlihy, 2006], such as nested transactions, automatic retry, and orElse composition. finally, the system
-// integrates with the .NET System.Transactions framework.
+// incorporates nested transactions. finally, the system integrates with the .NET System.Transactions framework, although while
+// doing so, lock-freedom must be suspended at a certain point to match the System.Transactions model, which doesn't really
+// support obstruction clearing.
 //
-// the basic ideas come from those papers, but unfortunately they don't give complete implementation descriptions. (for instance
-// the Fraser paper handwaves away nested transactions and assumes single-phase commit, while the Haskell paper contains only a
-// brief textual description of the implementation, which is tied to Concurrent Haskell runtime implementation details.)
-// additionally, Fraser's system is not very amenable to the inclusion of fancy features from the Haskell STM or to integration
-// with System.Transactions, so i've modified it substantially. hopefully i haven't broken the design too much.
+// the basic ideas come from that papers, but unfortunately it doesn't give complete a implementation description. for instance,
+// the paper handwaves away nested transactions and assumes single-phase commit. additionally, it's not very amenable to the
+// inclusion of fancy features from the Haskell STM or to integration with System.Transactions, so i've modified it somewhat
 //
 // the system allows the possibility that a transaction can read inconsistent state. this is a common problem with STM
 // implementations, and in a system like this one, where transactions can help each other commit, it seems difficult to fix
 // without adverse effects on either performance or transaction commit rate. a transaction that has read inconsistent state would
 // eventually abort itself, but it's possible for the inconsistent state to cause unpredictable behavior if the transaction is
 // not written with that possibility in mind. to address this, i've done the following:
-// * added a way to manually check consistency during a transaction, and an option to automatically check it after each variable
-//   is opened. the automatic check is not enabled by default due to the fact that it incurs a substantial performance penalty
+// * added a way to manually check consistency during a transaction, to establish that the transaction has been consistent so far
+// * added an option to automatically check consistency after each variable is opened. this eliminates the possibility of viewing
+//   inconsistent state, at the cost of a substantial performance penalty
 // * made STM.Retry() use a consistency check to see if an exception thrown from the transaction may have been caused by
 //   inconsistency. if so, the transaction is retried, and if not, the exception is propagated
 
@@ -91,27 +90,63 @@ public static class STM
   }
 
   /// <summary>Executes an action until it successfully commits in a transaction.</summary>
-  /// <include file="documentation.xml" path="TX/STM/Retry/*"/>
+  /// <include file="documentation.xml" path="TX/STM/Retry/*[@name != 'options']"/>
   public static void Retry(Action action)
   {
-    Retry(action, Timeout.Infinite);
+    Retry(action, Timeout.Infinite, STMOptions.Default);
+  }
+
+  /// <summary>Executes an action until it successfully commits in a transaction.</summary>
+  /// <param name="action">The action to execute.</param>
+  /// <include file="documentation.xml" path="TX/STM/Retry/*"/>
+  public static void Retry(Action action, STMOptions options)
+  {
+    Retry(action, Timeout.Infinite, options);
+  }
+
+  /// <summary>Executes an action until it successfully commits in a transaction, or until the given time limit has elapsed.</summary>
+  /// <param name="action">The action to execute.</param>
+  /// <include file="documentation.xml" path="TX/STM/RetryWithTimeout/*[@name != 'options']"/>
+  public static void Retry(Action action, int timeoutMs)
+  {
+    Retry(action, timeoutMs, STMOptions.Default);
   }
 
   /// <summary>Executes an action until it successfully commits in a transaction, or until the given time limit has elapsed.</summary>
   /// <param name="action">The action to execute.</param>
   /// <include file="documentation.xml" path="TX/STM/RetryWithTimeout/*"/>
-  public static void Retry(Action action, int timeoutMs)
+  public static void Retry(Action action, int timeoutMs, STMOptions options)
   {
-    Retry((Func<object>)delegate { action(); return null; }, timeoutMs);
+    Retry((Func<object>)delegate { action(); return null; }, timeoutMs, options);
   }
 
   /// <summary>Executes a function until it successfully commits in a transaction. The value returned from the function in the
   /// first successful transaction will then be returned.
   /// </summary>
-  /// <include file="documentation.xml" path="TX/STM/Retry/*"/>
+  /// <include file="documentation.xml" path="TX/STM/Retry/*[@name != 'options']"/>
   public static T Retry<T>(Func<T> function)
   {
-    return Retry(function, Timeout.Infinite);
+    return Retry(function, Timeout.Infinite, STMOptions.Default);
+  }
+
+  /// <summary>Executes a function until it successfully commits in a transaction. The value returned from the function in the
+  /// first successful transaction will then be returned.
+  /// </summary>
+  /// <param name="function">The function to execute.</param>
+  /// <include file="documentation.xml" path="TX/STM/Retry/*"/>
+  public static T Retry<T>(Func<T> function, STMOptions options)
+  {
+    return Retry(function, Timeout.Infinite, options);
+  }
+
+  /// <summary>Executes a function until it successfully commits in a transaction, or until the given time limit has elapsed.
+  /// The value returned from the function in the first successful transaction will then be returned.
+  /// </summary>
+  /// <param name="function">The function to execute.</param>
+  /// <include file="documentation.xml" path="TX/STM/RetryWithTimeout/*[@name != 'options']"/>
+  public static T Retry<T>(Func<T> function, int timeoutMs)
+  {
+    return Retry(function, timeoutMs, STMOptions.Default);
   }
 
   /// <summary>Executes a function until it successfully commits in a transaction, or until the given time limit has elapsed.
@@ -119,14 +154,14 @@ public static class STM
   /// </summary>
   /// <param name="function">The function to execute.</param>
   /// <include file="documentation.xml" path="TX/STM/RetryWithTimeout/*"/>
-  public static T Retry<T>(Func<T> function, int timeoutMs)
+  public static T Retry<T>(Func<T> function, int timeoutMs, STMOptions options)
   {
     if(function == null) throw new ArgumentNullException();
     Stopwatch timer = timeoutMs == Timeout.Infinite ? null : Stopwatch.StartNew();
     int delay = 1;
     do
     {
-      STMTransaction tx = STMTransaction.Create();
+      STMTransaction tx = STMTransaction.Create(options);
       try
       {
         T value = function();
@@ -136,7 +171,7 @@ public static class STM
       catch(TransactionAbortedException) { }
       catch
       {
-        // if the transaction has seen a consistent view of memory, then consider the exception to be legitimate
+        // if the transaction has seen a consistent view of memory, then consider the exception to be legitimate and rethrow it
         if(tx.IsConsistent()) throw;
       }
       finally { tx.Dispose(); }
@@ -164,7 +199,7 @@ public static class STM
 /// structure directly rather than requiring an <see cref="ICloneable"/> implementation.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
-public class STMImmutableAttribute : Attribute
+public sealed class STMImmutableAttribute : Attribute
 {
 }
 #endregion
@@ -224,6 +259,23 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   {
     this.systemTransaction = systemTransaction;
     systemTransaction.EnlistVolatile(this, EnlistmentOptions.None);
+  }
+
+  /// <summary>Gets or sets whether consistency will be checked after each variable is opened, in order to ensure that the
+  /// transaction always sees a consistent view of memory. The default is false. This option incurs a substantial performance
+  /// penalty, and it's recommended to avoid it and call <see cref="STMTransaction.CheckConsistency"/> manually where consistency
+  /// is required, or better yet, write write your transactions so that they can tolerate inconsistency. See <see
+  /// cref="STMTransaction.CheckConsistency"/> for details.
+  /// </summary>
+  /// <include file="documentation.xml" path="TX/STM/ConsistencyRemarks/*" />
+  public bool EnsureConsistency
+  {
+    get { return (options & STMOptions.EnsureConsistency) != 0; }
+    set
+    {
+      if(value) options |= STMOptions.EnsureConsistency;
+      else options &= ~STMOptions.EnsureConsistency;
+    }
   }
 
   /// <exception cref="InvalidOperationException">Thrown if the transaction is no longer active.</exception>
@@ -316,6 +368,10 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   {
     STMTransaction transaction = Current;
 
+    // inherit the IgnoreSystemTransaction option from enclosing transactions
+    // TODO: test this
+    if(transaction != null) options |= transaction.options & STMOptions.IgnoreSystemTransaction;
+
     // if there's a current system transaction, enlist in it if we haven't already done so and aren't ignoring it
     Transaction systemTransaction = (options & STMOptions.IgnoreSystemTransaction) != 0 ? null : Transaction.Current;
     if(systemTransaction != null)
@@ -340,6 +396,21 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     return transaction;
   }
 
+  internal bool IsConsistent(TransactionalVariable variable)
+  {
+    // see IsConsistent(bool) for details
+    object value;
+    if(readLog != null && readLog.TryGetValue(variable, out value)) return GetCommittedValue(variable) == value;
+
+    WriteEntry entry;
+    if(writeLog != null && writeLog.TryGetValue(variable, out entry))
+    {
+      return !IsOpenInEnclosure(variable) && GetCommittedValue(variable) == entry.OldValue;
+    }
+
+    return true;
+  }
+
   internal object OpenForRead(TransactionalVariable variable)
   {
     AssertActive();
@@ -356,7 +427,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     // if no log entry exists, get the committed value of the variable, add it to the read log, and return it
     value = GetCommittedValue(variable);
     // if we're supposed to check consistency, do it before adding the log entry because the new entry needn't be checked
-    if((options & STMOptions.EnsureConsistency) != 0) CheckConsistency();
+    if(EnsureConsistency) CheckConsistency();
     if(readLog == null) readLog = new Dictionary<TransactionalVariable, object>();
     readLog.Add(variable, value);
     return value;
@@ -400,6 +471,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
 
   internal void Release(TransactionalVariable variable)
   {
+    AssertActive();
     // try removing it from the read log first, since a released variable is almost certain to have been opened in read-only
     // mode, and if it's not found there, then try removing it from the write log
     if((readLog == null || !readLog.Remove(variable)) && writeLog != null) writeLog.Remove(variable);
@@ -494,7 +566,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     if(transaction == null) entry.OldValue = GetCommittedValue(variable);
 
     // if we're supposed to check consistency, do it before adding the log entry because the new entry needn't be checked
-    if((options & STMOptions.EnsureConsistency) != 0) CheckConsistency();
+    if(EnsureConsistency) CheckConsistency();
 
     // set the new value. if we don't have one, clone the old value into a private copy to create the new value
     entry.NewValue = useNewValue ? newValue : variable.Clone(entry.OldValue);
@@ -898,8 +970,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   /// <summary>A queue holding actions to be executed after a successful top-level commit, or null if none have been enqueued.</summary>
   Queue<Action> postCommitActions;
   int preparedStatus, status;
-  /// <summary>The <see cref="STMOptions"/> used to create the transaction.</summary>
-  readonly STMOptions options;
+  STMOptions options;
   bool removedFromStack;
 
   static int TryUpdateStatus(ref int status, int newStatus)
@@ -931,6 +1002,24 @@ public abstract class TransactionalVariable
   {
     id    = (ulong)Interlocked.Increment(ref idCounter);
     value = initialValue;
+  }
+
+  /// <summary>Checks that this variable hasn't been changed by another transaction since it was opened. If it has, a
+  /// <see cref="TransactionAbortedException"/> will be thrown.
+  /// </summary>
+  /// <include file="documentation.xml" path="TX/STM/ConsistencyCheckRemarks/*" />
+  /// <exception cref="InvalidOperationException">Thrown if there is no current, active transaction.</exception>
+  public void CheckConsistency()
+  {
+    if(!IsConsistent()) throw new TransactionAbortedException();
+  }
+
+  /// <summary>Checks that this variable hasn't been changed by another transaction since it was opened.</summary>
+  /// <include file="documentation.xml" path="TX/STM/ConsistencyCheckRemarks/*" />
+  /// <exception cref="InvalidOperationException">Thrown if there is no current, active transaction.</exception>
+  public bool IsConsistent()
+  {
+    return GetTransaction().IsConsistent(this);
   }
 
   /// <include file="documentation.xml" path="TX/STM/OpenForWrite/*" />
@@ -966,39 +1055,92 @@ public abstract class TransactionalVariable
   /// method releases the variable regardless of how many times it has been opened in the same transaction. That is to say, the
   /// variables are not reference counted.
   /// </para>
-  /// <para>As an example, imagine a sorted linked list A -> B -> D -> E. If C is inserted between B and D, then B will need to
-  /// be updated. This change may cause a transaction that is searching for E to abort because it opened the preceding items
-  /// (including B) for read access. However, the insertion and the search are not actually in conflict. Releasing variables to
-  /// avoid this kind of false conflict can greatly increase scalability. The solution is the following:
+  /// <para>As an example, imagine a sorted linked list <c>A -> B -> D -> E</c>. If C is inserted, then B will need to be
+  /// updated. This change will cause a transaction that is searching for E to abort if it opened the preceding items (including
+  /// B) for read access. However, the insertion and the search are not actually in conflict. Releasing variables to avoid this
+  /// kind of false conflict can greatly increase scalability. The solution is the following:
   /// <list type="bullet">
-  ///   <item><description>A transaction searching for an item need only keep the node currently being checked and the previous
-  ///   node open for reading. Nodes before that can be released.
-  ///   </description></item>
+  ///   <item><description>A transaction searching for an item need only keep the node currently being checked open for reading.</description></item>
   ///   <item><description>A transaction inserting an item needs to keep the node being modified open for writing and the
-  ///   previous node open for reading. (While searching for the place to insert the item, it can follow the searching behavior
-  ///   described above.)
+  ///   previous node open for reading. (While searching for the place to insert the item, it should keep the current and
+  ///   previous nodes open for reading.)
   ///   </description></item>
   ///   <item><description>A transaction removing an item needs to have both the node being removed and the previous node open
   ///   for writing, but can release items before that.
   ///   </description></item>
   /// </list>
-  /// To see that this solution is correct, first consider what is needed for a search. If a search finds an item, it should
-  /// still exist within the list at the point that the search transaction commits. That is, it must not have been removed. When
-  /// a node is removed from a linked list, it and/or the previous node must be modified. By keeping the found node and the
-  /// previous node open for read access, a search ensures that neither have been modified, and therefore the node could not have
-  /// been removed. Similarly, if a search doesn't find an item, it should not exist in the list at the time the search commits.
-  /// Since the list is sorted, the search would stop as soon as it finds an item greater than the search key. Since the previous
-  /// node must have been less than the search key, the key must be inserted between those two nodes in order to add it to the
-  /// list. To do this, the lesser node must be modified, but since it's held open by the search, it cannot be.
+  /// This key concept in determining whether two operations really conflict is linearizability. Note that under this scheme, a
+  /// search may begin for C, and concurrently, C may be inserted into the list. If the insert method returns before the search
+  /// method, the search may report that nothing was found, despite C existing when the search returned! Graphically, the
+  /// overlapping operations may look like this:
+  /// <code>
+  /// [Insert(C).............]
+  /// .....[Search(C)..............]:false
+  /// </code>
+  /// However, this behavior is not incorrect. An operation is atomic if, over the course of its execution, there is a point when
+  /// it appears to complete instantaneously, and crucially, that point does not have to be at the end of the operation. Consider
+  /// the call sequence again, with possible linearization points (i.e. points when the operations appear to complete atomically)
+  /// represented using pipe characters:
+  /// <code>
+  /// [Insert(C)...........|.]
+  /// .....[Search(C).|............]:false
+  /// </code>
+  /// Now you can see that indeed the search could have linearized (i.e. completed) before the insertion. Even if the search did
+  /// not in fact complete first, that is irrelevant. All that matters is that it is possible to place linearization points such
+  /// that the results would be valid. More formally, a history -- a series of operation invocations and responses -- is
+  /// sequential if the corresponding response for each invocation comes immediately after it in the history, and a history is
+  /// linearizable if it can be reordered to form a sequential history, and that history is valid according to the definitions of
+  /// the operations, and any response which preceded an invocation in the original history still precedes it in the reordered
+  /// history. The history for the above sequence is: <c>Insert(C), Search(C), Insert returns, Search returns false</c>. It is
+  /// possible to reorder this history into a linearization: <c>Search(C), Search returns false, Insert(C), Insert returns</c>,
+  /// and therefore it is a valid result. (Note that <c>Insert(C), Insert returns, Search(C), Search returns false</c> is another
+  /// possible serialization, but is not valid according to the definition of the operations, so it is not a linearization.)
+  /// Because there exists at least one linearization of the history, the history is transactionally valid. This process of
+  /// reordering histories is equivalent to the process of choosing linearization points in a graphical representation of the
+  /// overlapping operations.
   /// </para>
-  /// <para>Next, consider what is needed for an insertion to succeed. The node before the one being inserted must not be removed
-  /// or modified. Ensuring this works the same way as for the search. Finally, consider what is necessary for a removal to
-  /// succeed. The node being removed and/or the previous node must be modified, and the subsequent node must not be removed, and
-  /// nothing can be inserted immediately after the previous node or the node to be removed. Opening both the node to remove and
-  /// the previous node for write access ensures both of these conditions. If the next node was removed or something was inserted
+  /// <para>
+  /// The linearizability of the operations is what must be maintained when releasing variables as an optimization, not the exact
+  /// linearization points. A data structure remains linearizable as long as all valid histories can be linearized. For a given
+  /// structure, this is difficult to prove, but for our sorted linked list example, we can take an informal approach. First
+  /// consider what is needed for a search. For a search to not find an item, all that matters is that there was a point during
+  /// the search at which the item didn't exist. (It can be considered to have linearized at that point.) Only if the item
+  /// existed for the entire time must the search return it, so what we have to show is that if the item exists the entire time,
+  /// then the search will find it. The search algorithm would only fail to find it if it's prevented from reaching the item, and
+  /// as normally written that would only happen if the current node is changed, preventing the search from getting to the next
+  /// item. To prevent this, it suffices to keep the current node open, because changing a node requires modifying it. Note that
+  /// search that occurs during insertion and removal (to find the insertion point or node to remove) must keep the previous node
+  /// open as well, because insertion cannot have the insertion point disappear after it's found, and removal must be able to
+  /// modify the previous node.
+  /// </para>
+  /// <para>Next, consider what is needed for an insertion to succeed. The nodes before one being inserted (i.e. B
+  /// in A -> B -> D when inserting C) must not be removed or modified, and the node after (i.e. D) must not be deleted.
+  /// Protecting B from deletion is accomplished by keeping A open. Protecting B from modification and D from removal are
+  /// accomplished by keeping B open, so again only two nodes need to be kept open. Finally, consider what is necessary for
+  /// removal to succeed. The node being removed and/or the previous node must be modified, and the subsequent node must not be
+  /// removed, and nothing can be inserted immediately after the previous node or the node to be removed. Opening both the node
+  /// to remove and the previous node ensures both of these conditions. If the next node was removed or something was inserted
   /// after the node being removed, it would require the modification of the node being removed, which is prevented by it being
   /// kept open. If something was to be inserted after the previous node, the previous node would need to be modified, and
   /// keeping it open prevents that. Therefore, all three operations can be supported by keeping only two nodes open at a time.
+  /// </para>
+  /// <para>Note that this analysis is only valid for a sorted structure. In a sorted linked list, seeing B -> D is enough to
+  /// conclude that C does not exist, but in a regular linked list, or an array, C could be inserted anywhere. Consider a search
+  /// for C in the following array: <c>J, B, F, C</c>, and the following history:
+  /// <code>
+  /// [Search(C).0..............1............2..............3.........]:false
+  /// ..............[Set(0,C)]..................[Set(3,N)]
+  /// </code>
+  /// The item C exists the entire time, but a search that only keeps a small window open can miss it and report that it doesn't
+  /// exist. More formally, this history is not linearizable: <c>Search(C), Set(0,C), Set(0,C) returns, Set(3,N), Set(3,N)
+  /// returns, Search(C) returns false</c>. It can be serialized: <c>Search(C), Search(C) returns false, Set(0,C), Set(0,C)
+  /// returns, Set(3,N), Set(3,N) returns</c>, however this is not valid because Search(C) should have returned true in this
+  /// history. Therefore, a search over an unordered structure must be capable of detecting changes that insert the searched-for
+  /// item prior to current item that the search is examining. In other words, a search that doesn't find an item in an
+  /// unordered structure must check the consistency of every item when it commits. But if the search finds the item, it can then
+  /// release all other items, because changes to them couldn't affect the conclusion that the item existed somewhere.
+  /// </para>
+  /// <para>
   /// This type of analysis may quickly grow complex, but is necessary to ensure correct usage of this method. If in doubt, don't
   /// release your variables.
   /// </para>
