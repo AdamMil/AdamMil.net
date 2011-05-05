@@ -33,7 +33,6 @@ namespace AdamMil.Mathematics.Random
 public static class CollectionExtensions
 {
   /// <summary>Returns a random item from the list.</summary>
-  [CLSCompliant(false)]
   public static T SelectRandom<T>(this IList<T> list, RandomNumberGenerator random)
   {
     if(list == null || random == null) throw new ArgumentNullException();
@@ -65,14 +64,6 @@ public static class CollectionExtensions
 ///   <description>Faster than KISS</description>
 /// </item>
 /// <item>
-///   <term>CMWC4096</term>
-///   <description>0.48</description>
-///   <description>16 kb</description>
-///   <description>2^131086</description>
-///   <description>Good</description>
-///   <description>Huge period. Significant startup time</description>
-/// </item>
-/// <item>
 ///   <term>ISAAC</term>
 ///   <description>0.36</description>
 ///   <description>2 kb</description>
@@ -94,7 +85,7 @@ public static class CollectionExtensions
 ///   <description>1 kb</description>
 ///   <description>2^8222</description>
 ///   <description>Good</description>
-///   <description>Large period. Significant startup time</description>
+///   <description>Huge period. Significant startup time</description>
 /// </item>
 /// <item>
 ///   <term>XorShift128</term>
@@ -106,7 +97,6 @@ public static class CollectionExtensions
 /// </item>
 /// </list>
 /// </remarks>
-[CLSCompliant(false)]
 [Serializable]
 public abstract class RandomNumberGenerator
 {
@@ -195,14 +185,20 @@ public abstract class RandomNumberGenerator
     return result;
   }
 
+  #pragma warning disable 3011 // only CLS compliant methods can be abstract
   /// <include file="documentation.xml" path="//Math/RNG/NextUint32/*"/>
+  // we're going to lie about the CLS compliance of this class because it's used everywhere, and is still useable. it's only that
+  // people may not be able to create their own random number generators
+  [CLSCompliant(false)]
   public abstract uint NextUint32();
+  #pragma warning restore 3011
 
   /// <summary>Generates and returns a random 64-bit unsigned integer.</summary>
   /// <remarks>The default implementation combines two 32-bit numbers returned from <see cref="NextUint32"/> into a single 64-bit
   /// number. If the generator implementation is natively capable of generating a 64-bit output, you may want to override this
   /// method to make use of that ability.
   /// </remarks>
+  [CLSCompliant(false)]
   public virtual unsafe ulong NextUint64()
   {
     ulong n;
@@ -286,6 +282,7 @@ public abstract class RandomNumberGenerator
   }
 
   /// <summary>Creates a new <see cref="RandomNumberGenerator"/> of the all-around best general-purpose type in the library.</summary>
+  [CLSCompliant(false)]
   public static RandomNumberGenerator CreateDefault(uint[] seed)
   {
     return new KISSRNG(seed);
@@ -298,6 +295,7 @@ public abstract class RandomNumberGenerator
   }
 
   /// <summary>Creates a new <see cref="RandomNumberGenerator"/> of the fastest type available in the library.</summary>
+  [CLSCompliant(false)]
   public static RandomNumberGenerator CreateFastest(uint[] seed)
   {
     return new XorShift128RNG(seed);
@@ -312,6 +310,7 @@ public abstract class RandomNumberGenerator
   /// <summary>Returns a 64-bit seed based on the current time (both real-world time and an internal timer), as an array of four
   /// uints.
   /// </summary>
+  [CLSCompliant(false)]
   protected static uint[] MakeTimeBasedSeed()
   {
     if(timer == null)
@@ -344,7 +343,6 @@ public abstract class RandomNumberGenerator
 /// replaced with an add-with-carry component. The result is a very fast random number generator that generates numbers with a
 /// constant time per number and uses very little memory, while maintaining fairly good quality. It has a period of about 2^121.
 /// </summary>
-[CLSCompliant(false)]
 [Serializable]
 public sealed class AWCKISSRNG : RandomNumberGenerator
 {
@@ -360,6 +358,7 @@ public sealed class AWCKISSRNG : RandomNumberGenerator
   /// unsigned integers are used). If <paramref name="seed"/> is null or empty, a constant, default seed will be used. Note that
   /// the seed array should not contain zeros, as these may be ignored.
   /// </summary>
+  [CLSCompliant(false)]
   public AWCKISSRNG(uint[] seed)
   {
     X = 123456789;
@@ -377,6 +376,7 @@ public sealed class AWCKISSRNG : RandomNumberGenerator
   }
 
   /// <include file="documentation.xml" path="//Math/RNG/NextUint32/*"/>
+  [CLSCompliant(false)]
   public override uint NextUint32()
   {
     X += 1411392427;
@@ -417,84 +417,6 @@ public sealed class AWCKISSRNG : RandomNumberGenerator
 }
 #endregion
 
-#region CMWC4096RNG
-/// <summary>Implements the CMWC4096 random number generator by George Marsaglia. The generator is quite fast with good
-/// randomness, and generates numbers in a constant time per number, but uses about 16 kb of memory. The primary benefit of
-/// this generator is its huge period of 2^131086.
-/// </summary>
-[CLSCompliant(false)]
-[Serializable]
-public sealed class CMWC4096RNG : RandomNumberGenerator
-{
-  // adapted from http://groups.google.com/group/comp.soft-sys.math.mathematica/msg/95a94c3b2aa5f077
-
-  /// <include file="documentation.xml" path="//Math/RNG/SeedSize/*"/>
-  public const int SeedSize = 4096;
-
-  /// <summary>Initializes a new <see cref="CMWC4096RNG"/> random number generator with a seed based on the current time.</summary>
-  public CMWC4096RNG() : this(MakeTimeBasedSeed()) { }
-
-  /// <summary>Initializes a new <see cref="CMWC4096RNG"/> random number generator with the given seed (from which up to 4096
-  /// unsigned integers are used). If <paramref name="seed"/> is null, a constant, default seed will be used. The elements of the
-  /// seed array should be random numbers. If at least 4096 seed numbers are given, they will be directly used as the generator's
-  /// internal state. Otherwise, the seed will be used to initialize another random number generator, which in turn will be used
-  /// to initialize the generator's internal state.
-  /// </summary>
-  public CMWC4096RNG(uint[] seed)
-  {
-    Q = new uint[4096];
-    C = 362436;
-    I = 4095;
-
-    if(seed != null && seed.Length >= Q.Length)
-    {
-      Array.Copy(seed, Q, Q.Length);
-    }
-    else
-    {
-      // fill the elements with random numbers from the XorShiftRNG generator (the fastest choice of the other RNGs)
-      XorShift128RNG rng = new XorShift128RNG(seed);
-      for(int i=0; i<Q.Length; i++) Q[i] = rng.NextUint32();
-    }
-  }
-
-  /// <include file="documentation.xml" path="//Math/RNG/NextUint32/*"/>
-  public override uint NextUint32()
-  {
-    I = (I+1) & 4095;
-    ulong t = (ulong)18782*Q[I] + C;
-    C = (uint)(t>>32);
-    uint x = (uint)t + C;
-    if(x < C)
-    {
-      x++;
-      C++;
-    }
-    return Q[I] = 0XFFFFFFFE - x;
-  }
-
-  /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/*"/>
-  protected override void LoadStateCore(BinaryReader reader)
-  {
-    Q = reader.ReadUInt32s(4096);
-    C = reader.ReadUInt32();
-    I = reader.ReadInt32();
-  }
-
-  /// <include file="documentation.xml" path="//Math/RNG/SaveStateCore/*"/>
-  protected override void SaveStateCore(BinaryWriter writer)
-  {
-    writer.Write(Q);
-    writer.Write(C);
-    writer.Write(I);
-  }
-
-  uint[] Q;
-  uint C;
-  int I;
-}
-#endregion
-
 #region ISAACRNG
 /// <summary>Implements the ISAAC random number generator. The generator was designed for cryptography and is very high quality,
 /// but is also quite fast. However, it generates results in large batches, so the time needed to get a result is very uneven,
@@ -503,7 +425,6 @@ public sealed class CMWC4096RNG : RandomNumberGenerator
 /// values, perhaps obtained by encrypting an unpredictable value with a strong block cipher. The default constructor does not
 /// seed the generator securely, since it uses a small seed based on the current time.
 /// </summary>
-[CLSCompliant(false)]
 [Serializable]
 public sealed class ISAACRNG : RandomNumberGenerator
 {
@@ -518,6 +439,7 @@ public sealed class ISAACRNG : RandomNumberGenerator
   /// <summary>Initializes a new ISAAC random number generator with the given seed (from which up to 256 unsigned integers are
   /// used). If <paramref name="seed"/> is null, a constant, default seed will be used.
   /// </summary>
+  [CLSCompliant(false)]
   public ISAACRNG(uint[] seed)
   {
     results = new uint[Size];
@@ -527,6 +449,7 @@ public sealed class ISAACRNG : RandomNumberGenerator
   }
 
   /// <include file="documentation.xml" path="//Math/RNG/NextUint32/*"/>
+  [CLSCompliant(false)]
   public override uint NextUint32()
   {
     if(resultIndex == Size) Isaac();
@@ -655,7 +578,6 @@ public sealed class ISAACRNG : RandomNumberGenerator
 /// rather than generating them in batches. It also uses very little memory and has a period greater than 2^125.
 /// <see cref="AWCKISSRNG"/> is somewhat faster than KISS, but also somewhat poorer quality.
 /// </summary>
-[CLSCompliant(false)]
 [Serializable]
 public sealed class KISSRNG : RandomNumberGenerator
 {
@@ -671,6 +593,7 @@ public sealed class KISSRNG : RandomNumberGenerator
   /// used). If <paramref name="seed"/> is null or empty, a constant, default seed will be used. Note that zeroes in the seed
   /// array may be ignored.
   /// </summary>
+  [CLSCompliant(false)]
   public KISSRNG(uint[] seed)
   {
     X = 123456789;
@@ -688,6 +611,7 @@ public sealed class KISSRNG : RandomNumberGenerator
   }
 
   /// <include file="documentation.xml" path="//Math/RNG/NextUint32/*"/>
+  [CLSCompliant(false)]
   public override uint NextUint32()
   {
     X  = 69069*X + 12345;
@@ -726,9 +650,8 @@ public sealed class KISSRNG : RandomNumberGenerator
 #region MWC256RNG
 /// <summary>Implements the MWC256 random number generator by George Marsaglia. The generator is quite fast with good randomness,
 /// and generates numbers in a constant time per number, but uses just over 1 kb of memory. The primary benefit of this generator
-/// is its large period of 2^8222.
+/// is its huge period of 2^8222 -- more than you could ever use.
 /// </summary>
-[CLSCompliant(false)]
 [Serializable]
 public sealed class MWC256RNG : RandomNumberGenerator
 {
@@ -746,6 +669,7 @@ public sealed class MWC256RNG : RandomNumberGenerator
   /// internal state. Otherwise, the seed will be used to initialize another random number generator, which in turn will be used
   /// to initialize the generator's internal state.
   /// </summary>
+  [CLSCompliant(false)]
   public MWC256RNG(uint[] seed)
   {
     Q = new uint[256];
@@ -765,6 +689,7 @@ public sealed class MWC256RNG : RandomNumberGenerator
   }
 
   /// <include file="documentation.xml" path="//Math/RNG/NextUint32/*"/>
+  [CLSCompliant(false)]
   public override uint NextUint32()
   {
     I++;
@@ -800,7 +725,6 @@ public sealed class MWC256RNG : RandomNumberGenerator
 /// generator in the library, but the lowest quality (although the quality is still quite respectable). It generates numbers in a
 /// constant amount of time, uses a very small amount of memory, and has a period of about 2^128.
 /// </summary>
-[CLSCompliant(false)]
 [Serializable]
 public sealed class XorShift128RNG : RandomNumberGenerator
 {
@@ -817,6 +741,7 @@ public sealed class XorShift128RNG : RandomNumberGenerator
   /// unsigned integers are used). If <paramref name="seed"/> is null or empty, a constant, default seed will be used. Note that
   /// the seed array should not contain all zeros.
   /// </summary>
+  [CLSCompliant(false)]
   public XorShift128RNG(uint[] seed)
   {
     X = 123456789;
@@ -834,6 +759,7 @@ public sealed class XorShift128RNG : RandomNumberGenerator
   }
 
   /// <include file="documentation.xml" path="//Math/RNG/NextUint32/*"/>
+  [CLSCompliant(false)]
   public override uint NextUint32()
   {
     uint t = X ^ (X << 11);

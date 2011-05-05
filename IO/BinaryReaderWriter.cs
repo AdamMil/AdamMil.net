@@ -77,6 +77,7 @@ public unsafe abstract class PinnedBuffer : IDisposable
   }
 
   /// <summary>Returns an unsafe pointer to the underlying buffer.</summary>
+  [CLSCompliant(false)]
   protected byte* BufferPtr
   {
     get; private set;
@@ -129,6 +130,7 @@ public unsafe abstract class PinnedBuffer : IDisposable
   /// <summary>Swaps the byte order of each word in the given data.</summary>
   /// <param name="data">A pointer to the data.</param>
   /// <param name="words">The number of two-byte words to swap.</param>
+  [CLSCompliant(false)]
   protected static void SwapEndian2(byte* data, int words)
   {
     byte* end = data + words*sizeof(ushort);
@@ -143,6 +145,7 @@ public unsafe abstract class PinnedBuffer : IDisposable
   /// <summary>Swaps the byte order of each doubleword in the given data.</summary>
   /// <param name="data">A pointer to the data.</param>
   /// <param name="dwords">The number of four-byte doublewords to swap.</param>
+  [CLSCompliant(false)]
   protected static void SwapEndian4(byte* data, int dwords)
   {
     byte* end = data + dwords*sizeof(uint);
@@ -161,6 +164,7 @@ public unsafe abstract class PinnedBuffer : IDisposable
   /// <summary>Swaps the byte order of each quadword in the given data.</summary>
   /// <param name="data">A pointer to the data.</param>
   /// <param name="qwords">The number of eight-byte quadwords to swap.</param>
+  [CLSCompliant(false)]
   protected static void SwapEndian8(byte* data, int qwords)
   {
     byte* end = data + qwords*sizeof(ulong);
@@ -404,6 +408,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// <summary>Reads a number of bytes from the stream into the given memory region.</summary>
   /// <param name="dest">A pointer to the location in memory where the data will be written.</param>
   /// <param name="nbytes">The number of bytes to read from the stream.</param>
+  [CLSCompliant(false)]
   public void Read(void* dest, int nbytes)
   {
     if(nbytes < 0) throw new ArgumentOutOfRangeException();
@@ -445,6 +450,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// <param name="wordSize">The size of each item to read. The bytes in each item will be swapped to ensure the
   /// correct endianness. If you don't want any swapping to occur, use a value of one for the word size.
   /// </param>
+  [CLSCompliant(false)]
   public void Read(void* dest, int count, int wordSize)
   {
     if(wordSize != 1 && wordSize != 2 && wordSize != 4 && wordSize != 8)
@@ -488,6 +494,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads a signed byte from the stream.</summary>
+  [CLSCompliant(false)]
   public sbyte ReadSByte()
   {
     return (sbyte)ReadByte();
@@ -541,6 +548,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads a variable-length unsigned integer from the stream.</summary>
+  [CLSCompliant(false)]
   public uint ReadEncodedUInt32()
   {
     uint value = 0, byteValue;
@@ -573,6 +581,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads a variable-length unsigned long integer from the stream.</summary>
+  [CLSCompliant(false)]
   public ulong ReadEncodedUInt64()
   {
     ulong value = 0;
@@ -601,6 +610,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads an unsigned two-byte integer from the stream.</summary>
+  [CLSCompliant(false)]
   public ushort ReadUInt16()
   {
     byte* data = ReadContiguousData(sizeof(ushort));
@@ -614,6 +624,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads an unsigned four-byte integer from the stream.</summary>
+  [CLSCompliant(false)]
   public uint ReadUInt32()
   {
     byte* data = ReadContiguousData(sizeof(uint));
@@ -627,6 +638,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads an unsigned eight-byte integer from the stream.</summary>
+  [CLSCompliant(false)]
   public ulong ReadUInt64()
   {
     byte* data = ReadContiguousData(sizeof(ulong));
@@ -690,12 +702,14 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads a number of two-byte characters from the stream. Returns the number of bytes read from the stream.</summary>
+  [CLSCompliant(false)]
   public int ReadChars(char* array, int count)
   {
     return ReadChars(array, count, DefaultEncoding);
   }
 
   /// <summary>Reads a number of two-byte characters from the stream. Returns the number of bytes read from the stream.</summary>
+  [CLSCompliant(false)]
   public int ReadChars(char* array, int count, Encoding encoding)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
@@ -764,12 +778,14 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads an array of signed two-byte integers from the stream.</summary>
+  [CLSCompliant(false)]
   public void ReadInt16s(short* array, int count)
   {
     ReadUInt16s((ushort*)array, count);
   }
 
   /// <summary>Reads an array of unsigned two-byte integers from the stream.</summary>
+  [CLSCompliant(false)]
   public ushort[] ReadUInt16s(int count)
   {
     ushort[] data = new ushort[count];
@@ -778,6 +794,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads an array of unsigned two-byte integers from the stream.</summary>
+  [CLSCompliant(false)]
   public void ReadUInt16s(ushort[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
@@ -785,6 +802,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads an array of unsigned two-byte integers from the stream.</summary>
+  [CLSCompliant(false)]
   public void ReadUInt16s(ushort* array, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
@@ -808,12 +826,14 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads an array of signed four-byte integers from the stream.</summary>
+  [CLSCompliant(false)]
   public void ReadInt32s(int* array, int count)
   {
     ReadUInt32s((uint*)array, count);
   }
 
   /// <summary>Reads an array of unsigned four-byte integers from the stream.</summary>
+  [CLSCompliant(false)]
   public uint[] ReadUInt32s(int count)
   {
     uint[] data = new uint[count];
@@ -822,6 +842,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads an array of unsigned four-byte integers from the stream.</summary>
+  [CLSCompliant(false)]
   public void ReadUInt32s(uint[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
@@ -829,6 +850,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads an array of unsigned four-byte integers from the stream.</summary>
+  [CLSCompliant(false)]
   public void ReadUInt32s(uint* array, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
@@ -852,12 +874,14 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads an array of signed eight-byte integers from the stream.</summary>
+  [CLSCompliant(false)]
   public void ReadInt64s(long* array, int count)
   {
     ReadUInt64s((ulong*)array, count);
   }
 
   /// <summary>Reads an array of unsigned eight-byte integers from the stream.</summary>
+  [CLSCompliant(false)]
   public ulong[] ReadUInt64s(int count)
   {
     ulong[] data = new ulong[count];
@@ -866,6 +890,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads an array of unsigned eight-byte integers from the stream.</summary>
+  [CLSCompliant(false)]
   public void ReadUInt64s(ulong[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
@@ -873,6 +898,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads an array of unsigned eight-byte integers from the stream.</summary>
+  [CLSCompliant(false)]
   public void ReadUInt64s(ulong* array, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
@@ -896,6 +922,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads an array of unsigned four-byte integers from the stream.</summary>
+  [CLSCompliant(false)]
   public void ReadSingles(float* array, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
@@ -918,6 +945,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads an array of unsigned eight-byte integers from the stream.</summary>
+  [CLSCompliant(false)]
   public void ReadDoubles(double* array, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
@@ -1088,6 +1116,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// <summary>Ensures that the data, which must consist of two-byte integers, has system endianness.</summary>
   /// <param name="data">A pointer to the data.</param>
   /// <param name="nwords">The number of words to potentially swap.</param>
+  [CLSCompliant(false)]
   protected void MakeSystemEndian2(void* data, int nwords)
   {
     if(LittleEndian != BitConverter.IsLittleEndian) SwapEndian2((byte*)data, nwords);
@@ -1096,6 +1125,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// <summary>Ensures that the data, which must consist of four-byte integers, has system endianness.</summary>
   /// <param name="data">A pointer to the data.</param>
   /// <param name="dwords">The number of doublewords to potentially swap.</param>
+  [CLSCompliant(false)]
   protected void MakeSystemEndian4(void* data, int dwords)
   {
     if(LittleEndian != BitConverter.IsLittleEndian) SwapEndian4((byte*)data, dwords);
@@ -1104,6 +1134,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// <summary>Ensures that the data, which must consist of eight-byte integers, has system endianness.</summary>
   /// <param name="data">A pointer to the data.</param>
   /// <param name="qwords">The number of quadwords to potentially swap.</param>
+  [CLSCompliant(false)]
   protected void MakeSystemEndian8(void* data, int qwords)
   {
     if(LittleEndian != BitConverter.IsLittleEndian) SwapEndian8((byte*)data, qwords);
@@ -1117,6 +1148,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// <remarks>The buffer size will be enlarged if necessary, but this method is better suited for small reads. For
   /// larger reads, consider using <see cref="ReadData"/>, which will not enlarge the buffer.
   /// </remarks>
+  [CLSCompliant(false)]
   protected byte* ReadContiguousData(int nbytes)
   {
     EnsureContiguousData(nbytes);
@@ -1261,6 +1293,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     Write(value ? (byte)1 : (byte)0);
   }
 
+  [CLSCompliant(false)]
   public void Write(sbyte value)
   {
     Write((byte)value);
@@ -1304,6 +1337,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes an unsigned two-byte integer to the stream.</summary>
+  [CLSCompliant(false)]
   public void Write(ushort value)
   {
     EnsureSpace(sizeof(ushort));
@@ -1320,6 +1354,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes an unsigned four-byte integer to the stream.</summary>
+  [CLSCompliant(false)]
   public void Write(uint value)
   {
     EnsureSpace(sizeof(uint));
@@ -1336,6 +1371,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes an unsigned eight-byte integer to the stream.</summary>
+  [CLSCompliant(false)]
   public void Write(ulong value)
   {
     EnsureSpace(sizeof(ulong));
@@ -1376,6 +1412,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes an array of bytes to the stream.</summary>
+  [CLSCompliant(false)]
   public void Write(byte* data, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
@@ -1420,6 +1457,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// <summary>Writes an array of characters to the stream, using the default encoding. Returns the number of bytes written to
   /// the stream.
   /// </summary>
+  [CLSCompliant(false)]
   public int Write(char* data, int count)
   {
     return Write(data, count, DefaultEncoding);
@@ -1428,6 +1466,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// <summary>Writes an array of characters to the stream, using the given encoding. Returns the number of bytes written to
   /// the stream.
   /// </summary>
+  [CLSCompliant(false)]
   public int Write(char* data, int count, Encoding encoding)
   {
     if(encoding == null) throw new ArgumentNullException();
@@ -1527,12 +1566,14 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes an array of signed two-byte integers to the stream.</summary>
+  [CLSCompliant(false)]
   public void Write(short* data, int count)
   {
     Write((ushort*)data, count);
   }
 
   /// <summary>Writes an array of unsigned two-byte integers to the stream.</summary>
+  [CLSCompliant(false)]
   public void Write(ushort[] data)
   {
     if(data == null) throw new ArgumentNullException();
@@ -1540,6 +1581,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes an array of unsigned two-byte integers to the stream.</summary>
+  [CLSCompliant(false)]
   public void Write(ushort[] data, int index, int count)
   {
     Utility.ValidateRange(data, index, count);
@@ -1547,6 +1589,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes an array of unsigned two-byte integers to the stream.</summary>
+  [CLSCompliant(false)]
   public void Write(ushort* data, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
@@ -1568,12 +1611,14 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes an array of signed four-byte integers to the stream.</summary>
+  [CLSCompliant(false)]
   public void Write(int* data, int count)
   {
     Write((uint*)data, count);
   }
 
   /// <summary>Writes an array of unsigned four-byte integers to the stream.</summary>
+  [CLSCompliant(false)]
   public void Write(uint[] data)
   {
     if(data == null) throw new ArgumentNullException();
@@ -1581,6 +1626,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes an array of unsigned four-byte integers to the stream.</summary>
+  [CLSCompliant(false)]
   public void Write(uint[] data, int index, int count)
   {
     Utility.ValidateRange(data, index, count);
@@ -1588,6 +1634,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes an array of unsigned four-byte integers to the stream.</summary>
+  [CLSCompliant(false)]
   public void Write(uint* data, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
@@ -1609,12 +1656,14 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes an array of signed eight-byte integers to the stream.</summary>
+  [CLSCompliant(false)]
   public void Write(long* data, int count)
   {
     Write((ulong*)data, count);
   }
 
   /// <summary>Writes an array of unsigned eight-byte integers to the stream.</summary>
+  [CLSCompliant(false)]
   public void Write(ulong[] data)
   {
     if(data == null) throw new ArgumentNullException();
@@ -1622,6 +1671,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes an array of unsigned eight-byte integers to the stream.</summary>
+  [CLSCompliant(false)]
   public void Write(ulong[] data, int index, int count)
   {
     Utility.ValidateRange(data, index, count);
@@ -1629,6 +1679,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes an array of unsigned eight-byte integers to the stream.</summary>
+  [CLSCompliant(false)]
   public void Write(ulong* data, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
@@ -1650,6 +1701,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes an array of four-byte floats to the stream.</summary>
+  [CLSCompliant(false)]
   public void Write(float* data, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
@@ -1671,6 +1723,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes an array of eight-byte floats to the stream.</summary>
+  [CLSCompliant(false)]
   public void Write(double* data, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
@@ -1712,6 +1765,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// <remarks>This method will not enlarge the buffer unless it is smaller than <paramref name="wordSize"/>. Rather,
   /// it will fill and flush the buffer as many times as is necessary to write the data.
   /// </remarks>
+  [CLSCompliant(false)]
   public void Write(void* data, int count, int wordSize)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
@@ -1775,6 +1829,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes an unsigned integer with a variable-length format, taking from one to five bytes.</summary>
+  [CLSCompliant(false)]
   public void WriteEncoded(uint value)
   {
     // values from 0-127 will be encoded into a single byte, from 128 to 32767 in two bytes, etc
@@ -1787,6 +1842,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes an unsigned long integer with a variable-length format, taking from one to ten bytes.</summary>
+  [CLSCompliant(false)]
   public void WriteEncoded(ulong value)
   {
     if(value <= uint.MaxValue)
@@ -1892,6 +1948,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Gets the position in the buffer where the next write should occur.</summary>
+  [CLSCompliant(false)]
   protected byte* WritePtr
   {
     get { return BufferPtr+writeIndex; }

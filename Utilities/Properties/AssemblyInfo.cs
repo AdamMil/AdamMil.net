@@ -12,8 +12,8 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyProduct("AdamMil.net")]
 [assembly: AssemblyCopyright("Copyright © Adam Milazzo 2010-2011")]
 
-[assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
+[assembly: ComVisible(false)]
 
 [assembly: AssemblyVersion("1.0.0.0")]
 [assembly: AssemblyFileVersion("1.0.0.0")]

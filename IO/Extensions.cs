@@ -259,18 +259,21 @@ public unsafe static partial class StreamExtensions
   }
 
   /// <summary>Reads a little-endian unsigned short (2 bytes) from a stream.</summary>
+  [CLSCompliant(false)]
   public static ushort ReadLE2U(this Stream stream)
   {
     return (ushort)(ReadByteOrThrow(stream)|(ReadByteOrThrow(stream)<<8));
   }
 
   /// <summary>Reads a big-endian unsigned short (2 bytes) from a stream.</summary>
+  [CLSCompliant(false)]
   public static ushort ReadBE2U(this Stream stream)
   {
     return (ushort)((ReadByteOrThrow(stream)<<8)|ReadByteOrThrow(stream));
   }
 
   /// <summary>Reads a little-endian unsigned integer (4 bytes) from a stream.</summary>
+  [CLSCompliant(false)]
   public static uint ReadLE4U(this Stream stream)
   {
     return (uint)(ReadByteOrThrow(stream)|(ReadByteOrThrow(stream)<<8)|
@@ -278,6 +281,7 @@ public unsafe static partial class StreamExtensions
   }
 
   /// <summary>Reads a big-endian unsigned integer (4 bytes) from a stream.</summary>
+  [CLSCompliant(false)]
   public static uint ReadBE4U(this Stream stream)
   {
     return (uint)((ReadByteOrThrow(stream)<<24)|(ReadByteOrThrow(stream)<<16)|
@@ -285,6 +289,7 @@ public unsafe static partial class StreamExtensions
   }
 
   /// <summary>Reads a little-endian unsigned long (8 bytes) from a stream.</summary>
+  [CLSCompliant(false)]
   public static ulong ReadLE8U(this Stream stream)
   {
     byte[] buf = Read(stream, 8);
@@ -292,6 +297,7 @@ public unsafe static partial class StreamExtensions
   }
 
   /// <summary>Reads a big-endian unsigned long (8 bytes) from a stream.</summary>
+  [CLSCompliant(false)]
   public static ulong ReadBE8U(this Stream stream)
   {
     byte[] buf = Read(stream, 8);
@@ -413,6 +419,7 @@ public unsafe static partial class StreamExtensions
   }
 
   /// <summary>Writes a little-endian unsigned short (2 bytes) to a stream.</summary>
+  [CLSCompliant(false)]
   public static void WriteLE2U(this Stream stream, ushort val)
   {
     stream.WriteByte((byte)val);
@@ -420,6 +427,7 @@ public unsafe static partial class StreamExtensions
   }
 
   /// <summary>Writes a big-endian unsigned short (2 bytes) to a stream.</summary>
+  [CLSCompliant(false)]
   public static void WriteBE2U(this Stream stream, ushort val)
   {
     stream.WriteByte((byte)(val>>8));
@@ -427,6 +435,7 @@ public unsafe static partial class StreamExtensions
   }
 
   /// <summary>Writes a little-endian unsigned integer (4 bytes) to a stream.</summary>
+  [CLSCompliant(false)]
   public static void WriteLE4U(this Stream stream, uint val)
   {
     stream.WriteByte((byte)val);
@@ -436,6 +445,7 @@ public unsafe static partial class StreamExtensions
   }
 
   /// <summary>Writes a big-endian unsigned integer (4 bytes) to a stream.</summary>
+  [CLSCompliant(false)]
   public static void WriteBE4U(this Stream stream, uint val)
   {
     stream.WriteByte((byte)(val>>24));
@@ -445,6 +455,7 @@ public unsafe static partial class StreamExtensions
   }
 
   /// <summary>Writes a little-endian unsigned long (8 bytes) to a stream.</summary>
+  [CLSCompliant(false)]
   public static void WriteLE8U(this Stream stream, ulong val)
   {
     WriteLE4U(stream, (uint)val);
@@ -452,6 +463,7 @@ public unsafe static partial class StreamExtensions
   }
 
   /// <summary>Writes a big-endian unsigned long (8 bytes) to a stream.</summary>
+  [CLSCompliant(false)]
   public static void WriteBE8U(this Stream stream, ulong val)
   {
     WriteBE4U(stream, (uint)(val>>32));

@@ -1,5 +1,5 @@
-﻿using System.Reflection;
-using System.Runtime.CompilerServices;
+﻿using System;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
 [assembly: AssemblyTitle("AdamMil.net AI")]
@@ -12,6 +12,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyProduct("AdamMil.net")]
 [assembly: AssemblyCopyright("Copyright © Adam Milazzo 2008-2011")]
 
+[assembly: CLSCompliant(true)]
 [assembly: ComVisible(false)]
 
 [assembly: AssemblyVersion("0.3.0.0")]
