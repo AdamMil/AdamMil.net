@@ -36,7 +36,6 @@ public static class Permutations
   }
 
   /// <summary>Randomly permutes the given list in-place, using the given random number generator.</summary>
-  [CLSCompliant(false)]
   public static void RandomlyPermute<T>(this IList<T> list, RandomNumberGenerator random)
   {
     if(list == null) throw new ArgumentNullException();
@@ -64,7 +63,6 @@ public static class Permutations
   }
 
   /// <summary>Randomly permutes the given portion of the list in-place, using the given random number generator.</summary>
-  [CLSCompliant(false)]
   public static void RandomlyPermute<T>(this IList<T> list, int start, int count, RandomNumberGenerator random)
   {
     if(list == null) throw new ArgumentNullException();
