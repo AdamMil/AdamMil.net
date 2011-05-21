@@ -305,9 +305,19 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
   public TransactionalDictionary(int initialCapacity, IEqualityComparer<K> comparer)
   {
     if(initialCapacity < 0) throw new ArgumentOutOfRangeException();
-    this.comparer = comparer ?? EqualityComparer<K>.Default;
-    //this.count  = new TransactionalVariable<int>();
-    if(initialCapacity != 0) Allocate(initialCapacity);
+    this.comparer  = comparer ?? EqualityComparer<K>.Default;
+    this._count    = new TransactionalVariable<int>();
+    this._freeSlot = new TransactionalVariable<int>();
+    this._capacity = new TransactionalVariable<int>();
+
+    if(initialCapacity != 0)
+    {
+      using(STMTransaction transaction = STMTransaction.Create(STMOptions.IgnoreSystemTransaction))
+      {
+        Allocate(initialCapacity);
+        transaction.Commit();
+      }
+    }
   }
 
   /// <summary>Initializes a new <see cref="TransactionalDictionary{K,V}"/> with items taken from the given
@@ -320,8 +330,13 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
   public TransactionalDictionary(IDictionary<K, V> initialItems, IEqualityComparer<K> comparer) : this(0, comparer)
   {
     if(initialItems == null) throw new ArgumentNullException();
-    Allocate(initialItems.Count);
-    foreach(KeyValuePair<K, V> pair in initialItems) Add(pair.Key, pair.Value);
+
+    using(STMTransaction transaction = STMTransaction.Create(STMOptions.IgnoreSystemTransaction))
+    {
+      Allocate(initialItems.Count);
+      foreach(KeyValuePair<K, V> pair in initialItems) Add(pair.Key, pair.Value, false);
+      transaction.Commit();
+    }
   }
 
   #region KeyCollection
@@ -474,13 +489,16 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
   {
     get
     {
-      int index = Find(key);
-      if(index == -1) throw new KeyNotFoundException();
-      return array[index].Value;
+      return STM.Retry(delegate
+      {
+        Bucket bucket = Find(key);
+        if(bucket == null) throw new KeyNotFoundException();
+        return bucket.Value;
+      });
     }
     set
     {
-      Add(key, value, true);
+      STM.Retry(delegate { Add(key, value, true); });
     }
   }
 
@@ -519,13 +537,13 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
   /// <inheritdoc/>
   public void Add(K key, V value)
   {
-    Add(key, value, false);
+    STM.Retry(delegate { Add(key, value, false); });
   }
 
   /// <inheritdoc/>
   public bool ContainsKey(K key)
   {
-    return Find(key) != -1;
+    return STM.Retry(delegate { return Find(key) != null; });
   }
 
   /// <inheritdoc/>
@@ -533,50 +551,65 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
   {
     if(array != null)
     {
-      int addressableSize = GetAddressableSize(), hash = comparer.GetHashCode(key) % addressableSize, index = array[hash].First;
-      if(index != Empty)
+      return STM.Retry(delegate
       {
-        int prevIndex = -1;
-        while(true)
+        int addressableSize = GetAddressableSize(), hash = comparer.GetHashCode(key) % addressableSize, index;
+        Bucket bucket = array[hash].Read();
+        index = bucket.First;
+        if(index != Empty)
         {
-          if(comparer.Equals(key, array[index].Key)) // if we found the item to remove...
+          if(index != hash) bucket = array[index].Read();
+          int prevIndex = -1;
+          while(true)
           {
-            int nextIndex = array[index].Next;
-            // if we can move an item out of the cellar, do so, since it can greatly improve the efficiency of GetFreeSlot()
-            if(index < addressableSize && nextIndex >= addressableSize)
+            if(comparer.Equals(key, bucket.Key)) // if we found the item to remove...
             {
-              array[index].Key   = array[nextIndex].Key; // move the next item in the chain into this slot
-              array[index].Value = array[nextIndex].Value;
-              array[index].Next  = array[nextIndex].Next;
-              prevIndex = index;
-              index     = nextIndex;
-              nextIndex = array[index].Next;
+              int nextIndex = bucket.Next;
+              bucket = array[index].OpenForWrite();
+              // if we can move an item out of the cellar, do so, since it can greatly improve the efficiency of GetFreeSlot()
+              if(index < addressableSize && nextIndex >= addressableSize)
+              {
+                Bucket nextBucket = array[nextIndex].OpenForWrite();
+                bucket.Key   = nextBucket.Key; // move the next item in the chain into this slot
+                bucket.Value = nextBucket.Value;
+                bucket.Next  = nextBucket.Next;
+                prevIndex = index;
+                index     = nextIndex;
+                nextIndex = nextBucket.Next;
+                bucket    = nextBucket;
+              }
+
+              // if there's a previous item, unlink this item from it. otherwise, if this is the only item in the chain, remove
+              // the chain. otherwise, if this is the first item in the chain, make the chain's head point to the next item
+              if(prevIndex != -1) array[prevIndex].OpenForWrite().Next = nextIndex;
+              else if(nextIndex == Null) array[hash].OpenForWrite().First = Empty;
+              else if(array[hash].Read().First == index) array[hash].OpenForWrite().First = nextIndex;
+              bucket.Key   = default(K);
+              bucket.Value = default(V);
+              bucket.Next  = Empty;
+
+              // adjust the free slot if the new empty space is closer to the end of the array or if both are in the cellar
+              int freeSlot = _freeSlot.Read();
+              if(freeSlot < index || index >= addressableSize)
+              {
+                // if both are within the cellar, make a link from it to the previous free space so we can easily find it again.
+                // we encode it as a negative number, and subtract three because 0, -1, and -2 already have other meanings
+                if(index >= addressableSize && freeSlot >= addressableSize) bucket.Next = -freeSlot - 3;
+                _freeSlot.Set(index);
+              }
+              _count.Set(_count.OpenForWrite() - 1);
+              return true;
             }
 
-            if(prevIndex != -1) array[prevIndex].Next = nextIndex; // if there's a previous item, unlink this item from it
-            else if(nextIndex == Null) array[hash].First = Empty; // if this is the only item in the chain, remove the chain
-            else if(array[hash].First == index) array[hash].First = nextIndex; // if this is the first item in the chain, make
-            array[index].Key   = default(K);                                   // the chain's head point to the next item
-            array[index].Value = default(V);
-            array[index].Next  = Empty;
-
-            // adjust the free slot if the new empty space is closer to the end of the array or if both are in the cellar
-            if(freeSlot < index || index >= addressableSize)
-            {
-              // if both are within the cellar, make a link from it to the previous free space so we can easily find it again.
-              // we encode it as a negative number, and subtract three because 0, -1, and -2 already have other meanings
-              if(index >= addressableSize && freeSlot >= addressableSize) array[index].Next = -freeSlot - 3;
-              freeSlot = index;
-            }
-            _count--;
-            return true;
+            prevIndex = index;
+            index = bucket.Next;
+            if(index == Null) break;
+            bucket = array[index].Read();
           }
-
-          prevIndex = index;
-          index = array[index].Next;
-          if(index == Null) break;
         }
-      }
+
+        return false;
+      });
     }
 
     return false;
@@ -585,15 +618,15 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
   /// <inheritdoc/>
   public bool TryGetValue(K key, out V value)
   {
-    int index = Find(key);
-    if(index == -1)
+    Bucket bucket = STM.Retry(delegate { return Find(key); });
+    if(bucket == null)
     {
       value = default(V);
       return false;
     }
     else
     {
-      value = array[index].Value;
+      value = bucket.Value;
       return true;
     }
   }
@@ -613,7 +646,7 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
   /// <inheritdoc/>
   public int Count
   {
-    get { return _count; }
+    get { return _count.Read(); }
   }
 
   /// <inheritdoc/>
@@ -627,18 +660,25 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
   {
     if(array != null)
     {
-      Array.Clear(array, 0, array.Length);
-      for(int i=0; i<array.Length; i++) array[i].First = array[i].Next = Empty;
-      freeSlot = array.Length - 1;
-      _count   = 0;
+      STM.Retry(delegate
+      {
+        for(int i=0; i<array.Length; i++) array[i].OpenForWrite().Clear();
+        _freeSlot.Set(array.Length - 1);
+        _capacity.Set(array.Length);
+        _count.Set(0);
+      });
     }
   }
 
   /// <inheritdoc/>
   public void CopyTo(KeyValuePair<K, V>[] array, int arrayIndex)
   {
-    Utility.ValidateRange(array, arrayIndex, Count);
-    foreach(KeyValuePair<K,V> pair in this) array[arrayIndex++] = pair;
+    STM.Retry(delegate
+    {
+      Utility.ValidateRange(array, arrayIndex, Count);
+      int index = arrayIndex; // don't alter the parameter, in case the transaction restarts
+      foreach(KeyValuePair<K, V> pair in this) array[index++] = pair;
+    });
   }
 
   void ICollection<KeyValuePair<K, V>>.Add(KeyValuePair<K, V> item)
@@ -654,6 +694,8 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
 
   bool ICollection<KeyValuePair<K, V>>.Remove(KeyValuePair<K, V> item)
   {
+    // the TryGetValue() / Remove() pair don't need to be wrapped in a transaction because the result should be linearizable even
+    // if another transaction removes the value between TryGetValue() and Remove()
     V value;
     return TryGetValue(item.Key, out value) && object.Equals(value, item.Value) && Remove(item.Key);
   }
@@ -677,8 +719,30 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
   #region Bucket
   const int Null = -1, Empty = -2;
 
-  struct Bucket
+  sealed class Bucket : ICloneable
   {
+    public Bucket()
+    {
+      Next = First = Empty;
+    }
+
+    public void Clear()
+    {
+      Key   = default(K);
+      Value = default(V);
+      Next  = First = Empty;
+    }
+
+    public object Clone()
+    {
+      Bucket newBucket = new Bucket();
+      newBucket.Key   = Key;
+      newBucket.Value = Value;
+      newBucket.Next  = Next;
+      newBucket.First = First;
+      return newBucket;
+    }
+
     #if DEBUG
     public override string ToString()
     {
@@ -705,7 +769,7 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
   #region Enumerator
   sealed class Enumerator : IEnumerator<KeyValuePair<K,V>>
   {
-    public Enumerator(Bucket[] array)
+    public Enumerator(TransactionalVariable<Bucket>[] array)
     {
       this.array = array;
       index      = -1;
@@ -715,7 +779,7 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
     {
       get
       {
-        if((uint)index >= (uint)array.Length) throw new InvalidOperationException();
+        if(array == null || (uint)index >= (uint)array.Length) throw new InvalidOperationException();
         return _current;
       }
     }
@@ -723,16 +787,23 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
     public bool MoveNext()
     {
       if(array == null || index == array.Length) return false;
-      do index++; while(index < array.Length && array[index].Next == Empty);
 
-      if(index == array.Length)
+      Bucket bucket = null;
+      do
+      {
+        index++;
+        if(index == array.Length) break;
+        bucket = array[index].Read();
+      } while(bucket.Next == Empty);
+
+      if(bucket == null || index == array.Length)
       {
         _current = default(KeyValuePair<K,V>);
         return false;
       }
       else
       {
-        _current = new KeyValuePair<K, V>(array[index].Key, array[index].Value);
+        _current = new KeyValuePair<K, V>(bucket.Key, bucket.Value);
         return true;
       }
     }
@@ -749,7 +820,7 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
 
     void IDisposable.Dispose() { }
 
-    readonly Bucket[] array;
+    readonly TransactionalVariable<Bucket>[] array;
     KeyValuePair<K,V> _current;
     int index;
   }
@@ -757,118 +828,148 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
 
   void Add(K key, V value, bool canOverwrite)
   {
-    if(array == null || Count == array.Length)
-    {
-      Bucket[] oldArray = array;
-
-      // the addressable area is about 86% of the total area
-      Allocate((array == null ? 0 : GetAddressableSize()*2) + 1);
-      _count = 0;
-
-      // rehash the data from the old array, if it exists
-      if(oldArray != null)
-      {
-        for(int i=0; i<oldArray.Length; i++)
-        {
-          if(oldArray[i].Next != Empty) Add(oldArray[i].Key, oldArray[i].Value, false);
-        }
-      }
-    }
+    int count = _count.OpenForWrite();
+    if(count == _capacity.Read()) Allocate(GetAddressableSize()*2+1);
 
     int addressSize = GetAddressableSize(), hash = comparer.GetHashCode(key) % addressSize, index = hash;
-    if(array[hash].First != Empty) // if data for this hash code already exists...
+    Bucket bucket = array[hash].Read();
+    if(bucket.First != Empty) // if data for this hash code already exists...
     {
-      index = array[hash].First; // jump to the first bucket servicing this hash code
+      index = bucket.First; // jump to the first bucket servicing this hash code
       while(true) // search that hash code's chain for the key
       {
-        if(comparer.Equals(key, array[index].Key)) // if we found the key...
+        bucket = array[index].Read();
+        if(comparer.Equals(key, bucket.Key)) // if we found the key...
         {
           if(!canOverwrite) throw new ArgumentException(); // if we can't overwrite, then throw an exception
-          array[index].Value = value; // otherwise, overwrite the value and return
+          array[index].OpenForWrite().Value = value; // otherwise, overwrite the value and return
           return;
         }
 
-        int nextIndex = array[index].Next;
+        int nextIndex = bucket.Next;
         if(nextIndex == Null) break;
         index = nextIndex;
       }
 
       int slot = GetFreeSlot(addressSize);
-      array[index].Next = slot; // link the new slot into the end of the chain
+      array[index].OpenForWrite().Next = slot; // link the new slot into the end of the chain
       index = slot;
     }
     else // no data exists for this hash code...
     {
       // find a place for the first item if we can't use the slot at the hash index
-      if(array[hash].Next > Empty) index = GetFreeSlot(addressSize);
-      array[hash].First = index; // and establish the new chain at that location
+      if(bucket.Next > Empty) index = GetFreeSlot(addressSize);
+      array[hash].OpenForWrite().First = index; // and establish the new chain at that location
     }
 
-    array[index].Key   = key;
-    array[index].Value = value;
-    array[index].Next  = Null;
-    _count++;
+    bucket = array[index].OpenForWrite();
+    bucket.Key   = key;
+    bucket.Value = value;
+    bucket.Next  = Null;
+    _count.Set(count + 1);
   }
 
-  void Allocate(int capacity)
+  void Allocate(int newCapacity)
   {
     // check the capacity against the largest prime size that will fit in an int after adding the cellar and the offset (3)
     // for free links
-    if(capacity > 1846835911) throw new OutOfMemoryException();
-    array = new Bucket[(GetPrimeSize(capacity)*50 + 22) / 43];
-    freeSlot = array.Length - 1;
-    for(int i=0; i<array.Length; i++) array[i].First = array[i].Next = Empty; // mark the buckets as empty
+    if(newCapacity > 1846835911) throw new OutOfMemoryException();
+    newCapacity = (GetPrimeSize(newCapacity)*50 + 22) / 43;
+    int existingCapacity = _capacity.Read();
+    if(newCapacity > existingCapacity)
+    {
+      lock(this)
+      {
+        _capacity.Release(); // reread the capacity to see if somebody else has resized the array before we could obtain the lock
+        existingCapacity = _capacity.Read();
+        if(newCapacity > existingCapacity)
+        {
+          TransactionalVariable<Bucket>[] newArray =
+            array == null || newCapacity > array.Length ? new TransactionalVariable<Bucket>[newCapacity] : array;
+          KeyValuePair<K, V>[] existingData = null;
+          if(array == null)
+          {
+            for(int i=0; i<newArray.Length; i++) newArray[i] = STM.Allocate(new Bucket());
+          }
+          else
+          {
+            existingData = new KeyValuePair<K, V>[Count];
+            CopyTo(existingData, 0);
+            if(newArray != array)
+            {
+              Array.Copy(array, newArray, array.Length);
+              for(int i=array.Length; i<newArray.Length; i++) newArray[i] = STM.Allocate(new Bucket());
+            }
+            for(int i=0; i<existingCapacity; i++) newArray[i].OpenForWrite().Clear();
+          }
+
+          array = newArray;
+          _freeSlot.Set(newArray.Length-1);
+          _capacity.Set(newArray.Length);
+
+          // rehash the existing data
+          if(existingData != null)
+          {
+            foreach(KeyValuePair<K, V> pair in existingData) Add(pair.Key, pair.Value, false);
+          }
+        }
+      }
+    }
   }
 
-  int Find(K key)
+  Bucket Find(K key)
   {
     if(array != null)
     {
-      int index = array[comparer.GetHashCode(key) % GetAddressableSize()].First;
+      int index = array[comparer.GetHashCode(key) % GetAddressableSize()].Read().First;
       if(index != Empty)
       {
         do
         {
-          if(comparer.Equals(key, array[index].Key)) return index;
-          index = array[index].Next;
+          Bucket bucket = array[index].Read();
+          if(comparer.Equals(key, bucket.Key)) return bucket;
+          index = bucket.Next;
         } while(index != Null);
       }
     }
-    return -1;
+    return null;
   }
 
   int GetAddressableSize()
   {
-    return (int)((array.Length*43L + 25)/50); // the addressable area is 86% of the total area
+    return (int)((_capacity.Read()*43L + 25)/50); // the addressable area is 86% of the total area
   }
 
   int GetFreeSlot(int addressSize)
   {
     // if the collision spot is in the addressable area, then it may not be free any longer
-    if(freeSlot < addressSize) // if it's in the addressable area, make sure it's still available...
+    int slot = _freeSlot.OpenForWrite();
+    if(slot < addressSize) // if it's in the addressable area, make sure it's still available...
     {
-      while(freeSlot >= 0 && array[freeSlot].Next != Empty) freeSlot--;
+      while(slot >= 0 && array[slot].Read().Next != Empty) slot--;
     }
 
-    int slot = freeSlot, nextFreeSlot = array[freeSlot].Next;
+    int nextFreeSlot = array[slot].Read().Next;
     if(nextFreeSlot != Empty)
     {
-      freeSlot = -(nextFreeSlot+3); // if we have a pointer to the next free slot, use it
+      nextFreeSlot = -(nextFreeSlot+3); // if we have a pointer to the next free slot, use it
     }
     else
     {
       // otherwise, search for the next free slot in the cellar
-      do freeSlot--; while(freeSlot >= addressSize && array[freeSlot].Next != Empty);
+      nextFreeSlot = slot;
+      do nextFreeSlot--; while(nextFreeSlot >= addressSize && array[nextFreeSlot].Read().Next != Empty);
     }
+
+    _freeSlot.Set(nextFreeSlot);
     return slot;
   }
 
   readonly IEqualityComparer<K> comparer;
-  Bucket[] array;
-  //readonly TransactionalVariable<int> count;
+  TransactionalVariable<Bucket>[] array;
+  readonly TransactionalVariable<int> _count, _freeSlot, _capacity;
   KeyCollection _keys;
   ValueCollection _values;
-  int _count, freeSlot;
 
   static int GetPrimeSize(int minimum)
   {

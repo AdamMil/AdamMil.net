@@ -20,10 +20,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 using System;
 using System.Collections.Generic;
-using AdamMil.Utilities;
 using System.IO;
-using BinaryReader = AdamMil.IO.BinaryReader;
-using BinaryWriter = AdamMil.IO.BinaryWriter;
+using AdamMil.Utilities;
+using BinaryReader=AdamMil.IO.BinaryReader;
+using BinaryWriter=AdamMil.IO.BinaryWriter;
 
 namespace AdamMil.Mathematics.Random
 {
@@ -187,8 +187,8 @@ public abstract class RandomNumberGenerator
 
   #pragma warning disable 3011 // only CLS compliant methods can be abstract
   /// <include file="documentation.xml" path="//Math/RNG/NextUint32/*"/>
-  // we're going to lie about the CLS compliance of this class because it's used everywhere, and is still useable. it's only that
-  // people may not be able to create their own random number generators
+  // we're going to lie about the CLS compliance of this class because it's used everywhere, and is still very useable. it's only
+  // that people may not be able to create their own random number generators in some lame languages, which is no real problem
   [CLSCompliant(false)]
   public abstract uint NextUint32();
   #pragma warning restore 3011

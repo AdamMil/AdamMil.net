@@ -47,9 +47,17 @@
     <Compile Include="STM.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Mathematics\AdamMil.Mathematics.csproj">
+      <Project>{BC146E65-29FA-4D05-89E2-CF485EBC86B8}</Project>
+      <Name>AdamMil.Mathematics</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\TestHelpers\AdamMil.TestHelpers.csproj">
       <Project>{E755006A-EB9E-4A5A-9872-65A2C4737C20}</Project>
       <Name>AdamMil.TestHelpers</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Utilities\AdamMil.Utilities.csproj">
+      <Project>{29134637-6D08-432C-8161-9DEEE13C955D}</Project>
+      <Name>AdamMil.Utilities</Name>
     </ProjectReference>
     <ProjectReference Include="..\AdamMil.Transactions.csproj">
       <Project>{A77F2A3B-6F95-48E8-9947-25F82A33CC5E}</Project>
