@@ -178,7 +178,7 @@ public sealed class ReadOnlyDictionaryWrapper<K, V> : ReadOnlyCollectionWrapperB
   #region IDictionary<K,V> Members
   V IDictionary<K, V>.this[K key]
   {
-    get { return this[key]; }
+    get { return dictionary[key]; }
     set { throw ReadOnlyException(); }
   }
 

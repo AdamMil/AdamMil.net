@@ -215,7 +215,7 @@ public class CollectionTests
           }
         }
 
-        Dictionary<int, int> stressReal = new Dictionary<int, int>(count);
+        Dictionary<int, int> stressReal = new Dictionary<int, int>(stressDict);
         for(int i=1; i<=count; i++)
         {
           int a = rand.Next(count), b = rand.Next(count);
@@ -223,6 +223,7 @@ public class CollectionTests
           stressDict.Remove(b);
           stressReal[a] = i;
           stressReal.Remove(b);
+          Assert.AreEqual(stressReal.Count, stressDict.Count);
           foreach(KeyValuePair<int, int> pair in stressReal) Assert.AreEqual(pair.Value, stressDict[pair.Key]);
         }
       }
