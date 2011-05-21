@@ -794,7 +794,7 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
         index++;
         if(index == array.Length) break;
         bucket = array[index].Read();
-      } while(bucket.Next == Empty);
+      } while(bucket.Next <= Empty);
 
       if(bucket == null || index == array.Length)
       {
@@ -836,9 +836,9 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
     if(bucket.First != Empty) // if data for this hash code already exists...
     {
       index = bucket.First; // jump to the first bucket servicing this hash code
+      if(hash != index) bucket = array[index].Read();
       while(true) // search that hash code's chain for the key
       {
-        bucket = array[index].Read();
         if(comparer.Equals(key, bucket.Key)) // if we found the key...
         {
           if(!canOverwrite) throw new ArgumentException(); // if we can't overwrite, then throw an exception
@@ -848,7 +848,8 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
 
         int nextIndex = bucket.Next;
         if(nextIndex == Null) break;
-        index = nextIndex;
+        index  = nextIndex;
+        bucket = array[index].Read();
       }
 
       int slot = GetFreeSlot(addressSize);
@@ -921,15 +922,19 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
   {
     if(array != null)
     {
-      int index = array[comparer.GetHashCode(key) % GetAddressableSize()].Read().First;
+      int hash = comparer.GetHashCode(key) % GetAddressableSize();
+      Bucket bucket = array[hash].Read();
+      int index = bucket.First;
       if(index != Empty)
       {
-        do
+        if(index != hash) bucket = array[index].Read();
+        while(true)
         {
-          Bucket bucket = array[index].Read();
           if(comparer.Equals(key, bucket.Key)) return bucket;
           index = bucket.Next;
-        } while(index != Null);
+          if(index == Null) break;
+          bucket = array[index].Read();
+        }
       }
     }
     return null;
