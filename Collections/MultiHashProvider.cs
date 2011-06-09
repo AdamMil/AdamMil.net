@@ -25,7 +25,7 @@ namespace AdamMil.Collections
 
 #region IMultiHashProvider
 /// <summary>An interface for hashing an item in multiple ways.</summary>
-/// <remarks>This interface is used by data structures that want to hash an item using multiple hash functions. For instance, a
+/// <remarks>This interface is used by data structures that need to hash items using multiple hash functions. For instance, a
 /// data structure may desire to obtain two hashes for each item and combine the hashes somehow.
 /// </remarks>
 public interface IMultiHashProvider<T>
@@ -38,16 +38,22 @@ public interface IMultiHashProvider<T>
 #endregion
 
 #region MultiHashProvider
-/// <summary>Provides a default implementation for <see cref="IMultiHashProvider{T}"/>.</summary>
+/// <summary>Provides a default implementation of <see cref="IMultiHashProvider{T}"/>. You can use <see cref="Default"/> to
+/// obtain a default <see cref="MultiHashProvider{T}"/> for a given type. It supports an unlimited
+/// </summary>
+/// <remarks>This implementation works by taking taking the standard .NET hash value (i.e. returned by
+/// <see cref="object.GetHashCode"/>) and using it as an index into a number of pseudorandom permutations of the integers,
+/// corresponding to the different hash functions. It supports a practically unlimited number of hash functions.
+/// </remarks>
 public sealed class MultiHashProvider<T> : IMultiHashProvider<T>
 {
-  /// <include file="documentation.xml" path="/Collections/MultiHash/HashCount/*"/>
+  /// <include file="documentation.xml" path="/Collections/MultiHashProvider/HashCount/*"/>
   public int HashCount
   {
     get { return int.MaxValue; }
   }
 
-  /// <include file="documentation.xml" path="/Collections/MultiHash/GetHashCode/*"/>
+  /// <include file="documentation.xml" path="/Collections/MultiHashProvider/GetHashCode/*"/>
   public int GetHashCode(int hashFunction, T item)
   {
     int hash = EqualityComparer<T>.Default.GetHashCode(item);
@@ -71,7 +77,7 @@ public sealed class MultiHashProvider<T> : IMultiHashProvider<T>
   // this is a weak block cipher with a 32-bit key and a 32-bit output. it should be clear from the small key size that it's
   // insecure, but if that's not enough, it's a greatly weakened form of skipjack, which is a block cipher designed by the NSA
   // to include a government backdoor and which has already been broken. but it should serve its purpose of giving us a
-  // pseudorandom permutation of the output space  (i.e. of the integers) with the key as a seed
+  // pseudorandom permutation of the output space (i.e. of the 32-bit integers) with the key as the seed
   static uint slip32(uint key, uint data)
   {
     uint low = data & 0xFFFF, high = data >> 16; // split the data into two parts
@@ -80,7 +86,7 @@ public sealed class MultiHashProvider<T> : IMultiHashProvider<T>
     // pseudorandom permutation. i have no idea if the round function is cryptographically secure, but the result will
     // nonetheless be some kind of permutation, and it looks pretty random in basic tests, which is good enough for my purposes
     high ^= round(key, low);
-    key = (key>>8) | ((key&0xFF)<<24); // rotate the key bytes rather than it as a circular array inside round(), for efficiency
+    key = (key>>8) | ((key&0xFF)<<24); // rotate the key bytes here rather than using it as a circular array inside round()
     low ^= round(key, high) ^ 1;
     key = (key>>8) | ((key&0xFF)<<24);
     high ^= round(key, low) ^ 2;
@@ -99,7 +105,7 @@ public sealed class MultiHashProvider<T> : IMultiHashProvider<T>
     return (uint)((byte)g2<<8) | (byte)g3;
   }
 
-  static readonly byte[] permutation = new byte[256] // this is a permutation of all possible bytes (the same used in skipjack)
+  static readonly byte[] permutation = new byte[256] // this is a permutation of all possible bytes (the same used by skipjack)
   {
     0xa3,0xd7,0x09,0x83,0xf8,0x48,0xf6,0xf4,0xb3,0x21,0x15,0x78,0x99,0xb1,0xaf,0xf9,
     0xe7,0x2d,0x4d,0x8a,0xce,0x4c,0xca,0x2e,0x52,0x95,0xd9,0x1e,0x4e,0x38,0x44,0x28,

@@ -20,7 +20,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 using System;
 
-// TODO: is it possible to use IntPtr or something to generalize this for 64-bit platforms?
+// TODO: is it possible to generalize this for 64-bit platforms using some kind of native integer type? C# and/or the CLR seems
+// to optimize IntPtr in release builds, but in debug builds it's slow. perhaps we could use void* instead of IntPtr to get
+// decent code in both debug and release builds? (or, if it's C# doing the optimizing, we could turn on optimizations for debug
+// builds)
 
 namespace AdamMil.Collections
 {
@@ -33,42 +36,60 @@ namespace AdamMil.Collections
 /// set.
 /// </summary>
 /// <remarks>
-/// <para>As more items are added to the set, the false positive rate increases. It is possible to tune the size of the Bloom
-/// filter to achieve an expected false positive rate for a given number of items. The <see cref="BloomFilter{T}(int,float)"/>
-/// constructor can assist with this.
+/// Bloom filters are most efficient when the set of keys that will be added is sparse with respect to the set of possible keys,
+/// and the approximate number of items that will be added is known in advance. At a 0.1% false positive rate, the filter uses
+/// about 14.4 bits per expected item, depending on the number of hash functions. (With an optimal number of hash functions, the
+/// number of bits per expected item equals <c>ln(p) / ln(2)^2</c> where p is the probabity of false positives.)
+/// So if the filter will be used with 100 randomly selected 32-bit integers, then it is an efficient data structure.
+/// But if it will be used with 100 integers from the restricted range of 1000 to 1499, then a
+/// Bloom filter is a poor choice. A better choice would simply be a bit array containing 500 bits, with a single bit
+/// representing each integer from 1000 to 1499. This uses only 1 bit per item (5 bits per expected item), has no false
+/// positives, allows more items to be stored, allows the items in the set to be enumerated and counted, and is much faster.
+/// <para>Bloom filters have a size that is fixed when they are created. As more items are added to the set, the false positive
+/// rate increases. It is possible to tune the size of the Bloom filter to achieve an expected false positive rate for a given
+/// number of items. The <see cref="BloomFilter{T}(int,float)"/> constructor can assist with this.
 /// </para>
 /// <para>
-/// The Bloom filter requires an <see cref="IMultiHashProvider{T}"/> to operate, although <see cref="MultiHashProvider{T}"/>
-/// class, which is used by default, should be suitable.
+/// The Bloom filter requires an <see cref="IMultiHashProvider{T}"/> to operate, although the <see cref="MultiHashProvider{T}"/>
+/// class, which is used by default, should be suitable in most cases.
 /// </para>
 /// </remarks>
 public class BloomFilter<T>
 {
-  /// <include file="documentation.xml" path="/Collections/BloomFilter/TuningConstructor/*"/>
-  public BloomFilter(int itemCount, float falsePositiveRate) : this(itemCount, falsePositiveRate, null) { }
+  /// <include file="documentation.xml" path="/Collections/BloomFilter/TuningConstructor/*[@name != 'hashProvider' and @name != 'maxHashCount']"/>
+  public BloomFilter(int itemCount, float falsePositiveRate) : this(itemCount, falsePositiveRate, null, 0) { }
+
+  /// <include file="documentation.xml" path="/Collections/BloomFilter/TuningConstructor/*[@name != 'maxHashCount']"/>
+  public BloomFilter(int itemCount, float falsePositiveRate, IMultiHashProvider<T> hashProvider)
+    : this(itemCount, falsePositiveRate, hashProvider, 0) { }
+
+  /// <include file="documentation.xml" path="/Collections/BloomFilter/TuningConstructor/*[@name != 'hashProvider']"/>
+  public BloomFilter(int itemCount, float falsePositiveRate, int maxHashCount)
+    : this(itemCount, falsePositiveRate, null, maxHashCount) { }
 
   /// <include file="documentation.xml" path="/Collections/BloomFilter/TuningConstructor/*"/>
-  /// <param name="hashProvider">The <see cref="IMultiHashProvider{T}"/> that provides the hash codes for the items added to the
-  /// set, or null to use the default hash code provider.
-  /// </param>
-  public BloomFilter(int itemCount, float falsePositiveRate, IMultiHashProvider<T> hashProvider)
+  public BloomFilter(int itemCount, float falsePositiveRate, IMultiHashProvider<T> hashProvider, int maxHashCount)
   {
-    if(itemCount < 0 || falsePositiveRate <= 0 || falsePositiveRate >= 1) throw new ArgumentOutOfRangeException();
+    if(itemCount < 0 || falsePositiveRate <= 0 || falsePositiveRate >= 1 || maxHashCount < 0)
+    {
+      throw new ArgumentOutOfRangeException();
+    }
     if(itemCount == 0) itemCount = 1; // prevent a bit count of zero
     if(hashProvider == null) hashProvider = MultiHashProvider<T>.Default;
     if(hashProvider.HashCount == 0) throw new ArgumentException("The hash provider does not support any hash functions.");
+    maxHashCount = maxHashCount == 0 ? hashProvider.HashCount : Math.Min(maxHashCount, hashProvider.HashCount);
 
     // assuming an optimal number of hash functions, the required bit count is -(itemCount * ln(falsePositiveRate) / ln(2)^2).
-    // we'll convert the division into multiplication by the reciprocal (1 / ln(2)^2) ~= 2.08, and then roll the negation into it
-    long bitCount = (long)Math.Round(Math.Log(falsePositiveRate) * itemCount * -2.0813689810056 + 0.5); // round up
+    // we'll convert the division into multiplication by the reciprocal (1 / ln(2)^2) ~= 2.08, and then factor in the negation
+    double doubleBitCount = Math.Log(falsePositiveRate) * itemCount * -2.0813689810056;
 
-    // given that number of bits, the optimal number of hash functions is bitCount * ln(2) / itemCount.
-    int hashCount = (int)Math.Min(hashProvider.HashCount, (long)(bitCount * 0.6931471805599 / itemCount + 0.5));
+    // given that number of bits, the optimal number of hash functions is bitCount * ln(2) / itemCount. we'll round the result
+    int hashCount = (int)Math.Min(maxHashCount, (long)(doubleBitCount * 0.6931471805599 / itemCount + 0.5));
 
     // since the hash count wasn't an exact integer, and may have been clipped by hashProvider.HashCount, we'll recalculate the
-    // bit count to take into account the actual number of hash functions. the optimal number of bits for a given number of
-    // hashes and false positive rate is can be computed using the following formula:
-    // falsePositiveRate ~= (1 - e^(-hashCount * itemCount / bitCount)) ^ hashCount.
+    // bit count to be optimal for the actual number of hash functions. the optimal number of bits for a given false positive
+    // rate and number of hash functions can be computed using the following formula:
+    // falsePositiveRate ~= (1 - e^(-hashCount * itemCount / bitCount)) ^ hashCount
     // if we use p = falsePositiveRate, k = hashCount, n = itemCount, and m = bitCount, we get the following transformation:
     // p ~= (1 - e^(-kn/m))^k
     // p^(1/k) ~= 1 - e^(-kn/m)
@@ -76,10 +97,11 @@ public class BloomFilter<T>
     // ln(1 - p^(1/k)) ~= -kn / m
     // -kn / ln(1 - p^(1/k)) ~= m
     //
-    // is there a way to calculate the bit count in a single step (by first calculating the number of hashes)?
-    bitCount = (long)Math.Round((double)-hashCount * itemCount /
-                                Math.Log(1 - Math.Pow(falsePositiveRate, 1.0 / hashCount)) + 0.5); // round up
-    if(bitCount >= int.MaxValue) throw new ArgumentException("Too many bits (" + bitCount.ToString() + ") would be required.");
+    // is there a way to avoid calculating the bit count twice?
+    long bitCount = (long)Math.Round((double)-hashCount * itemCount /
+                                Math.Log(1 - Math.Pow(falsePositiveRate, 1.0 / hashCount)) + 0.5); // round the result up
+    // 4294967264 is the largest number of bits that won't round up to a number greater than 2^32 when we do the rounding below
+    if(bitCount > 4294967264) throw new ArgumentException("Too many bits (" + bitCount.ToString() + ") would be required.");
 
     this.bits         = new uint[(int)(bitCount/32 + ((bitCount&31) == 0 ? 0 : 1))]; // round up to the nearest 32 bits
     this.hashProvider = hashProvider;
