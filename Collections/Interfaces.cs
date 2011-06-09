@@ -24,6 +24,7 @@ using System.Collections.Generic;
 namespace AdamMil.Collections
 {
 
+#region IQueue
 /// <summary>An interface representing a queue of items.</summary>
 public interface IQueue<T> : ICollection<T>
 {
@@ -40,7 +41,9 @@ public interface IQueue<T> : ICollection<T>
   /// <include file="documentation.xml" path="//Queue/TryDequeue/*"/>
   bool TryDequeue(out T item);
 }
+#endregion
 
+#region IReadOnlyCollection
 /// <summary>An interface representing a collection that does not support being changed and does not necessarily have
 /// a particular ordering.
 /// </summary>
@@ -55,7 +58,9 @@ public interface IReadOnlyCollection<T> : IEnumerable<T>, System.Collections.IEn
   /// <summary>Copies all of the items from the collection to a new array and returns it.</summary>
   T[] ToArray();
 }
+#endregion
 
+#region IReadOnlyList
 /// <summary>An interface representing a collection that does not support being changed, but has a particular ordering
 /// and allows random access to items.
 /// </summary>
@@ -69,7 +74,9 @@ public interface IReadOnlyList<T> : IReadOnlyCollection<T>
   /// </summary>
   int IndexOf(T item);
 }
+#endregion
 
+#region IReadOnlyDictionary
 /// <summary>An interface representing a dictionary that does not support being changed.</summary>
 public interface IReadOnlyDictionary<K, V> : IReadOnlyCollection<KeyValuePair<K, V>>
 {
@@ -87,5 +94,6 @@ public interface IReadOnlyDictionary<K, V> : IReadOnlyCollection<KeyValuePair<K,
   /// </summary>
   bool TryGetValue(K key, out V value);
 }
+#endregion
 
 } // namespace AdamMil.Collections
