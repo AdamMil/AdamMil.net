@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
-using NUnit.Framework;
 using AdamMil.Tests;
+using NUnit.Framework;
 
 namespace AdamMil.Collections.Tests
 {

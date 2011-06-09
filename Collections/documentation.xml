@@ -1,5 +1,36 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <Collections>
+  <BloomFilter>
+    <DirectConstructor>
+      <summary>
+        Initializes an empty <see cref="BloomFilter{T}"/> with the given size.
+      </summary>
+      <param name="bitCount">The number of bits in the bloom filter. This value will be rounded up to the nearest 32 or 64 bits.</param>
+      <param name="maxHashCount">
+        The maximum number of hash functions to use from the <paramref name="hashProvider"/>. If the
+        hash provider does not support this many hash functions, fewer will be used.
+      </param>
+      <remarks>
+        It is recommended to use the <see cref="BloomFilter{T}(int,float)"/> constructor, which will calculate an appropriate
+        size for the bloom filter based on a desired false positive rate.
+      </remarks>
+    </DirectConstructor>
+    <TuningConstructor>
+      <summary>
+        Initializes an empty <see cref="BloomFilter{T}" /> that should approximate the given false positive rate for the given
+        number of items.
+      </summary>
+      <param name="itemCount">The approximate number of items that will be added to the set.</param>
+      <param name="falsePositiveRate">The desired false positive rate, as a number from 0 to 1 (exclusive).</param>
+      <remarks>
+        As more items are added to the set, the false positive rate increases. This constructor attempts to construct a
+        filter that will have the given false positive rate after the given number of items have been added. The method assumes
+        that a sufficient number of ideal hash functions are available. Since hash functions are rarely ideal, it would be
+        prudent to set a false positive rate somewhat lower than the actual rate required.
+      </remarks>
+    </TuningConstructor>
+  </BloomFilter>
+
   <CollectionBase>
     <ClearItems>
       <summary>Called when the collection is being cleared. The base implementation actually clears the list.</summary>
@@ -102,6 +133,18 @@
       </summary>
     </Values>
   </Dictionary>
+
+  <MultiHashProvider>
+    <HashCount>
+      <summary>Gets the number of distinct hash functions supported.</summary>
+    </HashCount>
+    <GetHashCode>
+      <summary>Gets a hash code for an item.</summary>
+      <param name="hashFunction">The number of the hash function to use, from 0 to <see cref="HashCount"/>-1.</param>
+      <param name="item">The item to hash.</param>
+      <returns>A hash value. Negative hash values are supported.</returns>
+    </GetHashCode>
+  </MultiHashProvider>
 
   <Queue>
     <TryDequeue>

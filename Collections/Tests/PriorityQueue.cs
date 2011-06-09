@@ -1,8 +1,7 @@
 using System;
 using System.Collections.Generic;
-using NUnit.Framework;
 using AdamMil.Tests;
-using AdamMil.Collections;
+using NUnit.Framework;
 
 namespace AdamMil.Collections.Tests
 {
