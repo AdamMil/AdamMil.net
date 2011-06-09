@@ -22,6 +22,19 @@
       </summary>
       <param name="itemCount">The approximate number of items that will be added to the set.</param>
       <param name="falsePositiveRate">The desired false positive rate, as a number from 0 to 1 (exclusive).</param>
+      <param name="hashProvider">
+        The <see cref="IMultiHashProvider{T}"/> that provides the hash codes for the items added to the
+        set, or null to use the default hash code provider.
+      </param>
+      <param name="maxHashCount">
+        The maximum number of hash functions to use, or 0 to use the number that produces the smallest filter for the given false
+        positive rate. It is recommended to simply pass 0, allowing an optimal Bloom filter to be constructed but if you want to
+        improve the speed, you can limit the number of hash functions. The filter may use more memory as a result. Do not use
+        fewer than three hash functions, as it will cause memory consumption to rise dramatically. (For instance, using only one
+        hash function may cause memory usage to be 100 or 1000 times what it otherwise would be, or more, depending on the false
+        positive rate.) Even three hash functions may cause memory consumption to be 3 or 5 or 10 the normal amount.
+        In general, as the false positive rate decreases, more hash functions are needed.
+      </param>
       <remarks>
         As more items are added to the set, the false positive rate increases. This constructor attempts to construct a
         filter that will have the given false positive rate after the given number of items have been added. The method assumes
