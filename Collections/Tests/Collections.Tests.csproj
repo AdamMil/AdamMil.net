@@ -25,6 +25,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <UseVSHostingProcess>false</UseVSHostingProcess>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -34,6 +35,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <UseVSHostingProcess>false</UseVSHostingProcess>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="BloomFilter.cs" />
@@ -44,9 +46,17 @@
     <Compile Include="TopologicalSort.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Mathematics\AdamMil.Mathematics.csproj">
+      <Project>{BC146E65-29FA-4D05-89E2-CF485EBC86B8}</Project>
+      <Name>AdamMil.Mathematics</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\TestHelpers\AdamMil.TestHelpers.csproj">
       <Project>{E755006A-EB9E-4A5A-9872-65A2C4737C20}</Project>
       <Name>AdamMil.TestHelpers</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Utilities\AdamMil.Utilities.csproj">
+      <Project>{29134637-6D08-432C-8161-9DEEE13C955D}</Project>
+      <Name>AdamMil.Utilities</Name>
     </ProjectReference>
     <ProjectReference Include="..\AdamMil.Collections.csproj">
       <Project>{D9724C65-C54A-4671-BA0B-40B0B38464DD}</Project>

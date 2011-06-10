@@ -36,22 +36,33 @@ namespace AdamMil.Collections
 /// set.
 /// </summary>
 /// <remarks>
-/// Bloom filters are most efficient when the set of keys that will be added is sparse with respect to the set of possible keys,
-/// and the approximate number of items that will be added is known in advance. At a 0.1% false positive rate, the filter uses
-/// about 14.4 bits per expected item, depending on the number of hash functions. (With an optimal number of hash functions, the
-/// number of bits per expected item equals <c>ln(p) / ln(2)^2</c> where p is the probabity of false positives.)
-/// So if the filter will be used with 100 randomly selected 32-bit integers, then it is an efficient data structure.
-/// But if it will be used with 100 integers from the restricted range of 1000 to 1499, then a
-/// Bloom filter is a poor choice. A better choice would simply be a bit array containing 500 bits, with a single bit
-/// representing each integer from 1000 to 1499. This uses only 1 bit per item (5 bits per expected item), has no false
-/// positives, allows more items to be stored, allows the items in the set to be enumerated and counted, and is much faster.
+/// Bloom filters are most efficient when the set of keys that will be added is very sparse with respect to the set of possible
+/// keys, and the approximate number of items that will be added is known in advance. At a
+/// 0.1% false positive rate, the filter uses about 14.4 bits per expected item, depending on the number of hash functions.
+/// (With an optimal number of hash functions, the number of bits per expected item equals <c>-ln(p) / ln(2)^2</c> where p is the
+/// probabity of false positives.) This means that Bloom filters only save space when the density of keys is less than
+/// <c>-ln(2)^2 / ln(p)</c> (about 7% -- 1/14.4 -- for a 0.1% false positive rate).
+/// So if the filter will be used with 1000 randomly selected nonnegative integers (a density of about 0.00005%), then it is an
+/// efficient data structure. But if it will be used with 1000 integers from the restricted range of 0 to 4999 (a density of
+/// 20%), then a Bloom filter is a very poor choice.
+/// <para>A better choice would simply be a bit array containing 5000 bits, with a single bit representing each integer from 0 to
+/// 4999. This uses only 1 bit per item (5 bits per expected item), has no false positives, allows more items to be stored,
+/// allows the items in the set to be enumerated and counted, and is much faster. In particular, note that all non-negative
+/// integers (approximately 2.15 billion of them) can be stored in a bit array 256MB in size, which has all the benefits
+/// mentioned above, while a 256MB Bloom filter can hold less than 150 million integers at a 0.1% false positive rate. Where
+/// Bloom filters really shine are with very large keys spaces, like the set of possible URL strings.
+/// </para>
 /// <para>Bloom filters have a size that is fixed when they are created. As more items are added to the set, the false positive
 /// rate increases. It is possible to tune the size of the Bloom filter to achieve an expected false positive rate for a given
 /// number of items. The <see cref="BloomFilter{T}(int,float)"/> constructor can assist with this.
 /// </para>
 /// <para>
-/// The Bloom filter requires an <see cref="IMultiHashProvider{T}"/> to operate, although the <see cref="MultiHashProvider{T}"/>
-/// class, which is used by default, should be suitable in most cases.
+/// The Bloom filter requires an <see cref="IMultiHashProvider{T}"/> to operate. By default it uses
+/// <see cref="MultiHashProvider{T}"/>, which works well for all integer types, <see cref="DateTime"/>, <see cref="string"/>,
+/// <see cref="Decimal"/>, <see cref="Single"/>, <see cref="Double"/>, and <see cref="Char"/>, as well as nullable versions of
+/// those. For other types, it uses a generic hash algorithm that is only suitable up to a certain number of items that depends
+/// on the false positive rate. For 0.025% false positives, it is suitable up to about 1 million items. At 0.25% false positives,
+/// it is suitable up to about 10 million items. Beyond that, you may need to create your own hash provider.
 /// </para>
 /// </remarks>
 public class BloomFilter<T>
@@ -76,28 +87,24 @@ public class BloomFilter<T>
     }
     if(itemCount == 0) itemCount = 1; // prevent a bit count of zero
     if(hashProvider == null) hashProvider = MultiHashProvider<T>.Default;
-    if(hashProvider.HashCount == 0) throw new ArgumentException("The hash provider does not support any hash functions.");
+    if(hashProvider.HashCount <= 0) throw new ArgumentException("The hash provider does not support any hash functions.");
     maxHashCount = maxHashCount == 0 ? hashProvider.HashCount : Math.Min(maxHashCount, hashProvider.HashCount);
 
     // assuming an optimal number of hash functions, the required bit count is -(itemCount * ln(falsePositiveRate) / ln(2)^2).
-    // we'll convert the division into multiplication by the reciprocal (1 / ln(2)^2) ~= 2.08, and then factor in the negation
-    double doubleBitCount = Math.Log(falsePositiveRate) * itemCount * -2.0813689810056;
+    // given that number of bits, the optimal number of hash functions is bitCount * ln(2) / itemCount. we can factor out ln(2)
+    // and itemCount, giving hashFunctions = -ln(falsePositiveRate) / ln(2). we'll multiply by the reciprocal and then round
+    int hashCount = Math.Min(maxHashCount, (int)(Math.Log(falsePositiveRate) * -1.4426950408890 + 0.5));
 
-    // given that number of bits, the optimal number of hash functions is bitCount * ln(2) / itemCount. we'll round the result
-    int hashCount = (int)Math.Min(maxHashCount, (long)(doubleBitCount * 0.6931471805599 / itemCount + 0.5));
-
-    // since the hash count wasn't an exact integer, and may have been clipped by hashProvider.HashCount, we'll recalculate the
-    // bit count to be optimal for the actual number of hash functions. the optimal number of bits for a given false positive
-    // rate and number of hash functions can be computed using the following formula:
+    // since the hash count wasn't an exact integer, and may have been clipped by maxHashCount, we'll recalculate the bit count
+    // to be optimal for the actual number of hash functions. the optimal number of bits for a given false positive rate and
+    // number of hash functions can be computed using the following general formula:
     // falsePositiveRate ~= (1 - e^(-hashCount * itemCount / bitCount)) ^ hashCount
-    // if we use p = falsePositiveRate, k = hashCount, n = itemCount, and m = bitCount, we get the following transformation:
+    // if we use p = falsePositiveRate, k = hashCount, n = itemCount, and m = bitCount, we can solve for m:
     // p ~= (1 - e^(-kn/m))^k
     // p^(1/k) ~= 1 - e^(-kn/m)
     // 1 - p^(1/k) ~= e^(-kn/m)
     // ln(1 - p^(1/k)) ~= -kn / m
     // -kn / ln(1 - p^(1/k)) ~= m
-    //
-    // is there a way to avoid calculating the bit count twice?
     long bitCount = (long)Math.Round((double)-hashCount * itemCount /
                                 Math.Log(1 - Math.Pow(falsePositiveRate, 1.0 / hashCount)) + 0.5); // round the result up
     // 4294967264 is the largest number of bits that won't round up to a number greater than 2^32 when we do the rounding below
@@ -113,13 +120,13 @@ public class BloomFilter<T>
 
   /// <include file="documentation.xml" path="/Collections/BloomFilter/DirectConstructor/*"/>
   /// <param name="hashProvider">The <see cref="IMultiHashProvider{T}"/> that provides the hash codes for the items added to the
-  /// set, or null to use the default hash code provider.
+  /// set, or null to use a default hash code provider that works reasonably well for most types.
   /// </param>
-  public BloomFilter(int bitCount, int maxHashCount, MultiHashProvider<T> hashProvider)
+  public BloomFilter(int bitCount, int maxHashCount, IMultiHashProvider<T> hashProvider)
   {
     if(bitCount <= 0 || maxHashCount <= 0) throw new ArgumentOutOfRangeException();
     if(hashProvider == null) hashProvider = MultiHashProvider<T>.Default;
-    if(hashProvider.HashCount == 0) throw new ArgumentException("The hash provider does not support any hash functions.");
+    if(hashProvider.HashCount <= 0) throw new ArgumentException("The hash provider does not support any hash functions.");
 
     this.bits         = new uint[bitCount/32 + ((bitCount&31) == 0 ? 0 : 1)]; // round up to the nearest 32 bits
     this.hashProvider = hashProvider;
@@ -138,6 +145,12 @@ public class BloomFilter<T>
     }
   }
 
+  /// <summary>Removes all items from the set.</summary>
+  public void Clear()
+  {
+    Array.Clear(bits, 0, bits.Length);
+  }
+
   /// <summary>Checks whether an item might have been added to the set before.</summary>
   /// <returns>True if the item might have been added to the set, or false if the item was definitely not added to the set.</returns>
   /// <remarks>Note that false positives are possible, so this method may return true for an item that was never added.</remarks>
@@ -147,11 +160,11 @@ public class BloomFilter<T>
     for(int hashFunction=0; hashFunction < hashCount; hashFunction++)
     {
       // we'll get the value from each hash function and use it as an index into the bit array. the item has not been added if
-      // any bit is zero, since Add() would have set all of those bits to one
+      // any bit is zero, since Add() would have set all of those bits
       uint hash = (uint)hashProvider.GetHashCode(hashFunction, item) % bitCount;
       if((bits[hash >> 5] & ((uint)1 << (int)(hash & 31))) == 0) return false;
     }
-    return true; // all of the bits were one, so the item might have been added (or this may be a false positive)
+    return true; // all of the bits were set, so the item might have been added (or this may be a false positive)
   }
 
   readonly uint[] bits;

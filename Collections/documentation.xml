@@ -24,7 +24,7 @@
       <param name="falsePositiveRate">The desired false positive rate, as a number from 0 to 1 (exclusive).</param>
       <param name="hashProvider">
         The <see cref="IMultiHashProvider{T}"/> that provides the hash codes for the items added to the
-        set, or null to use the default hash code provider.
+        set, or null to use a default hash code provider that works reasonably well for most types.
       </param>
       <param name="maxHashCount">
         The maximum number of hash functions to use, or 0 to use the number that produces the smallest filter for the given false
@@ -37,9 +37,10 @@
       </param>
       <remarks>
         As more items are added to the set, the false positive rate increases. This constructor attempts to construct a
-        filter that will have the given false positive rate after the given number of items have been added. The method assumes
-        that a sufficient number of ideal hash functions are available. Since hash functions are rarely ideal, it would be
-        prudent to set a false positive rate somewhat lower than the actual rate required.
+        filter that will have the given false positive rate after the given number of items have been added. The Bloom filter is
+        usually capable of achieving the false positive rate or better, but sometimes it may exceed it slightly, especially with
+        small numbers of items. If you have strict requirements for the false positive rate, you should perform testing to see
+        how it performs with your data.
       </remarks>
     </TuningConstructor>
   </BloomFilter>

@@ -309,8 +309,7 @@ public class CompositeTask : Task
   /// <see cref="TaskCancellationEvent"/> allowing the task to be canceled along with other tasks that share the same
   /// <see cref="TaskCancellationEvent"/>.
   /// </summary>
-  public CompositeTask(IEnumerable<Task> tasks, TaskCancellationEvent cancellationEvent)
-    : base(cancellationEvent)
+  public CompositeTask(IEnumerable<Task> tasks, TaskCancellationEvent cancellationEvent) : base(cancellationEvent)
   {
     if(tasks == null) throw new ArgumentNullException();
 
@@ -373,7 +372,18 @@ public class CompositeTask : Task
     else
     {
       StartCore();
-      Finish();
+      foreach(Task task in tasks)
+      {
+        try { task.Finish(); }
+        catch { }
+      }
+
+      List<Exception> exceptions = new List<Exception>();
+      foreach(Task task in tasks)
+      {
+        if(task.Exception != null) exceptions.Add(task.Exception);
+      }
+      if(exceptions.Count != 0) throw exceptions.Count == 1 ? exceptions[0] : new CompositeException(exceptions);
     }
   }
 
@@ -632,22 +642,9 @@ public static class Tasks
     if(maxParallelism > iterations) maxParallelism = iterations;
     if(maxParallelism == 1)
     {
-      List<Exception> exceptions = null;
       LoopThreadInfo info = new LoopThreadInfo(0);
       T value = threadInitializer(info);
-      for(; start < endExclusive; start++)
-      {
-        try
-        {
-          body(start, value, info);
-        }
-        catch(Exception ex)
-        {
-          if(exceptions == null) exceptions = new List<Exception>();
-          exceptions.Add(ex);
-        }
-      }
-      if(exceptions != null) throw exceptions.Count == 1 ? exceptions[0] : new CompositeException(exceptions);
+      for(; start < endExclusive; start++) body(start, value, info);
     }
     else
     {
@@ -671,19 +668,10 @@ public static class Tasks
               if(currentIndex == endExclusive) goto done;
             } while(Interlocked.CompareExchange(ref start, currentIndex+1, currentIndex) != currentIndex);
 
-            try
-            {
-              body(currentIndex, value, info);
-            }
-            catch(Exception ex)
-            {
-              if(exceptions == null) exceptions = new List<Exception>();
-              exceptions.Add(ex);
-            }
+            body(currentIndex, value, info);
           }
 
-          done: ;
-          if(exceptions != null) throw exceptions.Count == 1 ? exceptions[0] : new CompositeException(exceptions);
+          done:;
         });
       }
 
