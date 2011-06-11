@@ -242,17 +242,12 @@ sealed class StringHashProvider : MultiHashProvider<string>
     }
     else
     {
-      uint hash = 0;
+      uint hash = (uint)item.Length; // use the length as the initialization vector
       fixed(char* chars = item)
       {
         // this method essentially encrypts the string using the block cipher in CBC mode and returns the last block
-        uint prev = 0;
-        for(int i=0, chunks=item.Length/2; i<chunks; i++)
-        {
-          prev  = tea32((uint)hashFunction, ((uint*)chars)[i] ^ prev);
-          hash ^= prev;
-        }
-        if((item.Length & 1) != 0) hash ^= tea32((uint)hashFunction, (uint)chars[item.Length-1] ^ prev);
+        for(int i=0, chunks=item.Length/2; i<chunks; i++) hash = tea32((uint)hashFunction, ((uint*)chars)[i] ^ hash);
+        if((item.Length & 1) != 0) hash = tea32((uint)hashFunction, (uint)chars[item.Length-1] ^ hash);
       }
       return (int)hash;
     }
