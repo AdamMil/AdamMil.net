@@ -654,7 +654,6 @@ public static class Tasks
         int threadNumber = i;
         tasks[i] = new WorkItemTask(task =>
         {
-          List<Exception> exceptions = null;
           LoopThreadInfo info = new LoopThreadInfo(threadNumber);
           T value = threadInitializer(info);
 

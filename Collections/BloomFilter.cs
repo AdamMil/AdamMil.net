@@ -58,11 +58,12 @@ namespace AdamMil.Collections
 /// </para>
 /// <para>
 /// The Bloom filter requires an <see cref="IMultiHashProvider{T}"/> to operate. By default it uses
-/// <see cref="MultiHashProvider{T}"/>, which works well for all integer types, <see cref="DateTime"/>, <see cref="string"/>,
-/// <see cref="Decimal"/>, <see cref="Single"/>, <see cref="Double"/>, and <see cref="Char"/>, as well as nullable versions of
-/// those. For other types, it uses a generic hash algorithm that is only suitable up to a certain number of items that depends
-/// on the false positive rate. For 0.025% false positives, it is suitable up to about 1 million items. At 0.25% false positives,
-/// it is suitable up to about 10 million items. Beyond that, you may need to create your own hash provider.
+/// <see cref="MultiHashProvider{T}"/>, which works well for all integer types, <see cref="string"/>, <see cref="Decimal"/>,
+/// <see cref="Single"/>, <see cref="Double"/>, <see cref="Char"/>, <see cref="DateTime"/>, and <see cref="Guid"/> as well as
+/// nullable versions of those. For other types, it uses a generic hash algorithm that is only suitable up to a certain number of
+/// items that depends on the false positive rate. For 0.025% false positives, it is suitable up to about 1 million items. At
+/// 0.25% false positives, it is suitable up to about 10 million items. Beyond that, you may need to create your own hash
+/// provider.
 /// </para>
 /// </remarks>
 public class BloomFilter<T>

@@ -154,7 +154,7 @@
     </HashCount>
     <GetHashCode>
       <summary>Gets a hash code for an item.</summary>
-      <param name="hashFunction">The number of the hash function to use, from 0 to <see cref="HashCount"/>-1.</param>
+      <param name="hashFunction">The number of the hash function to use, from 0 to <see cref="IMultiHashProvider{T}.HashCount"/>-1.</param>
       <param name="item">The item to hash.</param>
       <returns>A hash value. Negative hash values are supported.</returns>
     </GetHashCode>
