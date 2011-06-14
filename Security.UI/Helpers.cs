@@ -183,7 +183,7 @@ public static class PGPUI
   {
     return new string[]
     {
-      "hkp://keyserver.mine.nu", "hkp://pgp.mit.edu", "hkp://wwwkeys.pgp.net", "ldap://certserver.pgp.com"
+      "hkp://pgp.mit.edu", "hkp://www.stinkfoot.org", "hkp://kerckhoffs.surfnet.nl", "hkp://wwwkeys.pgp.net"
     };
   }
 

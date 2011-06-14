@@ -130,7 +130,7 @@ public partial class UserIdManagerForm : Form
   {
     if(key != null)
     {
-      key = pgp.RefreshKey(key, ListOptions.RetrieveAttributes);
+      key = pgp.RefreshKey(key, ListOptions.RetrieveAttributes | ListOptions.RetrieveSecretKeys);
 
       if(key == null)
       {

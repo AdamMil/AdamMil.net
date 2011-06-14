@@ -105,7 +105,7 @@ public partial class ProgressForm : Form
   }
 
   /// <summary>Throws the exception that occurred during the operation, if any.</summary>
-  public void ThrowException()
+  public void ThrowExceptionIfAny()
   {
     if(exception != null) throw exception;
   }
