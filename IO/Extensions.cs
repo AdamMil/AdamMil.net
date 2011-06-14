@@ -57,7 +57,7 @@ public unsafe static partial class StreamExtensions
   /// to 0 first to ensure that the entire source stream is copied.
   /// </param>
   /// <param name="bufferSize">The size of the buffer to use. Passing zero will use a default value.</param>
-  public static int CopyTo(Stream source, Stream dest, bool rewindSource, int bufferSize)
+  public static int CopyTo(this Stream source, Stream dest, bool rewindSource, int bufferSize)
   {
     if(source == null || dest == null) throw new ArgumentNullException();
     if(bufferSize < 0) throw new ArgumentOutOfRangeException("bufferSize");

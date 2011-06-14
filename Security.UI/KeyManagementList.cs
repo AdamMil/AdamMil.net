@@ -839,8 +839,8 @@ public class KeyManagementList : KeyListBase
   protected void ReloadKey(PrimaryKey publicKey)
   {
     PrimaryKeyItem item = GetPrimaryItem(publicKey.EffectiveId);
-    if(item != null) ReloadItems(item);
-    throw new ArgumentException("The key was not found in the list.");
+    if(item == null) throw new ArgumentException("The key was not found in the list.");
+    ReloadItems(item);
   }
 
   /// <summary>Reloads the <see cref="PrimaryKeyItem"/> that represents the public key with the given id, or adds it if
@@ -966,7 +966,15 @@ public class KeyManagementList : KeyListBase
                        hasSecretKey ? MessageBoxIcon.Exclamation : MessageBoxIcon.Warning,
                        MessageBoxDefaultButton.Button2) == DialogResult.Yes)
     {
-      PGP.DeleteKeys(GetPublicKeys(items), deletion);
+      try
+      {
+        PGP.DeleteKeys(GetPublicKeys(items), deletion);
+      }
+      catch(Exception ex)
+      {
+        MessageBox.Show("A key could not be deleted because an error occurred. The error was: " + ex.Message,
+                        "Couldn't delete key", MessageBoxButtons.OK, MessageBoxIcon.Error);
+      }
       ReloadItems(items);
     }
   }
@@ -1287,7 +1295,7 @@ public class KeyManagementList : KeyListBase
         }
         else
         {
-          progress.ThrowException();
+          progress.ThrowExceptionIfAny();
         }
       }
     }
@@ -1332,7 +1340,11 @@ public class KeyManagementList : KeyListBase
         "Uploading Keys", "Sending " + selection + " to " + form.SelectedKeyServer.AbsoluteUri + "...",
         delegate { PGP.UploadKeys(new KeyUploadOptions(form.SelectedKeyServer), keys); });
       progress.ShowDialog();
-      progress.ThrowException();
+      if(progress.Exception != null)
+      {
+        MessageBox.Show("An error occurred while uploading the key to the server. The error was: " + progress.Exception.Message,
+                        "Error occurred", MessageBoxButtons.OK, MessageBoxIcon.Error);
+      }
     }
   }
 

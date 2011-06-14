@@ -404,7 +404,8 @@ public partial class NewPhotoIdForm : Form
 
     // then create the final bitmap
     Bitmap bitmap = new Bitmap(newSize.Width, newSize.Height, PixelFormat.Format24bppRgb);
-    bitmap.Palette = overlay.Bitmap.Palette; // copy the palette, if there is one
+    try { bitmap.Palette = overlay.Bitmap.Palette; } // copy the palette, if there is one
+    catch { }
 
     bitmap.SetResolution(overlay.Bitmap.HorizontalResolution, overlay.Bitmap.VerticalResolution);
 

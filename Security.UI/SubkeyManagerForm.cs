@@ -115,7 +115,7 @@ public partial class SubkeyManagerForm : Form
         "Please wait while the subkey is generated. This may take several minutes. Actively typing and performing "+
         "disk-intensive operations can help speed up the process.",
         delegate { pgp.AddSubkey(key, form.KeyType, form.Capabilities, form.KeyLength, form.Expiration); });
-      if(progress.ShowDialog() == DialogResult.Abort) progress.ThrowException();
+      if(progress.ShowDialog() == DialogResult.Abort) progress.ThrowExceptionIfAny();
       ReloadKey();
     }
   }

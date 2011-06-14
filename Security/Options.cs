@@ -544,11 +544,11 @@ public enum ListOptions
 
   /// <summary>Signatures on keys will be ignored.</summary>
   IgnoreSignatures=0,
-  /// <summary>Signatures on keys will be retrieved, causing <see cref="UserAttribute.Signatures"/> to be filled, but
+  /// <summary>Signatures on keys will be retrieved, causing <see cref="UserAttribute.Signatures"/> to be filled but
   /// not verified.
   /// </summary>
   RetrieveSignatures=1,
-  /// <summary>Signatures on keys will be retrieved, causing <see cref="UserAttribute.Signatures"/> to be filled, and
+  /// <summary>Signatures on keys will be retrieved, causing <see cref="UserAttribute.Signatures"/> to be filled and
   /// verified.
   /// </summary>
   VerifySignatures=3,
