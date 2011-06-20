@@ -208,12 +208,8 @@ public partial class UserIdManagerForm : Form
 
       if(form.ShowDialog() == DialogResult.OK)
       {
-        try
-        {
-          pgp.AddPhoto(key, form.Bitmap, null);
-          ReloadKey();
-        }
-        catch(OperationCanceledException) { }
+        PGPUI.DoWithErrorHandling("adding the photo", delegate { pgp.AddPhoto(key, form.Bitmap, null); });
+        ReloadKey();
       }
     }
   }
@@ -223,12 +219,9 @@ public partial class UserIdManagerForm : Form
     UserIdForm form = new UserIdForm();
     if(form.ShowDialog() == DialogResult.OK)
     {
-      try
-      {
-        pgp.AddUserId(key, form.RealName, form.Email, form.Comment, form.Preferences);
-        ReloadKey();
-      }
-      catch(OperationCanceledException) { }
+      PGPUI.DoWithErrorHandling("adding the user ID",
+                                delegate { pgp.AddUserId(key, form.RealName, form.Email, form.Comment, form.Preferences); });
+      ReloadKey();
     }
   }
 
@@ -252,8 +245,7 @@ public partial class UserIdManagerForm : Form
                          MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2)
           == DialogResult.Yes)
       {
-        try { pgp.DeleteAttributes(GetSelectedAttributes()); }
-        catch(OperationCanceledException) { }
+        PGPUI.DoWithErrorHandling("deleting a user ID", delegate { pgp.DeleteAttributes(GetSelectedAttributes()); });
         ReloadKey();
       }
     }
@@ -269,12 +261,8 @@ public partial class UserIdManagerForm : Form
       UserRevocationForm form = new UserRevocationForm(attrs);
       if(form.ShowDialog() == DialogResult.OK)
       {
-        try
-        {
-          pgp.RevokeAttributes(form.Reason, attrs);
-          ReloadKey();
-        }
-        catch(OperationCanceledException) { }
+        PGPUI.DoWithErrorHandling("revoking a user ID", delegate { pgp.RevokeAttributes(form.Reason, attrs); });
+        ReloadKey();
       }
     }
   }

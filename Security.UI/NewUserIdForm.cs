@@ -66,7 +66,7 @@ public partial class UserIdForm : Form
   [Browsable(false)]
   public UserPreferences Preferences
   {
-    get { return null; } // TODO: implement user preferences
+    get { return new UserPreferences(MakePrimary); }
   }
 
   /// <summary>Updates the label that shows the user what his user ID will look like.</summary>

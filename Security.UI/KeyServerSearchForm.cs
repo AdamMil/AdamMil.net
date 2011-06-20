@@ -231,11 +231,7 @@ public partial class KeyServerSearchForm : Form
     if(!(ex is ThreadAbortException))
     {
       if(throwError) throw ex;
-      else
-      {
-        MessageBox.Show("An error occurred during the search.", "Search failed",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
-      }
+      else PGPUI.ShowErrorDialog("searching", ex);
     }
   }
 

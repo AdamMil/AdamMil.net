@@ -209,6 +209,7 @@ public class SecureTextBox : TextBox
     base.OnKeyPress(e);
   }
 
+  /// <inheritdoc/>
   protected override void WndProc(ref Message m)
   {
     // we need to intercept clipboard commands to avoid the textbox getting out of sync with the SecureString

@@ -1293,9 +1293,9 @@ public class KeyManagementList : KeyListBase
           MessageBox.Show(items.Length == 1 ? "Key not found." : "Not all keys were found.", "Key(s) not found",
                           MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
-        else
+        else if(progress.Exception != null)
         {
-          progress.ThrowExceptionIfAny();
+          PGPUI.ShowErrorDialog("refreshing keys", progress.Exception);
         }
       }
     }
@@ -1340,11 +1340,7 @@ public class KeyManagementList : KeyListBase
         "Uploading Keys", "Sending " + selection + " to " + form.SelectedKeyServer.AbsoluteUri + "...",
         delegate { PGP.UploadKeys(new KeyUploadOptions(form.SelectedKeyServer), keys); });
       progress.ShowDialog();
-      if(progress.Exception != null)
-      {
-        MessageBox.Show("An error occurred while uploading the key to the server. The error was: " + progress.Exception.Message,
-                        "Error occurred", MessageBoxButtons.OK, MessageBoxIcon.Error);
-      }
+      if(progress.Exception != null) PGPUI.ShowErrorDialog("uploading the key to the server", progress.Exception);
     }
   }
 

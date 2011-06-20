@@ -180,9 +180,7 @@ public partial class GenerateKeyForm : Form
   void GenerationFailed(Exception ex)
   {
     GenerationFinished();
-
-    MessageBox.Show("The key generation failed. The error was: " + ex.Message, "Key generation failed",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+    PGPUI.ShowErrorDialog("generating the key", ex);
   }
 
   void GenerationFinished()
