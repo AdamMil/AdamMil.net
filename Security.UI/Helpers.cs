@@ -119,6 +119,9 @@ public enum PasswordStrength
 /// <summary>This static class contains helpers for PGP UI applications.</summary>
 public static class PGPUI
 {
+  /// <summary>Represents an arbitrary action to be executed.</summary>
+  public delegate void Action();
+
   /// <summary>Given two <see cref="SecureTextBox"/> controls containing passwords, determines whether the passwords
   /// in the two controls are equal, case-sensitively.
   /// </summary>
@@ -167,6 +170,22 @@ public static class PGPUI
     }
 
     return passwordsMatch;
+  }
+
+  /// <summary>Performs the given action with standard error handling.</summary>
+  /// <param name="actionGerund">The name of the action, in the form of a gerund (i.e. using the "ing" suffix), or null to not
+  /// name the action.
+  /// </param>
+  /// <param name="action">The action to execute.</param>
+  /// <remarks><see cref="OperationCanceledException"/> will be ignored, while other exceptions will cause an error dialog to be
+  /// displayed.
+  /// </remarks>
+  public static void DoWithErrorHandling(string actionGerund, Action action)
+  {
+    if(action == null) throw new ArgumentNullException();
+    try { action(); }
+    catch(OperationCanceledException) { }
+    catch(Exception ex) { ShowErrorDialog(actionGerund, ex); }
   }
 
   /// <summary>Given a <see cref="UserAttribute"/>, including those of type <see cref="UserId"/>, returns the text to
@@ -267,24 +286,26 @@ public static class PGPUI
       if(hasLC) possibilitiesPerChar += assumeHumanInput ? 19 : 26; // there are about 7 letters unlikely to be used
       if(hasUC) possibilitiesPerChar += assumeHumanInput ? 19 : 26;
       if(hasNum) possibilitiesPerChar += assumeHumanInput ? 9 : 10; // humans don't choose numbers randomly
-      if(hasPunct) possibilitiesPerChar += assumeHumanInput ? 20 : 34; // humans don't choose from all 34 punct chars
+      if(hasPunct) possibilitiesPerChar += assumeHumanInput ? 20 : 34; // humans don't choose from all 34 punctuation chars
       int bits = (int)Math.Truncate(Math.Log(Math.Pow(possibilitiesPerChar, password.Length), 2));
 
-      // this code (written 2008) assumes:
-      // BITS  Crack Time     Crack Time on Special Hardware (assumed 10x speedup)
-      // ----  -------------- ----------------------------------------------------
+      // this code (written 2008, tweaked 2011) assumes:
+      // BITS  Crack Time     Crack Time on Special Hardware (assumed 1000x speedup)
+      // ----  -------------- ------------------------------------------------------
       // 40    Instant        Instant
-      // 52    8 hours        45 minutes
-      // 56    5 days         12 hours
-      // 60    80 days        10 days
-      // 64    3.5 years      4 monthsq
-      // 72    900 years      90 years
-      // 80    220,000 years  22,000 years
+      // 52    4 hours        15 seconds
+      // 56    2.5 days       3.8 minutes
+      // 60    40 days        1 hour
+      // 64    1.8 years      16 hours
+      // 68    29.9 years     10.9 days
+      // 72    475 years      5.8 months
+      // 76    7,500 years    7.6 years
+      // 80    120,000 years  122 years
 
       if(password.Length <= 4 || bits <= 52 || uniqueChars <= 3) return PasswordStrength.VeryWeak;
-      else if(password.Length <= 6 || bits <= 56 || uniqueChars <= 4) return PasswordStrength.Weak;
-      else if(password.Length <= 7 || bits <= 64 || uniqueChars <= 5) return PasswordStrength.Moderate;
-      else if(password.Length <= 11 || bits < 80 || uniqueChars <= 9) return PasswordStrength.Strong;
+      else if(password.Length <= 6 || bits <= 62 || uniqueChars <= 4) return PasswordStrength.Weak;
+      else if(password.Length <= 8 || bits <= 72 || uniqueChars <= 5) return PasswordStrength.Moderate;
+      else if(password.Length <= 12 || bits <= 80 || uniqueChars <= 9) return PasswordStrength.Strong;
       else return PasswordStrength.VeryStrong;
     }
     finally
@@ -409,6 +430,18 @@ public static class PGPUI
       if(Array.IndexOf(badChars, c) == -1) sb.Append(c);
     }
     return sb.ToString();
+  }
+
+  /// <summary>Displays an error dialog in response to an exception.</summary>
+  /// <param name="actionGerund">The name of the action, in the form of a gerund (i.e. using the "ing" suffix), or null to not
+  /// name the action.
+  /// </param>
+  /// <param name="exception">The related exception, or null to not display exception details.</param>
+  public static void ShowErrorDialog(string actionGerund, Exception exception)
+  {
+    MessageBox.Show("An error occurred" + (string.IsNullOrEmpty(actionGerund) ? null : " while " + actionGerund) + "." +
+                    (exception == null ? null : " The error was: " + exception.Message), "Error occurred",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
   }
 
   /// <summary>Displays the result of an import operation to the user.</summary>

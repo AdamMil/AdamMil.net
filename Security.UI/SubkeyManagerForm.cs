@@ -88,7 +88,7 @@ public partial class SubkeyManagerForm : Form
   {
     if(key != null)
     {
-      key = pgp.RefreshKey(key);
+      key = pgp.RefreshKey(key, ListOptions.RetrieveSecretKeys);
 
       if(key == null)
       {
@@ -115,7 +115,10 @@ public partial class SubkeyManagerForm : Form
         "Please wait while the subkey is generated. This may take several minutes. Actively typing and performing "+
         "disk-intensive operations can help speed up the process.",
         delegate { pgp.AddSubkey(key, form.KeyType, form.Capabilities, form.KeyLength, form.Expiration); });
-      if(progress.ShowDialog() == DialogResult.Abort) progress.ThrowExceptionIfAny();
+      if(progress.ShowDialog() == DialogResult.Abort && progress.Exception != null)
+      {
+        PGPUI.ShowErrorDialog("creating the subkey", progress.Exception);
+      }
       ReloadKey();
     }
   }
@@ -140,8 +143,7 @@ public partial class SubkeyManagerForm : Form
                          MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2)
           == DialogResult.Yes)
       {
-        try { pgp.DeleteSubkeys(selectedKeys); }
-        catch(OperationCanceledException) { }
+        PGPUI.DoWithErrorHandling("deleting a subkey", delegate { pgp.DeleteSubkeys(selectedKeys); });
         ReloadKey();
       }
     }
@@ -155,8 +157,7 @@ public partial class SubkeyManagerForm : Form
       KeyRevocationForm form = new KeyRevocationForm(selectedKeys);
       if(form.ShowDialog() == DialogResult.OK)
       {
-        try { pgp.RevokeSubkeys(form.Reason, selectedKeys); }
-        catch(OperationCanceledException) { }
+        PGPUI.DoWithErrorHandling("revoking a subkey", delegate { pgp.RevokeSubkeys(form.Reason, selectedKeys); });
         ReloadKey();
       }
     }

@@ -172,6 +172,15 @@ public class ExeGPG : GPG
     set { retrieveKeySignatureFingerprints = value; }
   }
 
+  /// <summary>Gets the version of the GPG executable, encoded as an integer so that 1.4.9 becomes 10409 and 2.0.21 becomes
+  /// 20021. Note that the version number is retrieved once, when this class is instantiated, and if a newer version of GPG is
+  /// installed in the mean time, the version reported by this property will not be updated.
+  /// </summary>
+  public int Version
+  {
+    get { return gpgVersion; }
+  }
+
   #region Configuration
   /// <include file="documentation.xml" path="/Security/PGPSystem/GetDefaultPrimaryKeyType/*"/>
   public override string GetDefaultPrimaryKeyType()
@@ -319,8 +328,8 @@ public class ExeGPG : GPG
     CommandState state = new CommandState(cmd);
     if(customAlgo) state.FailureReasons |= FailureReason.UnsupportedAlgorithm; // using a custom algo can cause failure
 
-    using(ManualResetEvent ready = new ManualResetEvent(false)) // create an event to signal when the data
-    using(cmd)                                                  // should be sent
+    using(ManualResetEvent ready = new ManualResetEvent(false)) // create an event to signal when the data should be sent
+    using(cmd)
     {
       cmd.InputNeeded += delegate(string promptId)
       {
@@ -548,7 +557,7 @@ public class ExeGPG : GPG
     string args = "--keyserver " + EscapeArg(keyServer.AbsoluteUri) + " --with-colons --fixed-list-mode --search-keys";
     foreach(string keyword in searchKeywords) args += " " + EscapeArg(keyword);
 
-    Command cmd = Execute(args, StatusMessages.MixIntoStdout, true);
+    Command cmd = Execute(args, StatusMessages.MixIntoStdout, true, true);
     CommandState state = new CommandState(cmd);
     using(cmd)
     {
@@ -683,7 +692,7 @@ public class ExeGPG : GPG
       if(string.IsNullOrEmpty(id)) throw new ArgumentException("A key ID was null or empty.");
       args += " " + id;
     }
-    return KeyServerCore(args, "Key import", true);
+    return KeyServerCore(args, "Key import", true, false);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/RefreshKeyringFromServer/*"/>
@@ -691,7 +700,7 @@ public class ExeGPG : GPG
   {
     string args = GetImportArgs(keyring, options == null ? ImportOptions.Default : options.ImportOptions) +
                   GetKeyServerArgs(options, false) + "--refresh-keys";
-    return KeyServerCore(args, "Keyring refresh", true);
+    return KeyServerCore(args, "Keyring refresh", true, false);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/RefreshKeysFromServer/*"/>
@@ -703,7 +712,7 @@ public class ExeGPG : GPG
     string args = GetKeyringArgs(keys, true) + GetKeyServerArgs(options, false) +
                   GetImportArgs(null, options == null ? ImportOptions.Default : options.ImportOptions) +
                   "--refresh-keys " + GetFingerprintArgs(keys);
-    return KeyServerCore(args, "Key refresh", true);
+    return KeyServerCore(args, "Key refresh", true, false);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/UploadKeys/*"/>
@@ -714,7 +723,7 @@ public class ExeGPG : GPG
 
     string args = GetKeyringArgs(keys, false) + GetKeyServerArgs(options, true) +
                   GetExportArgs(options.ExportOptions, false, false) + "--send-keys " + GetFingerprintArgs(keys);
-    KeyServerCore(args, "Key upload", false);
+    KeyServerCore(args, "Key upload", false, true);
   }
   #endregion
 
@@ -946,7 +955,7 @@ public class ExeGPG : GPG
   {
     // if a custom length is specified, it might be long enough to require a DSA2 key, so add the option just in case
     DoEdit(key, (keyLength == 0 ? null : "--enable-dsa2 ") + "--expert", true,
-           new AddSubkeyCommand(keyType, capabilities, keyLength, expiration));
+           new AddSubkeyCommand(this, keyType, capabilities, keyLength, expiration));
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/ChangeExpiration/*" />
@@ -1409,7 +1418,7 @@ public class ExeGPG : GPG
   sealed class Command : System.Runtime.ConstrainedExecution.CriticalFinalizerObject, IDisposable
   {
     public Command(ExeGPG gpg, ProcessStartInfo psi, InheritablePipe commandPipe,
-                   StatusMessages statusHandling, bool closeStdInput)
+                   StatusMessages statusHandling, bool closeStdInput, bool canKillOnAbort)
     {
       if(gpg == null || psi == null) throw new ArgumentNullException();
       this.gpg            = gpg;
@@ -1417,6 +1426,7 @@ public class ExeGPG : GPG
       this.commandPipe    = commandPipe;
       this.statusHandling = statusHandling;
       this.closeStdInput  = closeStdInput;
+      KillProcessOnAbort  = canKillOnAbort;
     }
 
     ~Command() { Dispose(true); }
@@ -1452,6 +1462,9 @@ public class ExeGPG : GPG
     {
       get { return statusDone && errorDone && process.HasExited; }
     }
+
+    /// <summary>Gets or sets whether the process should be killed if the command is aborted.</summary>
+    public bool KillProcessOnAbort { get; set; }
 
     /// <summary>Gets the GPG process, or throws an exception if it has not been started yet.</summary>
     public Process Process
@@ -1501,6 +1514,12 @@ public class ExeGPG : GPG
         try { process.Kill(); }
         catch(InvalidOperationException) { } // if it exited before the Kill(), don't worry about it
       }
+    }
+
+    /// <summary>Kills the process if <see cref="KillProcessOnAbort"/> is true.</summary>
+    public void OnThreadAborted()
+    {
+      if(KillProcessOnAbort) Kill();
     }
 
     /// <summary>Reads a line from STDOUT. The method will return true if a line was processed, but the line will be
@@ -1716,18 +1735,25 @@ public class ExeGPG : GPG
     /// <summary>Waits for the process to exit and all data to be read.</summary>
     public void WaitForExit()
     {
-      Process.WaitForExit(); // first wait for the process to finish
-
-      bool closedPipe = commandPipe == null;
-      while(!IsDone) // then wait for all of the streams to finish being read
+      try
       {
-        if(!closedPipe) // if GPG didn't close its end of the pipe, we may have to do it
-        {
-          commandPipe.CloseClient();
-          closedPipe = true; // but don't close it on every iteration
-        }
+        Process.WaitForExit(); // first wait for the process to finish
 
-        System.Threading.Thread.Sleep(0); // give other threads (ie, the stream reading threads) a chance to finish
+        bool closedPipe = commandPipe == null;
+        while(!IsDone) // then wait for all of the streams to finish being read
+        {
+          if(!closedPipe) // if GPG didn't close its end of the pipe, we may have to do it
+          {
+            commandPipe.CloseClient();
+            closedPipe = true; // but don't close it on every iteration
+          }
+
+          System.Threading.Thread.Sleep(0); // give other threads (ie, the stream reading threads) a chance to finish
+        }
+      }
+      catch(ThreadAbortException)
+      {
+        OnThreadAborted();
       }
     }
 
@@ -2390,12 +2416,14 @@ public class ExeGPG : GPG
   /// <summary>An edit command that adds a subkey to a primary key.</summary>
   sealed class AddSubkeyCommand : EditCommand
   {
+    /// <param name="gpg">A reference to the ExeGPG class.</param>
     /// <param name="type">The subkey type.</param>
     /// <param name="capabilities">The desired capabilities of the subkey.</param>
     /// <param name="length">The subkey length.</param>
     /// <param name="expiration">The subkey expiration, or null if it does not expire.</param>
-    public AddSubkeyCommand(string type, KeyCapabilities capabilities, int length, DateTime? expiration)
+    public AddSubkeyCommand(ExeGPG gpg, string type, KeyCapabilities capabilities, int length, DateTime? expiration)
     {
+      this.gpgVersion     = gpg.gpgVersion;
       this.type           = type;
       this.expiration     = expiration;
       this.expirationDays = GetExpirationDays(expiration);
@@ -2463,13 +2491,20 @@ public class ExeGPG : GPG
       {
         if(!sentAlgo)
         {
-          if(isDSA) state.Command.SendLine(capabilities == KeyCapabilities.Sign ? "2" : "3");
-          else if(isELG) state.Command.SendLine("4");
-          else
+          string selection;
+          if(gpgVersion < 20000) // if this is GPG 1.x...
           {
-            state.Command.SendLine(capabilities == KeyCapabilities.Sign ?
-                                     "5" : capabilities == KeyCapabilities.Encrypt ? "6" : "7");
+            if(isDSA) selection = capabilities == KeyCapabilities.Sign ? "2" : "3";
+            else if(isELG) selection = "4";
+            else selection = capabilities == KeyCapabilities.Sign ? "5" : capabilities == KeyCapabilities.Encrypt ? "6" : "7";
           }
+          else // GPG 2+ uses a different set of options
+          {
+            if(isDSA) selection = capabilities == KeyCapabilities.Sign ? "3" : "7";
+            else if(isELG) selection = "5";
+            else selection = capabilities == KeyCapabilities.Sign ? "4" : capabilities == KeyCapabilities.Encrypt ? "6" : "8";
+          }
+          state.Command.SendLine(selection);
           sentAlgo = true;
         }
         else // if GPG asks a second time, then it rejected the algorithm choice
@@ -2535,7 +2570,7 @@ public class ExeGPG : GPG
 
     readonly string type;
     readonly DateTime? expiration;
-    readonly int length, expirationDays;
+    readonly int length, expirationDays, gpgVersion;
     readonly bool isDSA, isELG, isRSA;
     KeyCapabilities capabilities, flagsToToggle;
     bool sentCommand, sentAlgo, sentLength, sentExpiration;
@@ -2546,8 +2581,7 @@ public class ExeGPG : GPG
   /// <summary>An edit command that adds a new user ID to a key.</summary>
   sealed class AddUidCommand : AddUidBase
   {
-    public AddUidCommand(string realName, string email, string comment, UserPreferences preferences)
-      : base(preferences, false)
+    public AddUidCommand(string realName, string email, string comment, UserPreferences preferences) : base(preferences, false)
     {
       if(ContainsControlCharacters(realName + email + comment))
       {
@@ -3600,6 +3634,7 @@ public class ExeGPG : GPG
   Signature[] DecryptVerifyCore(Command cmd, Stream signedData, Stream destination, DecryptionOptions options)
   {
     CommandState state = new CommandState(cmd);
+    cmd.KillProcessOnAbort = true;
     using(cmd)
     {
       List<Signature> signatures = new List<Signature>(); // this holds the completed signatures
@@ -3826,7 +3861,7 @@ public class ExeGPG : GPG
     args += " --with-colons --fixed-list-mode --edit-key " + key.EffectiveId;
     if(addKeyring) args = GetKeyringArgs(key.Keyring, true) + args;
 
-    Command cmd = Execute(args, StatusMessages.MixIntoStdout, true);
+    Command cmd = Execute(args, StatusMessages.MixIntoStdout, true, true);
     CommandState state = new CommandState(cmd);
     try
     {
@@ -4020,13 +4055,19 @@ public class ExeGPG : GPG
     }
   }
 
+  Command Execute(string args, StatusMessages statusMessageHandling, bool closeStdInput)
+  {
+    return Execute(args, statusMessageHandling, closeStdInput, false);
+  }
+
   /// <summary>Creates a new <see cref="Command"/> object and returns it.</summary>
   /// <param name="args">Command-line arguments to pass to GPG.</param>
   /// <param name="statusMessageHandling">How status messages will be handled.</param>
   /// <param name="closeStdInput">If true, STDIN will be closed immediately after starting the process so that
   /// GPG will not block waiting for input from it.
   /// </param>
-  Command Execute(string args, StatusMessages statusMessageHandling, bool closeStdInput)
+  /// <param name="canKill">If true, the process may be automatically killed if the thread is aborted.</param>
+  Command Execute(string args, StatusMessages statusMessageHandling, bool closeStdInput, bool canKill)
   {
     InheritablePipe commandPipe = null;
     if(statusMessageHandling != StatusMessages.Ignore) // if the status stream is requested...
@@ -4037,7 +4078,7 @@ public class ExeGPG : GPG
       args = "--exit-on-status-write-error --status-fd " + statusFd + " --command-fd " + cmdFd + " " + args;
     }
     return new Command(this, GetProcessStartInfo(ExecutablePath, args), commandPipe,
-                       statusMessageHandling, closeStdInput);
+                       statusMessageHandling, closeStdInput, canKill);
   }
 
   /// <summary>Executes the given GPG executable with the given arguments.</summary>
@@ -4049,7 +4090,7 @@ public class ExeGPG : GPG
   /// <summary>Performs the main work of exporting keys.</summary>
   void ExportCore(string args, Stream destination)
   {
-    Command cmd = Execute(args, StatusMessages.ReadInBackground, true);
+    Command cmd = Execute(args, StatusMessages.ReadInBackground, true, true);
     CommandState state = new CommandState(cmd);
     using(cmd)
     {
@@ -4080,7 +4121,7 @@ public class ExeGPG : GPG
     }
     args += key.Fingerprint;
 
-    Command cmd = Execute(args, StatusMessages.ReadInBackground, true);
+    Command cmd = Execute(args, StatusMessages.ReadInBackground, true, true);
     CommandState state = new CommandState(cmd);
     using(cmd)
     {
@@ -4245,7 +4286,7 @@ public class ExeGPG : GPG
     }
 
     Command cmd = Execute(args + searchArgs, retrieveAttributes ? StatusMessages.MixIntoStdout : StatusMessages.Ignore,
-                          true);
+                          true, true);
     CommandState state = new CommandState(cmd);
     try
     {
@@ -4443,6 +4484,10 @@ public class ExeGPG : GPG
         }
       }
     }
+    catch(ThreadAbortException)
+    {
+      cmd.OnThreadAborted();
+    }
     finally
     {
       cmd.Dispose();
@@ -4555,10 +4600,10 @@ public class ExeGPG : GPG
   }
 
   /// <summary>Performs the main work for key server operations.</summary>
-  ImportedKey[] KeyServerCore(string args, string name, bool isImport)
+  ImportedKey[] KeyServerCore(string args, string name, bool isImport, bool canKill)
   {
     CommandState state;
-    Command cmd = Execute(args, StatusMessages.ReadInBackground, true);
+    Command cmd = Execute(args, StatusMessages.ReadInBackground, true, canKill);
     ImportedKey[] keys = ImportCore(cmd, null, out state);
 
     // during a keyring refresh, it's very likely that one of the keys won't be found on a keyserver, but we don't want
