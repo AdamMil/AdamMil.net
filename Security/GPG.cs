@@ -173,8 +173,9 @@ public class ExeGPG : GPG
   }
 
   /// <summary>Gets the version of the GPG executable, encoded as an integer so that 1.4.9 becomes 10409 and 2.0.21 becomes
-  /// 20021. Note that the version number is retrieved once, when this class is instantiated, and if a newer version of GPG is
-  /// installed in the mean time, the version reported by this property will not be updated.
+  /// 20021. Note that the version number is retrieved when this class is instantiated with an executable and whenever
+  /// <see cref="Initialize"/> is called. If a newer version of GPG is installed in the mean time, the version reported by this
+  /// property will not be updated until <see cref="Initialize"/> is called again.
   /// </summary>
   public int Version
   {
@@ -324,61 +325,63 @@ public class ExeGPG : GPG
 
     args += GetKeyringArgs(keyringKeys, true); // add all the keyrings to the command line
 
-    Command cmd = Execute(args, StatusMessages.ReadInBackground, false);
-    CommandState state = new CommandState(cmd);
-    if(customAlgo) state.FailureReasons |= FailureReason.UnsupportedAlgorithm; // using a custom algo can cause failure
+    Command command = Execute(args, StatusMessages.ReadInBackground, false);
+    CommandState commandState = new CommandState(command);
+    if(customAlgo) commandState.FailureReasons |= FailureReason.UnsupportedAlgorithm; // using a custom algo can cause failure
 
     using(ManualResetEvent ready = new ManualResetEvent(false)) // create an event to signal when the data should be sent
-    using(cmd)
     {
-      cmd.InputNeeded += delegate(string promptId)
-      {
-        if(string.Equals(promptId, "untrusted_key.override", StringComparison.Ordinal))
-        { // this question indicates that a recipient key is not trusted
-          bool alwaysTrust = encryptionOptions != null && encryptionOptions.AlwaysTrustRecipients;
-          if(!alwaysTrust) state.FailureReasons |= FailureReason.UntrustedRecipient;
-          cmd.SendLine(alwaysTrust ? "Y" : "N");
-        }
-        else if(string.Equals(promptId, "passphrase.enter", StringComparison.Ordinal) &&
-                state.PasswordMessage != null && state.PasswordMessage.Type == StatusMessageType.NeedCipherPassphrase)
+      ProcessCommand(command, commandState,
+        delegate(Command cmd, CommandState state)
         {
-          cmd.SendPassword(encryptionOptions.Password, false);
-        }
-        else if(!state.Canceled)
+          cmd.InputNeeded += delegate(string promptId)
+          {
+            if(string.Equals(promptId, "untrusted_key.override", StringComparison.Ordinal))
+            { // this question indicates that a recipient key is not trusted
+              bool alwaysTrust = encryptionOptions != null && encryptionOptions.AlwaysTrustRecipients;
+              if(!alwaysTrust) state.FailureReasons |= FailureReason.UntrustedRecipient;
+              cmd.SendLine(alwaysTrust ? "Y" : "N");
+            }
+            else if(string.Equals(promptId, "passphrase.enter", StringComparison.Ordinal) &&
+                    state.PasswordMessage != null && state.PasswordMessage.Type == StatusMessageType.NeedCipherPassphrase)
+            {
+              cmd.SendPassword(encryptionOptions.Password, false);
+            }
+            else if(!state.Canceled)
+            {
+              DefaultPromptHandler(promptId, state);
+              if(state.Canceled) cmd.Kill(); // kill GPG if the user doesn't give the password, so it doesn't keep asking
+            }
+          };
+
+          cmd.StatusMessageReceived += delegate(StatusMessage msg)
+          {
+            switch(msg.Type)
+            {
+              case StatusMessageType.BeginEncryption: case StatusMessageType.BeginSigning:
+                ready.Set(); // all set. send the data!
+                break;
+
+              default: DefaultStatusMessageHandler(msg, state); break;
+            }
+          };
+        },
+
+        delegate(Command cmd, CommandState state)
         {
-          DefaultPromptHandler(promptId, state);
-          if(state.Canceled) cmd.Kill(); // kill GPG if the user doesn't give the password, so it doesn't keep asking
-        }
-      };
+          // wait until it's time to write the data or the process aborted
+          while(!ready.WaitOne(50, false) && !cmd.Process.HasExited) { }
 
-      cmd.StatusMessageReceived += delegate(StatusMessage msg)
-      {
-        switch(msg.Type)
-        {
-          case StatusMessageType.BeginEncryption: case StatusMessageType.BeginSigning:
-            ready.Set(); // all set. send the data!
-            break;
-
-          default: DefaultStatusMessageHandler(msg, state); break;
-        }
-      };
-
-      cmd.Start();
-
-      // wait until it's time to write the data or the process aborted
-      while(!ready.WaitOne(50, false) && !cmd.Process.HasExited) { }
-
-      // if the process is still running and it didn't exit before we could copy the input data...
-      if(!cmd.Process.HasExited) ReadAndWriteStreams(destination, sourceData, cmd.Process);
-
-      cmd.WaitForExit(); // and wait for the command to finish
+          // if the process is still running and it didn't exit before we could copy the input data...
+          if(!cmd.Process.HasExited) ReadAndWriteStreams(destination, sourceData, cmd.Process);
+        });
     }
 
-    if(!cmd.SuccessfulExit) // if the process wasn't successful, throw an exception
+    if(!command.SuccessfulExit) // if the process wasn't successful, throw an exception
     {
-      if(state.Canceled) throw new OperationCanceledException();
-      else if(encryptionOptions != null) throw new EncryptionFailedException(state.FailureReasons);
-      else throw new SigningFailedException(state.FailureReasons);
+      if(commandState.Canceled) throw new OperationCanceledException();
+      else if(encryptionOptions != null) throw new EncryptionFailedException(commandState.FailureReasons);
+      else throw new SigningFailedException(commandState.FailureReasons);
     }
   }
 
@@ -557,126 +560,124 @@ public class ExeGPG : GPG
     string args = "--keyserver " + EscapeArg(keyServer.AbsoluteUri) + " --with-colons --fixed-list-mode --search-keys";
     foreach(string keyword in searchKeywords) args += " " + EscapeArg(keyword);
 
-    Command cmd = Execute(args, StatusMessages.MixIntoStdout, true, true);
-    CommandState state = new CommandState(cmd);
-    using(cmd)
-    {
-      List<PrimaryKey> keysFound = new List<PrimaryKey>();
-      List<UserId> userIds = new List<UserId>();
-
-      cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
-
-      cmd.Start();
-
-      while(true)
+    Command command = Execute(args, StatusMessages.MixIntoStdout, true, true);
+    CommandState commandState = ProcessCommand(command,
+      delegate(Command cmd, CommandState state)
       {
-        string line;
-        cmd.ReadLine(out line);
-        if(line != null) LogLine(line);
+        cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
+      },
 
-        gotLine:
-        if(line == null && cmd.StatusMessage == null) break;
-
-        if(line == null)
+      delegate(Command cmd, CommandState state)
+      {
+        List<PrimaryKey> keysFound = new List<PrimaryKey>();
+        List<UserId> userIds = new List<UserId>();
+        while(true)
         {
-          switch(cmd.StatusMessage.Type)
-          {
-            case StatusMessageType.GetLine:
-              GetInputMessage m = (GetInputMessage)cmd.StatusMessage;
-              if(string.Equals(m.PromptId, "keysearch.prompt", StringComparison.Ordinal))
-              {
-                // we're done with this chunk of the search, so we'll give the keys to the search handler.
-                // we won't continue if we didn't find anything, even if the handler returns true
-                bool shouldContinue = keysFound.Count != 0 && handler(keysFound.ToArray());
-                cmd.SendLine(shouldContinue ? "N" : "Q");
-                keysFound.Clear();
-                break;
-              }
-              else goto default;
+          string line;
+          cmd.ReadLine(out line);
+          if(line != null) LogLine(line);
 
-            default: DefaultStatusMessageHandler(cmd.StatusMessage, state); break;
+          gotLine:
+          if(line == null && cmd.StatusMessage == null) break;
+
+          if(line == null)
+          {
+            switch(cmd.StatusMessage.Type)
+            {
+              case StatusMessageType.GetLine:
+                GetInputMessage m = (GetInputMessage)cmd.StatusMessage;
+                if(string.Equals(m.PromptId, "keysearch.prompt", StringComparison.Ordinal))
+                {
+                  // we're done with this chunk of the search, so we'll give the keys to the search handler.
+                  // we won't continue if we didn't find anything, even if the handler returns true
+                  bool shouldContinue = keysFound.Count != 0 && handler(keysFound.ToArray());
+                  cmd.SendLine(shouldContinue ? "N" : "Q");
+                  keysFound.Clear();
+                  break;
+                }
+                else goto default;
+
+              default: DefaultStatusMessageHandler(cmd.StatusMessage, state); break;
+            }
           }
-        }
-        else if(line.StartsWith("pub:", StringComparison.Ordinal)) // a key description follows
-        {
-          string[] fields = line.Split(':');
-
-          PrimaryKey key = new PrimaryKey();
-
-          if(IsValidKeyId(fields[1])) key.KeyId = fields[1].ToUpperInvariant();
-          else if(IsValidFingerprint(fields[1])) key.Fingerprint = fields[1].ToUpperInvariant();
-          else // there's no valid ID, so skip any related records that follow
+          else if(line.StartsWith("pub:", StringComparison.Ordinal)) // a key description follows
           {
-            do
+            string[] fields = line.Split(':');
+
+            PrimaryKey key = new PrimaryKey();
+
+            if(IsValidKeyId(fields[1])) key.KeyId = fields[1].ToUpperInvariant();
+            else if(IsValidFingerprint(fields[1])) key.Fingerprint = fields[1].ToUpperInvariant();
+            else // there's no valid ID, so skip any related records that follow
+            {
+              do
+              {
+                cmd.ReadLine(out line);
+                if(line != null) LogLine(line);
+              }
+              while(line != null && !line.StartsWith("pub:", StringComparison.Ordinal));
+              goto gotLine;
+            }
+
+            if(fields.Length > 2 && !string.IsNullOrEmpty(fields[2])) key.KeyType = ParseKeyType(fields[2]);
+            if(fields.Length > 3 && !string.IsNullOrEmpty(fields[3])) key.Length = int.Parse(fields[3]);
+            if(fields.Length > 4 && !string.IsNullOrEmpty(fields[4])) key.CreationTime = ParseTimestamp(fields[4]);
+            if(fields.Length > 5 && !string.IsNullOrEmpty(fields[5])) key.ExpirationTime = ParseNullableTimestamp(fields[5]);
+
+            if(fields.Length > 6 && !string.IsNullOrEmpty(fields[6]))
+            {
+              foreach(char c in fields[6])
+              {
+                switch(char.ToLowerInvariant(c))
+                {
+                  case 'd': key.Disabled = true; break;
+                  case 'e': key.Expired = true; break;
+                  case 'r': key.Revoked = true; break;
+                }
+              }
+            }
+
+            // now parse the user IDs
+            while(true)
             {
               cmd.ReadLine(out line);
-              if(line != null) LogLine(line);
+              if(line == null) break; // if we hit a status message or EOF, break
+
+              LogLine(line);
+              if(line.StartsWith("pub:", StringComparison.Ordinal)) break;
+              else if(!line.StartsWith("uid", StringComparison.Ordinal)) continue;
+
+              fields = line.Split(':');
+              if(string.IsNullOrEmpty(fields[1])) continue;
+
+              UserId id = new UserId();
+              id.PrimaryKey = key;
+              id.Name       = CUnescape(fields[1]);
+              id.Signatures = NoSignatures;
+              if(fields.Length > 2 && !string.IsNullOrEmpty(fields[2])) id.CreationTime = ParseTimestamp(fields[2]);
+              id.MakeReadOnly();
+              userIds.Add(id);
             }
-            while(line != null && !line.StartsWith("pub:", StringComparison.Ordinal));
+
+            if(userIds.Count != 0)
+            {
+              key.Attributes         = NoAttributes;
+              key.DesignatedRevokers = NoRevokers;
+              key.Signatures         = NoSignatures;
+              key.Subkeys            = NoSubkeys;
+              key.UserIds            = new ReadOnlyListWrapper<UserId>(userIds.ToArray());
+              key.MakeReadOnly();
+              keysFound.Add(key);
+
+              userIds.Clear();
+            }
+
             goto gotLine;
           }
-
-          if(fields.Length > 2 && !string.IsNullOrEmpty(fields[2])) key.KeyType = ParseKeyType(fields[2]);
-          if(fields.Length > 3 && !string.IsNullOrEmpty(fields[3])) key.Length = int.Parse(fields[3]);
-          if(fields.Length > 4 && !string.IsNullOrEmpty(fields[4])) key.CreationTime = ParseTimestamp(fields[4]);
-          if(fields.Length > 5 && !string.IsNullOrEmpty(fields[5])) key.ExpirationTime = ParseNullableTimestamp(fields[5]);
-
-          if(fields.Length > 6 && !string.IsNullOrEmpty(fields[6]))
-          {
-            foreach(char c in fields[6])
-            {
-              switch(char.ToLowerInvariant(c))
-              {
-                case 'd': key.Disabled = true; break;
-                case 'e': key.Expired = true; break;
-                case 'r': key.Revoked = true; break;
-              }
-            }
-          }
-
-          // now parse the user IDs
-          while(true)
-          {
-            cmd.ReadLine(out line);
-            if(line == null) break; // if we hit a status message or EOF, break
-
-            LogLine(line);
-            if(line.StartsWith("pub:", StringComparison.Ordinal)) break;
-            else if(!line.StartsWith("uid", StringComparison.Ordinal)) continue;
-
-            fields = line.Split(':');
-            if(string.IsNullOrEmpty(fields[1])) continue;
-
-            UserId id = new UserId();
-            id.PrimaryKey = key;
-            id.Name       = CUnescape(fields[1]);
-            id.Signatures = NoSignatures;
-            if(fields.Length > 2 && !string.IsNullOrEmpty(fields[2])) id.CreationTime = ParseTimestamp(fields[2]);
-            id.MakeReadOnly();
-            userIds.Add(id);
-          }
-
-          if(userIds.Count != 0)
-          {
-            key.Attributes         = NoAttributes;
-            key.DesignatedRevokers = NoRevokers;
-            key.Signatures         = NoSignatures;
-            key.Subkeys            = NoSubkeys;
-            key.UserIds            = new ReadOnlyListWrapper<UserId>(userIds.ToArray());
-            key.MakeReadOnly();
-            keysFound.Add(key);
-
-            userIds.Clear();
-          }
-
-          goto gotLine;
         }
-      }
+      });
 
-      cmd.WaitForExit();
-    }
-
-    if(!cmd.SuccessfulExit) throw new KeyServerFailedException("Key search failed.", state.FailureReasons);
+    if(!command.SuccessfulExit) throw new KeyServerFailedException("Key search failed.", commandState.FailureReasons);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeysFromServer/*"/>
@@ -867,17 +868,15 @@ public class ExeGPG : GPG
     else if(quality == Randomness.TooStrong) qualityArg = "2";
     else qualityArg = "1"; // we'll default to the Strong level
 
-    Command cmd = Execute("--gen-random " + qualityArg + " " + count.ToInvariantString(),
-                          StatusMessages.Ignore, true);
-    using(cmd)
-    {
-      cmd.Start();
-      count -= cmd.Process.StandardOutput.BaseStream.Read(buffer, 0, count, false);
-      cmd.WaitForExit();
-    }
+    Command command = Execute("--gen-random " + qualityArg + " " + count.ToInvariantString(), StatusMessages.Ignore, true, true);
+    ProcessCommand(command, null,
+      delegate(Command cmd, CommandState state)
+      {
+        count -= cmd.Process.StandardOutput.BaseStream.Read(buffer, 0, count, false);
+      });
 
     if(count != 0) throw new PGPException("GPG didn't write enough random bytes.");
-    cmd.CheckExitCode();
+    command.CheckExitCode();
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/Hash/*"/>
@@ -905,40 +904,37 @@ public class ExeGPG : GPG
     // human-readable form, with hex digits nicely formatted into blocks and lines. we'll feed it all the input and
     // then read the output.
     List<byte> hash = new List<byte>();
-    Command cmd = Execute("--print-md " + EscapeArg(hashAlgorithm), StatusMessages.Ignore, false);
-    using(cmd)
-    {
-      cmd.Start();
-
-      if(WriteStreamToProcess(data, cmd.Process))
+    Command command = Execute("--print-md " + EscapeArg(hashAlgorithm), StatusMessages.Ignore, false, true);
+    ProcessCommand(command, null,
+      delegate(Command cmd, CommandState state)
       {
-        while(true)
+        if(WriteStreamToProcess(data, cmd.Process))
         {
-          string line = cmd.Process.StandardOutput.ReadLine();
-          if(line == null) break;
-
-          // on each line, there are some hex digits separated with whitespace. we'll read each character, but only
-          // use characters that are valid hex digits
-          int value = 0, chars = 0;
-          foreach(char c in line.ToLowerInvariant())
+          while(true)
           {
-            if(IsHexDigit(c))
+            string line = cmd.Process.StandardOutput.ReadLine();
+            if(line == null) break;
+
+            // on each line, there are some hex digits separated with whitespace. we'll read each character, but only
+            // use characters that are valid hex digits
+            int value = 0, chars = 0;
+            foreach(char c in line.ToLowerInvariant())
             {
-              value = (value<<4) + GetHexValue(c);
-              if(++chars == 2) // when two hex digits have accumulated, a byte is complete, so write it to the output
+              if(IsHexDigit(c))
               {
-                hash.Add((byte)value);
-                chars = 0;
+                value = (value<<4) + GetHexValue(c);
+                if(++chars == 2) // when two hex digits have accumulated, a byte is complete, so write it to the output
+                {
+                  hash.Add((byte)value);
+                  chars = 0;
+                }
               }
             }
           }
         }
-      }
+      });
 
-      cmd.WaitForExit();
-    }
-
-    if(!cmd.SuccessfulExit || hash.Count == 0)
+    if(!command.SuccessfulExit || hash.Count == 0)
     {
       throw new PGPException("Hash failed.",
                              customAlgorithm ? FailureReason.UnsupportedAlgorithm : FailureReason.None);
@@ -1071,65 +1067,65 @@ public class ExeGPG : GPG
     // if we're using DSA keys greater than 1024 bits, we need to enable DSA2 support
     if(primaryIsDSA && options.KeyLength > 1024 || subIsDSA && options.SubkeyLength > 1024) args += "--enable-dsa2 ";
 
-    Command cmd = Execute(args + "--batch --gen-key", StatusMessages.ReadInBackground, false);
-    CommandState state = new CommandState(cmd);
-    using(cmd)
-    {
-      cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
-
-      cmd.StatusMessageReceived += delegate(StatusMessage msg)
+    Command command = Execute(args + "--batch --gen-key", StatusMessages.ReadInBackground, false);
+    CommandState commandState = ProcessCommand(command,
+      delegate(Command cmd, CommandState state)
       {
-        if(msg.Type == StatusMessageType.KeyCreated) // when the key is created, grab its fingerprint
+        cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
+
+        cmd.StatusMessageReceived += delegate(StatusMessage msg)
         {
-          KeyCreatedMessage m = (KeyCreatedMessage)msg;
-          if(m.PrimaryKeyCreated) keyFingerprint = m.Fingerprint;
+          if(msg.Type == StatusMessageType.KeyCreated) // when the key is created, grab its fingerprint
+          {
+            KeyCreatedMessage m = (KeyCreatedMessage)msg;
+            if(m.PrimaryKeyCreated) keyFingerprint = m.Fingerprint;
+          }
+          else DefaultStatusMessageHandler(msg, state);
+        };
+      },
+
+      delegate(Command cmd, CommandState state)
+      {
+        cmd.Process.StandardInput.WriteLine("Key-Type: " + (primaryIsDSA ? "DSA" : "RSA"));
+
+        int keyLength = options.KeyLength != 0 ? options.KeyLength : primaryIsDSA ? 1024 : 2048;
+        cmd.Process.StandardInput.WriteLine("Key-Length: " + keyLength.ToInvariantString());
+
+        cmd.Process.StandardInput.WriteLine("Key-Usage: " + GetKeyUsageString(primaryCapabilities));
+
+        if(!subIsNone)
+        {
+          cmd.Process.StandardInput.WriteLine("Subkey-Type: " + (subIsDSA ? "DSA" : subIsELG ? "ELG-E" : "RSA"));
+          cmd.Process.StandardInput.WriteLine("Subkey-Usage: " + GetKeyUsageString(subCapabilities));
+
+          keyLength = options.SubkeyLength != 0 ? options.SubkeyLength : subIsDSA ? 1024 : 2048;
+          cmd.Process.StandardInput.WriteLine("Subkey-Length: " + keyLength.ToInvariantString());
         }
-        else DefaultStatusMessageHandler(msg, state);
-      };
 
-      cmd.Start();
+        if(!string.IsNullOrEmpty(realName)) cmd.Process.StandardInput.WriteLine("Name-Real: " + realName);
+        if(!string.IsNullOrEmpty(email)) cmd.Process.StandardInput.WriteLine("Name-Email: " + email);
+        if(!string.IsNullOrEmpty(comment)) cmd.Process.StandardInput.WriteLine("Name-Comment: " + comment);
 
-      cmd.Process.StandardInput.WriteLine("Key-Type: " + (primaryIsDSA ? "DSA" : "RSA"));
+        if(options.Password != null && options.Password.Length != 0)
+        {
+          cmd.Process.StandardInput.Write("Passphrase: ");
+          options.Password.Process(delegate(char[] chars) { cmd.Process.StandardInput.WriteLine(chars); });
+        }
 
-      int keyLength = options.KeyLength != 0 ? options.KeyLength : primaryIsDSA ? 1024 : 2048;
-      cmd.Process.StandardInput.WriteLine("Key-Length: " + keyLength.ToInvariantString());
+        // GPG doesn't allow separate expiration dates for the primary key and subkey during key creation, so we'll
+        // just use the primary key's expiration date and set the subkey's date later
+        if(options.KeyExpiration.HasValue)
+        {
+          cmd.Process.StandardInput.WriteLine("Expire-Date: " +
+                                              keyExpirationDays.ToInvariantString() + "d");
+        }
 
-      cmd.Process.StandardInput.WriteLine("Key-Usage: " + GetKeyUsageString(primaryCapabilities));
+        cmd.Process.StandardInput.Close(); // close STDIN so GPG can start generating the key
+      });
 
-      if(!subIsNone)
-      {
-        cmd.Process.StandardInput.WriteLine("Subkey-Type: " + (subIsDSA ? "DSA" : subIsELG ? "ELG-E" : "RSA"));
-        cmd.Process.StandardInput.WriteLine("Subkey-Usage: " + GetKeyUsageString(subCapabilities));
-
-        keyLength = options.SubkeyLength != 0 ? options.SubkeyLength : subIsDSA ? 1024 : 2048;
-        cmd.Process.StandardInput.WriteLine("Subkey-Length: " + keyLength.ToInvariantString());
-      }
-
-      if(!string.IsNullOrEmpty(realName)) cmd.Process.StandardInput.WriteLine("Name-Real: " + realName);
-      if(!string.IsNullOrEmpty(email)) cmd.Process.StandardInput.WriteLine("Name-Email: " + email);
-      if(!string.IsNullOrEmpty(comment)) cmd.Process.StandardInput.WriteLine("Name-Comment: " + comment);
-
-      if(options.Password != null && options.Password.Length != 0)
-      {
-        cmd.Process.StandardInput.Write("Passphrase: ");
-        options.Password.Process(delegate(char[] chars) { cmd.Process.StandardInput.WriteLine(chars); });
-      }
-
-      // GPG doesn't allow separate expiration dates for the primary key and subkey during key creation, so we'll
-      // just use the primary key's expiration date and set the subkey's date later
-      if(options.KeyExpiration.HasValue)
-      {
-        cmd.Process.StandardInput.WriteLine("Expire-Date: " +
-                                            keyExpirationDays.ToInvariantString() + "d");
-      }
-
-      cmd.Process.StandardInput.Close(); // close STDIN so GPG can start generating the key
-      cmd.WaitForExit(); // wait for it to finish
-    }
-
-    PrimaryKey newKey = !cmd.SuccessfulExit || keyFingerprint == null ?
+    PrimaryKey newKey = !command.SuccessfulExit || keyFingerprint == null ?
                           null : FindKey(keyFingerprint, options.Keyring, ListOptions.Default);
-    if(newKey == null) throw new KeyCreationFailedException(state.FailureReasons);
+    if(newKey == null) throw new KeyCreationFailedException(commandState.FailureReasons);
 
     if(!subIsNone && keyExpirationDays != subkeyExpirationDays)
     {
@@ -1160,27 +1156,24 @@ public class ExeGPG : GPG
     args += (deletion == KeyDeletion.Secret ? "--delete-secret-key " : "--delete-secret-and-public-key ") +
             GetFingerprintArgs(keys);
 
-    Command cmd = Execute(args, StatusMessages.ReadInBackground, true);
-    CommandState state = new CommandState(cmd);
-    using(cmd)
-    {
-      cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
-      cmd.StatusMessageReceived += delegate(StatusMessage msg) { DefaultStatusMessageHandler(msg, state); };
-      cmd.InputNeeded += delegate(string promptId)
+    Command command = Execute(args, StatusMessages.ReadInBackground, true);
+    CommandState commandState = ProcessCommand(command,
+      delegate(Command cmd, CommandState state)
       {
-        if(string.Equals(promptId, "delete_key.okay", StringComparison.Ordinal) ||
-           string.Equals(promptId, "delete_key.secret.okay", StringComparison.Ordinal))
+        cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
+        cmd.StatusMessageReceived += delegate(StatusMessage msg) { DefaultStatusMessageHandler(msg, state); };
+        cmd.InputNeeded += delegate(string promptId)
         {
-          cmd.SendLine("Y");
-        }
-        else DefaultPromptHandler(promptId, state);
-      };
+          if(string.Equals(promptId, "delete_key.okay", StringComparison.Ordinal) ||
+             string.Equals(promptId, "delete_key.secret.okay", StringComparison.Ordinal))
+          {
+            cmd.SendLine("Y");
+          }
+          else DefaultPromptHandler(promptId, state);
+        };
+      });
 
-      cmd.Start();
-      cmd.WaitForExit();
-    }
-
-    if(!cmd.SuccessfulExit) throw new KeyEditFailedException("Deleting keys failed.", state.FailureReasons);
+    if(!command.SuccessfulExit) throw new KeyEditFailedException("Deleting keys failed.", commandState.FailureReasons);
   }
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSubkeys/*" />
@@ -1368,6 +1361,9 @@ public class ExeGPG : GPG
     this.exePath = info.FullName; // everything seems okay, so set the full exePath
   }
 
+  /// <summary>Processes a GPG command.</summary>
+  delegate void CommandProcessor(Command cmd, CommandState state);
+
   /// <summary>Processes status messages from GPG.</summary>
   delegate void StatusMessageHandler(StatusMessage message);
 
@@ -1514,12 +1510,6 @@ public class ExeGPG : GPG
         try { process.Kill(); }
         catch(InvalidOperationException) { } // if it exited before the Kill(), don't worry about it
       }
-    }
-
-    /// <summary>Kills the process if <see cref="KillProcessOnAbort"/> is true.</summary>
-    public void OnThreadAborted()
-    {
-      if(KillProcessOnAbort) Kill();
     }
 
     /// <summary>Reads a line from STDOUT. The method will return true if a line was processed, but the line will be
@@ -1753,7 +1743,7 @@ public class ExeGPG : GPG
       }
       catch(ThreadAbortException)
       {
-        OnThreadAborted();
+        if(KillProcessOnAbort) Kill();
       }
     }
 
@@ -3631,149 +3621,151 @@ public class ExeGPG : GPG
   }
 
   /// <summary>Performs the main work of both decryption and verification.</summary>
-  Signature[] DecryptVerifyCore(Command cmd, Stream signedData, Stream destination, DecryptionOptions options)
+  Signature[] DecryptVerifyCore(Command command, Stream signedData, Stream destination, DecryptionOptions options)
   {
-    CommandState state = new CommandState(cmd);
-    cmd.KillProcessOnAbort = true;
-    using(cmd)
-    {
-      List<Signature> signatures = new List<Signature>(); // this holds the completed signatures
-      Signature sig = new Signature(); // keep track of the current signature
-      bool sigFilled = false, triedPasswordInOptions = false;
+    List<Signature> signatures = new List<Signature>(); // this holds the completed signatures
+    Signature sig = new Signature(); // keep track of the current signature
+    bool sigFilled = false;
 
-      cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
-      cmd.InputNeeded += delegate(string promptId)
+    command.KillProcessOnAbort = true;
+    CommandState commandState = ProcessCommand(command,
+      delegate(Command cmd, CommandState state)
       {
-        if(string.Equals(promptId, "passphrase.enter", StringComparison.Ordinal) && state.PasswordMessage != null &&
-           state.PasswordMessage.Type == StatusMessageType.NeedCipherPassphrase)
-        {
-          // we'll first try sending the password from the options if we have it, but only once.
-          if(!triedPasswordInOptions &&
-             options != null && options.Password != null && options.Password.Length != 0)
-          {
-            triedPasswordInOptions = true;
-            cmd.SendPassword(options.Password, false);
-          }
-          else // we either don't have a password in the options, or we already sent it (and it probably failed),
-          {    // so ask the user
-            SecureString password = GetDecryptionPassword();
-            if(password != null) cmd.SendPassword(password, true);
-            else cmd.SendLine();
-          }
-        }
-        else DefaultPromptHandler(promptId, state);
-      };
+        bool triedPasswordInOptions = false;
 
-      cmd.StatusMessageReceived += delegate(StatusMessage msg)
+        cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
+        cmd.InputNeeded += delegate(string promptId)
+        {
+          if(string.Equals(promptId, "passphrase.enter", StringComparison.Ordinal) && state.PasswordMessage != null &&
+             state.PasswordMessage.Type == StatusMessageType.NeedCipherPassphrase)
+          {
+            // we'll first try sending the password from the options if we have it, but only once.
+            if(!triedPasswordInOptions &&
+               options != null && options.Password != null && options.Password.Length != 0)
+            {
+              triedPasswordInOptions = true;
+              cmd.SendPassword(options.Password, false);
+            }
+            else // we either don't have a password in the options, or we already sent it (and it probably failed),
+            {    // so ask the user
+              SecureString password = GetDecryptionPassword();
+              if(password != null) cmd.SendPassword(password, true);
+              else cmd.SendLine();
+            }
+          }
+          else DefaultPromptHandler(promptId, state);
+        };
+
+        cmd.StatusMessageReceived += delegate(StatusMessage msg)
+        {
+          if(msg is TrustLevelMessage)
+          {
+            sig.TrustLevel = ((TrustLevelMessage)msg).Level;
+          }
+          else
+          {
+            // if the message begins a new signature, add the previous one (if it's complete enough to add)
+            if(msg.Type == StatusMessageType.NewSig  || msg.Type == StatusMessageType.BadSig ||
+               msg.Type == StatusMessageType.GoodSig || msg.Type == StatusMessageType.ErrorSig)
+            {
+              if(sigFilled) signatures.Add(sig);
+              sig = new Signature();
+              sigFilled = false; // the new signature is not complete enough to add
+            }
+
+            switch(msg.Type)
+            {
+              case StatusMessageType.BadSig:
+              {
+                BadSigMessage bad = (BadSigMessage)msg;
+                sig.KeyId      = bad.KeyId;
+                sig.SignerName = bad.UserName;
+                sig.Status     = SignatureStatus.Invalid;
+                sigFilled      = true;
+                break;
+              }
+
+              case StatusMessageType.ErrorSig:
+              {
+                ErrorSigMessage error = (ErrorSigMessage)msg;
+                sig.HashAlgorithm = error.HashAlgorithm;
+                sig.KeyId        = error.KeyId;
+                sig.KeyType      = error.KeyType;
+                sig.CreationTime = error.Timestamp;
+                sig.Status       = SignatureStatus.Error | (error.MissingKey ? SignatureStatus.MissingKey : 0) |
+                                   (error.UnsupportedAlgorithm ? SignatureStatus.UnsupportedAlgorithm : 0);
+                sigFilled        = true;
+                break;
+              }
+
+              case StatusMessageType.ExpiredKeySig:
+              {
+                ExpiredKeySigMessage em = (ExpiredKeySigMessage)msg;
+                sig.KeyId      = em.KeyId;
+                sig.SignerName = em.UserName;
+                sig.Status    |= SignatureStatus.ExpiredKey;
+                break;
+              }
+
+              case StatusMessageType.ExpiredSig:
+              {
+                ExpiredSigMessage em = (ExpiredSigMessage)msg;
+                sig.KeyId      = em.KeyId;
+                sig.SignerName = em.UserName;
+                sig.Status    |= SignatureStatus.ExpiredSignature;
+                break;
+              }
+
+              case StatusMessageType.GoodSig:
+              {
+                GoodSigMessage good = (GoodSigMessage)msg;
+                sig.KeyId      = good.KeyId;
+                sig.SignerName = good.UserName;
+                sig.Status     = SignatureStatus.Valid | (sig.Status & SignatureStatus.ValidFlagMask);
+                sigFilled      = true;
+                break;
+              }
+
+              case StatusMessageType.RevokedKeySig:
+              {
+                RevokedKeySigMessage em = (RevokedKeySigMessage)msg;
+                sig.KeyId      = em.KeyId;
+                sig.SignerName = em.UserName;
+                sig.Status    |= SignatureStatus.RevokedKey;
+                break;
+              }
+
+              case StatusMessageType.ValidSig:
+              {
+                ValidSigMessage valid = (ValidSigMessage)msg;
+                sig.HashAlgorithm         = valid.HashAlgorithm;
+                sig.KeyType               = valid.KeyType;
+                sig.PrimaryKeyFingerprint = valid.PrimaryKeyFingerprint;
+                sig.Expiration            = valid.SignatureExpiration;
+                sig.KeyFingerprint        = valid.SignatureKeyFingerprint;
+                sig.CreationTime          = valid.SignatureTime;
+                break;
+              }
+
+              default: DefaultStatusMessageHandler(msg, state); break;
+            }
+          }
+        };
+      },
+
+      delegate(Command cmd, CommandState state)
       {
-        if(msg is TrustLevelMessage)
-        {
-          sig.TrustLevel = ((TrustLevelMessage)msg).Level;
-        }
-        else
-        {
-          // if the message begins a new signature, add the previous one (if it's complete enough to add)
-          if(msg.Type == StatusMessageType.NewSig  || msg.Type == StatusMessageType.BadSig ||
-             msg.Type == StatusMessageType.GoodSig || msg.Type == StatusMessageType.ErrorSig)
-          {
-            if(sigFilled) signatures.Add(sig);
-            sig = new Signature();
-            sigFilled = false; // the new signature is not complete enough to add
-          }
+        // write the signed and/or encrypted data to STDIN and read the plaintext from STDOUT
+        if(destination == null) WriteStreamToProcess(signedData, cmd.Process);
+        else ReadAndWriteStreams(destination, signedData, cmd.Process);
+      });
 
-          switch(msg.Type)
-          {
-            case StatusMessageType.BadSig:
-            {
-              BadSigMessage bad = (BadSigMessage)msg;
-              sig.KeyId      = bad.KeyId;
-              sig.SignerName = bad.UserName;
-              sig.Status     = SignatureStatus.Invalid;
-              sigFilled      = true;
-              break;
-            }
+    if(!command.SuccessfulExit) throw new DecryptionFailedException(commandState.FailureReasons);
 
-            case StatusMessageType.ErrorSig:
-            {
-              ErrorSigMessage error = (ErrorSigMessage)msg;
-              sig.HashAlgorithm = error.HashAlgorithm;
-              sig.KeyId        = error.KeyId;
-              sig.KeyType      = error.KeyType;
-              sig.CreationTime = error.Timestamp;
-              sig.Status       = SignatureStatus.Error | (error.MissingKey ? SignatureStatus.MissingKey : 0) |
-                                 (error.UnsupportedAlgorithm ? SignatureStatus.UnsupportedAlgorithm : 0);
-              sigFilled        = true;
-              break;
-            }
-
-            case StatusMessageType.ExpiredKeySig:
-            {
-              ExpiredKeySigMessage em = (ExpiredKeySigMessage)msg;
-              sig.KeyId      = em.KeyId;
-              sig.SignerName = em.UserName;
-              sig.Status    |= SignatureStatus.ExpiredKey;
-              break;
-            }
-
-            case StatusMessageType.ExpiredSig:
-            {
-              ExpiredSigMessage em = (ExpiredSigMessage)msg;
-              sig.KeyId      = em.KeyId;
-              sig.SignerName = em.UserName;
-              sig.Status    |= SignatureStatus.ExpiredSignature;
-              break;
-            }
-
-            case StatusMessageType.GoodSig:
-            {
-              GoodSigMessage good = (GoodSigMessage)msg;
-              sig.KeyId      = good.KeyId;
-              sig.SignerName = good.UserName;
-              sig.Status     = SignatureStatus.Valid | (sig.Status & SignatureStatus.ValidFlagMask);
-              sigFilled      = true;
-              break;
-            }
-
-            case StatusMessageType.RevokedKeySig:
-            {
-              RevokedKeySigMessage em = (RevokedKeySigMessage)msg;
-              sig.KeyId      = em.KeyId;
-              sig.SignerName = em.UserName;
-              sig.Status    |= SignatureStatus.RevokedKey;
-              break;
-            }
-
-            case StatusMessageType.ValidSig:
-            {
-              ValidSigMessage valid = (ValidSigMessage)msg;
-              sig.HashAlgorithm         = valid.HashAlgorithm;
-              sig.KeyType               = valid.KeyType;
-              sig.PrimaryKeyFingerprint = valid.PrimaryKeyFingerprint;
-              sig.Expiration            = valid.SignatureExpiration;
-              sig.KeyFingerprint        = valid.SignatureKeyFingerprint;
-              sig.CreationTime          = valid.SignatureTime;
-              break;
-            }
-
-            default: DefaultStatusMessageHandler(msg, state); break;
-          }
-        }
-      };
-
-      cmd.Start();
-
-      // write the signed and/or encrypted data to STDIN and read the plaintext from STDOUT
-      if(destination == null) WriteStreamToProcess(signedData, cmd.Process);
-      else ReadAndWriteStreams(destination, signedData, cmd.Process);
-
-      cmd.WaitForExit();
-      if(!cmd.SuccessfulExit) throw new DecryptionFailedException(state.FailureReasons);
-
-      if(sigFilled) signatures.Add(sig); // add the final signature if it's filled out
-      // make all the signature objects read only and return them
-      foreach(Signature signature in signatures) signature.MakeReadOnly();
-      return signatures.ToArray();
-    }
+    if(sigFilled) signatures.Add(sig); // add the final signature if it's filled out
+    // make all the signature objects read only and return them
+    foreach(Signature signature in signatures) signature.MakeReadOnly();
+    return signatures.ToArray();
   }
 
   /// <summary>Provides default handling for input prompts.</summary>
@@ -3861,135 +3853,126 @@ public class ExeGPG : GPG
     args += " --with-colons --fixed-list-mode --edit-key " + key.EffectiveId;
     if(addKeyring) args = GetKeyringArgs(key.Keyring, true) + args;
 
-    Command cmd = Execute(args, StatusMessages.MixIntoStdout, true, true);
-    CommandState state = new CommandState(cmd);
-    try
-    {
-      bool gotFreshList = false;
-
-      cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
-
-      cmd.Start();
-
-      // the ExecuteForEdit() command coallesced the status lines into STDOUT, so we need to parse out the status
-      // messages ourselves
-      while(true)
+    Command command = Execute(args, StatusMessages.MixIntoStdout, true, true);
+    CommandState commandState = ProcessCommand(command,
+      delegate(Command cmd, CommandState state)
       {
-        string line;
-        cmd.ReadLine(out line);
-        if(line != null) LogLine(line);
-
-        gotLine:
-        if(line == null && cmd.StatusMessage == null) break;
-
-        if(line == null) // it's a status message
+        cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
+      },
+      delegate(Command cmd, CommandState state)
+      {
+        bool gotFreshList = false;
+        // the ExecuteForEdit() command coallesced the status lines into STDOUT, so we need to parse out the status
+        // messages ourselves
+        while(true)
         {
-          switch(cmd.StatusMessage.Type)
-          {
-            case StatusMessageType.GetLine: case StatusMessageType.GetHidden: case StatusMessageType.GetBool:
-            {
-              string promptId = ((GetInputMessage)cmd.StatusMessage).PromptId;
-              while(true) // input is needed, so process it
-              {
-                // if the queue is empty, add a quit command
-                if(commands.Count == 0) commands.Enqueue(new QuitCommand(true));
+          string line;
+          cmd.ReadLine(out line);
+          if(line != null) LogLine(line);
 
-                if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal) &&
-                   !gotFreshList && commands.Peek().ExpectRelist)
+          gotLine:
+          if(line == null && cmd.StatusMessage == null) break;
+
+          if(line == null) // it's a status message
+          {
+            switch(cmd.StatusMessage.Type)
+            {
+              case StatusMessageType.GetLine: case StatusMessageType.GetHidden: case StatusMessageType.GetBool:
+              {
+                string promptId = ((GetInputMessage)cmd.StatusMessage).PromptId;
+                while(true) // input is needed, so process it
                 {
-                  cmd.SendLine("list");
+                  // if the queue is empty, add a quit command
+                  if(commands.Count == 0) commands.Enqueue(new QuitCommand(true));
+
+                  if(string.Equals(promptId, "keyedit.prompt", StringComparison.Ordinal) &&
+                     !gotFreshList && commands.Peek().ExpectRelist)
+                  {
+                    cmd.SendLine("list");
+                    break;
+                  }
+
+                  EditCommandResult result = commands.Peek().Process(commands, originalKey, editKey, state, promptId);
+                  gotFreshList = false;
+                  if(result == EditCommandResult.Next || result == EditCommandResult.Done) commands.Dequeue();
+                  if(result == EditCommandResult.Continue || result == EditCommandResult.Done) break;
+                }
+                break;
+              }
+
+              default:
+                DefaultStatusMessageHandler(cmd.StatusMessage, state);
+                if(state.Canceled) throw new OperationCanceledException();
+                break;
+            }
+          }
+          else if(line.StartsWith("pub:", StringComparison.Ordinal)) // a key listing is beginning
+          {
+            // GPG outputs a key listing when edit mode is first started, and after commands that might change the key
+            editKey = new EditKey();
+            bool gotSubkey = false;
+
+            do // parse the key listing
+            {
+              string[] fields = line.Split(':');
+
+              switch(fields[0])
+              {
+                case "sub": gotSubkey = true; break;
+
+                case "fpr":
+                  if(gotSubkey) editKey.Subkeys.Add(fields[9].ToUpperInvariant());
+                  break;
+
+                case "uid": case "uat":
+                {
+                  EditUserId uid = new EditUserId();
+                  uid.IsAttribute = fields[0][1] == 'a'; // it's an attribute if fields[0] == "uat"
+                  uid.Name        = fields[9];
+                  uid.Prefs       = fields[12].Split(',')[0];
+
+                  string[] bits = fields[13].Split(',');
+                  if(bits.Length > 1)
+                  {
+                    foreach(char c in bits[1])
+                    {
+                      if(c == 'p') uid.Primary = true;
+                      else if(c == 's') uid.Selected = true;
+                    }
+                  }
+
+                  editKey.UserIds.Add(uid);
                   break;
                 }
-
-                EditCommandResult result = commands.Peek().Process(commands, originalKey, editKey, state, promptId);
-                gotFreshList = false;
-                if(result == EditCommandResult.Next || result == EditCommandResult.Done) commands.Dequeue();
-                if(result == EditCommandResult.Continue || result == EditCommandResult.Done) break;
               }
-              break;
-            }
 
-            default:
-              DefaultStatusMessageHandler(cmd.StatusMessage, state);
-              if(state.Canceled) throw new OperationCanceledException();
-              break;
+              cmd.ReadLine(out line);
+              if(line != null) LogLine(line);
+            } while(!string.IsNullOrEmpty(line)); // break out if the line is empty or a status message
+
+            gotFreshList = true;
+
+            // keep a copy of the original key state. this is useful to tell which user ID was initially primary, etc.
+            if(originalKey == null) originalKey = editKey;
+
+            // at this point, we've got a valid line, so jump to the part where we inspect it
+            goto gotLine;
           }
-        }
-        else if(line.StartsWith("pub:", StringComparison.Ordinal)) // a key listing is beginning
-        {
-          // GPG outputs a key listing when edit mode is first started, and after commands that might change the key
-          editKey = new EditKey();
-          bool gotSubkey = false;
-
-          do // parse the key listing
+          else // a line other than a key listing or a status line was received
           {
-            string[] fields = line.Split(':');
-
-            switch(fields[0])
+            while(true) // let the edit commands handle it
             {
-              case "sub": gotSubkey = true; break;
+              if(commands.Count == 0) break;
 
-              case "fpr":
-                if(gotSubkey) editKey.Subkeys.Add(fields[9].ToUpperInvariant());
-                break;
-
-              case "uid": case "uat":
-              {
-                EditUserId uid = new EditUserId();
-                uid.IsAttribute = fields[0][1] == 'a'; // it's an attribute if fields[0] == "uat"
-                uid.Name        = fields[9];
-                uid.Prefs       = fields[12].Split(',')[0];
-
-                string[] bits = fields[13].Split(',');
-                if(bits.Length > 1)
-                {
-                  foreach(char c in bits[1])
-                  {
-                    if(c == 'p') uid.Primary = true;
-                    else if(c == 's') uid.Selected = true;
-                  }
-                }
-
-                editKey.UserIds.Add(uid);
-                break;
-              }
+              EditCommandResult result = commands.Peek().Process(line);
+              if(result == EditCommandResult.Next || result == EditCommandResult.Done) commands.Dequeue();
+              if(result == EditCommandResult.Continue || result == EditCommandResult.Done) break;
             }
-
-            cmd.ReadLine(out line);
-            if(line != null) LogLine(line);
-          } while(!string.IsNullOrEmpty(line)); // break out if the line is empty or a status message
-
-          gotFreshList = true;
-
-          // keep a copy of the original key state. this is useful to tell which user ID was initially primary, etc.
-          if(originalKey == null) originalKey = editKey;
-
-          // at this point, we've got a valid line, so jump to the part where we inspect it
-          goto gotLine;
-        }
-        else // a line other than a key listing or a status line was received
-        {
-          while(true) // let the edit commands handle it
-          {
-            if(commands.Count == 0) break;
-
-            EditCommandResult result = commands.Peek().Process(line);
-            if(result == EditCommandResult.Next || result == EditCommandResult.Done) commands.Dequeue();
-            if(result == EditCommandResult.Continue || result == EditCommandResult.Done) break;
           }
         }
-      }
+      });
 
-      cmd.WaitForExit();
-    }
-    catch // if an exception is thrown, GPG will probably be stuck at the menu waiting for input,
-    {     // so we'll just kill it to prevent it from taking a long time to Dispose
-      cmd.Kill();
-      throw;
-    }
-    finally { cmd.Dispose(); }
-
-    if(!cmd.SuccessfulExit) throw new KeyEditFailedException("Key edit failed.", state.FailureReasons);
+    if(!command.SuccessfulExit) throw new KeyEditFailedException("Key edit failed.", commandState.FailureReasons);
   }
 
   /// <summary>Performs an edit command on groups of user attributes.</summary>
@@ -4090,17 +4073,18 @@ public class ExeGPG : GPG
   /// <summary>Performs the main work of exporting keys.</summary>
   void ExportCore(string args, Stream destination)
   {
-    Command cmd = Execute(args, StatusMessages.ReadInBackground, true, true);
-    CommandState state = new CommandState(cmd);
-    using(cmd)
-    {
-      cmd.StatusMessageReceived += delegate(StatusMessage msg) { DefaultStatusMessageHandler(msg, state); };
-      cmd.Start(); // simply start GPG and copy the output to the destination stream
-      cmd.Process.StandardOutput.BaseStream.CopyTo(destination);
-      cmd.WaitForExit();
-    }
+    Command command = Execute(args, StatusMessages.ReadInBackground, true, true);
+    CommandState commandState = ProcessCommand(command,
+      delegate(Command cmd, CommandState state)
+      {
+        cmd.StatusMessageReceived += delegate(StatusMessage msg) { DefaultStatusMessageHandler(msg, state); };
+      },
+      delegate(Command cmd, CommandState state)
+      {
+        cmd.Process.StandardOutput.BaseStream.CopyTo(destination);
+      });
 
-    if(!cmd.SuccessfulExit) throw new ExportFailedException(state.FailureReasons);
+    if(!command.SuccessfulExit) throw new ExportFailedException(commandState.FailureReasons);
   }
 
   /// <summary>Generates a revocation certificate, either directly or via a designated revoker.</summary>
@@ -4121,46 +4105,45 @@ public class ExeGPG : GPG
     }
     args += key.Fingerprint;
 
-    Command cmd = Execute(args, StatusMessages.ReadInBackground, true, true);
-    CommandState state = new CommandState(cmd);
-    using(cmd)
-    {
-      string[] lines = null; // needed for the revocation prompt handler
-      int lineIndex  = 0;
-
-      cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
-      cmd.StatusMessageReceived += delegate(StatusMessage msg) { DefaultStatusMessageHandler(msg, state); };
-
-      cmd.InputNeeded += delegate(string promptId)
+    Command command = Execute(args, StatusMessages.ReadInBackground, true, true);
+    CommandState commandState = ProcessCommand(command,
+      delegate(Command cmd, CommandState state)
       {
-        if(string.Equals(promptId, "gen_revoke.okay", StringComparison.Ordinal) ||
-           string.Equals(promptId, "gen_desig_revoke.okay", StringComparison.Ordinal))
+        string[] lines = null; // needed for the revocation prompt handler
+        int lineIndex  = 0;
+
+        cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
+        cmd.StatusMessageReceived += delegate(StatusMessage msg) { DefaultStatusMessageHandler(msg, state); };
+
+        cmd.InputNeeded += delegate(string promptId)
         {
-          cmd.SendLine("Y");
-        }
-        else if(!HandleRevokePrompt(cmd, promptId, reason, null, ref lines, ref lineIndex))
-        {
-          if(!state.Canceled)
+          if(string.Equals(promptId, "gen_revoke.okay", StringComparison.Ordinal) ||
+             string.Equals(promptId, "gen_desig_revoke.okay", StringComparison.Ordinal))
           {
-            DefaultPromptHandler(promptId, state);
-            if(state.Canceled) cmd.Kill(); // kill GPG if the user doesn't give the password, so it doesn't keep asking
+            cmd.SendLine("Y");
           }
-        }
-      };
+          else if(!HandleRevokePrompt(cmd, promptId, reason, null, ref lines, ref lineIndex))
+          {
+            if(!state.Canceled)
+            {
+              DefaultPromptHandler(promptId, state);
+              if(state.Canceled) cmd.Kill(); // kill GPG if the user doesn't give the password, so it doesn't keep asking
+            }
+          }
+        };
+      },
+      delegate(Command cmd, CommandState state) { cmd.Process.StandardOutput.BaseStream.CopyTo(destination); });
 
-      cmd.Start();
-      cmd.Process.StandardOutput.BaseStream.CopyTo(destination);
-      cmd.WaitForExit();
-    }
-
-    if(!cmd.SuccessfulExit)
+    if(!command.SuccessfulExit)
     {
-      // if the user canceled
-      if(state.Canceled) throw new OperationCanceledException();
+      if(commandState.Canceled) // if the user canceled
+      {
+        throw new OperationCanceledException();
+      }
       else
       {
         throw new PGPException("Unable to generate revocation certificate for key " + key.ToString(),
-                               state.FailureReasons);
+                               commandState.FailureReasons);
       }
     }
   }
@@ -4285,161 +4268,165 @@ public class ExeGPG : GPG
       attrBuffer    = null;
     }
 
-    Command cmd = Execute(args + searchArgs, retrieveAttributes ? StatusMessages.MixIntoStdout : StatusMessages.Ignore,
-                          true, true);
-    CommandState state = new CommandState(cmd);
+    Command command = Execute(args + searchArgs, retrieveAttributes ? StatusMessages.MixIntoStdout : StatusMessages.Ignore,
+                              true, true);
+    CommandState commandState = new CommandState(command);
     try
     {
-      cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
-
-      if(retrieveAttributes)
-      {
-        cmd.StatusMessageReceived += delegate(StatusMessage msg)
-        {
-          if(msg.Type == StatusMessageType.Attribute) attrMsg = (AttributeMessage)msg;
-        };
-
-        // create the callback for reading the attribute stream. we have to do this in the background because it could
-        // block if we try to read the attribute stream in the main loop -- even if we use asynchronous IO
-        attrCallback = delegate(IAsyncResult result)
-        {
-          int bytesRead = attrStream.EndRead(result);
-          if(bytesRead == 0) // if we're at EOF, then we're done
-          {
-            attrDone.Set();
-          }
-          else // otherwise, some data was read
-          {
-            attrTempStream.Write(attrBuffer, 0, bytesRead); // so write it to the temporary output stream
-            attrStream.BeginRead(attrBuffer, 0, attrBuffer.Length, attrCallback, null);
-          }
-        };
-      }
-
-      cmd.Start();
-
-      List<Subkey> subkeys = new List<Subkey>(); // holds the subkeys in the current primary key
-      List<KeySignature> sigs = new List<KeySignature>(32); // holds the signatures on the last key or user id
       List<UserAttribute> attributes = new List<UserAttribute>(); // holds user attributes on the key
-      List<string> revokers = new List<string>(); // holds designated revokers on the key
-
-      PrimaryKey currentPrimary = null;
-      Subkey currentSubkey = null;
-      UserAttribute currentAttribute = null;
-
-      // if we're retrieving attributes, start reading the data in the background
-      if(retrieveAttributes) attrStream.BeginRead(attrBuffer, 0, attrBuffer.Length, attrCallback, null);
-
-      while(true)
-      {
-        string line;
-        cmd.ReadLine(out line);
-        if(line == null)
+      ProcessCommand(command, commandState,
+        delegate(Command cmd, CommandState state)
         {
-          if(cmd.StatusMessage == null) break;
-          else continue;
-        }
+          cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
 
-        // each line is a bunch of stuff separated by colons. this is documented in gpg-src\doc\DETAILS
-        string[] fields = line.Split(':');
-        switch(fields[0])
-        {
-          case "sig": case "rev": // a signature or revocation signature
-            KeySignature sig = new KeySignature();
-            if(!string.IsNullOrEmpty(fields[1]))
+          if(retrieveAttributes)
+          {
+            cmd.StatusMessageReceived += delegate(StatusMessage msg)
             {
-              switch(fields[1][0])
+              if(msg.Type == StatusMessageType.Attribute) attrMsg = (AttributeMessage)msg;
+            };
+
+            // create the callback for reading the attribute stream. we have to do this in the background because it could
+            // block if we try to read the attribute stream in the main loop -- even if we use asynchronous IO
+            attrCallback = delegate(IAsyncResult result)
+            {
+              int bytesRead = attrStream.EndRead(result);
+              if(bytesRead == 0) // if we're at EOF, then we're done
               {
-                case '!': sig.Status = SignatureStatus.Valid; break;
-                case '-': sig.Status = SignatureStatus.Invalid; break;
-                case '%': sig.Status = SignatureStatus.Error; break;
-                case '?': sig.Status = SignatureStatus.Unverified; break;
+                attrDone.Set();
               }
-            }
-            if(!string.IsNullOrEmpty(fields[4])) sig.KeyId        = fields[4].ToUpperInvariant();
-            if(!string.IsNullOrEmpty(fields[5])) sig.CreationTime = GPG.ParseTimestamp(fields[5]);
-            if(!string.IsNullOrEmpty(fields[9])) sig.SignerName   = CUnescape(fields[9]);
-            if(fields[10] != null && fields[10].Length >= 2)
-            {
-              string type = fields[10];
-              sig.Type = (OpenPGPSignatureType)GetHexValue(type[0], type[1]);
-              sig.Exportable = type.Length >= 3 && type[2] == 'x';
-            }
-            if(fields.Length > 12 && !string.IsNullOrEmpty(fields[12]))
-            {
-              sig.KeyFingerprint = fields[12].ToUpperInvariant();
-            }
-            sigs.Add(sig);
-            break;
+              else // otherwise, some data was read
+              {
+                attrTempStream.Write(attrBuffer, 0, bytesRead); // so write it to the temporary output stream
+                attrStream.BeginRead(attrBuffer, 0, attrBuffer.Length, attrCallback, null);
+              }
+            };
+          }
+        },
 
-          case "uid": // user id
+        delegate(Command cmd, CommandState state)
+        {
+          List<Subkey> subkeys = new List<Subkey>(); // holds the subkeys in the current primary key
+          List<KeySignature> sigs = new List<KeySignature>(32); // holds the signatures on the last key or user id
+          List<string> revokers = new List<string>(); // holds designated revokers on the key
+
+          PrimaryKey currentPrimary = null;
+          Subkey currentSubkey = null;
+          UserAttribute currentAttribute = null;
+
+          // if we're retrieving attributes, start reading the data in the background
+          if(retrieveAttributes) attrStream.BeginRead(attrBuffer, 0, attrBuffer.Length, attrCallback, null);
+
+          while(true)
           {
-            FinishAttribute(attributes, sigs, currentPrimary, currentSubkey, ref currentAttribute);
-            UserId userId = new UserId();
-            if(!string.IsNullOrEmpty(fields[1]))
+            string line;
+            cmd.ReadLine(out line);
+            if(line == null)
             {
-              char c = fields[1][0];
-              userId.CalculatedTrust = ParseTrustLevel(c);
-              userId.Revoked         = c == 'r';
+              if(cmd.StatusMessage == null) break;
+              else continue;
             }
-            if(!string.IsNullOrEmpty(fields[5])) userId.CreationTime    = ParseTimestamp(fields[5]);
-            if(!string.IsNullOrEmpty(fields[7])) userId.Id              = fields[7].ToUpperInvariant();
-            if(!string.IsNullOrEmpty(fields[9])) userId.Name            = CUnescape(fields[9]);
-            currentAttribute = userId;
-            break;
+
+            // each line is a bunch of stuff separated by colons. this is documented in gpg-src\doc\DETAILS
+            string[] fields = line.Split(':');
+            switch(fields[0])
+            {
+              case "sig": case "rev": // a signature or revocation signature
+                KeySignature sig = new KeySignature();
+                if(!string.IsNullOrEmpty(fields[1]))
+                {
+                  switch(fields[1][0])
+                  {
+                    case '!': sig.Status = SignatureStatus.Valid; break;
+                    case '-': sig.Status = SignatureStatus.Invalid; break;
+                    case '%': sig.Status = SignatureStatus.Error; break;
+                    case '?': sig.Status = SignatureStatus.Unverified; break;
+                  }
+                }
+                if(!string.IsNullOrEmpty(fields[4])) sig.KeyId        = fields[4].ToUpperInvariant();
+                if(!string.IsNullOrEmpty(fields[5])) sig.CreationTime = GPG.ParseTimestamp(fields[5]);
+                if(!string.IsNullOrEmpty(fields[9])) sig.SignerName   = CUnescape(fields[9]);
+                if(fields[10] != null && fields[10].Length >= 2)
+                {
+                  string type = fields[10];
+                  sig.Type = (OpenPGPSignatureType)GetHexValue(type[0], type[1]);
+                  sig.Exportable = type.Length >= 3 && type[2] == 'x';
+                }
+                if(fields.Length > 12 && !string.IsNullOrEmpty(fields[12]))
+                {
+                  sig.KeyFingerprint = fields[12].ToUpperInvariant();
+                }
+                sigs.Add(sig);
+                break;
+
+              case "uid": // user id
+              {
+                FinishAttribute(attributes, sigs, currentPrimary, currentSubkey, ref currentAttribute);
+                UserId userId = new UserId();
+                if(!string.IsNullOrEmpty(fields[1]))
+                {
+                  char c = fields[1][0];
+                  userId.CalculatedTrust = ParseTrustLevel(c);
+                  userId.Revoked         = c == 'r';
+                }
+                if(!string.IsNullOrEmpty(fields[5])) userId.CreationTime    = ParseTimestamp(fields[5]);
+                if(!string.IsNullOrEmpty(fields[7])) userId.Id              = fields[7].ToUpperInvariant();
+                if(!string.IsNullOrEmpty(fields[9])) userId.Name            = CUnescape(fields[9]);
+                currentAttribute = userId;
+                break;
+              }
+
+              case "pub": case "sec": // public and secret primary keys
+                FinishPrimaryKey(keys, subkeys, attributes, sigs, revokers,
+                                 ref currentPrimary, ref currentSubkey, ref currentAttribute, options);
+                currentPrimary = new PrimaryKey();
+                currentPrimary.Keyring = keyring;
+                ReadKeyData(currentPrimary, fields);
+                currentPrimary.HasSecretKey = fields[0][0] == 's'; // it's secret if the field was "sec"
+                break;
+
+              case "sub": case "ssb": // public and secret subkeys
+                FinishSubkey(subkeys, sigs, currentPrimary, ref currentSubkey, currentAttribute);
+                currentSubkey = new Subkey();
+                ReadKeyData(currentSubkey, fields);
+                break;
+
+              case "fpr": // key fingerprint
+                if(currentSubkey != null) currentSubkey.Fingerprint = fields[9].ToUpperInvariant();
+                else if(currentPrimary != null) currentPrimary.Fingerprint = fields[9].ToUpperInvariant();
+                break;
+
+              case "uat": // user attribute
+              {
+                FinishAttribute(attributes, sigs, currentPrimary, currentSubkey, ref currentAttribute);
+
+                if(retrieveAttributes && attrMsg != null)
+                {
+                  currentAttribute = new DummyAttribute(attrMsg);
+                  currentAttribute.Primary = attrMsg.IsPrimary;
+                  currentAttribute.Revoked = attrMsg.IsRevoked;
+                  if(!string.IsNullOrEmpty(fields[1])) currentAttribute.CalculatedTrust = ParseTrustLevel(fields[1][0]);
+                  if(!string.IsNullOrEmpty(fields[5])) currentAttribute.CreationTime    = ParseTimestamp(fields[5]);
+                  if(!string.IsNullOrEmpty(fields[7])) currentAttribute.Id              = fields[7].ToUpperInvariant();
+                  attrMsg = null;
+                }
+                break;
+              }
+
+              case "rvk": // a designated revoker
+                revokers.Add(fields[9].ToUpperInvariant());
+                break;
+
+              case "crt": case "crs": // X.509 certificates (we just treat them as an end to the current key)
+                FinishPrimaryKey(keys, subkeys, attributes, sigs, revokers,
+                                 ref currentPrimary, ref currentSubkey, ref currentAttribute, options);
+                break;
+            }
           }
 
-          case "pub": case "sec": // public and secret primary keys
-            FinishPrimaryKey(keys, subkeys, attributes, sigs, revokers,
-                             ref currentPrimary, ref currentSubkey, ref currentAttribute, options);
-            currentPrimary = new PrimaryKey();
-            currentPrimary.Keyring = keyring;
-            ReadKeyData(currentPrimary, fields);
-            currentPrimary.HasSecretKey = fields[0][0] == 's'; // it's secret if the field was "sec"
-            break;
-
-          case "sub": case "ssb": // public and secret subkeys
-            FinishSubkey(subkeys, sigs, currentPrimary, ref currentSubkey, currentAttribute);
-            currentSubkey = new Subkey();
-            ReadKeyData(currentSubkey, fields);
-            break;
-
-          case "fpr": // key fingerprint
-            if(currentSubkey != null) currentSubkey.Fingerprint = fields[9].ToUpperInvariant();
-            else if(currentPrimary != null) currentPrimary.Fingerprint = fields[9].ToUpperInvariant();
-            break;
-
-          case "uat": // user attribute
-          {
-            FinishAttribute(attributes, sigs, currentPrimary, currentSubkey, ref currentAttribute);
-
-            if(retrieveAttributes && attrMsg != null)
-            {
-              currentAttribute = new DummyAttribute(attrMsg);
-              currentAttribute.Primary = attrMsg.IsPrimary;
-              currentAttribute.Revoked = attrMsg.IsRevoked;
-              if(!string.IsNullOrEmpty(fields[1])) currentAttribute.CalculatedTrust = ParseTrustLevel(fields[1][0]);
-              if(!string.IsNullOrEmpty(fields[5])) currentAttribute.CreationTime    = ParseTimestamp(fields[5]);
-              if(!string.IsNullOrEmpty(fields[7])) currentAttribute.Id              = fields[7].ToUpperInvariant();
-              attrMsg = null;
-            }
-            break;
-          }
-
-          case "rvk": // a designated revoker
-            revokers.Add(fields[9].ToUpperInvariant());
-            break;
-
-          case "crt": case "crs": // X.509 certificates (we just treat them as an end to the current key)
-            FinishPrimaryKey(keys, subkeys, attributes, sigs, revokers,
-                             ref currentPrimary, ref currentSubkey, ref currentAttribute, options);
-            break;
-        }
-      }
-
-      FinishPrimaryKey(keys, subkeys, attributes, sigs, revokers,
-                       ref currentPrimary, ref currentSubkey, ref currentAttribute, options);
-      cmd.WaitForExit();
+          FinishPrimaryKey(keys, subkeys, attributes, sigs, revokers,
+                           ref currentPrimary, ref currentSubkey, ref currentAttribute, options);
+        });
 
       if(retrieveAttributes)
       {
@@ -4484,13 +4471,8 @@ public class ExeGPG : GPG
         }
       }
     }
-    catch(ThreadAbortException)
-    {
-      cmd.OnThreadAborted();
-    }
     finally
     {
-      cmd.Dispose();
       if(retrieveAttributes)
       {
         attrDone.Close();
@@ -4501,15 +4483,15 @@ public class ExeGPG : GPG
       }
     }
 
-    if(!cmd.SuccessfulExit)
+    if(!command.SuccessfulExit)
     {
       // if we're searching, we don't want to throw an exception just because GPG didn't find what we were searching
       // for. so only throw if we're not searching or there's a failure reason besides a missing key
       if(string.IsNullOrEmpty(searchArgs) ||
-         (state.FailureReasons & ~(FailureReason.KeyNotFound | FailureReason.MissingSecretKey |
-                                   FailureReason.MissingPublicKey)) != 0)
+         (commandState.FailureReasons & ~(FailureReason.KeyNotFound | FailureReason.MissingSecretKey |
+                                          FailureReason.MissingPublicKey)) != 0)
       {
-        throw new KeyRetrievalFailedException(state.FailureReasons);
+        throw new KeyRetrievalFailedException(commandState.FailureReasons);
       }
     }
   }
@@ -4535,7 +4517,7 @@ public class ExeGPG : GPG
   }
 
   /// <summary>Executes a command and collects import-related information.</summary>
-  ImportedKey[] ImportCore(Command cmd, Stream source, out CommandState state)
+  ImportedKey[] ImportCore(Command command, Stream source, out CommandState commandState)
   {
     // GPG sometimes sends multiple messages for a single key, for instance when the key has several subkeys or a
     // secret portion. so we'll keep track of how fingerprints map to ImportedKey objects, so we'll know whether to
@@ -4544,51 +4526,52 @@ public class ExeGPG : GPG
     // we want to return keys in the order they were processed, so we'll keep this ordered list of fingerprints
     List<string> fingerprintsSeen = new List<string>();
 
-    CommandState localState = state = new CommandState(cmd);
-    using(cmd)
-    {
-      cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, localState); };
-
-      cmd.StatusMessageReceived += delegate(StatusMessage msg)
+    commandState = ProcessCommand(command,
+      delegate(Command cmd, CommandState state)
       {
-        if(msg.Type == StatusMessageType.ImportOkay)
+        cmd.StandardErrorLine += delegate(string line) { DefaultStandardErrorHandler(line, state); };
+
+        cmd.StatusMessageReceived += delegate(StatusMessage msg)
         {
-          KeyImportOkayMessage m = (KeyImportOkayMessage)msg;
-
-          ImportedKey key;
-          if(!keysByFingerprint.TryGetValue(m.Fingerprint, out key))
+          if(msg.Type == StatusMessageType.ImportOkay)
           {
-            key = new ImportedKey();
-            key.Fingerprint = m.Fingerprint;
-            key.Successful  = true;
-            keysByFingerprint[key.Fingerprint] = key;
-            fingerprintsSeen.Add(key.Fingerprint);
+            KeyImportOkayMessage m = (KeyImportOkayMessage)msg;
+
+            ImportedKey key;
+            if(!keysByFingerprint.TryGetValue(m.Fingerprint, out key))
+            {
+              key = new ImportedKey();
+              key.Fingerprint = m.Fingerprint;
+              key.Successful  = true;
+              keysByFingerprint[key.Fingerprint] = key;
+              fingerprintsSeen.Add(key.Fingerprint);
+            }
+
+            if((m.Reason & KeyImportReason.ContainsSecretKey) != 0) key.Secret = true;
           }
-
-          if((m.Reason & KeyImportReason.ContainsSecretKey) != 0) key.Secret = true;
-        }
-        else if(msg.Type == StatusMessageType.ImportProblem)
-        {
-          KeyImportFailedMessage m = (KeyImportFailedMessage)msg;
-
-          ImportedKey key;
-          if(!keysByFingerprint.TryGetValue(m.Fingerprint, out key))
+          else if(msg.Type == StatusMessageType.ImportProblem)
           {
-            key = new ImportedKey();
-            key.Fingerprint = m.Fingerprint;
-            keysByFingerprint[key.Fingerprint] = key;
-            fingerprintsSeen.Add(key.Fingerprint);
+            KeyImportFailedMessage m = (KeyImportFailedMessage)msg;
+
+            ImportedKey key;
+            if(!keysByFingerprint.TryGetValue(m.Fingerprint, out key))
+            {
+              key = new ImportedKey();
+              key.Fingerprint = m.Fingerprint;
+              keysByFingerprint[key.Fingerprint] = key;
+              fingerprintsSeen.Add(key.Fingerprint);
+            }
+
+            key.Successful = false;
           }
+          else { DefaultStatusMessageHandler(msg, state); }
+        };
+      },
 
-          key.Successful = false;
-        }
-        else { DefaultStatusMessageHandler(msg, localState); }
-      };
-
-      cmd.Start();
-      if(source != null) WriteStreamToProcess(source, cmd.Process);
-      cmd.WaitForExit();
-    }
+      delegate(Command cmd, CommandState state)
+      {
+        if(source != null) WriteStreamToProcess(source, cmd.Process);
+      });
 
     ImportedKey[] keysProcessed = new ImportedKey[fingerprintsSeen.Count];
     for(int i=0; i<keysProcessed.Length; i++)
@@ -4622,6 +4605,39 @@ public class ExeGPG : GPG
   void LogLine(string line)
   {
     if(LineLogged != null) LineLogged(line);
+  }
+
+  CommandState ProcessCommand(Command cmd, CommandProcessor initCommand)
+  {
+    return ProcessCommand(cmd, initCommand, null);
+  }
+
+  CommandState ProcessCommand(Command cmd, CommandProcessor initCommand, CommandProcessor onStarted)
+  {
+    CommandState state = new CommandState(cmd);
+    ProcessCommand(cmd, state, initCommand, onStarted);
+    return state;
+  }
+
+  void ProcessCommand(Command cmd, CommandState state, CommandProcessor initCommand, CommandProcessor onStarted)
+  {
+    if(cmd == null || state == null) throw new ArgumentNullException();
+    try
+    {
+      if(initCommand != null) initCommand(cmd, state);
+      cmd.Start();
+      if(onStarted != null) onStarted(cmd, state);
+      cmd.WaitForExit();
+    }
+    catch(Exception ex)
+    {
+      if(cmd.KillProcessOnAbort) cmd.Kill();
+      if(!(ex is ThreadAbortException)) throw;
+    }
+    finally
+    {
+      cmd.Dispose();
+    }
   }
 
   /// <summary>Edits each key given with a single edit command.</summary>
