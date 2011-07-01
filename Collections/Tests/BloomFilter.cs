@@ -1,8 +1,8 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 using AdamMil.Mathematics.Random;
 using AdamMil.Utilities;
 using NUnit.Framework;
-using System;
 
 namespace AdamMil.Collections.Tests
 {
@@ -10,6 +10,8 @@ namespace AdamMil.Collections.Tests
 [TestFixture]
 public class BloomFilterTest
 {
+  // NOTE: since the Bloom filter is a probabilistic data structure, this test will sometimes fail, but it has been tuned to fail
+  // no more than about 20% of the time on average if the filter is working correctly. see the comments below for more details
   [Test]
   public void Test()
   {
@@ -25,7 +27,7 @@ public class BloomFilterTest
         for(int i=0; i<itemCount; i++)
         {
           ulong n = rands[0].NextUint64();
-          f.Add(n); // we can't parallelize addition of items because the filter is not thread-safe
+          f.Add(n); // we can't gainfully parallelize addition of items because the filter is not thread-safe
           Assert.IsTrue(f.PossiblyContains(n)); // make sure that there are no false negatives
         }
 
@@ -61,15 +63,17 @@ public class BloomFilterTest
 
         // if we want the unit test to fail only once per five runs on average if it's functioning normally, then the overall
         // probability of success should be 0.8. since we're doing 6+10+13*3 = 55 size/rate combinations, this means the chance
-        // of an individual combination succeeding 1-(1-0.8)/55 = .9964. this corresponds to about 2.69 standard deviations
+        // of an individual combination succeeding should be 1-(1-0.8)/55 = .9964. this corresponds to about 2.69 standard
+        // deviations
         const double allowedDeviation = 2.69;
         System.Diagnostics.Debugger.Log(0, "",
-          string.Format("{0} items: desired={1:f5}, actual={2:f5} {3:f2}x ({4:f2} / {5:f2}[{6:f2}+{7:f2}] collisions)\n",
+          string.Format("{0} items: desired={1:f5}, actual={2} {3:f2}x ({4:f2} / {5:f2}[{6:f2}+{7:f2}] collisions)\n",
                         itemCount, desiredRate, actualRate, actualRate/desiredRate, collisions, expected+stddev*allowedDeviation,
                         expected, stddev*allowedDeviation));
-        Assert.IsTrue(collisions-expected <= stddev*allowedDeviation,
+        Assert.IsTrue(collisions-expected <= Math.Round(stddev*allowedDeviation),
                       "The false positive rate of " + actualRate.ToString() + " for " + itemCount +
-                      " items was unacceptable. We desired a rate of approximately " + desiredRate.ToString());
+                      " items was unacceptable. We desired a rate of approximately " + desiredRate.ToString() + ". Note that " +
+                      "it is normal for this test to fail 20% of the time.");
       }
     }
   }
