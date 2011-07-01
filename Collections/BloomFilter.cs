@@ -39,8 +39,8 @@ namespace AdamMil.Collections
 /// Bloom filters are most efficient when the set of keys that will be added is very sparse with respect to the set of possible
 /// keys, and the approximate number of items that will be added is known in advance. At a
 /// 0.1% false positive rate, the filter uses about 14.4 bits per expected item, depending on the number of hash functions.
-/// (With an optimal number of hash functions, the number of bits per expected item equals <c>-ln(p) / ln(2)^2</c> where p is the
-/// probabity of false positives.) This means that Bloom filters only save space when the density of keys is less than
+/// With an optimal number of hash functions, the number of bits per expected item equals <c>-ln(p) / ln(2)^2</c> where p is the
+/// probabity of false positives. This means that Bloom filters only save space when the density of keys is less than
 /// <c>-ln(2)^2 / ln(p)</c> (about 7% -- 1/14.4 -- for a 0.1% false positive rate).
 /// So if the filter will be used with 1000 randomly selected nonnegative integers (a density of about 0.00005%), then it is an
 /// efficient data structure. But if it will be used with 1000 integers from the restricted range of 0 to 4999 (a density of
@@ -61,9 +61,9 @@ namespace AdamMil.Collections
 /// <see cref="MultiHashProvider{T}"/>, which works well for all integer types, <see cref="string"/>, <see cref="Decimal"/>,
 /// <see cref="Single"/>, <see cref="Double"/>, <see cref="Char"/>, <see cref="DateTime"/>, and <see cref="Guid"/> as well as
 /// nullable versions of those. For other types, it uses a generic hash algorithm that is only suitable up to a certain number of
-/// items that depends on the false positive rate. For 0.025% false positives, it is suitable up to about 1 million items. At
-/// 0.25% false positives, it is suitable up to about 10 million items. Beyond that, you may need to create your own hash
-/// provider.
+/// items that depends on the false positive rate. For 0.025% false positives, it is usually suitable up to about 1 million
+/// items, depending on the quality of the .NET <see cref="object.GetHashCode"/> implementation. At 0.25% false positives, it is
+/// usually suitable up to about 10 million items. Beyond that, you may need to create your own hash provider.
 /// </para>
 /// </remarks>
 public class BloomFilter<T>
@@ -107,8 +107,10 @@ public class BloomFilter<T>
     // ln(1 - p^(1/k)) ~= -kn / m
     // -kn / ln(1 - p^(1/k)) ~= m
     long bitCount = (long)Math.Round((double)-hashCount * itemCount /
-                                Math.Log(1 - Math.Pow(falsePositiveRate, 1.0 / hashCount)) + 0.5); // round the result up
+                                     Math.Log(1 - Math.Pow(falsePositiveRate, 1.0 / hashCount)) + 0.5); // round the result up
     // 4294967264 is the largest number of bits that won't round up to a number greater than 2^32 when we do the rounding below
+    // TODO: with this limit, we only get Bloom filters up to 512MB. we should increase this, especially on 64-bit architectures
+    // where we have native 64-bit ints
     if(bitCount > 4294967264) throw new ArgumentException("Too many bits (" + bitCount.ToString() + ") would be required.");
 
     this.bits         = new uint[(int)(bitCount/32 + ((bitCount&31) == 0 ? 0 : 1))]; // round up to the nearest 32 bits

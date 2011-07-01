@@ -79,6 +79,7 @@ static class HashHelper
 
   internal static unsafe int HashBytes(int hashFunction, void* data, int length)
   {
+    System.Diagnostics.Debug.Assert(length > 0);
     // incorporate the length, which is assumed to be non-zero, into the initialization vector
     uint hash = (uint)length ^ 0x9e3eff0b ^ (uint)hashFunction;
     // this method essentially encrypts the bytes using the block cipher in CBC mode and returns the last block
@@ -290,7 +291,7 @@ sealed class GuidHashProvider : MultiHashProvider<Guid>
   public GuidHashProvider()
   {
     // guids are 16 byte structures, but we'll check this because it may be implementation-specific. we use IsBlittable() to
-    // ensure that Marshal.SizeOf() has given us the right answer (i.e. that the managed size equals the marshaled size)
+    // ensure that Marshal.SizeOf() has given us the right answer (i.e. that the managed size equals the marshalled size)
     System.Diagnostics.Debug.Assert(Marshal.SizeOf(typeof(Guid)) == 16 && HashHelper.IsBlittable(typeof(Guid)));
   }
 
@@ -334,9 +335,10 @@ sealed class StringHashProvider : MultiHashProvider<string>
     {
       return item == null ? 0 : item.GetHashCode();
     }
-    else if(item == null || item.Length == 0)
+    else if(string.IsNullOrEmpty(item))
     {
-      return (int)HashHelper.Cipher((uint)hashFunction, 0);
+      // use an arbitrary number for empty strings to differentiate them from null strings
+      return (int)HashHelper.Cipher((uint)hashFunction, item == null ? 0 : 0x8E5211CC);
     }
     else
     {
@@ -358,9 +360,9 @@ sealed class Uint64HashProvider : MultiHashProvider<ulong>
 
 #region ArrayHashProvider
 /// <summary>Provides an implementation of <see cref="IMultiHashProvider{T}"/> specifically designed to hash arrays. In most
-/// cases, you should use the generic version, <see cref="ArrayHashProvider{T}"/>, which provides type safety, instead. This
-/// non-generic version doesn't provide type safety, but has the benefit of supporting multidimensional arrays. Arrays of arrays
-/// still have no special handling -- the contents of inner arrays will not be hashed.
+/// cases, you should use the generic version, <see cref="ArrayHashProvider{T}"/>, which provides static type safety, instead.
+/// This non-generic version doesn't provide static type safety, but has the benefit of supporting multidimensional arrays.
+/// Arrays of arrays still have no special handling -- the contents of inner arrays will not be hashed.
 /// </summary>
 /// <remarks>
 /// This implementation has a specialized hash for arrays of blittable value types (value types containing no pointers to
@@ -413,7 +415,7 @@ public sealed class ArrayHashProvider : MultiHashProvider<Array>
     {
       hash = 0;
       string[] strings = array as string[];
-      if(strings != null) // we have to special-case the non-blittable types with custom MultiHashProvider implementations,
+      if(strings != null) // we have to special-case the non-blittable types that have custom MultiHashProvider implementations,
       {                   // because the generic code below will only use the generic MultiHashProvider
         for(int i=0; i<strings.Length; i++) hash ^= MultiHashProvider<string>.Default.GetHashCode(hashFunction, strings[i]);
       }
@@ -428,8 +430,8 @@ public sealed class ArrayHashProvider : MultiHashProvider<Array>
 #endregion
 
 #region ArrayHashProvider<T>
-/// <summary>Provides an implementation of <see cref="IMultiHashProvider{T}"/> specifically designed to hash arrays. Use <see
-/// cref="Default"/> to retrieve a suitable hash provider for a given type. Note that you must specify the element type when
+/// <summary>Provides an implementation of <see cref="IMultiHashProvider{T}"/> specifically designed to hash arrays. Use
+/// <see cref="Default"/> to retrieve a suitable hash provider for a given type. Note that you must specify the element type when
 /// doing so. For example, use <c>ArrayHashProvider&lt;byte&gt;.Default</c> rather than
 /// <c>ArrayHashProvider&lt;byte[]&gt;.Default</c>. The latter would represent arrays of arrays of bytes. This class has no
 /// special handling for arrays of arrays -- the content of inner arrays will not be hashed. Multidimensional arrays are also not
@@ -437,10 +439,10 @@ public sealed class ArrayHashProvider : MultiHashProvider<Array>
 /// </summary>
 /// <remarks>
 /// This implementation has a specialized hash for arrays of blittable value types (value types containing no pointers to
-/// reference types in their object graphs and having no special marshalling requirements). For arrays of other types, <see
-/// cref="MultiHashProvider{E}"/> is used to hash each element. <see cref="MultiHashProvider{E}"/> only works well for certain
-/// types; see its documentation for details. Note that large arrays may be quite slow to hash, so you may wish to memoize the
-/// hash values.
+/// reference types in their object graphs and having no special marshalling requirements). For arrays of other types,
+/// <see cref="MultiHashProvider{E}"/> is used to hash each element. <see cref="MultiHashProvider{E}"/> only works well for
+/// certain types; see its documentation for details. Note that large arrays may be quite slow to hash, so you may wish to
+/// memoize the hash values.
 /// </remarks>
 public sealed class ArrayHashProvider<T> : MultiHashProvider<T[]>
 {
