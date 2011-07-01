@@ -42,6 +42,96 @@ public interface IMultiHashProvider<T>
 }
 #endregion
 
+#region HashHelper
+// sadly, .NET duplicates the implementation of static methods inside generic types when the type parameter changes, even when
+// the static methods don't depend on the type parameter at all. so we'll put all of these static methods in a separate class
+// rather than inside MultiHashProvider, where they really belong
+static class HashHelper
+{
+
+  // this is a weak block cipher with a 32-bit key and a 32-bit output. it should be clear from the small key size that it's
+  // insecure, but if that's not enough, it's a weakened form of an already weak algorithm, xxtea. but it should serve its
+  // purpose of giving us a pseudorandom permutation of the output space (i.e. of the 32-bit integers) with the key as the seed
+  internal static uint Cipher(uint key, uint data)
+  {
+    data += (((data>>5)^(data<<2)) + ((data>>3)^(data<<4))) ^ ((0x9e3779b9^data) + (key^data));
+    key = (key>>8) | ((key&0xFF)<<24); // rotate the bytes in the key
+    data += (((data>>5)^(data<<2)) + ((data>>3)^(data<<4))) ^ ((0x3c6ef372^data) + (key^data));
+    key = (key>>8) | ((key&0xFF)<<24);
+    data += (((data>>5)^(data<<2)) + ((data>>3)^(data<<4))) ^ ((0xdaa66d2b^data) + (key^data));
+    key = (key>>8) | ((key&0xFF)<<24);
+    data += (((data>>5)^(data<<2)) + ((data>>3)^(data<<4))) ^ ((0x78dde6e4^data) + (key^data));
+    return data;
+  }
+
+  internal static unsafe int Hash8(int hashFunction, void* data)
+  {
+    // we use two different hash functions to prevent the output from always being zero when the input bytes are all zero
+    return (int)(Cipher((uint)hashFunction, *(uint*)data) ^ Cipher((uint)hashFunction+1, ((uint*)data)[1]));
+  }
+
+  internal static unsafe int Hash16(int hashFunction, void* data)
+  {
+    // we use two different hash functions to prevent the output from always being zero when the input bytes are all zero
+    return (int)(Cipher((uint)hashFunction, *(uint*)data)     ^ Cipher((uint)hashFunction, ((uint*)data)[1]) ^
+                 Cipher((uint)hashFunction, ((uint*)data)[2]) ^ Cipher((uint)hashFunction+1, ((uint*)data)[3]));
+  }
+
+  internal static unsafe int HashBytes(int hashFunction, void* data, int length)
+  {
+    // incorporate the length, which is assumed to be non-zero, into the initialization vector
+    uint hash = (uint)length ^ 0x9e3eff0b ^ (uint)hashFunction;
+    // this method essentially encrypts the bytes using the block cipher in CBC mode and returns the last block
+    for(int i=0, chunks=length/4; i<chunks; i++) hash = Cipher((uint)hashFunction, ((uint*)data)[i] ^ hash);
+    if((length&3) != 0)
+    {
+      data = (byte*)data + length/4; // advance to the remaining bytes
+      uint lastChunk = 0;
+      if((length & 2) != 0)
+      {
+        lastChunk = *(ushort*)data;
+        data = (byte*)data + 2;
+      }
+      if((length & 1) != 0) lastChunk = (lastChunk<<8) | *(byte*)data;
+      hash = Cipher((uint)hashFunction, lastChunk ^ hash);
+    }
+    return (int)hash;
+  }
+
+
+  /// <summary>Gets whether the type is a simple value type with no reference types anywhere in its object graph.</summary>
+  internal static bool IsBlittable(Type type)
+  {
+    return IsBlittable(type, null);
+  }
+
+  static bool IsBlittable(Type type, HashSet<Type> typesSeen)
+  {
+    if(!type.IsValueType) return false;
+    else if(type.IsPrimitive || type.IsEnum) return true;
+
+    foreach(FieldInfo field in type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+    {
+      Type fieldType = field.FieldType;
+      // reference types and MarshalAs attributes make a type unblittable, the latter because it may cause Marshal.SizeOf() to
+      // give us the wrong value
+      if(!fieldType.IsValueType || Attribute.GetCustomAttribute(field, typeof(MarshalAsAttribute), false) != null)
+      {
+        return false;
+      }
+      else if(!fieldType.IsPrimitive && !fieldType.IsEnum && (typesSeen == null || !typesSeen.Contains(fieldType)))
+      {
+        if(typesSeen == null) typesSeen = new HashSet<Type>();
+        typesSeen.Add(fieldType);
+        if(!IsBlittable(fieldType, typesSeen)) return false;
+      }
+    }
+
+    return true;
+  }
+}
+#endregion
+
 #region MultiHashProvider
 /// <summary>Provides implementations of <see cref="IMultiHashProvider{T}"/> suitable for most types. Use <see cref="Default"/>
 /// to retrieve a suitable hash provider for a given type.
@@ -117,55 +207,6 @@ public abstract class MultiHashProvider<T> : IMultiHashProvider<T>
     }
   }
 
-  // this is a weak block cipher with a 32-bit key and a 32-bit output. it should be clear from the small key size that it's
-  // insecure, but if that's not enough, it's a weakened form of an already weak algorithm, xxtea. but it should serve its
-  // purpose of giving us a pseudorandom permutation of the output space (i.e. of the 32-bit integers) with the key as the seed
-  internal static uint Cipher(uint key, uint data)
-  {
-    data += (((data>>5)^(data<<2)) + ((data>>3)^(data<<4))) ^ ((0x9e3779b9^data) + (key^data));
-    key = (key>>8) | ((key&0xFF)<<24); // rotate the bytes in the key
-    data += (((data>>5)^(data<<2)) + ((data>>3)^(data<<4))) ^ ((0x3c6ef372^data) + (key^data));
-    key = (key>>8) | ((key&0xFF)<<24);
-    data += (((data>>5)^(data<<2)) + ((data>>3)^(data<<4))) ^ ((0xdaa66d2b^data) + (key^data));
-    key = (key>>8) | ((key&0xFF)<<24);
-    data += (((data>>5)^(data<<2)) + ((data>>3)^(data<<4))) ^ ((0x78dde6e4^data) + (key^data));
-    return data;
-  }
-
-  internal static unsafe int Hash8(int hashFunction, void* data)
-  {
-    // we use two different hash functions to prevent the output from always being zero when the input bytes are all zero
-    return (int)(Cipher((uint)hashFunction, *(uint*)data) ^ Cipher((uint)hashFunction+1, ((uint*)data)[1]));
-  }
-
-  internal static unsafe int Hash16(int hashFunction, void* data)
-  {
-    // we use two different hash functions to prevent the output from always being zero when the input bytes are all zero
-    return (int)(Cipher((uint)hashFunction, *(uint*)data)     ^ Cipher((uint)hashFunction, ((uint*)data)[1]) ^
-                 Cipher((uint)hashFunction, ((uint*)data)[2]) ^ Cipher((uint)hashFunction+1, ((uint*)data)[3]));
-  }
-
-  internal static unsafe int HashBytes(int hashFunction, void* data, int length)
-  {
-    // incorporate the length, which is assumed to be non-zero, into the initialization vector
-    uint hash = (uint)length ^ 0x9e3eff0b ^ (uint)hashFunction;
-    // this method essentially encrypts the bytes using the block cipher in CBC mode and returns the last block
-    for(int i=0, chunks=length/4; i<chunks; i++) hash = Cipher((uint)hashFunction, ((uint*)data)[i] ^ hash);
-    if((length&3) != 0)
-    {
-      data = (byte*)data + length/4; // advance to the remaining bytes
-      uint lastChunk = 0;
-      if((length & 2) != 0)
-      {
-        lastChunk = *(ushort*)data;
-        data = (byte*)data + 2;
-      }
-      if((length & 1) != 0) lastChunk = (lastChunk<<8) | *(byte*)data;
-      hash = Cipher((uint)hashFunction, lastChunk ^ hash);
-    }
-    return (int)hash;
-  }
-
   static MultiHashProvider<T> instance;
 }
 #endregion
@@ -182,7 +223,7 @@ sealed class DateTimeHashProvider : MultiHashProvider<DateTime>
     else
     {
       long ticks = item.Ticks;
-      return Hash8(hashFunction, &ticks);
+      return HashHelper.Hash8(hashFunction, &ticks);
     }
   }
 }
@@ -191,18 +232,15 @@ sealed class DateTimeHashProvider : MultiHashProvider<DateTime>
 #region DecimalHashProvider
 sealed class DecimalHashProvider : MultiHashProvider<decimal>
 {
+  public DecimalHashProvider()
+  {
+    // decimals are 16 byte structures, but we'll check this because it may be implementation-specific
+    System.Diagnostics.Debug.Assert(sizeof(decimal) == 16);
+  }
+
   public unsafe override int GetHashCode(int hashFunction, decimal item)
   {
-    if(hashFunction == 0)
-    {
-      return item.GetHashCode();
-    }
-    else
-    {
-      // decimals are 16 byte structures, but we'll check this because it may be implementation-specific
-      System.Diagnostics.Debug.Assert(sizeof(decimal) == 16);
-      return Hash16(hashFunction, &item);
-    }
+    return hashFunction == 0 ? item.GetHashCode() : HashHelper.Hash16(hashFunction, &item);
   }
 }
 #endregion
@@ -215,8 +253,9 @@ sealed class DoubleHashProvider : MultiHashProvider<double>
     // we want +0 and -0 (IEEE floating point supports both) to hash to the same value, so we'll compare for equality with zero.
     // this also prevents the result from always being zero when the item has all bits zero
     return hashFunction == 0 ? item.GetHashCode() :
-           item == 0.0       ? (int)Cipher((uint)hashFunction, 0) :
-             (int)(Cipher((uint)hashFunction, *(uint*)&item) ^ Cipher((uint)hashFunction, ((uint*)&item)[1]));
+           item == 0.0       ? (int)HashHelper.Cipher((uint)hashFunction, 0) :
+             (int)(HashHelper.Cipher((uint)hashFunction, *(uint*)&item) ^
+                   HashHelper.Cipher((uint)hashFunction, ((uint*)&item)[1]));
   }
 }
 #endregion
@@ -227,7 +266,7 @@ sealed class GenericReferenceTypeHashProvider<T> : MultiHashProvider<T> where T 
   public override int GetHashCode(int hashFunction, T item)
   {
     uint hash = item == null ? 0 : (uint)item.GetHashCode();
-    if(hashFunction != 0) hash = Cipher((uint)hashFunction, hash);
+    if(hashFunction != 0) hash = HashHelper.Cipher((uint)hashFunction, hash);
     return (int)hash;
   }
 }
@@ -239,7 +278,7 @@ sealed class GenericValueTypeHashProvider<T> : MultiHashProvider<T> where T : st
   public override int GetHashCode(int hashFunction, T item)
   {
     uint hash = (uint)item.GetHashCode();
-    if(hashFunction != 0) hash = Cipher((uint)hashFunction, hash);
+    if(hashFunction != 0) hash = HashHelper.Cipher((uint)hashFunction, hash);
     return (int)hash;
   }
 }
@@ -248,18 +287,16 @@ sealed class GenericValueTypeHashProvider<T> : MultiHashProvider<T> where T : st
 #region GuidHashProvider
 sealed class GuidHashProvider : MultiHashProvider<Guid>
 {
+  public GuidHashProvider()
+  {
+    // guids are 16 byte structures, but we'll check this because it may be implementation-specific. we use IsBlittable() to
+    // ensure that Marshal.SizeOf() has given us the right answer (i.e. that the managed size equals the marshaled size)
+    System.Diagnostics.Debug.Assert(Marshal.SizeOf(typeof(Guid)) == 16 && HashHelper.IsBlittable(typeof(Guid)));
+  }
+
   public unsafe override int GetHashCode(int hashFunction, Guid item)
   {
-    if(hashFunction == 0)
-    {
-      return item.GetHashCode();
-    }
-    else
-    {
-      // guids are 16 byte structures, but we'll check this because it may be implementation-specific
-      System.Diagnostics.Debug.Assert(sizeof(decimal) == 16);
-      return Hash16(hashFunction, &item);
-    }
+    return hashFunction == 0 ? item.GetHashCode() : HashHelper.Hash16(hashFunction, &item);
   }
 }
 #endregion
@@ -269,7 +306,7 @@ sealed class Int64HashProvider : MultiHashProvider<long>
 {
   public unsafe override int GetHashCode(int hashFunction, long item)
   {
-    return hashFunction == 0 ? item.GetHashCode() : Hash8(hashFunction, &item);
+    return hashFunction == 0 ? item.GetHashCode() : HashHelper.Hash8(hashFunction, &item);
   }
 }
 #endregion
@@ -283,7 +320,7 @@ sealed class NullableHashProvider<T> : MultiHashProvider<Nullable<T>> where T : 
     // or a hash of that, where 0xe7a03d9a is a randomly-chosen negative int)
     return item.HasValue ?
       hashFunction == 0 ? item.Value.GetHashCode() : MultiHashProvider<T>.Default.GetHashCode(hashFunction, item.Value) :
-      (int)(hashFunction == 0 ? 0xe7a03d9a : Cipher((uint)hashFunction, 0xe7a03d9a));
+      (int)(hashFunction == 0 ? 0xe7a03d9a : HashHelper.Cipher((uint)hashFunction, 0xe7a03d9a));
   }
 }
 #endregion
@@ -299,11 +336,11 @@ sealed class StringHashProvider : MultiHashProvider<string>
     }
     else if(item == null || item.Length == 0)
     {
-      return (int)Cipher((uint)hashFunction, 0);
+      return (int)HashHelper.Cipher((uint)hashFunction, 0);
     }
     else
     {
-      fixed(char* chars = item) return HashBytes(hashFunction, chars, item.Length*sizeof(char));
+      fixed(char* chars = item) return HashHelper.HashBytes(hashFunction, chars, item.Length*sizeof(char));
     }
   }
 }
@@ -314,7 +351,7 @@ sealed class Uint64HashProvider : MultiHashProvider<ulong>
 {
   public unsafe override int GetHashCode(int hashFunction, ulong item)
   {
-    return hashFunction == 0 ? item.GetHashCode() : Hash8(hashFunction, &item);
+    return hashFunction == 0 ? item.GetHashCode() : HashHelper.Hash8(hashFunction, &item);
   }
 }
 #endregion
@@ -341,7 +378,7 @@ public sealed class ArrayHashProvider : MultiHashProvider<Array>
     if(!arrayType.IsArray) throw new ArgumentException(arrayType.FullName + " is not an array type.");
     Type elementType = arrayType.GetElementType();
     this.arrayType   = arrayType;
-    this.elementSize = IsBlittable(elementType) ? Marshal.SizeOf(elementType) : 0;
+    this.elementSize = HashHelper.IsBlittable(elementType) ? Marshal.SizeOf(elementType) : 0;
   }
 
   /// <include file="documentation.xml" path="/Collections/MultiHashProvider/GetHashCode/*"/>
@@ -360,14 +397,15 @@ public sealed class ArrayHashProvider : MultiHashProvider<Array>
     int hash;
     if(array == null || array.Length == 0)
     {
-      hash = (int)Cipher((uint)hashFunction, 0);
+      hash = (int)HashHelper.Cipher((uint)hashFunction, 0);
     }
     else if(elementSize != 0) // if it's an array of blittable types...
     {
       GCHandle handle = GCHandle.Alloc(array, GCHandleType.Pinned); // pin the array so we can get a pointer to the raw bytes
       try
       {
-        hash = HashBytes(hashFunction, Marshal.UnsafeAddrOfPinnedArrayElement(array, 0).ToPointer(), array.Length * elementSize);
+        hash = HashHelper.HashBytes(hashFunction, Marshal.UnsafeAddrOfPinnedArrayElement(array, 0).ToPointer(),
+                                    array.Length * elementSize);
       }
       finally { handle.Free(); }
     }
@@ -385,37 +423,6 @@ public sealed class ArrayHashProvider : MultiHashProvider<Array>
       }
     }
     return hash;
-  }
-
-  /// <summary>Gets whether the type is a simple value type with no reference types anywhere in its object graph.</summary>
-  internal static bool IsBlittable(Type type)
-  {
-    return IsBlittable(type, null);
-  }
-
-  static bool IsBlittable(Type type, HashSet<Type> typesSeen)
-  {
-    if(!type.IsValueType) return false;
-    else if(type.IsPrimitive || type.IsEnum) return true;
-
-    foreach(FieldInfo field in type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
-    {
-      Type fieldType = field.FieldType;
-      // reference types and MarshalAs attributes make a type unblittable, the latter because it may cause Marshal.SizeOf() to
-      // give us the wrong value
-      if(!fieldType.IsValueType || Attribute.GetCustomAttribute(field, typeof(MarshalAsAttribute), false) != null)
-      {
-        return false;
-      }
-      else if(!fieldType.IsPrimitive && !fieldType.IsEnum && (typesSeen == null || !typesSeen.Contains(fieldType)))
-      {
-        if(typesSeen == null) typesSeen = new HashSet<Type>();
-        typesSeen.Add(fieldType);
-        if(!IsBlittable(fieldType, typesSeen)) return false;
-      }
-    }
-
-    return true;
   }
 }
 #endregion
@@ -440,7 +447,7 @@ public sealed class ArrayHashProvider<T> : MultiHashProvider<T[]>
   ArrayHashProvider()
   {
     Type elementType = typeof(T).GetElementType();
-    elementSize = ArrayHashProvider.IsBlittable(elementType) ? Marshal.SizeOf(elementType) : 0;
+    elementSize = HashHelper.IsBlittable(elementType) ? Marshal.SizeOf(elementType) : 0;
   }
 
   /// <include file="documentation.xml" path="/Collections/MultiHashProvider/GetHashCode/*"/>
