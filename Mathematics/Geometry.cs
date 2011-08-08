@@ -21,9 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
-using AdamMil.Mathematics.Matrices;
 using AdamMil.Utilities;
-using Size          = System.Drawing.Size;
 using SysPoint      = System.Drawing.Point;
 using SysPointF     = System.Drawing.PointF;
 using SysRectangle  = System.Drawing.Rectangle;
@@ -47,12 +45,6 @@ public static class MathConst
 }
 #endregion
 
-} // namespace AdamMil.Mathematics.Geometry
-
-#region 2D math
-namespace AdamMil.Mathematics.Geometry.TwoD
-{
-
 #region Math2D
 /// <summary>This class contains general two-dimensional math functions, such as tests for containment and
 /// intersection of various primitives, finding intersection points and areas, and rotating points.
@@ -60,11 +52,11 @@ namespace AdamMil.Mathematics.Geometry.TwoD
 public static class Math2D
 {
   /// <include file="documentation.xml" path="//Geometry/Math2D/AngleBetween/*"/>
-  public static double AngleBetween(Point start, Point end) { return (end-start).Angle; }
+  public static double AngleBetween(Point2 start, Point2 end) { return (end-start).Angle; }
   /// <include file="documentation.xml" path="//Geometry/Math2D/AngleBetween/*"/>
   public static double AngleBetween(SysPoint start, SysPoint end)
   {
-    return (new Point(end)-new Point(start)).Angle;
+    return (new Point2(end)-new Point2(start)).Angle;
   }
 
   #region Contains
@@ -78,12 +70,12 @@ public static class Math2D
   }
 
   /// <summary>Determines if a circle fully contains a given line segment.</summary>
-  public static bool Contains(ref Circle circle, ref Line segment)
+  public static bool Contains(ref Circle circle, ref Line2 segment)
   {
     // a circle contains a line segment if it contains both endpoints
     if(Contains(ref circle, ref segment.Start))
     {
-      Point endPoint = segment.End;
+      Point2 endPoint = segment.End;
       return Contains(ref circle, ref endPoint);
     }
     else
@@ -93,7 +85,7 @@ public static class Math2D
   }
 
   /// <summary>Determines if a circle contains a given point.</summary>
-  public static bool Contains(ref Circle circle, ref Point point)
+  public static bool Contains(ref Circle circle, ref Point2 point)
   {
     // a circle contains a point if the distance from the point to the circle's center is less than or equal to
     // the radius. we can square both sides of the comparison to eliminate the Math.Sqrt() operation on the left
@@ -105,7 +97,7 @@ public static class Math2D
   public static bool Contains(ref Circle circle, ref Rectangle rect)
   {
     // a circle contains a rectangle if it contains all four corners
-    Point point = rect.TopLeft;
+    Point2 point = rect.TopLeft;
     if(!Contains(ref circle, ref point)) return false;
     point.X += rect.Width; // top-right
     if(!Contains(ref circle, ref point)) return false;
@@ -121,7 +113,7 @@ public static class Math2D
     // a circle contains a polygon if it contains all the polygon's vertices
     for(int i=poly.PointCount-1; i>=0; i--)
     {
-      Point point = poly[i];
+      Point2 point = poly[i];
       if(!Contains(ref circle, ref point)) return false;
     }
     return true;
@@ -137,12 +129,12 @@ public static class Math2D
   }
 
   /// <summary>Determines if a rectangle fully contains a given line segment.</summary>
-  public static bool Contains(ref Rectangle rect, ref Line segment)
+  public static bool Contains(ref Rectangle rect, ref Line2 segment)
   {
     // a rectangle contains a line segment if it contains both endpoints
     if(Contains(ref rect, ref segment.Start))
     {
-      Point end = segment.End;
+      Point2 end = segment.End;
       return Contains(ref rect, ref end);
     }
     else
@@ -152,7 +144,7 @@ public static class Math2D
   }
 
   /// <summary>Determines if a rectangle contains a given point.</summary>
-  public static bool Contains(ref Rectangle rect, ref Point point)
+  public static bool Contains(ref Rectangle rect, ref Point2 point)
   {
     return point.X>=rect.X && point.Y>=rect.Y && point.X<=rect.Right && point.Y<=rect.Bottom;
   }
@@ -161,7 +153,7 @@ public static class Math2D
   public static bool Contains(ref Rectangle outer, ref Rectangle inner)
   {
     // a rectangle contains another if it contains both corners of the other.
-    Point point = inner.TopLeft;
+    Point2 point = inner.TopLeft;
     if(!Contains(ref outer, ref point)) return false;
     point = inner.BottomRight;
     return Contains(ref outer, ref point);
@@ -173,7 +165,7 @@ public static class Math2D
     // a rectangle contains a polygon if it contains all the polygon's vertices
     for(int i=poly.PointCount-1; i>=0; i--)
     {
-      Point point = poly[i];
+      Point2 point = poly[i];
       if(!Contains(ref rect, ref point)) return false;
     }
     return true;
@@ -192,7 +184,7 @@ public static class Math2D
     double radiusSquared = circle.RadiusSquared;
     for(int i=convexPoly.PointCount; i>=0; i--)
     {
-      Line edge = convexPoly.GetEdge(i);
+      Line2 edge = convexPoly.GetEdge(i);
       // see Intersects(Circle, Line) for the explanation of the following
       double scaledDist = edge.Vector.CrossVector.DotProduct(circle.Center - edge.Start);
       if(radiusSquared*edge.LengthSqr < scaledDist*scaledDist) return false;
@@ -202,13 +194,13 @@ public static class Math2D
   }
 
   /// <summary>Determines if a convex polygon fully contains a given line segment.</summary>
-  public static bool Contains(Polygon convexPoly, ref Line line)
+  public static bool Contains(Polygon convexPoly, ref Line2 line)
   {
     // a convex polygon contains a line segment if it contains both endpoints
     if(convexPoly.PointCount < 3) return false; // degenerate polygons don't contain anything, we'll say.
     if(Contains(convexPoly, ref line.Start))
     {
-      Point end = line.End;
+      Point2 end = line.End;
       return Contains(convexPoly, ref end);
     }
     else
@@ -221,7 +213,7 @@ public static class Math2D
   /// <remarks>The polygon can be defined clockwise or counter-clockwise, but must be a convex polygon. If the polygon
   /// is not convex, the results of this method are undefined.
   /// </remarks>
-  public static bool Contains(Polygon convexPoly, ref Point point)
+  public static bool Contains(Polygon convexPoly, ref Point2 point)
   {
     // a convex polygon contains a point if the point is on the "inside" of every bounding line. see Line.WhichSide()
     // for the meaning of "inside". we don't really know which side is the inside, because the polygon could be
@@ -256,7 +248,7 @@ public static class Math2D
     // a convex polygon contains a rectangle if it contains each corner
     if(convexPoly.PointCount < 3) return false; // degenerate polygons don't contain anything, we'll say.
 
-    Point point = rect.TopLeft;
+    Point2 point = rect.TopLeft;
     if(!Contains(convexPoly, ref point)) return false;
     point.X += rect.Width; // top-right
     if(!Contains(convexPoly, ref point)) return false;
@@ -274,7 +266,7 @@ public static class Math2D
 
     for(int i=poly.PointCount-1; i>=0; i--)
     {
-      Point point = poly[i];
+      Point2 point = poly[i];
       if(!Contains(convexPoly, ref point)) return false;
     }
     return true;
@@ -291,7 +283,7 @@ public static class Math2D
   }
 
   /// <summary>Determines if a circle intersects a line (not a line segment).</summary>
-  public static bool Intersects(ref Circle circle, ref Line line)
+  public static bool Intersects(ref Circle circle, ref Line2 line)
   {
     // a circle intersects a line if the distance from the center to the line is less than or equal to the radius
     double scaledDist = line.Vector.CrossVector.DotProduct(circle.Center - line.Start);
@@ -303,7 +295,7 @@ public static class Math2D
   }
 
   /// <summary>Determines if a circle intersects a line segment.</summary>
-  public static bool SegmentIntersects(ref Circle circle, ref Line segment)
+  public static bool SegmentIntersects(ref Circle circle, ref Line2 segment)
   {
     // a circle intersects a line segment if the circle contains the point on the segment closest to its center
     return circle.Contains(segment.ClosestPointOnSegment(circle.Center));
@@ -369,7 +361,7 @@ public static class Math2D
 
     for(int i=poly.PointCount-1; i>=0; i--)
     {
-      Line edge = poly.GetEdge(i);
+      Line2 edge = poly.GetEdge(i);
       if(SegmentIntersects(ref circle, ref edge)) return true;
     }
     return false;
@@ -379,7 +371,7 @@ public static class Math2D
   /// <remarks>This method can be used to determine if two lines are parallel. If the method returns false, they are
   /// parallel.
   /// </remarks>
-  public static bool Intersects(ref Line a, ref Line b)
+  public static bool Intersects(ref Line2 a, ref Line2 b)
   {
     // two lines intersect if they are not parallel. they are not parallel if they have different slopes.
     // using the standard slope formula ("rise over run"), we get vector.Y / vector.X. but this runs into
@@ -390,7 +382,7 @@ public static class Math2D
   }
 
   /// <summary>Determines if two line segments intersect.</summary>
-  public static bool SegmentIntersects(ref Line a, ref Line b)
+  public static bool SegmentIntersects(ref Line2 a, ref Line2 b)
   {
     // see SegmentIntersection(Line, Line) for the explanation.
     double denominator = b.Vector.Y*a.Vector.X - b.Vector.X*a.Vector.Y; // calculate the denominator
@@ -404,51 +396,51 @@ public static class Math2D
 
   /// <summary>Returns information about the intersection of two lines, either of which can be infinite or a segment.</summary>
   /// <returns>Returns a <see cref="LineIntersection"/> structure containing information about the intersection.</returns>
-  public static LineIntersection IntersectionInfo(ref Line a, ref Line b)
+  public static LineIntersection IntersectionInfo(ref Line2 a, ref Line2 b)
   {
     // see SegmentIntersection(Line, Line) for the explanation.
     double denominator = b.Vector.Y*a.Vector.X - b.Vector.X*a.Vector.Y; // calculate the denominator
-    if(denominator == 0) return new LineIntersection(Point.Invalid, false, false); // return invalid for parallel lines
+    if(denominator == 0) return new LineIntersection(Point2.Invalid, false, false); // return invalid for parallel lines
 
     double xd = a.Start.X-b.Start.X, yd = a.Start.Y-b.Start.Y; // these parts are the same in both equations
     double Na = (b.Vector.X*yd - b.Vector.Y*xd) / denominator; // calculate Na
     double Nb = (a.Vector.X*yd - a.Vector.Y*xd) / denominator; // calculate Nb
-    return new LineIntersection(new Point(a.Start.X + a.Vector.X*Na, a.Start.Y + a.Vector.Y*Na),
+    return new LineIntersection(new Point2(a.Start.X + a.Vector.X*Na, a.Start.Y + a.Vector.Y*Na),
                                 Na>=0 && Na<=1, Nb>=0 && Nb<=1);
   }
 
   /// <summary>Determines if a line (not a segment) intersects a rectangle.</summary>
-  public static bool Intersects(ref Line line, ref Rectangle rect)
+  public static bool Intersects(ref Line2 line, ref Rectangle rect)
   {
     // a line intersects a rectangle if it intersects any side.
     for(int i=0; i<4; i++)
     {
-      Line edge = rect.GetEdge(i);
+      Line2 edge = rect.GetEdge(i);
       if(IntersectionInfo(ref line, ref edge).OnSecond) return true;
     }
     return false;
   }
 
   /// <summary>Determines if a line segment intersects a rectangle.</summary>
-  public static bool SegmentIntersects(ref Line segment, ref Rectangle rect)
+  public static bool SegmentIntersects(ref Line2 segment, ref Rectangle rect)
   {
     return SegmentIntersection(ref segment, ref rect).Valid;
   }
 
   /// <summary>Determines if a line (not a segment) intersects a possibly-concave polygon.</summary>
-  public static bool Intersects(ref Line line, Polygon poly)
+  public static bool Intersects(ref Line2 line, Polygon poly)
   {
     // a line intersects a polygon if it intersects any of the polygon's edges
     for(int i=poly.PointCount-1; i>=0; i--)
     {
-      Line edge = poly.GetEdge(i);
+      Line2 edge = poly.GetEdge(i);
       if(IntersectionInfo(ref line, ref edge).OnSecond) return true;
     }
     return false;
   }
 
   /// <summary>Determines if a line segment intersects a convex polygon.</summary>
-  public static bool SegmentIntersects(ref Line segment, Polygon convexPoly)
+  public static bool SegmentIntersects(ref Line2 segment, Polygon convexPoly)
   {
     // a line segment intersects a polygon if the polygon contains both endpoints, or the segment intersects any edge.
 
@@ -457,7 +449,7 @@ public static class Math2D
 
     for(int i=convexPoly.PointCount-1; i>=0; i--) // the polygon doesn't fully contain the segment, so test the edges
     {
-      Line edge = convexPoly.GetEdge(i);
+      Line2 edge = convexPoly.GetEdge(i);
       if(SegmentIntersects(ref segment, ref edge)) return true;
     }
     return false;
@@ -480,14 +472,14 @@ public static class Math2D
     if(convexPoly.PointCount == 0) return false;
 
     // if one point of either is inside the other, there's intersection.
-    Point point = convexPoly[0];
+    Point2 point = convexPoly[0];
     if(Contains(ref rect, ref point)) return true;
     point = rect.TopLeft;
     if(Contains(convexPoly, ref point)) return true;
 
     for(int i=0; i<4; i++) // if it's not fully contained, then at least one edge must intersect
     {
-      Line edge = rect.GetEdge(i);
+      Line2 edge = rect.GetEdge(i);
       if(SegmentIntersects(ref edge, convexPoly)) return true;
     }
 
@@ -500,12 +492,12 @@ public static class Math2D
     // two convex polygons A and B intersect if B contains all of A's vertices, or any of A's edges intersects B
 
     // we only need to check one vertex to determine whether A is fully contained
-    Point point = convexA[0];
+    Point2 point = convexA[0];
     if(Contains(convexB, ref point)) return true;
 
     for(int i=convexA.PointCount-1; i>=0; i--) // if it's not fully contained, then at least one edge must intersect
     {
-      Line edge = convexA.GetEdge(i);
+      Line2 edge = convexA.GetEdge(i);
       if(SegmentIntersects(ref edge, convexB)) return true;
     }
 
@@ -515,19 +507,19 @@ public static class Math2D
 
   #region Intersection
   /// <summary>Determines if and where two lines (not segments) intersect.</summary>
-  /// <remarks>If no intersection occurs, <see cref="Point.Invalid"/> will be returned.</remarks>
-  public static Point Intersection(ref Line a, ref Line b)
+  /// <remarks>If no intersection occurs, <see cref="Point2.Invalid"/> will be returned.</remarks>
+  public static Point2 Intersection(ref Line2 a, ref Line2 b)
   {
     // see SegmentIntersection(Line, Line) for the explanation
     double denominator = b.Vector.Y*a.Vector.X - b.Vector.X*a.Vector.Y; // calculate the denominator
-    if(denominator == 0) return Point.Invalid; // return false for parallel lines
+    if(denominator == 0) return Point2.Invalid; // return false for parallel lines
     double Na = (b.Vector.X*(a.Start.Y-b.Start.Y) - b.Vector.Y*(a.Start.X-b.Start.X)) / denominator; // calculate Na
-    return new Point(a.Start.X + a.Vector.X*Na, a.Start.Y + a.Vector.Y*Na);
+    return new Point2(a.Start.X + a.Vector.X*Na, a.Start.Y + a.Vector.Y*Na);
   }
 
   /// <summary>Determines if and where two line segments intersect.</summary>
-  /// <remarks>If no intersection occurs, <see cref="Point.Invalid"/> will be returned.</remarks>
-  public static Point SegmentIntersection(ref Line a, ref Line b)
+  /// <remarks>If no intersection occurs, <see cref="Point2.Invalid"/> will be returned.</remarks>
+  public static Point2 SegmentIntersection(ref Line2 a, ref Line2 b)
   {
     // line segments are represented as starting points and vectors. any point Pn on a line segment can be
     // represented by Start + Vector*N where N is from 0 to 1. if we solve for Pa (a point on segment a) == Pb (a
@@ -543,90 +535,90 @@ public static class Math2D
     // if the denominator is zero, the lines are parallel. (See the line intersection method for an explanation of why)
 
     double denominator = b.Vector.Y*a.Vector.X - b.Vector.X*a.Vector.Y; // calculate the denominator
-    if(denominator == 0) return Point.Invalid; // return false for parallel lines
+    if(denominator == 0) return Point2.Invalid; // return false for parallel lines
     double xd = a.Start.X-b.Start.X, yd = a.Start.Y-b.Start.Y; // these parts are the same in both equations
     double Nv = (a.Vector.X*yd - a.Vector.Y*xd) / denominator; // calculate Nb
-    if(Nv<0 || Nv>1) return Point.Invalid; // if Nb lies outside 0-1, the intersection point is not on the 'b' segment
+    if(Nv<0 || Nv>1) return Point2.Invalid; // if Nb lies outside 0-1, the intersection point is not on the 'b' segment
     Nv = (b.Vector.X*yd - b.Vector.Y*xd) / denominator;        // calculate Na
-    if(Nv<0 || Nv>1) return Point.Invalid; // if Na lies outside 0-1, the intersection point is not on the 'a' segment
+    if(Nv<0 || Nv>1) return Point2.Invalid; // if Na lies outside 0-1, the intersection point is not on the 'a' segment
     // the intersection point can be calculated from either segment if we have the appropriate value of N.
     // since we have Na sitting in 'Nv', we'll use the 'a' vector.
-    return new Point(a.Start.X + a.Vector.X*Nv, a.Start.Y + a.Vector.Y*Nv);
+    return new Point2(a.Start.X + a.Vector.X*Nv, a.Start.Y + a.Vector.Y*Nv);
   }
 
   /// <summary>Determines if and where a line (not segment) and a rectangle intersect.</summary>
-  /// <remarks>If no intersection occurs, <see cref="Line.Invalid"/> will be returned. If the line intersects only
+  /// <remarks>If no intersection occurs, <see cref="Line2.Invalid"/> will be returned. If the line intersects only
   /// tangentially, a degenerate (zero-length) line will be returned.
   /// </remarks>
-  public static unsafe Line Intersection(ref Line line, ref Rectangle rect)
+  public static unsafe Line2 Intersection(ref Line2 line, ref Rectangle rect)
   {
     // a line intersects a rectangle if it intersects any of the edges.
-    Point* points  = stackalloc Point[2]; // allocate 2 points on the stack
+    Point2* points  = stackalloc Point2[2]; // allocate 2 points on the stack
     int pointIndex = 0;
 
     for(int i=0; i<4 && pointIndex<2; i++)
     {
-      Line edge = rect.GetEdge(0);
+      Line2 edge = rect.GetEdge(0);
       LineIntersection info = IntersectionInfo(ref line, ref edge);
       if(info.OnSecond) points[pointIndex++] = info.Point; // if it intersected the edge, add the point to the list
     }
 
     if(pointIndex == 2) // if two points intersected, return the segment between them
     {
-      return new Line(points[0], points[1]);
+      return new Line2(points[0], points[1]);
     }
     else if(pointIndex == 1) // if one point intersected, return a degenerate (zero-length) line segment.
     {
-      return new Line(points[0].X, points[0].Y, 0, 0);
+      return new Line2(points[0].X, points[0].Y, 0, 0);
     }
     else // if no edges intersected, return an invalid line.
     {
-      return Line.Invalid;
+      return Line2.Invalid;
     }
   }
 
   /// <summary>Determines if and where a line (not segment) and a convex polygon intersect.</summary>
-  /// <remarks>If no intersection occurs, <see cref="Line.Invalid"/> will be returned. If the line intersects only
+  /// <remarks>If no intersection occurs, <see cref="Line2.Invalid"/> will be returned. If the line intersects only
   /// tangentially, a degenerate (zero-length) line will be returned.
   /// </remarks>
-  public static unsafe Line Intersection(ref Line line, Polygon convexPoly)
+  public static unsafe Line2 Intersection(ref Line2 line, Polygon convexPoly)
   {
     // a line intersects a convex polygon if it intersects any of the edges.
-    Point* points  = stackalloc Point[2];
+    Point2* points  = stackalloc Point2[2];
     int pointIndex = 0;
 
     // test the intersection of the line with each edge, or until we find two intersection points
     for(int i=convexPoly.PointCount; i>=0 && pointIndex<2; i--)
     {
-      Line edge = convexPoly.GetEdge(i);
+      Line2 edge = convexPoly.GetEdge(i);
       LineIntersection info = IntersectionInfo(ref line, ref edge);
       if(info.OnSecond) points[pointIndex++] = info.Point; // if the intersection was on the polygon edge
     }
 
     if(pointIndex == 2) // if two points intersected, return the segment between them
     {
-      return new Line(points[0], points[1]);
+      return new Line2(points[0], points[1]);
     }
     else if(pointIndex == 1) // if one point intersected, return a degenerate (zero-length) line segment.
     {
-      return new Line(points[0].X, points[0].Y, 0, 0);
+      return new Line2(points[0].X, points[0].Y, 0, 0);
     }
     else // if no edges intersected, return an invalid line.
     {
-      return Line.Invalid;
+      return Line2.Invalid;
     }
   }
 
   /// <summary>Determines if and where a line segment and a rectangle intersect.</summary>
-  /// <remarks>If no intersection occurs, <see cref="Line.Invalid"/> will be returned. If the line intersects only
+  /// <remarks>If no intersection occurs, <see cref="Line2.Invalid"/> will be returned. If the line intersects only
   /// tangentially, a degenerate (zero-length) line will be returned.
   /// </remarks>
-  public static Line SegmentIntersection(ref Line segment, ref Rectangle rect)
+  public static Line2 SegmentIntersection(ref Line2 segment, ref Rectangle rect)
   {
     // this is the Cohen-Sutherland line-clipping algorithm
 
     double rectRight=rect.Right, rectBottom=rect.Bottom;
-    Point start=segment.Start, end=segment.End; // copy the segment points so as not to modify the input value
+    Point2 start=segment.Start, end=segment.End; // copy the segment points so as not to modify the input value
     int startCode, endCode;
 
     // 'startCode' is a bitfield:
@@ -652,10 +644,10 @@ public static class Math2D
     while(true)
     {
       // if both points are within the rectangle, return the entire line.
-      if(startCode==0 && endCode==0) return new Line(start, end);
+      if(startCode==0 && endCode==0) return new Line2(start, end);
       // if the segment can't possibly intersect the rectangle (eg, both the start and end are to the left of it),
       // return invalid.
-      if((startCode&endCode) != 0) return Line.Invalid;
+      if((startCode&endCode) != 0) return Line2.Invalid;
 
       // for each endpoint, we can only clip in one direction each iteration, which is why the clipping statements use
       // "else if" clauses.
@@ -720,38 +712,38 @@ public static class Math2D
   }
 
   /// <summary>Determines if and where a line segment and a convex polygon intersect.</summary>
-  /// <remarks>If no intersection occurs, <see cref="Line.Invalid"/> will be returned. If the line intersects only
+  /// <remarks>If no intersection occurs, <see cref="Line2.Invalid"/> will be returned. If the line intersects only
   /// tangentially, a degenerate (zero-length) line will be returned.
   /// </remarks>
-  public static Line SegmentIntersection(ref Line segment, Polygon convexPoly)
+  public static Line2 SegmentIntersection(ref Line2 segment, Polygon convexPoly)
   {
-    Point start = segment.Start, end = segment.End; // copy the endpoints so as to not modify the input line
+    Point2 start = segment.Start, end = segment.End; // copy the endpoints so as to not modify the input line
     int sign = convexPoly.IsClockwise() ? 1 : -1; // determine which side of the bounding lines is "outside"
 
     // for each polygon bounding line, clip the endpoints of the segment that lie "outside" the line to the line.
     for(int i=convexPoly.PointCount; i>=0; i--)
     {
-      Line edge = convexPoly.GetEdge(i);
+      Line2 edge = convexPoly.GetEdge(i);
       bool startOutside = Math.Sign(edge.WhichSide(start)) == sign, // determine whether either of the endpoints are
            endOutside   = Math.Sign(edge.WhichSide(end))   == sign; // "outside" the bounding line.
       if(startOutside)
       {
-        if(endOutside) return Line.Invalid; // if both endpoints are outside the clipping line, there's no intersection
-        Line tempSegment = new Line(start, end); // construct a temporary line to hold the start-end segment
+        if(endOutside) return Line2.Invalid; // if both endpoints are outside the clipping line, there's no intersection
+        Line2 tempSegment = new Line2(start, end); // construct a temporary line to hold the start-end segment
         // we can use infinite line intersection because at this point one endpoint is outside and one is inside,
         //so we know the segment intersects the bounding line
         start = Intersection(ref edge, ref tempSegment);
       }
       else if(endOutside)
       {
-        Line tempSegment = new Line(start, end); // construct a temporary line to hold the start-end segment
+        Line2 tempSegment = new Line2(start, end); // construct a temporary line to hold the start-end segment
         // we can use infinite line intersection because at this point one endpoint is outside and one is inside,
         // so we know the segment intersects the bounding line
         end = Intersection(ref edge, ref tempSegment);
       }
     }
 
-    return new Line(start, end);
+    return new Line2(start, end);
   }
 
   /// <summary>Determines if and where two rectangles intersect.</summary>
@@ -783,7 +775,7 @@ public static class Math2D
   /// <param name="angle">The angle to rotate by, in radians.</param>
   /// <param name="sin">A variable that will be set to the sine factor.</param>
   /// <param name="cos">A variable that will be set to the cosine factor.</param>
-  /// <remarks>These factors can be used with <see cref="TwoD.Math2D.Rotate"/> functions to rotate points and vertices.</remarks>
+  /// <remarks>These factors can be used with <see cref="Math2D.Rotate"/> functions to rotate points and vertices.</remarks>
   public static void GetRotationFactors(double angle, out double sin, out double cos)
   {
     sin = Math.Sin(angle);
@@ -792,91 +784,87 @@ public static class Math2D
 
   /// <summary>Rotates a 2D point using precalculated sine and cosine factors.</summary>
   /// <remarks>The sine and cosine factors can be obtained from the <see cref="GetRotationFactors"/> function.</remarks>
-  public static TwoD.Point Rotate(TwoD.Point point, double sin, double cos)
+  public static Point2 Rotate(Point2 point, double sin, double cos)
   {
-    return new TwoD.Point(point.X*cos - point.Y*sin, point.X*sin + point.Y*cos);
+    return new Point2(point.X*cos - point.Y*sin, point.X*sin + point.Y*cos);
   }
 
   /// <summary>Rotates a 2D point in place using precalculated sine and cosine factors.</summary>
   /// <remarks>The sine and cosine factors can be obtained from the <see cref="GetRotationFactors"/> function.</remarks>
   [CLSCompliant(false)]
-  public static void Rotate(ref TwoD.Point point, double sin, double cos)
+  public static void Rotate(ref Point2 point, double sin, double cos)
   {
-    point = new TwoD.Point(point.X*cos - point.Y*sin, point.X*sin + point.Y*cos);
+    point = new Point2(point.X*cos - point.Y*sin, point.X*sin + point.Y*cos);
   }
 
   /// <summary>Rotates an array of points.</summary>
-  /// <param name="points">The array of <see cref="TwoD.Point"/> to rotate.</param>
+  /// <param name="points">The array of <see cref="Point2"/> to rotate.</param>
   /// <param name="start">The index at which to start rotating points.</param>
   /// <param name="length">The number of points to rotate.</param>
   /// <param name="angle">The angle by which to rotate the points, in radians.</param>
-  public static void Rotate(TwoD.Point[] points, int start, int length, double angle)
+  public static void Rotate(Point2[] points, int start, int length, double angle)
   {
     if(angle == 0) return;
     double sin, cos;
     GetRotationFactors(angle, out sin, out cos);
-    for(int end=start+length; start<end; start++)
-    {
-      Rotate(ref points[start], sin, cos);
-    }
+    for(int end=start+length; start<end; start++) Rotate(ref points[start], sin, cos);
   }
 
   /// <summary>Rotates a 2D vector using precalculated sine and cosine factors.</summary>
   /// <remarks>The sine and cosine factors can be obtained from the <see cref="GetRotationFactors"/> function.</remarks>
-  public static TwoD.Vector Rotate(TwoD.Vector vector, double sin, double cos)
+  public static Vector2 Rotate(Vector2 vector, double sin, double cos)
   {
-    return new TwoD.Vector(vector.X*cos - vector.Y*sin, vector.X*sin + vector.Y*cos);
+    return new Vector2(vector.X*cos - vector.Y*sin, vector.X*sin + vector.Y*cos);
   }
 
   /// <summary>Rotates a 2D vector in place using precalculated sine and cosine factors.</summary>
   /// <remarks>The sine and cosine factors can be obtained from the <see cref="GetRotationFactors"/> function.</remarks>
   [CLSCompliant(false)]
-  public static void Rotate(ref TwoD.Vector vector, double sin, double cos)
+  public static void Rotate(ref Vector2 vector, double sin, double cos)
   {
-    vector = new TwoD.Vector(vector.X*cos - vector.Y*sin, vector.X*sin + vector.Y*cos);
+    vector = new Vector2(vector.X*cos - vector.Y*sin, vector.X*sin + vector.Y*cos);
   }
 
   /// <summary>Rotates an array of vectors.</summary>
-  /// <param name="vectors">The array of <see cref="TwoD.Vector"/> to rotate.</param>
+  /// <param name="vectors">The array of <see cref="Vector2"/> to rotate.</param>
   /// <param name="start">The index at which to start rotating vectors.</param>
   /// <param name="length">The number of vectors to rotate.</param>
   /// <param name="angle">The angle by which to rotate the vectors, in radians.</param>
-  public static void Rotate(TwoD.Vector[] vectors, int start, int length, double angle)
+  public static void Rotate(Vector2[] vectors, int start, int length, double angle)
   {
     if(angle == 0) return;
     double sin, cos;
     GetRotationFactors(angle, out sin, out cos);
-    for(int end=start+length; start<end; start++)
-      Rotate(ref vectors[start], sin, cos);
+    for(int end=start+length; start<end; start++) Rotate(ref vectors[start], sin, cos);
   }
   #endregion
 }
 #endregion
 
-#region Vector
+#region Vector2
 /// <summary>This structure represents a mathematical vector in two-dimensional space.</summary>
 [Serializable]
-public struct Vector
+public struct Vector2
 {
   /// <summary>Initializes this vector from magnitudes along the X and Y axes.</summary>
   /// <param name="x">The magnitude along the X axis.</param>
   /// <param name="y">The magnitude along the Y axis.</param>
-  public Vector(double x, double y) { X=x; Y=y; }
-  /// <summary>Initializes this vector from a <see cref="Point"/>.</summary>
-  /// <param name="pt">A <see cref="Point"/>. The point's X and Y coordinates will become the corresponding
+  public Vector2(double x, double y) { X=x; Y=y; }
+  /// <summary>Initializes this vector from a <see cref="Point2"/>.</summary>
+  /// <param name="pt">A <see cref="Point2"/>. The point's X and Y coordinates will become the corresponding
   /// X and Y magnitudes of the vector.
   /// </param>
-  public Vector(Point pt) { X=pt.X; Y=pt.Y; }
+  public Vector2(Point2 pt) { X=pt.X; Y=pt.Y; }
   /// <summary>Initializes this vector from a <see cref="System.Drawing.Point"/>.</summary>
   /// <param name="pt">A <see cref="System.Drawing.Point"/>. The point's X and Y coordinates will become the
   /// corresponding X and Y magnitudes of the vector.
   /// </param>
-  public Vector(SysPoint pt) { X=pt.X; Y=pt.Y; }
+  public Vector2(SysPoint pt) { X=pt.X; Y=pt.Y; }
   /// <summary>Initializes this vector from a <see cref="System.Drawing.Size"/>.</summary>
   /// <param name="size">A <see cref="System.Drawing.Size"/>. The size's Width and Height respectively will become
   /// the X and Y magnitudes of the vector.
   /// </param>
-  public Vector(System.Drawing.Size size) { X=size.Width; Y=size.Height; }
+  public Vector2(System.Drawing.Size size) { X=size.Width; Y=size.Height; }
 
   /// <summary>Calculates and returns the angle of the vector.</summary>
   /// <value>The angle of the vector, in radians.</value>
@@ -894,11 +882,11 @@ public struct Vector
   }
 
   /// <summary>Gets the cross vector, analagous to the three-dimensional cross product.</summary>
-  /// <value>A <see cref="Vector"/> perpendicular to this vector.</value>
+  /// <value>A <see cref="Vector2"/> perpendicular to this vector.</value>
   /// <remarks>While there is no real cross product in two dimensions, this property is analogous in that it
   /// returns a perpendicular vector.
   /// </remarks>
-  public Vector CrossVector { get { return new Vector(Y, -X); } }
+  public Vector2 CrossVector { get { return new Vector2(Y, -X); } }
   /// <include file="documentation.xml" path="//Geometry/Vector/Length/*"/>
   public double Length
   {
@@ -908,14 +896,14 @@ public struct Vector
   /// <summary>Returns the length of this vector, squared.</summary>
   public double LengthSqr { get { return X*X+Y*Y; } }
   /// <include file="documentation.xml" path="//Geometry/Vector/Normal/*"/>
-  public Vector Normal { get { return this/Length; } }
+  public Vector2 Normal { get { return this/Length; } }
   /// <summary>Determines whether the vector is valid.</summary>
   /// <remarks>Invalid vectors are returned by some mathematical functions to signal that the function is undefined
   /// given the input. A vector returned by such a function can be tested for validity using this property.
   /// </remarks>
   public bool Valid { get { return !double.IsNaN(X); } }
   /// <include file="documentation.xml" path="//Geometry/Vector/DotProduct/*"/>
-  public double DotProduct(Vector v) { return X*v.X + Y*v.Y; }
+  public double DotProduct(Vector2 v) { return X*v.X + Y*v.Y; }
   /// <include file="documentation.xml" path="//Geometry/Vector/Normalize/*"/>
   public void Normalize() { this/=Length; }
   /// <include file="documentation.xml" path="//Geometry/Vector/Normalize2/*"/>
@@ -924,9 +912,9 @@ public struct Vector
   /// <remarks>Calling this method is invalid when the length of the vector is zero, since the vector would not be
   /// pointing in any direction and could not possibly be scaled to the correct length.
   /// </remarks>
-  public Vector Normalized(double length)
+  public Vector2 Normalized(double length)
   {
-    Vector vector = this;
+    Vector2 vector = this;
     vector.Normalize(length);
     return vector;
   }
@@ -936,15 +924,15 @@ public struct Vector
   /// <summary>Returns a copy of this vector, rotated by the given number of radians.</summary>
   /// <param name="angle">The angle to rotate by, in radians.</param>
   /// <returns>A new vector with the same magnitude as this one, and rotated by the given angle.</returns>
-  public Vector Rotated(double angle)
+  public Vector2 Rotated(double angle)
   {
     double sin = Math.Sin(angle), cos = Math.Cos(angle);
-    return new Vector(X*cos-Y*sin, X*sin+Y*cos);
+    return new Vector2(X*cos-Y*sin, X*sin+Y*cos);
   }
   /// <include file="documentation.xml" path="//Geometry/Vector/Equals/*"/>
-  public override bool Equals(object obj) { return obj is Vector && (Vector)obj==this; }
+  public override bool Equals(object obj) { return obj is Vector2 && (Vector2)obj==this; }
   /// <include file="documentation.xml" path="//Geometry/Vector/Equals3/*"/>
-  public bool Equals(Vector vect, double epsilon)
+  public bool Equals(Vector2 vect, double epsilon)
   {
     return Math.Abs(vect.X-X)<=epsilon && Math.Abs(vect.Y-Y)<=epsilon;
   }
@@ -953,43 +941,46 @@ public struct Vector
   {
     fixed(double* dp=&X) { int* p=(int*)dp; return *p ^ *(p+1) ^ *(p+2) ^ *(p+3); }
   }
-  /// <summary>Converts this <see cref="Vector"/> into an equivalent <see cref="Point"/>.</summary>
-  /// <returns>Returns a <see cref="Point"/> with X and Y coordinates equal to the X and Y magnitudes of this
+  /// <summary>Converts this <see cref="Vector2"/> into an equivalent <see cref="Point2"/>.</summary>
+  /// <returns>Returns a <see cref="Point2"/> with X and Y coordinates equal to the X and Y magnitudes of this
   /// vector.
   /// </returns>
-  public Point ToPoint() { return new Point(X, Y); }
+  public Point2 ToPoint() { return new Point2(X, Y); }
   /// <summary>Converts this vector into a human-readable string.</summary>
   /// <returns>A human-readable string representation of this vector.</returns>
   public override string ToString() { return string.Format("[{0:f2},{1:f2}]", X, Y); }
 
   /// <summary>Returns a new vector with the magnitudes negated.</summary>
-  public static Vector operator-(Vector v) { return new Vector(-v.X, -v.Y); }
+  public static Vector2 operator-(Vector2 v) { return new Vector2(-v.X, -v.Y); }
   /// <summary>Returns a new vector with the magnitudes equal to the sums of the operand's magnitudes.</summary>
-  public static Vector operator+(Vector a, Vector b) { return new Vector(a.X+b.X, a.Y+b.Y); }
+  public static Vector2 operator+(Vector2 a, Vector2 b) { return new Vector2(a.X+b.X, a.Y+b.Y); }
   /// <summary>Returns a new vector with the magnitudes equal to the differences between the operand's magnitudes.</summary>
-  public static Vector operator-(Vector a, Vector b) { return new Vector(a.X-b.X, a.Y-b.Y); }
+  public static Vector2 operator-(Vector2 a, Vector2 b) { return new Vector2(a.X-b.X, a.Y-b.Y); }
   /// <summary>Returns a new vector with both magnitudes multiplied by a scalar value.</summary>
-  public static Vector operator*(Vector v, double f) { return new Vector(v.X*f, v.Y*f); }
+  public static Vector2 operator*(Vector2 v, double f) { return new Vector2(v.X*f, v.Y*f); }
   /// <summary>Returns a new vector with both magnitudes multiplied by a scalar value.</summary>
-  public static Vector operator*(double f, Vector v) { return new Vector(v.X*f, v.Y*f); }
+  public static Vector2 operator*(double f, Vector2 v) { return new Vector2(v.X*f, v.Y*f); }
   /// <summary>Returns a new vector with both magnitudes divided by a scalar value.</summary>
-  public static Vector operator/(Vector v, double f) { return new Vector(v.X/f, v.Y/f); }
+  public static Vector2 operator/(Vector2 v, double f) { return new Vector2(v.X/f, v.Y/f); }
 
   /// <summary>Determines whether two vectors are exactly equal. You cannot use this method to compare against
   /// <see cref="Invalid"/>. Use the <see cref="Valid"/> property for that.
   /// </summary>
-  public static bool operator==(Vector a, Vector b) { return a.X==b.X && a.Y==b.Y; }
+  public static bool operator==(Vector2 a, Vector2 b) { return a.X==b.X && a.Y==b.Y; }
 
   /// <summary>Determines whether two vectors are not exactly equal. You cannot use this method to compare against
   /// <see cref="Invalid"/>. Use the <see cref="Valid"/> property for that.
   /// </summary>
-  public static bool operator!=(Vector a, Vector b) { return a.X!=b.X || a.Y!=b.Y; }
+  public static bool operator!=(Vector2 a, Vector2 b) { return a.X!=b.X || a.Y!=b.Y; }
 
   /// <summary>Returns an invalid vector.</summary>
   /// <remarks>When a function is presented with input for which it is mathematically undefined, it can return an
   /// invalid vector instead of raising an exception. This property will return an invalid vector.
   /// </remarks>
-  public static readonly Vector Invalid = new Vector(double.NaN, double.NaN);
+  public static readonly Vector2 Invalid = new Vector2(double.NaN, double.NaN);
+
+  /// <summary>Returns a vector with zero for all components.</summary>
+  public static readonly Vector2 Zero = new Vector2();
 
   /// <summary>The magnitude of this vector along the X axis.</summary>
   public double X;
@@ -998,21 +989,21 @@ public struct Vector
 }
 #endregion
 
-#region Point
+#region Point2
 /// <summary>This structure represents a point in two-dimensional space.</summary>
 [Serializable]
-public struct Point
+public struct Point2
 {
-  /// <summary>Initializes this <see cref="Point"/> from a <see cref="System.Drawing.Point"/>.</summary>
+  /// <summary>Initializes this <see cref="Point2"/> from a <see cref="System.Drawing.Point"/>.</summary>
   /// <param name="pt">The <see cref="System.Drawing.Point"/> from which this point will be initialized.</param>
-  public Point(SysPoint pt) { X=pt.X; Y=pt.Y; }
-  /// <summary>Initializes this <see cref="Point"/> from a <see cref="System.Drawing.PointF"/>.</summary>
+  public Point2(SysPoint pt) { X=pt.X; Y=pt.Y; }
+  /// <summary>Initializes this <see cref="Point2"/> from a <see cref="System.Drawing.PointF"/>.</summary>
   /// <param name="pt">The <see cref="System.Drawing.PointF"/> from which this point will be initialized.</param>
-  public Point(SysPointF pt) { X=pt.X; Y=pt.Y; }
-  /// <summary>Initializes this <see cref="Point"/> from a set of coordinates.</summary>
+  public Point2(SysPointF pt) { X=pt.X; Y=pt.Y; }
+  /// <summary>Initializes this <see cref="Point2"/> from a set of coordinates.</summary>
   /// <param name="x">The point's X coordinate.</param>
   /// <param name="y">The point's Y coordinate.</param>
-  public Point(double x, double y) { X=x; Y=y; }
+  public Point2(double x, double y) { X=x; Y=y; }
 
   /// <summary>Determines whether the point is valid.</summary>
   /// <remarks>Invalid points are returned by some mathematical functions to signal that the function is undefined
@@ -1020,13 +1011,13 @@ public struct Point
   /// </remarks>
   public bool Valid { get { return !double.IsNaN(X); } }
   /// <include file="documentation.xml" path="//Geometry/Point/DistanceTo/*"/>
-  public double DistanceTo(Point point)
+  public double DistanceTo(Point2 point)
   {
     double xd=point.X-X, yd=point.Y-Y;
     return Math.Sqrt(xd*xd+yd*yd);
   }
   /// <include file="documentation.xml" path="//Geometry/Point/DistanceSquaredTo/*"/>
-  public double DistanceSquaredTo(Point point)
+  public double DistanceSquaredTo(Point2 point)
   {
     double xd=point.X-X, yd=point.Y-Y;
     return xd*xd+yd*yd;
@@ -1044,9 +1035,9 @@ public struct Point
   /// <returns>A <see cref="System.Drawing.PointF"/> containing approximately the same coordinates.</returns>
   public SysPointF ToPointF() { return new SysPointF((float)X, (float)Y); }
   /// <include file="documentation.xml" path="//Geometry/Point/Equals/*"/>
-  public override bool Equals(object obj) { return obj is Point && (Point)obj==this; }
+  public override bool Equals(object obj) { return obj is Point2 && (Point2)obj==this; }
   /// <include file="documentation.xml" path="//Geometry/Point/Equals3/*"/>
-  public bool Equals(Point point, double epsilon)
+  public bool Equals(Point2 point, double epsilon)
   {
     return Math.Abs(point.X-X)<=epsilon && Math.Abs(point.Y-Y)<=epsilon;
   }
@@ -1055,37 +1046,40 @@ public struct Point
   {
     fixed(double* dp=&X) { int* p=(int*)dp; return *p ^ *(p+1) ^ *(p+2) ^ *(p+3); }
   }
-  /// <summary>Converts this <see cref="Point"/> into a human-readable string.</summary>
-  /// <returns>A human-readable string representation of this <see cref="Point"/>.</returns>
+  /// <summary>Converts this <see cref="Point2"/> into a human-readable string.</summary>
+  /// <returns>A human-readable string representation of this <see cref="Point2"/>.</returns>
   public override string ToString() { return string.Format("({0:f2},{1:f2})", X, Y); }
+
+  /// <summary>Returns a point at 0, 0.</summary>
+  public static readonly Point2 Empty = new Point2();
 
   /// <summary>Returns an invalid point.</summary>
   /// <remarks>When a function is presented with input for which it is mathematically undefined, it can return an
   /// invalid point instead of raising an exception. This property will return an invalid point.
   /// </remarks>
-  public static readonly Point Invalid = new Point(double.NaN, double.NaN);
+  public static readonly Point2 Invalid = new Point2(double.NaN, double.NaN);
 
-  /// <summary>Returns a <see cref="Vector"/> representing the distance between the two points.</summary>
-  public static Vector operator-(Point lhs, Point rhs) { return new Vector(lhs.X-rhs.X, lhs.Y-rhs.Y); }
-  /// <summary>Subtracts a <see cref="Vector"/> from a point and returns the new point.</summary>
-  public static Point operator-(Point lhs, Vector rhs) { return new Point(lhs.X-rhs.X, lhs.Y-rhs.Y); }
-  /// <summary>Adds a <see cref="Vector"/> to a point and returns the new point.</summary>
-  public static Point operator+(Point lhs, Vector rhs) { return new Point(lhs.X+rhs.X, lhs.Y+rhs.Y); }
-  /// <summary>Adds a <see cref="Vector"/> to a point and returns the new point.</summary>
-  public static Point operator+(Vector lhs, Point rhs) { return new Point(lhs.X+rhs.X, lhs.Y+rhs.Y); }
+  /// <summary>Returns a <see cref="Vector2"/> representing the distance between the two points.</summary>
+  public static Vector2 operator-(Point2 lhs, Point2 rhs) { return new Vector2(lhs.X-rhs.X, lhs.Y-rhs.Y); }
+  /// <summary>Subtracts a <see cref="Vector2"/> from a point and returns the new point.</summary>
+  public static Point2 operator-(Point2 lhs, Vector2 rhs) { return new Point2(lhs.X-rhs.X, lhs.Y-rhs.Y); }
+  /// <summary>Adds a <see cref="Vector2"/> to a point and returns the new point.</summary>
+  public static Point2 operator+(Point2 lhs, Vector2 rhs) { return new Point2(lhs.X+rhs.X, lhs.Y+rhs.Y); }
+  /// <summary>Adds a <see cref="Vector2"/> to a point and returns the new point.</summary>
+  public static Point2 operator+(Vector2 lhs, Point2 rhs) { return new Point2(lhs.X+rhs.X, lhs.Y+rhs.Y); }
   /// <summary>Determines whether two points are exactly equal. You cannot use this method to compare against
   /// <see cref="Invalid"/>. Use the <see cref="Valid"/> property for that.
   /// </summary>
-  public static bool operator==(Point lhs, Point rhs) { return lhs.X==rhs.X && lhs.Y==rhs.Y; }
+  public static bool operator==(Point2 lhs, Point2 rhs) { return lhs.X==rhs.X && lhs.Y==rhs.Y; }
   /// <summary>Determines whether two points are exactly equal. You cannot use this method to compare against
   /// <see cref="Invalid"/>. Use the <see cref="Valid"/> property for that.
   /// </summary>
-  public static bool operator!=(Point lhs, Point rhs) { return lhs.X!=rhs.X || lhs.Y!=rhs.Y; }
+  public static bool operator!=(Point2 lhs, Point2 rhs) { return lhs.X!=rhs.X || lhs.Y!=rhs.Y; }
 
-  /// <summary>Implicitly converts a <see cref="System.Drawing.Point"/> to a <see cref="Point"/>.</summary>
+  /// <summary>Implicitly converts a <see cref="System.Drawing.Point"/> to a <see cref="Point2"/>.</summary>
   /// <param name="point">The <see cref="System.Drawing.Point"/> to convert.</param>
-  /// <returns>A <see cref="Point"/> containing the same coordinates as <paramref name="point"/>.</returns>
-  public static implicit operator Point(SysPoint point) { return new Point(point.X, point.Y); }
+  /// <returns>A <see cref="Point2"/> containing the same coordinates as <paramref name="point"/>.</returns>
+  public static implicit operator Point2(SysPoint point) { return new Point2(point.X, point.Y); }
 
   /// <summary>This point's X coordinate.</summary>
   public double X;
@@ -1098,7 +1092,7 @@ public struct Point
 /// <summary>This structure contains information about the intersection of two lines or line segments.</summary>
 /// <remarks>The structure is returned from some line intersection functions. If the intersection is not valid
 /// (ie, the lines given were parallel), the <see cref="Point"/> member will be invalid. You can use
-/// <see cref="AdamMil.Mathematics.Geometry.TwoD.Point.Valid"/> to check for this condition.
+/// <see cref="AdamMil.Mathematics.Geometry.Point2.Valid"/> to check for this condition.
 /// </remarks>
 public struct LineIntersection
 {
@@ -1109,7 +1103,7 @@ public struct LineIntersection
   /// </param>
   /// <param name="onFirst">This should be true if the intersection point lies on the first line segment.</param>
   /// <param name="onSecond">This should be true if the intersection point lies on the second line segment.</param>
-  public LineIntersection(Point point, bool onFirst, bool onSecond)
+  public LineIntersection(Point2 point, bool onFirst, bool onSecond)
   {
     Point=point; OnFirst=onFirst; OnSecond=onSecond;
   }
@@ -1120,9 +1114,9 @@ public struct LineIntersection
   public bool OnBoth { get { return OnFirst && OnSecond; } }
   /// <summary>The intersection point, or an invalid point if the lines did not intersect.</summary>
   /// <remarks>If the lines did not intersect (because they were invalid or parallel), this will be an invalid
-  /// point. You can use <see cref="AdamMil.Mathematics.Geometry.TwoD.Point.Valid"/> to check for this condition.
+  /// point. You can use <see cref="AdamMil.Mathematics.Geometry.Point2.Valid"/> to check for this condition.
   /// </remarks>
-  public Point Point;
+  public Point2 Point;
   /// <summary>Determines whether the intersection point lies on the first line segment.</summary>
   /// <remarks>If true, the second line intersected the first line segment. If both <see cref="OnFirst"/> and
   /// <see cref="OnSecond"/> are true (<see cref="OnBoth"/> is true), then both segments intersected each other.
@@ -1136,11 +1130,11 @@ public struct LineIntersection
 }
 #endregion
 
-#region Line
-/// <summary>This structure represents a line or line segment.</summary>
+#region Line2
+/// <summary>This structure represents a line or line segment in two dimensions.</summary>
 /// <remarks>The line is stored in parametric form, which means that it's stored as a point and a vector.</remarks>
 [Serializable]
-public struct Line
+public struct Line2
 {
   /// <summary>Initializes this line from a point's coordinates and a vector's axis magnitudes.</summary>
   /// <param name="x">The X coordinate of a point on the line (or the start of the line segment).</param>
@@ -1151,15 +1145,15 @@ public struct Line
   /// <param name="yd">The magnitude along the Y axis of the line's direction. If you're defining a line segment,
   /// this should be the distance from <paramref name="y"/> to the endpoint's Y coordinate.
   /// </param>
-  public Line(double x, double y, double xd, double yd) { Start=new Point(x, y); Vector=new Vector(xd, yd); }
+  public Line2(double x, double y, double xd, double yd) { Start=new Point2(x, y); Vector=new Vector2(xd, yd); }
   /// <include file="documentation.xml" path="//Geometry/Line/Line/*"/>
-  public Line(Point start, Vector vector) { Start=start; Vector=vector; }
+  public Line2(Point2 start, Vector2 vector) { Start=start; Vector=vector; }
   /// <include file="documentation.xml" path="//Geometry/Line/Line2/*"/>
-  public Line(Point start, Point end) { Start=start; Vector=end-start; }
+  public Line2(Point2 start, Point2 end) { Start=start; Vector=end-start; }
 
   /// <summary>Returns the endpoint of the line segment.</summary>
   /// <remarks>This is equivalent to <see cref="Start"/> + <see cref="Vector"/>.</remarks>
-  public Point End { get { return Start+Vector; } set { Vector=value-Start; } }
+  public Point2 End { get { return Start+Vector; } set { Vector=value-Start; } }
   /// <summary>Calculates and returns the line segment's length.</summary>
   /// <remarks>This returns the length of <see cref="Vector"/>.</remarks>
   public double Length { get { return Vector.Length; } set { Vector.Length=value; } }
@@ -1173,10 +1167,10 @@ public struct Line
   public bool Valid { get { return Start.Valid; } }
 
   /// <summary>Returns the point on the line segment closest to the given point.</summary>
-  public Point ClosestPointOnSegment(Point point)
+  public Point2 ClosestPointOnSegment(Point2 point)
   {
     // our line is represented as a vector from a starting point. get the vector from the starting point to 'point'
-    Vector pvect = point - Start;
+    Vector2 pvect = point - Start;
     double dot   = pvect.DotProduct(Vector); // get the dot product of the two vectors
     // if it's negative, the vectors are pointing in roughly opposite directions, so we return the start point.
     if(dot <= 0) return Start;
@@ -1191,7 +1185,7 @@ public struct Line
   }
 
   /// <summary>Returns the signed distance from the line to a given point.</summary>
-  /// <param name="point">The <see cref="Point"/> to find the distance to.</param>
+  /// <param name="point">The <see cref="Point2"/> to find the distance to.</param>
   /// <returns>Returns the distance from the point to the nearest point on the line. The distance may be positive or
   /// negative, with the sign indicating which side of the line the point is on. For a line defined in a clockwise
   /// manner, a positive value means that the point is "outside" the line and a negative value indicates that the
@@ -1201,9 +1195,10 @@ public struct Line
   /// want the distance to the line, use <see cref="Math.Abs(double)"/> to get the absolute value. If you simply want
   /// to know which side of the line a point is on, use <see cref="WhichSide"/>, which is more efficient.
   /// </returns>
-  public double DistanceTo(Point point) { return Vector.CrossVector.Normal.DotProduct(point-Start); }
+  public double DistanceTo(Point2 point) { return Vector.CrossVector.Normal.DotProduct(point-Start); }
+
   /// <include file="documentation.xml" path="//Geometry/Line/GetPoint/*"/>
-  public Point GetPoint(int point)
+  public Point2 GetPoint(int point)
   {
     if(point<0 || point>1) throw new ArgumentOutOfRangeException("point", point, "must be 0 or 1");
     return point==0 ? Start : End;
@@ -1215,6 +1210,12 @@ public struct Line
     return Math2D.Intersects(ref circle, ref this);
   }
 
+  /// <summary>Returns the distance from the point to the nearest point on the line segment.</summary>
+  public double SegmentDistanceTo(Point2 point)
+  {
+    return point.DistanceTo(ClosestPointOnSegment(point));
+  }
+
   /// <summary>Determines whether this line segment intersects the given circle.</summary>
   public bool SegmentIntersects(Circle circle)
   {
@@ -1222,31 +1223,31 @@ public struct Line
   }
 
   /// <summary>Determines whether this line (not segment) intersects the given line (not segment).</summary>
-  public bool Intersects(Line line)
+  public bool Intersects(Line2 line)
   {
     return Math2D.Intersects(ref this, ref line);
   }
 
   /// <summary>Determines whether this line segments intersects the given line segment.</summary>
-  public bool SegmentIntersects(Line segment)
+  public bool SegmentIntersects(Line2 segment)
   {
     return Math2D.SegmentIntersects(ref this, ref segment);
   }
 
   /// <summary>Returns the intersection point of two lines (not segments).</summary>
   /// <returns>The intersection point of the two lines, or an invalid point if the lines do not intersect.
-  /// You can check if the point is valid with <see cref="Point.Valid"/>.
+  /// You can check if the point is valid with <see cref="Point2.Valid"/>.
   /// </returns>
-  public Point Intersection(Line line)
+  public Point2 Intersection(Line2 line)
   {
     return Math2D.Intersection(ref this, ref line);
   }
 
   /// <summary>Returns the intersection point of two lines segments.</summary>
   /// <returns>The intersection point of the two line segments, or an invalid point if the lines do not intersect.
-  /// You can check if the point is valid with <see cref="Point.Valid"/>.
+  /// You can check if the point is valid with <see cref="Point2.Valid"/>.
   /// </returns>
-  public Point SegmentIntersection(Line segment)
+  public Point2 SegmentIntersection(Line2 segment)
   {
     return Math2D.Intersection(ref this, ref segment);
   }
@@ -1258,7 +1259,7 @@ public struct Line
   /// <returns>A <see cref="LineIntersection"/> containing information about the intersection of the two
   /// lines or line segments.
   /// </returns>
-  public LineIntersection GetIntersectionInfo(Line line)
+  public LineIntersection GetIntersectionInfo(Line2 line)
   {
     return Math2D.IntersectionInfo(ref this, ref line);
   }
@@ -1277,14 +1278,14 @@ public struct Line
 
   /// <summary>Returns the intersection of this line (not segment) with the given <see cref="Rectangle"/>.</summary>
   /// <returns>The portion of the line inside the rectangle, or an <see cref="Invalid"/> if there is no intersection.</returns>
-  public Line Intersection(Rectangle rect)
+  public Line2 Intersection(Rectangle rect)
   {
     return Math2D.Intersection(ref this, ref rect);
   }
 
   /// <summary>Returns the intersection of this line segment with the given <see cref="Rectangle"/>.</summary>
   /// <returns>The portion of the line inside the rectangle, or an <see cref="Invalid"/> if there is no intersection.</returns>
-  public Line SegmentIntersection(Rectangle rect)
+  public Line2 SegmentIntersection(Rectangle rect)
   {
     return Math2D.SegmentIntersection(ref this, ref rect);
   }
@@ -1303,7 +1304,7 @@ public struct Line
 
   /// <summary>Returns the intersection of the line (not segment) with a convex polygon.</summary>
   /// <returns>The portion of the line inside the polygon, or an <see cref="Invalid"/> if there is no intersection.</returns>
-  public Line Intersection(Polygon convexPoly)
+  public Line2 Intersection(Polygon convexPoly)
   {
     return Math2D.Intersection(ref this, convexPoly);
   }
@@ -1312,13 +1313,13 @@ public struct Line
   /// <returns>The portion of the line segment inside the polygon, or an <see cref="Invalid"/> if there is no
   /// intersection.
   /// </returns>
-  public Line SegmentIntersection(Polygon convexPoly)
+  public Line2 SegmentIntersection(Polygon convexPoly)
   {
     return Math2D.SegmentIntersection(ref this, convexPoly);
   }
 
   /// <summary>Determines which side of a line the given point is on.</summary>
-  /// <param name="point">The <see cref="Point"/> to test.</param>
+  /// <param name="point">The <see cref="Point2"/> to test.</param>
   /// <returns>A value indicating which side of the line the point is on. The value's sign indicates which side of
   /// the line the point is on. For a line defined in a clockwise
   /// manner, a positive value means that the point is "outside" the line and a negative value indicates that the
@@ -1326,20 +1327,20 @@ public struct Line
   /// a convex polygon, a point would be "outside" the line if it was on the side that would put it outside the
   /// polygon. The point would be inside the polygon if it was "inside" all of the lines defining it.
   /// </returns>
-  public double WhichSide(Point point) { return Vector.CrossVector.DotProduct(point-Start); }
+  public double WhichSide(Point2 point) { return Vector.CrossVector.DotProduct(point-Start); }
   /// <include file="documentation.xml" path="//Geometry/Line/Equals/*"/>
-  public override bool Equals(object obj) { return obj is Line && (Line)obj==this; }
+  public override bool Equals(object obj) { return obj is Line2 && (Line2)obj==this; }
   /// <include file="documentation.xml" path="//Geometry/Line/Equals3/*"/>
-  public bool Equals(Line line, double epsilon)
+  public bool Equals(Line2 line, double epsilon)
   {
     return Start.Equals(line.Start, epsilon) && Vector.Equals(line.Vector, epsilon);
   }
   /// <include file="documentation.xml" path="//Common/GetHashCode/*"/>
   public override int GetHashCode() { return Start.GetHashCode() ^ Vector.GetHashCode(); }
-  /// <summary>Converts this <see cref="Line"/> into a human-readable string.</summary>
+  /// <summary>Converts this <see cref="Line2"/> into a human-readable string.</summary>
   /// <returns>A human-readable string representing this line.</returns>
   public override string ToString() { return string.Format("{0}->{1}", Start, Vector); }
-  /// <summary>Creates a <see cref="Line"/> from two points.</summary>
+  /// <summary>Creates a <see cref="Line2"/> from two points.</summary>
   /// <param name="x1">The X coordinate of the first point (a point on the line, or the start of the line segment).</param>
   /// <param name="y1">The Y coordinate of the first point (a point on the line, or the start of the line segment).</param>
   /// <param name="x2">The X coordinate of the second point (another point on the line, or the end of the line
@@ -1348,29 +1349,29 @@ public struct Line
   /// <param name="y2">The Y coordinate of the second point (another point on the line, or the end of the line
   /// segment).
   /// </param>
-  /// <returns>A <see cref="Line"/> initialized with those values.</returns>
+  /// <returns>A <see cref="Line2"/> initialized with those values.</returns>
   /// <remarks>Since the end point will need to be converted into a vector, some miniscule accuracy may be lost.
   /// Most notably, the <see cref="End"/> property may not be exactly equal to the point defined by
   /// <paramref name="x2"/> and <paramref name="y2"/>.
   /// </remarks>
-  public static Line FromPoints(double x1, double y1, double x2, double y2) { return new Line(x1, y1, x2-x1, y2-y1); }
+  public static Line2 FromPoints(double x1, double y1, double x2, double y2) { return new Line2(x1, y1, x2-x1, y2-y1); }
   /// <summary>Determines whether two line segments are exactly equal. You cannot use this method to compare against
   /// <see cref="Invalid"/>. Use the <see cref="Valid"/> property for that.
   /// </summary>
-  public static bool operator==(Line lhs, Line rhs) { return lhs.Start==rhs.Start && lhs.Vector==rhs.Vector; }
+  public static bool operator==(Line2 lhs, Line2 rhs) { return lhs.Start==rhs.Start && lhs.Vector==rhs.Vector; }
   /// <summary>Determines whether two line segments are not exactly equal. You cannot use this method to compare against
   /// <see cref="Invalid"/>. Use the <see cref="Valid"/> property for that.
   /// </summary>
-  public static bool operator!=(Line lhs, Line rhs) { return lhs.Start!=rhs.Start || lhs.Vector!=rhs.Vector; }
+  public static bool operator!=(Line2 lhs, Line2 rhs) { return lhs.Start!=rhs.Start || lhs.Vector!=rhs.Vector; }
   /// <summary>Returns an invalid line.</summary>
   /// <remarks>When a function is presented with input for which it is mathematically undefined, it can return an
   /// invalid line instead of raising an exception. This property will return an invalid line.
   /// </remarks>
-  public static readonly Line Invalid = new Line(Point.Invalid, Vector.Invalid);
+  public static readonly Line2 Invalid = new Line2(Point2.Invalid, Vector2.Invalid);
   /// <summary>A point on the line, or the start point of the line segment.</summary>
-  public Point Start;
+  public Point2 Start;
   /// <summary>The line's direction, or the vector from the start point to the end point of the line segment.</summary>
-  public Vector Vector;
+  public Vector2 Vector;
 }
 #endregion
 
@@ -1385,13 +1386,13 @@ public struct Circle
   /// <param name="radius">The radius of the circle.</param>
   public Circle(double centerX, double centerY, double radius)
   {
-    Center = new Point(centerX, centerY);
+    Center = new Point2(centerX, centerY);
     Radius = radius;
   }
   /// <summary>Initializes this circle from a center point and a radius.</summary>
   /// <param name="center">The circle's center point.</param>
   /// <param name="radius">The radius of the circle.</param>
-  public Circle(Point center, double radius)
+  public Circle(Point2 center, double radius)
   {
     Center = center;
     Radius = radius;
@@ -1413,13 +1414,13 @@ public struct Circle
   }
 
   /// <summary>Determines whether the given line segment is contained within this circle.</summary>
-  public bool Contains(Line segment)
+  public bool Contains(Line2 segment)
   {
     return Math2D.Contains(ref this, ref segment);
   }
 
   /// <summary>Determines whether the given point is fully contained within this circle.</summary>
-  public bool Contains(Point point)
+  public bool Contains(Point2 point)
   {
     return Math2D.Contains(ref this, ref point);
   }
@@ -1455,13 +1456,13 @@ public struct Circle
   }
 
   /// <summary>Determines whether the given line (not segment) intersects this circle.</summary>
-  public bool Intersects(Line line)
+  public bool Intersects(Line2 line)
   {
     return Math2D.Intersects(ref this, ref line);
   }
 
   /// <summary>Determines whether the given line segment intersects this circle.</summary>
-  public bool SegmentIntersects(Line segment)
+  public bool SegmentIntersects(Line2 segment)
   {
     return Math2D.SegmentIntersects(ref this, ref segment);
   }
@@ -1479,7 +1480,7 @@ public struct Circle
   }
 
   /// <summary>The center point of this circle.</summary>
-  public Point Center;
+  public Point2 Center;
 
   /// <summary>The radius of this circle.</summary>
   public double Radius;
@@ -1507,10 +1508,10 @@ public struct Corner
   /// <summary>Gets the first edge of the corner. The edge's end point should be approximately equal to
   /// <see cref="Point"/> (the edge ends at <see cref="Point"/>).
   /// </summary>
-  public Line Edge0 { get { return new Line(Point+Vector0, -Vector0); } }
+  public Line2 Edge0 { get { return new Line2(Point+Vector0, -Vector0); } }
   /// <summary>Gets the second edge of the corner.</summary>
   /// <remarks>The edge's start point will be equal to <see cref="Point"/>.</remarks>
-  public Line Edge1 { get { return new Line(Point, Vector1); } }
+  public Line2 Edge1 { get { return new Line2(Point, Vector1); } }
   /// <summary>Gets the signed magnitude of the cross product of the two edge vectors.</summary>
   /// <remarks>Given that the two edges both lie on the same plane, their cross product will be a vector perpendicular
   /// to that plane. The sign of the value determines from which side of the plane the vector extends. This can be
@@ -1522,7 +1523,7 @@ public struct Corner
   {
     get
     {
-      Point p0 = Point+Vector0, p2 = Point+Vector1;
+      Point2 p0 = Point+Vector0, p2 = Point+Vector1;
       return (Point.X-p0.X)*(p2.Y-Point.Y) - (Point.Y-p0.Y)*(p2.X-Point.X);
     }
   }
@@ -1532,7 +1533,7 @@ public struct Corner
   /// 0 or 1, respectively.
   /// </returns>
   /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="edge"/> is not 0 or 1.</exception>
-  public Line GetEdge(int edge)
+  public Line2 GetEdge(int edge)
   {
     if(edge<0 || edge>1) throw new ArgumentOutOfRangeException("GetEdge", edge, "must be 0 or 1");
     return edge==0 ? Edge0 : Edge1;
@@ -1550,40 +1551,40 @@ public struct Corner
   /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="point"/> is less than -1 or greater
   /// than 1.
   /// </exception>
-  public Point GetPoint(int point)
+  public Point2 GetPoint(int point)
   {
     if(point<-1 || point>1) throw new ArgumentOutOfRangeException("GetPoint", point, "must be from -1 to 1");
     return point==0 ? Point : (point==-1 ? Point+Vector0 : Point+Vector1);
   }
   /// <summary>The corner point.</summary>
-  public Point Point;
+  public Point2 Point;
   /// <summary>The vector from the corner point (<see cref="Point"/>) to the beginning of the first edge.</summary>
-  public Vector Vector0;
+  public Vector2 Vector0;
   /// <summary>The vector from the corner point (<see cref="Point"/>) to the end of the second edge.</summary>
-  public Vector Vector1;
+  public Vector2 Vector1;
 }
 #endregion
 
 #region Polygon
-/// <summary>This class represents a polygon.</summary>
+/// <summary>This class represents a polygon in two dimensions.</summary>
 [Serializable]
 public sealed class Polygon : ICloneable, ISerializable
 {
   /// <summary>Initializes this polygon with no points.</summary>
-  public Polygon() { points=new Point[4]; }
+  public Polygon() { points=new Point2[4]; }
 
   /// <summary>Initializes this polygon with three given points.</summary>
-  /// <param name="p1">The first <see cref="Point"/>.</param>
-  /// <param name="p2">The second <see cref="Point"/>.</param>
-  /// <param name="p3">The third <see cref="Point"/>.</param>
-  public Polygon(Point p1, Point p2, Point p3) { points = new Point[3] { p1, p2, p3 }; pointCount=3; }
+  /// <param name="p1">The first <see cref="Point2"/>.</param>
+  /// <param name="p2">The second <see cref="Point2"/>.</param>
+  /// <param name="p3">The third <see cref="Point2"/>.</param>
+  public Polygon(Point2 p1, Point2 p2, Point2 p3) { points = new Point2[3] { p1, p2, p3 }; pointCount=3; }
 
   /// <summary>Initializes this polygon from an array of points.</summary>
   /// <param name="points">The array containing the points to use.</param>
-  public Polygon(IList<Point> points) : this(points.Count) { AddPoints(points); }
+  public Polygon(IList<Point2> points) : this(points.Count) { AddPoints(points); }
 
   /// <summary>Initializes this polygon from an array of points.</summary>
-  public Polygon(Point[] points, int index, int count) : this(count) { AddPoints(points, index, count); }
+  public Polygon(Point2[] points, int index, int count) : this(count) { AddPoints(points, index, count); }
 
   /// <summary>Initializes this polygon with the given starting capacity.</summary>
   /// <param name="capacity">The number of points the polygon can initially hold.</param>
@@ -1591,7 +1592,7 @@ public sealed class Polygon : ICloneable, ISerializable
   public Polygon(int capacity)
   {
     if(capacity < 0) throw new ArgumentOutOfRangeException("capacity", capacity, "must not be negative");
-    points = new Point[Math.Max(3, capacity)];
+    points = new Point2[Math.Max(3, capacity)];
   }
 
   /// <summary>Deserializes this polygon.</summary>
@@ -1603,8 +1604,8 @@ public sealed class Polygon : ICloneable, ISerializable
   private Polygon(SerializationInfo info, StreamingContext context)
   {
     pointCount = info.GetInt32("length");
-    points = new Point[Math.Max(3, pointCount)];
-    for(int i=0; i<pointCount; i++) points[i] = (Point)info.GetValue(i.ToString(), typeof(Point));
+    points = new Point2[Math.Max(3, pointCount)];
+    for(int i=0; i<pointCount; i++) points[i] = (Point2)info.GetValue(i.ToString(), typeof(Point2));
   }
 
   /// <summary>Gets or sets one of the polygon's points.</summary>
@@ -1612,7 +1613,7 @@ public sealed class Polygon : ICloneable, ISerializable
   /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="index"/> is less than zero or greater
   /// than or equal to <see cref="PointCount"/>.
   /// </exception>
-  public Point this[int index]
+  public Point2 this[int index]
   {
     get
     {
@@ -1642,7 +1643,7 @@ public sealed class Polygon : ICloneable, ISerializable
       if(value < 3) value = 3;
       if(value != points.Length)
       {
-        Point[] newArray = new Point[value];
+        Point2[] newArray = new Point2[value];
         Array.Copy(points, newArray, pointCount);
         points = newArray;
       }
@@ -1652,7 +1653,7 @@ public sealed class Polygon : ICloneable, ISerializable
   /// <summary>Copies the points from this polygon into an array.</summary>
   /// <param name="array">The array to copy into.</param>
   /// <param name="index">The index at which to begin copying.</param>
-  public void CopyTo(Point[] array, int index) { Array.Copy(points, 0, array, index, pointCount); }
+  public void CopyTo(Point2[] array, int index) { Array.Copy(points, 0, array, index, pointCount); }
 
   /// <summary>Gets the number of points in the polygon.</summary>
   public int PointCount { get { return pointCount; } }
@@ -1681,12 +1682,12 @@ public sealed class Polygon : ICloneable, ISerializable
   /// <param name="x">The X coordinate of the point.</param>
   /// <param name="y">The Y coordinate of the point.</param>
   /// <returns>Returns the index of the new point.</returns>
-  public int AddPoint(double x, double y) { return AddPoint(new Point(x, y)); }
+  public int AddPoint(double x, double y) { return AddPoint(new Point2(x, y)); }
 
   /// <summary>Adds a new point to the polygon.</summary>
-  /// <param name="point">The <see cref="Point"/> to add.</param>
+  /// <param name="point">The <see cref="Point2"/> to add.</param>
   /// <returns>Returns the index of the new point.</returns>
-  public int AddPoint(Point point)
+  public int AddPoint(Point2 point)
   {
     if(pointCount == points.Length) EnlargeArray(1);
     points[pointCount] = point;
@@ -1695,7 +1696,7 @@ public sealed class Polygon : ICloneable, ISerializable
 
   /// <summary>Adds a list of points to the polygon.</summary>
   /// <param name="points">An array of points that will be added to the polygon.</param>
-  public void AddPoints(IList<Point> points)
+  public void AddPoints(IList<Point2> points)
   {
     if(points == null) throw new ArgumentNullException();
     EnlargeArray(points.Count);
@@ -1703,7 +1704,7 @@ public sealed class Polygon : ICloneable, ISerializable
   }
 
   /// <summary>Adds a list of points to the polygon.</summary>
-  public void AddPoints(Point[] points, int index, int count)
+  public void AddPoints(Point2[] points, int index, int count)
   {
     Utility.ValidateRange(points, index, count);
     EnlargeArray(count);
@@ -1729,14 +1730,14 @@ public sealed class Polygon : ICloneable, ISerializable
 
   /// <summary>Returns true if the given line segment is fully contained within this convex polygon.</summary>
   /// <remarks>The result of calling this method on a nonconvex polygon is undefined.</remarks>
-  public bool ConvexContains(Line segment)
+  public bool ConvexContains(Line2 segment)
   {
     return Math2D.Contains(this, ref segment);
   }
 
   /// <summary>Returns true if the given point is contained within this convex polygon.</summary>
   /// <remarks>The result of calling this method on a nonconvex polygon is undefined.</remarks>
-  public bool ConvexContains(Point point)
+  public bool ConvexContains(Point2 point)
   {
     return Math2D.Contains(this, ref point);
   }
@@ -1764,14 +1765,14 @@ public sealed class Polygon : ICloneable, ISerializable
 
   /// <summary>Determines whether the given line (not segment) intersects this convex polygon.</summary>
   /// <remarks>The result of calling this method on a nonconvex polygon is undefined.</remarks>
-  public bool ConvexIntersects(Line line)
+  public bool ConvexIntersects(Line2 line)
   {
     return Math2D.Intersects(ref line, this);
   }
 
   /// <summary>Determines whether the given line segment intersects this convex polygon.</summary>
   /// <remarks>The result of calling this method on a nonconvex polygon is undefined.</remarks>
-  public bool ConvexSegmentIntersects(Line segment)
+  public bool ConvexSegmentIntersects(Line2 segment)
   {
     return Math2D.Intersects(ref segment, this);
   }
@@ -1791,19 +1792,19 @@ public sealed class Polygon : ICloneable, ISerializable
   }
 
   /// <summary>Calculates the intersection of the given line (not segment) with this convex polygon.</summary>
-  /// <returns>Returns the line clipped to the polygon, or <see cref="Line.Invalid"/> if there was no intersection.</returns>
+  /// <returns>Returns the line clipped to the polygon, or <see cref="Line2.Invalid"/> if there was no intersection.</returns>
   /// <remarks>The result of calling this method on a nonconvex polygon is undefined.</remarks>
-  public Line ConvexIntersection(Line line)
+  public Line2 ConvexIntersection(Line2 line)
   {
     return Math2D.Intersection(ref line, this);
   }
 
   /// <summary>Calculates the intersection of the given line segment with this convex polygon.</summary>
-  /// <returns>Returns the line segment clipped to the polygon, or <see cref="Line.Invalid"/> if there was no
+  /// <returns>Returns the line segment clipped to the polygon, or <see cref="Line2.Invalid"/> if there was no
   /// intersection.
   /// </returns>
   /// <remarks>The result of calling this method on a nonconvex polygon is undefined.</remarks>
-  public Line ConvexSegmentIntersection(Line segment)
+  public Line2 ConvexSegmentIntersection(Line2 segment)
   {
     return Math2D.SegmentIntersection(ref segment, this);
   }
@@ -1842,7 +1843,7 @@ public sealed class Polygon : ICloneable, ISerializable
   /// <summary>Calculates and returns the polygon's centroid.</summary>
   /// <returns>The centroid of the polygon.</returns>
   /// <remarks>The centroid of a polygon is its center of mass (assuming it is uniformly dense).</remarks>
-  public Point GetCentroid()
+  public Point2 GetCentroid()
   {
     AssertValid();
     double area=0, x=0, y=0, d;
@@ -1856,7 +1857,7 @@ public sealed class Polygon : ICloneable, ISerializable
     }
     if(area<0) { area=-area; x=-x; y=-y; }
     area *= 3;
-    return new Point(x/area, y/area);
+    return new Point2(x/area, y/area);
   }
 
   /// <summary>Gets the specified corner of the polygon.</summary>
@@ -1874,32 +1875,32 @@ public sealed class Polygon : ICloneable, ISerializable
 
   /// <summary>Gets the specified edge of the polygon.</summary>
   /// <param name="index">The index of the edge to retrieve, from 0 to <see cref="PointCount"/>-1.</param>
-  /// <returns>A <see cref="Line"/> segment representing the requested edge, built from the vertex at the given index
+  /// <returns>A <see cref="Line2"/> segment representing the requested edge, built from the vertex at the given index
   /// and the next vertex (wrapping around to zero if <paramref name="index"/> is the last vertex).
   /// </returns>
-  public Line GetEdge(int index)
+  public Line2 GetEdge(int index)
   {
     if(pointCount<2) throw new InvalidOperationException("Polygon has no edges [not enough points]!");
-    return new Line(this[index], GetPoint(index+1));
+    return new Line2(this[index], GetPoint(index+1));
   }
 
   /// <summary>Gets the specified point of the polygon.</summary>
   /// <param name="index">The index of the point to retrieve, from -<see cref="PointCount"/> to <see cref="PointCount"/>*2-1.</param>
-  /// <returns>The requested <see cref="Point"/>.</returns>
+  /// <returns>The requested <see cref="Point2"/>.</returns>
   /// <remarks>This method treats the list of points as circular, and allows negative indexes and indexes greater
   /// than or equal to <see cref="PointCount"/>, as long as the index is from -<see cref="PointCount"/> to
   /// <see cref="PointCount"/>*2-1. So if <see cref="PointCount"/> is 4, indexes of -4 and 7 are okay (they'll return points 0
   /// and 3 respectively), but -5 and 8 are not.
   /// </remarks>
-  public Point GetPoint(int index)
+  public Point2 GetPoint(int index)
   {
     return index<0 ? this[pointCount+index] : index>=pointCount ? this[index-pointCount] : this[index];
   }
 
   /// <summary>Inserts a point into the polygon.</summary>
-  /// <param name="point">The <see cref="Point"/> to insert.</param>
+  /// <param name="point">The <see cref="Point2"/> to insert.</param>
   /// <param name="index">The index at which the point should be inserted.</param>
-  public void InsertPoint(Point point, int index)
+  public void InsertPoint(Point2 point, int index)
   {
     if(pointCount == points.Length) EnlargeArray(1);
     if(index<pointCount) for(int i=pointCount; i>index; i--) points[i] = points[i-1];
@@ -1946,8 +1947,8 @@ public sealed class Polygon : ICloneable, ISerializable
   }
 
   /// <summary>Offsets the polygon by the given amount by offsetting all the points.</summary>
-  /// <param name="offset">A <see cref="Vector"/> containing the offset.</param>
-  public void Offset(Vector offset) { Offset(offset.X, offset.Y); }
+  /// <param name="offset">A <see cref="Vector2"/> containing the offset.</param>
+  public void Offset(Vector2 offset) { Offset(offset.X, offset.Y); }
 
   /// <summary>Offsets the polygon by the given amount by offsetting all the points.</summary>
   /// <param name="xd">The distance to offset along the X axis.</param>
@@ -1983,7 +1984,7 @@ public sealed class Polygon : ICloneable, ISerializable
   /// <remarks>This can be used to convert a convex polygon to and from clockwise ordering.</remarks>
   public void Reverse()
   {
-    Point pt;
+    Point2 pt;
     for(int i=0, j=pointCount-1, len=pointCount/2; i<len; j--, i++) { pt = points[i]; points[i] = points[j]; points[j] = pt; }
   }
 
@@ -2070,11 +2071,11 @@ public sealed class Polygon : ICloneable, ISerializable
           if(Math.Sign(c.CrossZ) != sign)
           {
             double dist = double.MaxValue, d, d2;
-            Point splitPoint = new Point();
+            Point2 splitPoint = new Point2();
             int splitEdge=-1, extPoint=-1, ept;
             for(int ei=0; ei<2; ei++) // try to extend each of the edges that make up this corner
             {
-              Line toExtend = c.GetEdge(ei);
+              Line2 toExtend = c.GetEdge(ei);
               int edge = ci-1+ei;
               for(int sei=0; sei<poly.pointCount; sei++) // test the edge with the intersection of every other edge
               {
@@ -2167,7 +2168,7 @@ public sealed class Polygon : ICloneable, ISerializable
     return array;
   }
 
-  Point[] points;
+  Point2[] points;
   int pointCount;
 }
 #endregion
@@ -2197,12 +2198,12 @@ public struct Rectangle
   /// <param name="size">The vector from the <paramref name="location"/> to the rectangle's bottom-right conrner.
   /// In other words, a vector holding the width and height of the rectangle.
   /// </param>
-  public Rectangle(Point location, Vector size) { X=location.X; Y=location.Y; Width=size.X; Height=size.Y; }
+  public Rectangle(Point2 location, Vector2 size) { X=location.X; Y=location.Y; Width=size.X; Height=size.Y; }
   /// <summary>Initializes this rectangle from two points.</summary>
   /// <param name="corner1">One corner of the rectangle.</param>
   /// <param name="corner2">The opposite corner of the rectangle.</param>
   /// <remarks>Since one corner will need to be converted into a vector, some miniscule accuracy may be lost.</remarks>
-  public Rectangle(Point corner1, Point corner2)
+  public Rectangle(Point2 corner1, Point2 corner2)
   {
     double x2, y2;
     if(corner1.X<=corner2.X) { X=corner1.X; x2=corner2.X; }
@@ -2217,26 +2218,26 @@ public struct Rectangle
   public double Bottom { get { return Y+Height; } }
   /// <summary>Gets the bottom-right corner of the rectangle.</summary>
   /// <remarks>This is equivalent to <see cref="TopLeft"/> + <see cref="Size"/>.</remarks>
-  public Point BottomRight { get { return new Point(X+Width, Y+Height); } }
+  public Point2 BottomRight { get { return new Point2(X+Width, Y+Height); } }
   /// <summary>Gets or sets the top-left corner of the rectangle.</summary>
-  public Point Location
+  public Point2 Location
   {
-    get { return new Point(X, Y); }
+    get { return new Point2(X, Y); }
     set { X=value.X; Y=value.Y; }
   }
   /// <summary>Gets the right side of the rectangle.</summary>
   /// <remarks>This is equivalent to <see cref="X"/> + <see cref="Width"/>.</remarks>
   public double Right { get { return X+Width; } }
   /// <summary>Gets or sets the size of the rectangle.</summary>
-  public Vector Size
+  public Vector2 Size
   {
-    get { return new Vector(Width, Height); }
+    get { return new Vector2(Width, Height); }
     set { Width=value.X; Height=value.Y; }
   }
   /// <summary>Gets or sets the top-left corner of the rectangle.</summary>
-  public Point TopLeft
+  public Point2 TopLeft
   {
-    get { return new Point(X, Y); }
+    get { return new Point2(X, Y); }
     set { X=value.X; Y=value.Y; }
   }
 
@@ -2247,13 +2248,13 @@ public struct Rectangle
   }
 
   /// <summary>Determines whether the specified line segment is fully contained within this rectangle.</summary>
-  public bool Contains(Line segment)
+  public bool Contains(Line2 segment)
   {
     return Math2D.Contains(ref this, ref segment);
   }
 
   /// <summary>Determines whether the specified point lies within the rectangle.</summary>
-  public bool Contains(Point point)
+  public bool Contains(Point2 point)
   {
     return Math2D.Contains(ref this, ref point);
   }
@@ -2277,13 +2278,13 @@ public struct Rectangle
   }
 
   /// <summary>Determines whether the given line (not segment) intersects this rectangle</summary>
-  public bool Intersects(Line line)
+  public bool Intersects(Line2 line)
   {
     return Math2D.Intersects(ref line, ref this);
   }
 
   /// <summary>Determines whether the given line segment intersects this rectangle</summary>
-  public bool SegmentIntersects(Line segment)
+  public bool SegmentIntersects(Line2 segment)
   {
     return Math2D.SegmentIntersects(ref segment, ref this);
   }
@@ -2301,15 +2302,15 @@ public struct Rectangle
   }
 
   /// <summary>Calculates the intersection of the given line (not segment) with this rectangle.</summary>
-  /// <returns>Returns the line clipped to this rectangle, or <see cref="Line.Invalid"/> if there was no intersection.</returns>
-  public Line Intersection(Line line)
+  /// <returns>Returns the line clipped to this rectangle, or <see cref="Line2.Invalid"/> if there was no intersection.</returns>
+  public Line2 Intersection(Line2 line)
   {
     return Math2D.Intersection(ref line, ref this);
   }
 
   /// <summary>Calculates the intersection of the given line segment with this rectangle.</summary>
-  /// <returns>Returns the line segment clipped to this rectangle, or <see cref="Line.Invalid"/> if there was no intersection.</returns>
-  public Line SegmentIntersection(Line segment)
+  /// <returns>Returns the line segment clipped to this rectangle, or <see cref="Line2.Invalid"/> if there was no intersection.</returns>
+  public Line2 SegmentIntersection(Line2 segment)
   {
     return Math2D.SegmentIntersection(ref segment, ref this);
   }
@@ -2320,16 +2321,16 @@ public struct Rectangle
   /// <param name="i">The index of the edge to retrieve (from 0 to 3).</param>
   /// <returns>The top, left, right, and bottom edges for respective values of <paramref name="i"/> from 0 to 3.</returns>
   /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="i"/> is less than 0 or greater than 3.</exception>
-  public Line GetEdge(int i)
+  public Line2 GetEdge(int i)
   {
     if((uint)i > (uint)3) throw new ArgumentOutOfRangeException("i", i, "must be from 0 to 3");
     switch(i)
     {
-      case 0: return new Line(X, Y, 0, Height);       // left
-      case 1: return new Line(X, Y, Width, 0);        // top
-      case 2: return new Line(X+Width, Y, 0, Height); // right
-      case 3: return new Line(X, Y+Height, Width, 0); // bottom
-      default: return Line.Invalid; // can't get here
+      case 0: return new Line2(X, Y, 0, Height);       // left
+      case 1: return new Line2(X, Y, Width, 0);        // top
+      case 2: return new Line2(X+Width, Y, 0, Height); // right
+      case 3: return new Line2(X, Y+Height, Width, 0); // bottom
+      default: return Line2.Invalid; // can't get here
     }
   }
   /// <summary>Gets a corner of the rectangle.</summary>
@@ -2338,16 +2339,16 @@ public struct Rectangle
   /// <paramref name="i"/> from 0 to 3.
   /// </returns>
   /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="i"/> is less than 0 or greater than 3.</exception>
-  public Point GetPoint(int i)
+  public Point2 GetPoint(int i)
   {
     if((uint)i > (uint)3) throw new ArgumentOutOfRangeException("i", i, "must be from 0 to 3");
     switch(i)
     {
-      case 0: return new Point(X, Y);
-      case 1: return new Point(X+Width, Y);
-      case 2: return new Point(X+Width, Y+Height);
-      case 3: return new Point(X, Y+Height);
-      default: return Point.Invalid; // can't get here
+      case 0: return new Point2(X, Y);
+      case 1: return new Point2(X+Width, Y);
+      case 2: return new Point2(X+Width, Y+Height);
+      case 3: return new Point2(X, Y+Height);
+      default: return Point2.Invalid; // can't get here
     }
   }
   /// <summary>Inflates this rectangle by the given amount.</summary>
@@ -2412,9 +2413,9 @@ public struct Rectangle
   /// <remarks>This has the effect of offsetting <see cref="X"/> and <see cref="Y"/>.</remarks>
   public void Offset(double x, double y) { X+=x; Y+=y; }
   /// <summary>Offsets this rectangle by the given amount.</summary>
-  /// <param name="vect">A <see cref="Vector"/> specifying the offset.</param>
+  /// <param name="vect">A <see cref="Vector2"/> specifying the offset.</param>
   /// <remarks>This has the effect of offsetting <see cref="X"/> and <see cref="Y"/>.</remarks>
-  public void Offset(Vector vect) { X+=vect.X; Y+=vect.Y; }
+  public void Offset(Vector2 vect) { X+=vect.X; Y+=vect.Y; }
 
   /// <summary>Converts this rectangle into the smallest <see cref="SysRectangle"/> that fully contains this rectangle.</summary>
   public SysRectangle ToRectangle()
@@ -2440,7 +2441,20 @@ public struct Rectangle
   {
     return X.GetHashCode() ^ Y.GetHashCode() ^ Width.GetHashCode() ^ Height.GetHashCode();
   }
-  /// <summary>Initializes a rectangle from two points and returns it.</summary>
+
+  /// <summary>Creates a rectangle from a center point and a size.</summary>
+  public static Rectangle FromCenter(Point2 center, double width, double height)
+  {
+    return new Rectangle(center.X-width*0.5, center.Y-height*0.5, width, height);
+  }
+
+  /// <summary>Creates a rectangle from a center point and a size.</summary>
+  public static Rectangle FromCenter(double centerX, double centerY, double width, double height)
+  {
+    return new Rectangle(centerX-width*0.5, centerY-height*0.5, width, height);
+  }
+
+  /// <summary>Creates a rectangle from two points and returns it.</summary>
   /// <param name="x1">The X coordinate of one corner of the rectangle.</param>
   /// <param name="y1">The Y coordinate of one corner of the rectangle.</param>
   /// <param name="x2">The X coordinate of the opposite corner of the rectangle.</param>
@@ -2448,7 +2462,7 @@ public struct Rectangle
   /// <returns></returns>
   public static Rectangle FromPoints(double x1, double y1, double x2, double y2)
   {
-    return new Rectangle(new Point(x1, y1), new Point(x2, y2));
+    return new Rectangle(new Point2(x1, y1), new Point2(x2, y2));
   }
 
   /// <summary>Determines whether two <see cref="Rectangle"/> objects are exactly equal.</summary>
@@ -2474,248 +2488,21 @@ public struct Rectangle
 }
 #endregion
 
-#region RectanglePacker
-/// <summary>Implements an algorithm to pack a number of rectangles into a larger rectangle. This can be used, for
-/// instance, to pack small images into a single OpenGL texture. It is not guaranteed to find the optimal packing (that
-/// problem is NP-hard), but it works quite well and very quickly. It is more efficient to add all of the rectangles
-/// at once using <see cref="TryAdd(Size[])"/>, rather than adding them individually, since that gives the algorithm
-/// more information to work with.
-/// </summary>
-public class RectanglePacker
-{
-  /// <summary>Initializes a new <see cref="RectanglePacker"/> that will attempt to pack rectangles into a larger
-  /// rectangle of the given dimensions.
-  /// </summary>
-  public RectanglePacker(int width, int height)
-  {
-    if(width <= 0 || height <= 0) throw new ArgumentOutOfRangeException();
-    root = new Node(null, 0, 0, width, height);
-  }
-
-  #region SizeComparer
-  /// <summary>A comparer that can be used to sort <see cref="Size"/> objects prior to passing them to
-  /// <see cref="TryAdd(Size)"/>. This comparer is automatically used by <see cref="TryAdd(Size[])"/>.
-  /// </summary>
-  /// <remarks>This comparer should not be used to compare <see cref="Size"/> objects in general. It is only suitable for
-  /// comparing <see cref="Size"/> objects that will be passed to <see cref="TryAdd(Size[])"/>.
-  /// </remarks>
-  public sealed class SizeComparer : IComparer<Size>
-  {
-    SizeComparer() { }
-
-    /// <summary>Compares two sizes, ordering them first by height descending and then by width descending.</summary>
-    public int Compare(Size a, Size b)
-    {
-      // NOTE: comparing integers by subtraction is not safe in general, because int.MinValue - int.MaxValue == 1. similarly,
-      // int.MaxValue - int.MinValue = -1, even though int.MaxValue > int.MinValue. in general, it only works if the difference
-      // between the two values is less than 2^31. but we validate later that all sizes are non-negative, so it's okay.
-
-      int cmp = b.Height - a.Height;
-      return cmp == 0 ? b.Width - a.Width : cmp;
-    }
-
-    /// <summary>A singleton instance of a <see cref="SizeComparer"/>.</summary>
-    public static readonly SizeComparer Instance = new SizeComparer();
-  }
-  #endregion
-
-  /// <summary>Gets the amount of space used within the larger rectangle. All of the smaller rectangles can be
-  /// contained within a region of this size.
-  /// </summary>
-  public Size Size
-  {
-    get { return size; }
-  }
-
-  /// <summary>Gets the total size of the larger rectangle, which is equal to the dimensions passed to the constructor.</summary>
-  public Size TotalSize
-  {
-    get { return new Size(root.Width, root.Height); }
-  }
-
-  /// <summary>Adds a rectangle of the given size, and returns point where the rectangle was placed, or null if the
-  /// rectangle didn't fit.
-  /// </summary>
-  public SysPoint? TryAdd(Size size)
-  {
-    return TryAdd(size.Width, size.Height);
-  }
-
-  /// <summary>Adds a rectangle of the given size, and returns point where the rectangle was placed, or null if the
-  /// rectangle didn't fit.
-  /// </summary>
-  public SysPoint? TryAdd(int width, int height)
-  {
-    if(width < 0 || height < 0) throw new ArgumentOutOfRangeException();
-
-    SysPoint? pt;
-    if(width == 0 || height == 0)
-    {
-      pt = SysPoint.Empty;
-    }
-    else
-    {
-      pt = root.TryAdd(width, height);
-      if(pt.HasValue)
-      {
-        int right = pt.Value.X + width, bottom = pt.Value.Y + height;
-        if(right  > size.Width)  size.Width  = right;
-        if(bottom > size.Height) size.Height = bottom;
-      }
-    }
-    return pt;
-  }
-
-  /// <summary>Adds the given rectangles, and returns an array containing the points where they were added. If not all
-  /// rectangles could be added, the corresponding points will be null.
-  /// </summary>
-  public SysPoint?[] TryAdd(Size[] sizes)
-  {
-    SysPoint?[] points;
-    TryAdd(sizes, out points);
-    return points;
-  }
-
-  /// <summary>Adds the given rectangles, and returns an array containing the points where they were added, and a
-  /// boolean value that indicates whether all rectangles were added successfully. If not all rectangles could be
-  /// added, the corresponding points will be null.
-  /// </summary>
-  public bool TryAdd(Size[] sizes, out SysPoint?[] points)
-  {
-    ValidateSizes(sizes);
-    sizes = (Size[])sizes.Clone(); // clone the array so we don't modify the original
-    Array.Sort(sizes, SizeComparer.Instance);
-    points = new SysPoint?[sizes.Length];
-    bool allAdded = true;
-    for(int i=0; i<sizes.Length; i++)
-    {
-      SysPoint? point = TryAdd(sizes[i]);
-      if(!point.HasValue) allAdded = false;
-      points[i] = point;
-    }
-    return allAdded;
-  }
-
-  static void ValidateSizes(Size[] sizes)
-  {
-    if(sizes == null) throw new ArgumentNullException();
-
-    for(int i=0; i<sizes.Length; i++)
-    {
-      if(sizes[i].Width < 0 || sizes[i].Height < 0) throw new ArgumentOutOfRangeException();
-    }
-  }
-
-  #region Node
-  /// <summary>Represents a region within the larger rectangle, and its subdivision using a binary tree.</summary>
-  /// <remarks>The children of a node are arranged spatially as in the following diagram. The node encompasses the
-  /// entire area. The rectangle stored at the node occupies the region labeled "rect". The children consume
-  /// the rest of the area, with the first child taking all the space to the right of the rectangle and the second
-  /// child taking all the space below it.
-  /// <code>
-  /// +------+-----------+
-  /// | rect | child 1   |
-  /// +------+-----------+
-  /// |                  |
-  /// |      child 2     |
-  /// |                  |
-  /// +------------------+
-  /// </code>
-  /// </remarks>
-  sealed class Node
-  {
-    /// <summary>Initializes a new <see cref="Node"/> with the given size.</summary>
-    public Node(Node parent, int x, int y, int width, int height)
-    {
-      this.Parent = parent;
-      this.X      = x;
-      this.Y      = y;
-      this.Width  = width;
-      this.Height = height;
-    }
-
-    /// <summary>Attempts to add a rectangle of the given size to this node. The X and Y offsets keep track of the
-    /// offset of this node from the origin.
-    /// </summary>
-    public SysPoint? TryAdd(int width, int height)
-    {
-      if(width > this.Width || height > this.Height) return null;
-
-      if(RectangleStored)
-      {
-        // if this node has a rectangle stored here already, delegate to the children
-        if(Child1 != null) // try adding it to the right first
-        {
-          SysPoint? pt = Child1.TryAdd(width, height);
-          // as an optimization, we'll prevent degenerate subtrees (linked lists) from forming by replacing this
-          // child with our grandchild if it's an only child, or removing this child if we have no grandchildren
-          if(pt.HasValue && (Child1.Child1 == null || Child1.Child2 == null))
-          {
-            Child1 = Child1.Child1 == null ? Child1.Child2 : Child1.Child1;
-            if(Child1 != null) Child1.Parent = this;
-          }
-          if(pt.HasValue || Child2 == null) return pt;
-        }
-
-        if(Child2 != null) // if we couldn't add it to the first child, try adding it to the second
-        {
-          SysPoint? pt = Child2.TryAdd(width, height);
-          if(pt.HasValue)
-          {
-            // prevent degenerate subtrees (linked lists) from forming (see comment above for details)
-            if(Child2.Child1 == null || Child2.Child2 == null)
-            {
-              Child2 = Child2.Child1 == null ? Child2.Child2 : Child2.Child1;
-              if(Child2 != null) Child2.Parent = this;
-            }
-          }
-          return pt;
-        }
-        else return null;
-      }
-      else // this node does not have a rectangle stored here yet, so store it here and subdivide this space
-      {
-        // only add children if they'd have a non-empty area
-        if(this.Width  != width) Child1 = new Node(this, X + width, Y, this.Width - width, height);
-        if(this.Height != height) Child2 = new Node(this, X, Y + height, this.Width, this.Height - height);
-        RectangleStored = true;
-        return new SysPoint(X, Y);
-      }
-    }
-
-    public Node Child1, Child2, Parent;
-    public int X, Y, Width, Height;
-    public bool RectangleStored;
-  }
-  #endregion
-
-  readonly Node root;
-  Size size;
-}
-#endregion
-
-} // namespace AdamMil.Mathematics.Geometry.TwoD
-#endregion
-
-#region 3D math
-namespace AdamMil.Mathematics.Geometry.ThreeD
-{
-
-#region Vector
+#region Vector3
 /// <summary>This structure represents a mathematical vector in three-dimensional space.</summary>
 [Serializable]
-public struct Vector
+public struct Vector3
 {
   /// <summary>Initializes this vector from magnitudes along the X, Y, and Z axes.</summary>
   /// <param name="x">The magnitude along the X axis.</param>
   /// <param name="y">The magnitude along the Y axis.</param>
   /// <param name="z">The magnitude along the Z axis.</param>
-  public Vector(double x, double y, double z) { X=x; Y=y; Z=z; }
-  /// <summary>Initializes this vector from a <see cref="Point"/>.</summary>
-  /// <param name="pt">A <see cref="Point"/>. The point's X, Y, and Z coordinates will become the corresponding
+  public Vector3(double x, double y, double z) { X=x; Y=y; Z=z; }
+  /// <summary>Initializes this vector from a <see cref="Point3"/>.</summary>
+  /// <param name="pt">A <see cref="Point3"/>. The point's X, Y, and Z coordinates will become the corresponding
   /// X, Y, and Z magnitudes of the vector.
   /// </param>
-  public Vector(Point pt) { X=pt.X; Y=pt.Y; Z=pt.Z; }
+  public Vector3(Point3 pt) { X=pt.X; Y=pt.Y; Z=pt.Z; }
 
   /// <include file="documentation.xml" path="//Geometry/Vector/Length/*"/>
   public double Length
@@ -2726,13 +2513,13 @@ public struct Vector
   /// <summary>Returns the length of this vector, squared.</summary>
   public double LengthSqr { get { return X*X+Y*Y+Z*Z; } }
   /// <include file="documentation.xml" path="//Geometry/Vector/Normal/*"/>
-  public Vector Normal { get { return this/Length; } }
+  public Vector3 Normal { get { return this/Length; } }
   /// <summary>Returns the cross product of this vector with another vector.</summary>
   /// <param name="v">The other operand.</param>
-  /// <returns>A <see cref="Vector"/> perpendicular to both this vector and <paramref name="v"/>.</returns>
-  public Vector CrossProduct(Vector v) { return new Vector(X*v.Z-Z*v.Y, Z*v.X-X*v.Z, X*v.Y-Y*v.X); }
+  /// <returns>A <see cref="Vector3"/> perpendicular to both this vector and <paramref name="v"/>.</returns>
+  public Vector3 CrossProduct(Vector3 v) { return new Vector3(X*v.Z-Z*v.Y, Z*v.X-X*v.Z, X*v.Y-Y*v.X); }
   /// <include file="documentation.xml" path="//Geometry/Vector/DotProduct/*"/>
-  public double DotProduct(Vector v) { return X*v.X + Y*v.Y + Z*v.Z; }
+  public double DotProduct(Vector3 v) { return X*v.X + Y*v.Y + Z*v.Z; }
   /// <include file="documentation.xml" path="//Geometry/Vector/Normalize/*"/>
   public void Normalize() { this /= Length; }
   /// <include file="documentation.xml" path="//Geometry/Vector/Normalize2/*"/>
@@ -2749,46 +2536,46 @@ public struct Vector
   /// <summary>Rotates this vector around an arbitrary axis.</summary>
   /// <param name="vector">The axis to rotate around. This should be a normalized vector.</param>
   /// <param name="angle">The angle to rotate by, in radians.</param>
-  public void Rotate(Vector vector, double angle) { this = Rotated(vector, angle); }
+  public void Rotate(Vector3 vector, double angle) { this = Rotated(vector, angle); }
 
   /// <summary>Returns a copy of this vector, rotated around the X axis.</summary>
   /// <param name="angle">The angle to rotate by, in radians.</param>
   /// <returns>A copy of this vector, rotated around the X axis.</returns>
-  public Vector RotatedX(double angle)
+  public Vector3 RotatedX(double angle)
   {
     double sin = Math.Sin(angle), cos = Math.Cos(angle);
-    return new Vector(X, Y*cos-Z*sin, Y*sin+Z*cos);
+    return new Vector3(X, Y*cos-Z*sin, Y*sin+Z*cos);
   }
   /// <summary>Returns a copy of this vector, rotated around the Y axis.</summary>
   /// <param name="angle">The angle to rotate by, in radians.</param>
   /// <returns>A copy of this vector, rotated around the Y axis.</returns>
-  public Vector RotatedY(double angle)
+  public Vector3 RotatedY(double angle)
   {
     double sin = Math.Sin(angle), cos = Math.Cos(angle);
-    return new Vector(Z*sin+X*cos, Y, Z*cos-X*sin);
+    return new Vector3(Z*sin+X*cos, Y, Z*cos-X*sin);
   }
   /// <summary>Returns a copy of this vector, rotated around the Z axis.</summary>
   /// <param name="angle">The angle to rotate by, in radians.</param>
   /// <returns>A copy of this vector, rotated around the Z axis.</returns>
-  public Vector RotatedZ(double angle)
+  public Vector3 RotatedZ(double angle)
   {
     double sin = Math.Sin(angle), cos = Math.Cos(angle);
-    return new Vector(X*cos-Y*sin, X*sin+Y*cos, Z);
+    return new Vector3(X*cos-Y*sin, X*sin+Y*cos, Z);
   }
   /// <summary>Returns a copy of this vector, rotated around an arbitrary axis.</summary>
   /// <param name="vector">The axis to rotate around. This should be a normalized vector.</param>
   /// <param name="angle">The angle to rotate by, in radians.</param>
   /// <returns>A copy of this vector, rotated around the given axis.</returns>
-  public Vector Rotated(Vector vector, double angle)
+  public Vector3 Rotated(Vector3 vector, double angle)
   {
     Quaternion a = new Quaternion(vector, angle), b = new Quaternion(this);
     return (a*b*a.Conjugate).V;
   }
 
   /// <include file="documentation.xml" path="//Geometry/Vector/Equals/*"/>
-  public override bool Equals(object obj) { return obj is Vector && (Vector)obj==this; }
+  public override bool Equals(object obj) { return obj is Vector3 && (Vector3)obj==this; }
   /// <include file="documentation.xml" path="//Geometry/Vector/Equals3/*"/>
-  public bool Equals(Vector vect, double epsilon)
+  public bool Equals(Vector3 vect, double epsilon)
   {
     return Math.Abs(vect.X-X)<=epsilon && Math.Abs(vect.Y-Y)<=epsilon && Math.Abs(vect.Z-Z)<=epsilon;
   }
@@ -2798,31 +2585,14 @@ public struct Vector
   {
     fixed(double* dp=&X) { int* p=(int*)dp; return *p ^ *(p+1) ^ *(p+2) ^ *(p+3) ^ *(p+4) ^ *(p+5); }
   }
-  /// <summary>Converts this <see cref="Vector"/> into an equivalent <see cref="Point"/>.</summary>
-  /// <returns>Returns a <see cref="Point"/> with X, Y, and Z coordinates corresponding to the X, Y, and Z magnitudes
+  /// <summary>Converts this <see cref="Vector3"/> into an equivalent <see cref="Point3"/>.</summary>
+  /// <returns>Returns a <see cref="Point3"/> with X, Y, and Z coordinates corresponding to the X, Y, and Z magnitudes
   /// of this vector.
   /// </returns>
-  public Point ToPoint() { return new Point(X, Y, Z); }
+  public Point3 ToPoint() { return new Point3(X, Y, Z); }
   /// <summary>Converts this vector into a human-readable string.</summary>
   /// <returns>A human-readable string representation of this vector.</returns>
   public override string ToString() { return string.Format("[{0:f2},{1:f2},{2:f2}]", X, Y, Z); }
-
-  /// <summary>Returns a new vector with the magnitudes negated.</summary>
-  public static Vector operator-(Vector v) { return new Vector(-v.X, -v.Y, -v.Z); }
-  /// <summary>Returns a new vector with the magnitudes equal to the sums of the operand's magnitudes.</summary>
-  public static Vector operator+(Vector a, Vector b) { return new Vector(a.X+b.X, a.Y+b.Y, a.Z+b.Z); }
-  /// <summary>Returns a new vector with the magnitudes equal to the differences between the operand's magnitudes.</summary>
-  public static Vector operator-(Vector a, Vector b) { return new Vector(a.X-b.X, a.Y-b.Y, a.Z-b.Z); }
-  /// <summary>Returns a new vector with all magnitudes multiplied by a scalar value.</summary>
-  public static Vector operator*(Vector v, double f) { return new Vector(v.X*f, v.Y*f, v.Z*f); }
-  /// <summary>Returns a new vector with all magnitudes multiplied by a scalar value.</summary>
-  public static Vector operator*(double f, Vector v) { return new Vector(v.X*f, v.Y*f, v.Z*f); }
-  /// <summary>Returns a new vector with all magnitudes divided by a scalar value.</summary>
-  public static Vector operator/(Vector v, double f) { return new Vector(v.X/f, v.Y/f, v.Z/f); }
-  /// <summary>Determines whether two vectors are exactly equal.</summary>
-  public static bool operator==(Vector a, Vector b) { return a.X==b.X && a.Y==b.Y && a.Z==b.Z; }
-  /// <summary>Determines whether two vectors are not exactly equal.</summary>
-  public static bool operator!=(Vector a, Vector b) { return a.X!=b.X || a.Y!=b.Y || a.Z!=b.Z; }
 
   /// <summary>The magnitude of this vector along the X axis.</summary>
   public double X;
@@ -2830,27 +2600,47 @@ public struct Vector
   public double Y;
   /// <summary>The magnitude of this vector along the Z axis.</summary>
   public double Z;
+
+  /// <summary>Returns a new vector with the magnitudes negated.</summary>
+  public static Vector3 operator-(Vector3 v) { return new Vector3(-v.X, -v.Y, -v.Z); }
+  /// <summary>Returns a new vector with the magnitudes equal to the sums of the operand's magnitudes.</summary>
+  public static Vector3 operator+(Vector3 a, Vector3 b) { return new Vector3(a.X+b.X, a.Y+b.Y, a.Z+b.Z); }
+  /// <summary>Returns a new vector with the magnitudes equal to the differences between the operand's magnitudes.</summary>
+  public static Vector3 operator-(Vector3 a, Vector3 b) { return new Vector3(a.X-b.X, a.Y-b.Y, a.Z-b.Z); }
+  /// <summary>Returns a new vector with all magnitudes multiplied by a scalar value.</summary>
+  public static Vector3 operator*(Vector3 v, double f) { return new Vector3(v.X*f, v.Y*f, v.Z*f); }
+  /// <summary>Returns a new vector with all magnitudes multiplied by a scalar value.</summary>
+  public static Vector3 operator*(double f, Vector3 v) { return new Vector3(v.X*f, v.Y*f, v.Z*f); }
+  /// <summary>Returns a new vector with all magnitudes divided by a scalar value.</summary>
+  public static Vector3 operator/(Vector3 v, double f) { return new Vector3(v.X/f, v.Y/f, v.Z/f); }
+  /// <summary>Determines whether two vectors are exactly equal.</summary>
+  public static bool operator==(Vector3 a, Vector3 b) { return a.X==b.X && a.Y==b.Y && a.Z==b.Z; }
+  /// <summary>Determines whether two vectors are not exactly equal.</summary>
+  public static bool operator!=(Vector3 a, Vector3 b) { return a.X!=b.X || a.Y!=b.Y || a.Z!=b.Z; }
+
+  /// <summary>Returns a vector with zero for all components.</summary>
+  public static readonly Vector3 Zero = new Vector3();
 }
 #endregion
 
-#region Point
+#region Point3
 /// <summary>This structure represents a point in three-dimensional space.</summary>
 [Serializable]
-public struct Point
+public struct Point3
 {
-  /// <summary>Initializes this <see cref="Point"/> from a set of coordinates.</summary>
+  /// <summary>Initializes this <see cref="Point3"/> from a set of coordinates.</summary>
   /// <param name="x">The point's X coordinate.</param>
   /// <param name="y">The point's Y coordinate.</param>
   /// <param name="z">The point's Z coordinate.</param>
-  public Point(double x, double y, double z) { X=x; Y=y; Z=z; }
+  public Point3(double x, double y, double z) { X=x; Y=y; Z=z; }
   /// <include file="documentation.xml" path="//Geometry/Point/DistanceTo/*"/>
-  public double DistanceTo(Point point)
+  public double DistanceTo(Point3 point)
   {
     double xd=point.X-X, yd=point.Y-Y, zd=point.Z-Z;
     return Math.Sqrt(xd*xd+yd*yd+zd*zd);
   }
   /// <include file="documentation.xml" path="//Geometry/Point/DistanceSquaredTo/*"/>
-  public double DistanceCubedTo(Point point)
+  public double DistanceCubedTo(Point3 point)
   {
     double xd=point.X-X, yd=point.Y-Y, zd=point.Z-Z;
     return xd*xd+yd*yd+zd*zd;
@@ -2862,9 +2652,9 @@ public struct Point
   public void Offset(double xd, double yd, double zd) { X+=xd; Y+=yd; Z+=zd; }
 
   /// <include file="documentation.xml" path="//Geometry/Point/Equals/*"/>
-  public override bool Equals(object obj) { return obj is Point && (Point)obj==this; }
+  public override bool Equals(object obj) { return obj is Point3 && (Point3)obj==this; }
   /// <include file="documentation.xml" path="//Geometry/Point/Equals3/*"/>
-  public bool Equals(Point point, double epsilon)
+  public bool Equals(Point3 point, double epsilon)
   {
     return Math.Abs(point.X-X)<=epsilon && Math.Abs(point.Y-Y)<=epsilon && Math.Abs(point.Z-Z)<=epsilon;
   }
@@ -2873,22 +2663,22 @@ public struct Point
   {
     fixed(double* dp=&X) { int* p=(int*)dp; return *p ^ *(p+1) ^ *(p+2) ^ *(p+3) ^ *(p+4) ^ *(p+5); }
   }
-  /// <summary>Converts this <see cref="Point"/> into a human-readable string.</summary>
-  /// <returns>A human-readable string representation of this <see cref="Point"/>.</returns>
+  /// <summary>Converts this <see cref="Point3"/> into a human-readable string.</summary>
+  /// <returns>A human-readable string representation of this <see cref="Point3"/>.</returns>
   public override string ToString() { return string.Format("({0:f2},{1:f2},{2:f2})", X, Y, Z); }
 
-  /// <summary>Returns a <see cref="Vector"/> representing the distance between the two points.</summary>
-  public static Vector operator-(Point lhs, Point rhs) { return new Vector(lhs.X-rhs.X, lhs.Y-rhs.Y, lhs.Z-rhs.Z); }
-  /// <summary>Subtracts a <see cref="Vector"/> from a point and returns the new point.</summary>
-  public static Point operator-(Point lhs, Vector rhs) { return new Point(lhs.X-rhs.X, lhs.Y-rhs.Y, lhs.Z-rhs.Z); }
-  /// <summary>Adds a <see cref="Vector"/> to a point and returns the new point.</summary>
-  public static Point operator+(Point lhs, Vector rhs) { return new Point(lhs.X+rhs.X, lhs.Y+rhs.Y, lhs.Z+rhs.Z); }
-  /// <summary>Adds a <see cref="Vector"/> to a point and returns the new point.</summary>
-  public static Point operator+(Vector lhs, Point rhs) { return new Point(lhs.X+rhs.X, lhs.Y+rhs.Y, lhs.Z+rhs.Z); }
+  /// <summary>Returns a <see cref="Vector3"/> representing the distance between the two points.</summary>
+  public static Vector3 operator-(Point3 lhs, Point3 rhs) { return new Vector3(lhs.X-rhs.X, lhs.Y-rhs.Y, lhs.Z-rhs.Z); }
+  /// <summary>Subtracts a <see cref="Vector3"/> from a point and returns the new point.</summary>
+  public static Point3 operator-(Point3 lhs, Vector3 rhs) { return new Point3(lhs.X-rhs.X, lhs.Y-rhs.Y, lhs.Z-rhs.Z); }
+  /// <summary>Adds a <see cref="Vector3"/> to a point and returns the new point.</summary>
+  public static Point3 operator+(Point3 lhs, Vector3 rhs) { return new Point3(lhs.X+rhs.X, lhs.Y+rhs.Y, lhs.Z+rhs.Z); }
+  /// <summary>Adds a <see cref="Vector3"/> to a point and returns the new point.</summary>
+  public static Point3 operator+(Vector3 lhs, Point3 rhs) { return new Point3(lhs.X+rhs.X, lhs.Y+rhs.Y, lhs.Z+rhs.Z); }
   /// <summary>Determines whether two points are exactly equal.</summary>
-  public static bool operator==(Point lhs, Point rhs) { return lhs.X==rhs.X && lhs.Y==rhs.Y && lhs.Z==rhs.Z; }
+  public static bool operator==(Point3 lhs, Point3 rhs) { return lhs.X==rhs.X && lhs.Y==rhs.Y && lhs.Z==rhs.Z; }
   /// <summary>Determines whether two points are not exactly equal.</summary>
-  public static bool operator!=(Point lhs, Point rhs) { return lhs.X!=rhs.X || lhs.Y!=rhs.Y || lhs.Z!=rhs.Z; }
+  public static bool operator!=(Point3 lhs, Point3 rhs) { return lhs.X!=rhs.X || lhs.Y!=rhs.Y || lhs.Z!=rhs.Z; }
 
   /// <summary>This point's X coordinate.</summary>
   public double X;
@@ -2899,10 +2689,10 @@ public struct Point
 }
 #endregion
 
-#region Line
-/// <summary>This structure represents a line.</summary>
+#region Line3
+/// <summary>This structure represents a line or line segment in three dimensions.</summary>
 [Serializable]
-public struct Line
+public struct Line3
 {
   /// <summary>Initializes this line from a point's coordinates and a vector's axis magnitudes.</summary>
   /// <param name="x">The X coordinate of a point on the line (or the start of the line segment).</param>
@@ -2917,17 +2707,17 @@ public struct Line
   /// <param name="zd">The magnitude along the Z axis of the line's direction. If you're defining a line segment,
   /// this should be the distance from <paramref name="z"/> to the Z coordinate of the endpoint.
   /// </param>
-  public Line(double x, double y, double z, double xd, double yd, double zd)
+  public Line3(double x, double y, double z, double xd, double yd, double zd)
   {
-    Start=new Point(x, y, z); Vector=new Vector(xd, yd, zd);
+    Start=new Point3(x, y, z); Vector=new Vector3(xd, yd, zd);
   }
   /// <include file="documentation.xml" path="//Geometry/Line/Line/*"/>
-  public Line(Point start, Vector vector) { Start=start; Vector=vector; }
+  public Line3(Point3 start, Vector3 vector) { Start=start; Vector=vector; }
   /// <include file="documentation.xml" path="//Geometry/Line/Line2/*"/>
-  public Line(Point start, Point end) { Start=start; Vector=end-start; }
+  public Line3(Point3 start, Point3 end) { Start=start; Vector=end-start; }
   /// <summary>Returns the endpoint of the line segment.</summary>
   /// <remarks>This is equivalent to <see cref="Start"/> + <see cref="Vector"/>.</remarks>
-  public Point End { get { return Start+Vector; } }
+  public Point3 End { get { return Start+Vector; } }
   /// <summary>Calculates and returns the line segment's length.</summary>
   /// <remarks>This returns the length of <see cref="Vector"/>.</remarks>
   public double Length { get { return Vector.Length; } }
@@ -2935,24 +2725,24 @@ public struct Line
   /// <remarks>This returns the square of the length of <see cref="Vector"/>.</remarks>
   public double LengthSqr { get { return Vector.LengthSqr; } }
   /// <include file="documentation.xml" path="//Geometry/Line/GetPoint/*"/>
-  public Point GetPoint(int point)
+  public Point3 GetPoint(int point)
   {
     if(point<0 || point>1) throw new ArgumentOutOfRangeException("point", point, "must be 0 or 1");
     return point==0 ? Start : End;
   }
   /// <include file="documentation.xml" path="//Geometry/Line/Equals/*"/>
-  public override bool Equals(object obj) { return obj is Line && (Line)obj==this; }
+  public override bool Equals(object obj) { return obj is Line3 && (Line3)obj==this; }
   /// <include file="documentation.xml" path="//Geometry/Line/Equals3/*"/>
-  public bool Equals(Line line, double epsilon)
+  public bool Equals(Line3 line, double epsilon)
   {
     return Start.Equals(line.Start, epsilon) && Vector.Equals(line.Vector, epsilon);
   }
   /// <include file="documentation.xml" path="//Common/GetHashCode/*"/>
   public override int GetHashCode() { return Start.GetHashCode() ^ Vector.GetHashCode(); }
-  /// <summary>Converts this <see cref="Line"/> into a human-readable string.</summary>
+  /// <summary>Converts this <see cref="Line3"/> into a human-readable string.</summary>
   /// <returns>A human-readable string representing this line.</returns>
   public override string ToString() { return string.Format("{0}->{1}", Start, Vector); }
-  /// <summary>Creates a <see cref="Line"/> from two points.</summary>
+  /// <summary>Creates a <see cref="Line3"/> from two points.</summary>
   /// <param name="x1">The X coordinate of the first point (a point on the line, or the start of the line segment).</param>
   /// <param name="y1">The Y coordinate of the first point (a point on the line, or the start of the line segment).</param>
   /// <param name="z1">The Z coordinate of the first point (a point on the line, or the start of the line segment).</param>
@@ -2965,24 +2755,24 @@ public struct Line
   /// <param name="z2">The Z coordinate of the second point (another point on the line, or the end of the line
   /// segment).
   /// </param>
-  /// <returns>A <see cref="Line"/> initialized with those values.</returns>
+  /// <returns>A <see cref="Line3"/> initialized with those values.</returns>
   /// <remarks>Since the end point will need to be converted into a vector, some miniscule accuracy may be lost.
-  /// Most notably, the <see cref="End"/> property may not be exactly equal to <paramref name="end"/>.
+  /// Most notably, the <see cref="End"/> property may not be exactly equal to the given endpoint.
   /// </remarks>
-  public static Line FromPoints(double x1, double y1, double z1, double x2, double y2, double z2)
+  public static Line3 FromPoints(double x1, double y1, double z1, double x2, double y2, double z2)
   {
-    return new Line(x1, y1, z1, x2-x1, y2-y1, z2-z1);
+    return new Line3(x1, y1, z1, x2-x1, y2-y1, z2-z1);
   }
 
   /// <summary>Determines whether two line segments are exactly equal.</summary>
-  public static bool operator==(Line lhs, Line rhs) { return lhs.Start==rhs.Start && lhs.Vector==rhs.Vector; }
+  public static bool operator==(Line3 lhs, Line3 rhs) { return lhs.Start==rhs.Start && lhs.Vector==rhs.Vector; }
   /// <summary>Determines whether two line segments are not exactly equal.</summary>
-  public static bool operator!=(Line lhs, Line rhs) { return lhs.Start!=rhs.Start || lhs.Vector!=rhs.Vector; }
+  public static bool operator!=(Line3 lhs, Line3 rhs) { return lhs.Start!=rhs.Start || lhs.Vector!=rhs.Vector; }
 
   /// <summary>A point on the line, or the start point of the line segment.</summary>
-  public Point Start;
+  public Point3 Start;
   /// <summary>The line's direction, or the vector from the start point to the end point of the line segment.</summary>
-  public Vector Vector;
+  public Vector3 Vector;
 }
 #endregion
 
@@ -3004,9 +2794,9 @@ public struct Plane
   }
 
   /// <summary>A point on the plane.</summary>
-  public Point Point;
+  public Point3 Point;
   /// <summary>A vector perpendicular to the plane.</summary>
-  public Vector Normal;
+  public Vector3 Normal;
 
   /// <summary>Determines whether two planes are exactly equal.</summary>
   public static bool operator==(Plane a, Plane b)
@@ -3034,20 +2824,20 @@ public struct Sphere
   /// <param name="radius">The radius of the sphere.</param>
   public Sphere(double centerX, double centerY, double centerZ, double radius)
   {
-    Center=new Point(centerX, centerY, centerZ); Radius=radius;
+    Center=new Point3(centerX, centerY, centerZ); Radius=radius;
   }
   /// <summary>Initializes this sphere from a center point and a radius.</summary>
   /// <param name="center">The sphere's center point.</param>
   /// <param name="radius">The radius of the sphere.</param>
-  public Sphere(Point center, double radius) { Center=center; Radius=radius; }
+  public Sphere(Point3 center, double radius) { Center=center; Radius=radius; }
 
   /// <summary>Calculates and returns the area of the sphere.</summary>
   public double Volume { get { return Radius*Radius*Radius*Math.PI*4/3; } }
 
   /// <summary>Determines whether the given point is contained within the sphere.</summary>
-  /// <param name="point">The <see cref="Point"/> to test for containment.</param>
+  /// <param name="point">The <see cref="Point3"/> to test for containment.</param>
   /// <returns>Returns true if <paramref name="point"/> is contained within this sphere.</returns>
-  public bool Contains(Point point) { return (point-Center).LengthSqr < Radius*Radius; }
+  public bool Contains(Point3 point) { return (point-Center).LengthSqr < Radius*Radius; }
 
   /// <summary>Determines whether the object is a <see cref="Sphere"/> exactly equal to this one.</summary>
   public override bool Equals(object obj)
@@ -3062,7 +2852,7 @@ public struct Sphere
   }
 
   /// <summary>The center point of this sphere.</summary>
-  public Point Center;
+  public Point3 Center;
   /// <summary>The radius of this sphere.</summary>
   public double Radius;
 
@@ -3085,10 +2875,10 @@ public struct Sphere
 [Serializable]
 public struct Quaternion
 {
-  public Quaternion(Vector v) { W=0; V=v; }
-  public Quaternion(double w, Vector v) { W=w; V=v; }
-  public Quaternion(double w, double x, double y, double z) { W=w; V=new Vector(x, y, z); }
-  public Quaternion(Vector axis, double angle)
+  public Quaternion(Vector3 v) { W=0; V=v; }
+  public Quaternion(double w, Vector3 v) { W=w; V=v; }
+  public Quaternion(double w, double x, double y, double z) { W=w; V=new Vector3(x, y, z); }
+  public Quaternion(Vector3 axis, double angle)
   {
     angle *= 0.5;
     W=Math.Cos(angle); V=axis*Math.Sin(angle);
@@ -3115,14 +2905,14 @@ public struct Quaternion
   /// <summary>Determines whether the object is a <see cref="Quaternion"/> approximately equal to this one.</summary>
   public bool Equals(Quaternion q, double epsilon) { return Math.Abs(W-q.W)<=epsilon && V.Equals(q.V, epsilon); }
 
-  public void GetAxisAngle(out Vector axis, out double angle)
+  public void GetAxisAngle(out Vector3 axis, out double angle)
   {
     double scale = V.LengthSqr;
-    if(scale==0) { axis=new Vector(0, 0, 1); angle=0; }
+    if(scale==0) { axis=new Vector3(0, 0, 1); angle=0; }
     else
     {
       scale = Math.Sqrt(scale);
-      axis  = new Vector(V.X/scale, V.Y/scale, V.Z/scale);
+      axis  = new Vector3(V.X/scale, V.Y/scale, V.Z/scale);
       angle = Math.Acos(W)*2;
     }
   }
@@ -3142,7 +2932,7 @@ public struct Quaternion
   public Matrix3 ToMatrix3()
   {
     double xx=V.X*V.X, xy=V.X*V.Y, xz=V.X*V.Z, xw=V.X*W, yy=V.Y*V.Y, yz=V.Y*V.Z, yw=V.Y*W, zz=V.Z*V.Z, zw=V.Z*W;
-    Matrix3 ret = new Matrix3(false);
+    Matrix3 ret = new Matrix3();
     ret.M00 = 1 - 2*(yy+zz); ret.M01 =     2*(xy-zw); ret.M02 =     2*(xz+yw);
     ret.M10 =     2*(xy+zw); ret.M11 = 1 - 2*(xx+zz); ret.M12 =     2*(yz-xw);
     ret.M20 =     2*(xz-yw); ret.M21 =     2*(yz+xw); ret.M22 = 1 - 2*(xx+yy);
@@ -3152,7 +2942,7 @@ public struct Quaternion
   public Matrix4 ToMatrix4()
   {
     double xx=V.X*V.X, xy=V.X*V.Y, xz=V.X*V.Z, xw=V.X*W, yy=V.Y*V.Y, yz=V.Y*V.Z, yw=V.Y*W, zz=V.Z*V.Z, zw=V.Z*W;
-    Matrix4 ret = new Matrix4(false);
+    Matrix4 ret = new Matrix4();
     ret.M00 = 1 - 2*(yy+zz); ret.M01 =     2*(xy-zw); ret.M02 =     2*(xz+yw);
     ret.M10 =     2*(xy+zw); ret.M11 = 1 - 2*(xx+zz); ret.M12 =     2*(yz-xw);
     ret.M20 =     2*(xz-yw); ret.M21 =     2*(yz+xw); ret.M22 = 1 - 2*(xx+yy);
@@ -3161,7 +2951,7 @@ public struct Quaternion
   }
 
   public double W;
-  public Vector V;
+  public Vector3 V;
 
   /// <summary>Determines whether two quaternions are exactly equal.</summary>
   public static bool operator==(Quaternion a, Quaternion b) { return a.W==b.W && a.V==b.V; }
@@ -3182,6 +2972,4 @@ public struct Quaternion
 #endregion
 #pragma warning restore 1591
 
-} // namespace AdamMil.Mathematics.Geometry.ThreeD
-#endregion
-
+} // namespace AdamMil.Mathematics.Geometry

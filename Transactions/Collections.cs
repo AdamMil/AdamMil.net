@@ -995,7 +995,7 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
     // works because all integers can be represented as 6k+i for some integer k where -1 <= i <= 4. 2 divides 6k + {0,2,4}
     // and 3 divides 6k+3, leaving only 6k+1 and 6k-1 to check. we don't need to handle n == 3 because n is assumed to be large
     for(int i=6, end=(int)Math.Sqrt(n); i < end; i += 6) // we use i < end rather than i <= end because
-    {                                                    // the +1 inside the loop would check 'end'
+    {                                                    // the i+1 inside the loop would check 'end'
       if(n % (i-1) == 0 || n % (i+1) == 0) return false;
     }
 

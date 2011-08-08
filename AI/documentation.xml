@@ -86,7 +86,7 @@
           <see cref="SearchResult.Failed"/>, not even the shallowest search could be completed before the time limit
           was up, and so solution was returned.
         </returns>
-        <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/param[@name='solution']"/>
+        <!--include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/param[@name='solution']"/-->
       </IterativeDeepeningSearch>
 
       <PerformSearch>
@@ -134,15 +134,15 @@
     <GraphSearchBase>
       <BidirectionalSearch>
         <summary>Performs a bidirectional search using a default initial state and running to its conclusion.</summary>
-        <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/param[@name='solution']"/>
-        <include file="documentation.xml" path="/AI/Search/GraphSearchBase/BidirectionalSearchRemarks/*"/>
+        <!--include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/param[@name='solution']"/-->
+        <!--include file="documentation.xml" path="/AI/Search/GraphSearchBase/BidirectionalSearchRemarks/*"/-->
       </BidirectionalSearch>
 
       <BidirectionalSearch_State>
         <summary>Performs a bidirectional search using the given initial state and running to its conclusion.</summary>
-        <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/param[@name='solution']"/>
-        <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/param[@name='initialState']"/>
-        <include file="documentation.xml" path="/AI/Search/GraphSearchBase/BidirectionalSearchRemarks/*"/>
+        <!--include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/param[@name='solution']"/-->
+        <!--include file="documentation.xml" path="/AI/Search/ISearch/Search_State/param[@name='initialState']"/-->
+        <!--include file="documentation.xml" path="/AI/Search/GraphSearchBase/BidirectionalSearchRemarks/*"/-->
       </BidirectionalSearch_State>
 
       <BidirectionalSearchRemarks>
@@ -206,12 +206,12 @@
 
       <BeginSearch>
         <summary>Begins a new search with a default initial state.</summary>
-        <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearchCommon/*"/>
+        <!--include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearchCommon/*"/-->
       </BeginSearch>
 
       <BeginSearch_State>
         <summary>Begins a new search using the given initial state.</summary>
-        <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearchCommon/*"/>
+        <!--<include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearchCommon/*"/>-->
       </BeginSearch_State>
 
       <Iterate>
@@ -255,7 +255,7 @@
         <summary>
           Searches using a default initial state, and running until the search completes or reaches the given limit.
         </summary>
-        <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*"/>
+        <!--<include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*"/>-->
       </Search>
 
       <Search_State>
@@ -263,7 +263,7 @@
           Searches using the given initial state, and running until the search completes or reaches the given limit.
         </summary>
         <param name="initialState">The initial state used in the search.</param>
-        <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*"/>
+        <!--<include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*"/>-->
       </Search_State>
     </ISearch>
 
@@ -280,8 +280,8 @@
 
     <LocalSearchBase>
       <Search>
-        <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/summary"/>
-        <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*[@name != 'solution']"/>
+        <!--<include file="documentation.xml" path="/AI/Search/ISearch/Search_State/summary"/>
+        <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*[@name != 'solution']"/>-->
         <param name="initialSolution">
           The initial state used in the solution, and the value that will be updated with
           the final solution after the search completes.
@@ -295,14 +295,14 @@
           The maximum time the search is allowed to run, in milliseconds. If equal to
           <see cref="SearchBase.Infinite"/>, there is no time limit.
         </param>
-        <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*[@name != 'limiter']"/>
+        <!--<include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*[@name != 'limiter']"/>-->
       </Search_Timeout>
 
       <Search_State_Limit>
         <summary>Performs a search using the given initial state and running to its conclusion or until the time limit
           expires.
         </summary>
-        <include file="documentation.xml" path="/AI/Search/SearchBase/Search/*"/>
+        <!--<include file="documentation.xml" path="/AI/Search/SearchBase/Search/*"/>-->
       </Search_State_Limit>
     </SearchBase>
 
@@ -336,13 +336,13 @@
           The maximum number of iterations to run the search. The search will finish early if a
           satisfactory state is found before the maximum number of iterations have been completed.
         </param>
-        <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/Constructor/*[@name != 'quench']"/>
+        <!--<include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/Constructor/*[@name != 'quench']"/>-->
       </ConstructorI>
 
       <ConstructorD>
         <param name="schedule">The initial value of <see cref="Schedule"/>.</param>
         <param name="tunneler">The initial value of <see cref="Tunneler"/>.</param>
-        <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/Constructor/*[@name != 'quench']"/>
+        <!--<include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/Constructor/*[@name != 'quench']"/>-->
       </ConstructorD>
 
       <Tunneling>

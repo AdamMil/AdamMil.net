@@ -68,9 +68,9 @@
       <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="point"/> is not 0 or 1.</exception>
      </GetPoint>
      <Equals>
-      <summary>Determines whether the given object is a <see cref="Line"/> equal to this one.</summary>
+      <summary>Determines whether the given object is a line equal to this one.</summary>
       <param name="obj">An object to test for equality.</param>
-      <returns>Returns true if <paramref name="obj"/> is a <see cref="Line"/> and equals this one.</returns>
+      <returns>Returns true if <paramref name="obj"/> is a line and equals this one.</returns>
      </Equals>
      <Equals3>
       <summary>Determines whether the given line is equal to this one, within a given margin of error.</summary>
@@ -96,7 +96,7 @@
      <Equals>
       <summary>Determines whether the given object is a point equal to this one.</summary>
       <param name="obj">An object to test for equality.</param>
-      <returns>Returns true if <paramref name="obj"/> is a <see cref="Point"/> and equals this one.</returns>
+      <returns>Returns true if <paramref name="obj"/> is a point and equals this one.</returns>
      </Equals>
      <Equals3>
       <summary>Determines whether the given point is equal to this one, within a given margin of error.</summary>
@@ -117,12 +117,12 @@
       </returns>
      </DotProduct>
      <Equals>
-      <summary>Determines whether the given object is a <see cref="Vector"/> equal to this one.</summary>
+      <summary>Determines whether the given object is a vector equal to this one.</summary>
       <param name="obj">An object to test for equality.</param>
-      <returns>Returns true if <paramref name="obj"/> is a <see cref="Vector"/> and equals this one.</returns>
+      <returns>Returns true if <paramref name="obj"/> is a vector and equals this one.</returns>
      </Equals>
      <Equals3>
-      <summary>Determines whether the given <see cref="Vector"/> is equal to this one, within a given margin of error.</summary>
+      <summary>Determines whether the given vector is equal to this one, within a given margin of error.</summary>
       <param name="vect">A vector to test for equality.</param>
       <param name="epsilon">The given margin of error. The difference between both vectors' X and Y axes must be
       less than or equal to this for them to qualify as equal.
@@ -150,7 +150,7 @@
      </Length>
      <Normal>
       <summary>Returns a normalized copy of this vector.</summary>
-      <value>A <see cref="Vector"/> pointing in the same direction as this one, but with a length of 1.0 (or as
+      <value>A vector pointing in the same direction as this one, but with a length of 1.0 (or as
       close as floating-point precision will let us get to 1.0).
       </value>
       <remarks>This property is not valid when the length of the vector is zero, since the vector would not be
@@ -159,6 +159,48 @@
      </Normal>
     </Vector>
   </Geometry>
+
+  <LinearEquations>
+    <Solve>
+      <param name="coefficients">A square matrix representing the left side of the equations, where the rows represent the individual
+        equations and the columns represent the coefficients in the equations. The matrix must be invertible.
+      </param>
+      <param name="values">A matrix of the same height as <paramref name="coefficients"/> representing the right side of the
+        equations, where each column contains the set of sums of the equation terms (i.e. what the equation equals).
+      </param>
+      <param name="inverse">A variable that receives the inverse of the <paramref name="coefficients" /> matrix.</param>
+      <returns>
+        A matrix of the same size as <paramref name="values" /> where each column contains a solution to the system of equations (using
+        the values from the corresponding column in <paramref name="values" />), and each row represents a variable.
+      </returns>
+      <remarks>
+        As an example, to solve the following set of equations:
+        <code>
+          4x + 2y - 2z = 10
+          2x + 8y + 4z = 32
+          30x + 12y - 4z = 24
+        </code>
+        You would construct the following coefficients matrix:
+        <code>
+           4  2 -2
+           2  8  4
+          30 12 -4
+        </code>
+        And the following values matrix:
+        <code>
+          10
+          32
+          24
+        </code>
+        The method would return a matrix containing the solution:
+        <code>
+          -2
+           6
+          -3
+        </code>
+      </remarks>
+    </Solve>
+  </LinearEquations>
 
   <RNG>
     <SeedSize>The number of uints that should be used to used to seed the random number generator.</SeedSize>
