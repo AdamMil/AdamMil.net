@@ -53,6 +53,17 @@ using AdamMil.Utilities;
 namespace AdamMil.Transactions
 {
 
+#region ISTMTransactionalValue
+/// <summary>An interface that can be implemented by a value type to provide some control over its use within a transaction.</summary>
+public interface ISTMTransactionalValue
+{
+  /// <summary>Called just before a transaction commits this value to a variable opened for write. This method can perform final
+  /// operations upon the value, such as making it read-only.
+  /// </summary>
+  void PrepareForWrite();
+}
+#endregion
+
 #region STM
 /// <summary>Provides convenience methods for working with software transactional memory.</summary>
 public static class STM
@@ -828,7 +839,10 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
           // replace the variable's value with a pointer to the transaction if another transaction hasn't committed a change
           object value = Interlocked.CompareExchange(ref pair.Key.value, this, pair.Value.OldValue);
           // if we just locked it, or it was already locked, then we're done with it. otherwise, it couldn't be locked
-          if(value == pair.Value.OldValue || value == this) break;
+          if(value == pair.Value.OldValue) break; // if we just locked it, then finish processing it
+          else if(value == this) goto alreadyLocked; // otherwise, if it was already locked, skip to the next entry
+
+          // at this point, we couldn't lock it because it was locked or changed by another transaction
           STMTransaction owningTransaction = value as STMTransaction;
           if(owningTransaction == null) goto decide; // another transaction committed a change already, so we fail
           // another transaction already has it locked for committing, but we can help that transaction commit and then check
@@ -858,6 +872,11 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
             goto decide;
           }
         }
+
+        ISTMTransactionalValue transactional = pair.Value.NewValue as ISTMTransactionalValue;
+        if(transactional != null) transactional.PrepareForWrite();
+
+        alreadyLocked:;
       }
     }
 

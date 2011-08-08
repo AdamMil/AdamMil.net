@@ -278,7 +278,7 @@
 
     <CopyTo4>
       <summary>Copies characters from the buffer to the given character array.</summary>
-      <include file="documentation.xml" path="/UI/EditableTextBuffer/CopyTo2/param"/>
+      <!--<include file="documentation.xml" path="/UI/EditableTextBuffer/CopyTo2/param"/>-->
       <param name="srcIndex">The starting index of the text to copy to <paramref name="destArray"/>.</param>
       <param name="count">The number of characters to copy.</param>
     </CopyTo4>

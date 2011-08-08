@@ -118,7 +118,7 @@ public class BloomFilter<T>
     this.hashCount    = (int)hashCount;
   }
 
-  /// <include file="documentation.xml" path="/Collections/BloomFilter/DirectConstructor/*"/>
+  /// <include file="documentation.xml" path="/Collections/BloomFilter/DirectConstructor/*[@name != 'hashProvider']"/>
   public BloomFilter(int bitCount, int maxHashCount) : this(bitCount, maxHashCount, null) { }
 
   /// <include file="documentation.xml" path="/Collections/BloomFilter/DirectConstructor/*"/>

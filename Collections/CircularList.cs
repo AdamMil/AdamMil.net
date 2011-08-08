@@ -194,7 +194,7 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
   /// <param name="sourceIndex">The index into <paramref name="items"/> from which data will be read.</param>
   /// <param name="count">The number of items to copy.</param>
   /// <remarks>With the current implementation, you can only insert items at the start or end of the list, so
-  /// <paramref name="index"/> must be equal to zero or <see cref="Count"/>.
+  /// <paramref name="destIndex"/> must be equal to zero or <see cref="Count"/>.
   /// </remarks>
   public void Insert(int destIndex, T[] items, int sourceIndex, int count)
   {
