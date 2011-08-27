@@ -122,9 +122,6 @@ public class BloomFilter<T>
   public BloomFilter(int bitCount, int maxHashCount) : this(bitCount, maxHashCount, null) { }
 
   /// <include file="documentation.xml" path="/Collections/BloomFilter/DirectConstructor/*"/>
-  /// <param name="hashProvider">The <see cref="IMultiHashProvider{T}"/> that provides the hash codes for the items added to the
-  /// set, or null to use a default hash code provider that works reasonably well for most types.
-  /// </param>
   public BloomFilter(int bitCount, int maxHashCount, IMultiHashProvider<T> hashProvider)
   {
     if(bitCount <= 0 || maxHashCount <= 0) throw new ArgumentOutOfRangeException();

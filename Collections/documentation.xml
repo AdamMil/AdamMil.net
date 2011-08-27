@@ -7,8 +7,12 @@
       </summary>
       <param name="bitCount">The number of bits in the bloom filter. This value will be rounded up to the nearest 32 or 64 bits.</param>
       <param name="maxHashCount">
-        The maximum number of hash functions to use from the <paramref name="hashProvider"/>. If the
+        The maximum number of hash functions to use from the hash provider. If the
         hash provider does not support this many hash functions, fewer will be used.
+      </param>
+      <param name="hashProvider">
+        The <see cref="IMultiHashProvider{T}"/> that provides the hash codes for the items added to the
+        set, or null to use a default hash code provider that works reasonably well for most types.
       </param>
       <remarks>
         It is recommended to use the <see cref="BloomFilter{T}(int,float)"/> constructor, which will calculate an appropriate
@@ -32,7 +36,7 @@
         improve the speed, you can limit the number of hash functions. The filter may use more memory as a result. Do not use
         fewer than three hash functions, as it will cause memory consumption to rise dramatically. (For instance, using only one
         hash function may cause memory usage to be 100 or 1000 times what it otherwise would be, or more, depending on the false
-        positive rate.) Even three hash functions may cause memory consumption to be 3 or 5 or 10 the normal amount.
+        positive rate.) Even three hash functions may cause memory consumption to be 3 or 5 or 10 times the normal amount.
         In general, as the false positive rate decreases, more hash functions are needed.
       </param>
       <remarks>

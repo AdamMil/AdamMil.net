@@ -214,4 +214,105 @@
       <summary>Generates and returns a random 32-bit unsigned integer.</summary>
     </NextUint32>
   </RNG>
+
+  <RootFinding>
+    <BoundedNewtonRaphson>
+      <remarks>
+        This function converges quadratically on the root, making it a very effective method. It also tends to be quite accurate.
+        However, it is vulnerable to pathological cases in which it can fail to find a root even when it exists. Newton-Raphson is also
+        quite sensitive in requiring the initial guess to be fairly close to the root. In difficult cases, it may be better to use
+        <see cref="Brent">Brent's method</see>, or even the <see cref="Subdivide">the subdivision method</see>. This implementation of
+        Newton's method brackets the root within an interval to avoid shortcomings in the standard Newton's method that cause it to diverge
+        wildly if it encounters a derivative near zero. Because of the bracketing, the method generally cannot find double roots. If you
+        need to find a double root, you may try <see cref="UnboundedNewtonRaphson" />.
+      </remarks>
+    </BoundedNewtonRaphson>
+
+    <BracketInward>
+      <summary>
+        Given an initial guess of an interval containing a root, divides the interval into a number of segments and returns a list
+        containing the subintervals that contain a zero crossings, which usually indicate the existence of roots.
+      </summary>
+      <param name="function">The function to evaluate.</param>
+      <param name="interval">
+        An initial guess of an interval of parameter values for which the function contains a root (i.e. evaluates
+        to zero).
+      </param>
+      <param name="segments">
+        The number of equal-sized segments into which the interval should be divided when searching for subintervals
+        that contain zero crossings.
+      </param>
+      <returns>Returns a list of the subintervals containing zero crossings.</returns>
+      <remarks>
+        This method doesn't necessarily find roots. It merely looks for zero crossings, which usually indicate a root but could also
+        indicate a singularity or discontinuity. Also, roots that don't cross zero, such as double roots, are unlikely to be found by this
+        method, but if found, could be returned in two different intervals (at their edges).
+      </remarks>
+    </BracketInward>
+
+    <BracketOutward>
+      <summary>
+        Given an initial guess of an interval containing a root, expands the interval outward until the function values at the two
+        edges cross zero (i.e. have different sign). This usually indicates a root.
+      </summary>
+      <param name="function">The function to evaluate.</param>
+      <param name="initialGuess">
+        An initial guess of an interval of parameter values for which the function contains a root (i.e.
+        evaluates to zero).
+      </param>
+      <returns>Returns if an interval was found for which the function values cross zero, or false if no interval was found.</returns>
+      <remarks>
+        This method doesn't necessarily find roots. It merely looks for zero crossings, which usually indicate a root but could also
+        indicate a singularity or discontinuity. Also, roots that don't cross zero, such as double roots, are unlikely to be found by this
+        method.
+      </remarks>
+    </BracketOutward>
+
+    <Brent>
+      <remarks>
+        This function converges quadratically on the root, making it a very effective method, although if you can efficiently calculate the
+        derivative of the function, it might be better to use <see cref="BoundedNewtonRaphson">the Newton-Raphson</see> method.
+        Newton-Raphson tends to find the root more quickly and accurately, but is vulnerable to pathological cases in which it can fail to
+        find a root even when it exists. Newton-Raphson may also be more sensitive in requiring the initial guess to be close to the root.
+      </remarks>
+    </Brent>
+    
+    <FindRoot1>
+      <summary>Implements the subdivision method of finding a root of a one-dimensional function.</summary>
+      <param name="function">The function to evaluate.</param>
+      <param name="interval">
+        An interval in which a root has been bracketed. If the interval does not contain a root, the method will
+        produce the wrong result.
+      </param>
+      <param name="accuracy">
+        The accuracy to which the root will be found. The root will be refined until it is within the given distance of the true root.
+      </param>
+      <returns>Returns a root of the function, to within the specified accuracy. See the remarks for more details.</returns>
+      <exception cref="ArgumentException">Thrown if the interval is invalid, the interval does not bracket a zero crossing, or the function
+        cannot find a zero crossing within the given interval to the desired accuracy.
+      </exception>
+      <remarks>
+        Specifically, this function homes in on the point at the function changes sign. This usually indicates a root, but it could
+        also indicate a singularity or discontinuity. Therefore, if the interval brackets one of these rather than a root, the function
+        will locate the singularity or discontinuity instead.
+      </remarks>
+    </FindRoot1>
+
+    <UnboundedNewtonRaphson>
+      <remarks>This function converges quadratically on the root, making it a very effective method. It also tends to be quite accurate.
+        However, it is vulnerable to pathological cases in which it can fail to find a root even when it exists. Newton-Raphson is also
+        quite sensitive in requiring the initial guess to be fairly close to the root. This implementation of Newton's method does not
+        bracket the root and may diverge wildly. In general, it is better to use <see cref="BoundedNewtonRaphson" />, but that method
+        usually cannot be used to find double roots, while this one can.
+      </remarks>
+    </UnboundedNewtonRaphson>
+
+    <Subdivide>
+      <remarks>
+        This function converges linearly on the root, which makes it rather slow compared to other methods such as
+        <see cref="Brent">Brent's method</see> and <see cref="BoundedNewtonRaphson">the Newton-Raphson method</see>, but it is very simple
+        and reliable, and a good method to try as a last resort.
+      </remarks>
+    </Subdivide>
+  </RootFinding>
 </Math>

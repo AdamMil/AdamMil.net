@@ -424,7 +424,7 @@ public static class Math2D
   /// <summary>Determines if a line segment intersects a rectangle.</summary>
   public static bool SegmentIntersects(ref Line2 segment, ref Rectangle rect)
   {
-    return SegmentIntersection(ref segment, ref rect).Valid;
+    return SegmentIntersection(ref segment, ref rect).IsValid;
   }
 
   /// <summary>Determines if a line (not a segment) intersects a possibly-concave polygon.</summary>
@@ -901,13 +901,13 @@ public struct Vector2
   /// <remarks>Invalid vectors are returned by some mathematical functions to signal that the function is undefined
   /// given the input. A vector returned by such a function can be tested for validity using this property.
   /// </remarks>
-  public bool Valid { get { return !double.IsNaN(X); } }
+  public bool IsValid { get { return !double.IsNaN(X); } }
   /// <include file="documentation.xml" path="//Geometry/Vector/DotProduct/*"/>
   public double DotProduct(Vector2 v) { return X*v.X + Y*v.Y; }
   /// <include file="documentation.xml" path="//Geometry/Vector/Normalize/*"/>
   public void Normalize() { this/=Length; }
   /// <include file="documentation.xml" path="//Geometry/Vector/Normalize2/*"/>
-  public void Normalize(double length) { this /= Length/length; }
+  public void Normalize(double length) { this *= length/Length; }
   /// <summary>Returns a copy of this vector, normalized to the given length.</summary>
   /// <remarks>Calling this method is invalid when the length of the vector is zero, since the vector would not be
   /// pointing in any direction and could not possibly be scaled to the correct length.
@@ -964,12 +964,12 @@ public struct Vector2
   public static Vector2 operator/(Vector2 v, double f) { return new Vector2(v.X/f, v.Y/f); }
 
   /// <summary>Determines whether two vectors are exactly equal. You cannot use this method to compare against
-  /// <see cref="Invalid"/>. Use the <see cref="Valid"/> property for that.
+  /// <see cref="Invalid"/>. Use the <see cref="IsValid"/> property for that.
   /// </summary>
   public static bool operator==(Vector2 a, Vector2 b) { return a.X==b.X && a.Y==b.Y; }
 
   /// <summary>Determines whether two vectors are not exactly equal. You cannot use this method to compare against
-  /// <see cref="Invalid"/>. Use the <see cref="Valid"/> property for that.
+  /// <see cref="Invalid"/>. Use the <see cref="IsValid"/> property for that.
   /// </summary>
   public static bool operator!=(Vector2 a, Vector2 b) { return a.X!=b.X || a.Y!=b.Y; }
 
@@ -1009,7 +1009,7 @@ public struct Point2
   /// <remarks>Invalid points are returned by some mathematical functions to signal that the function is undefined
   /// given the input. A point returned by such a function can be tested for validity using this property.
   /// </remarks>
-  public bool Valid { get { return !double.IsNaN(X); } }
+  public bool IsValid { get { return !double.IsNaN(X); } }
   /// <include file="documentation.xml" path="//Geometry/Point/DistanceTo/*"/>
   public double DistanceTo(Point2 point)
   {
@@ -1068,11 +1068,11 @@ public struct Point2
   /// <summary>Adds a <see cref="Vector2"/> to a point and returns the new point.</summary>
   public static Point2 operator+(Vector2 lhs, Point2 rhs) { return new Point2(lhs.X+rhs.X, lhs.Y+rhs.Y); }
   /// <summary>Determines whether two points are exactly equal. You cannot use this method to compare against
-  /// <see cref="Invalid"/>. Use the <see cref="Valid"/> property for that.
+  /// <see cref="Invalid"/>. Use the <see cref="IsValid"/> property for that.
   /// </summary>
   public static bool operator==(Point2 lhs, Point2 rhs) { return lhs.X==rhs.X && lhs.Y==rhs.Y; }
   /// <summary>Determines whether two points are exactly equal. You cannot use this method to compare against
-  /// <see cref="Invalid"/>. Use the <see cref="Valid"/> property for that.
+  /// <see cref="Invalid"/>. Use the <see cref="IsValid"/> property for that.
   /// </summary>
   public static bool operator!=(Point2 lhs, Point2 rhs) { return lhs.X!=rhs.X || lhs.Y!=rhs.Y; }
 
@@ -1092,7 +1092,7 @@ public struct Point2
 /// <summary>This structure contains information about the intersection of two lines or line segments.</summary>
 /// <remarks>The structure is returned from some line intersection functions. If the intersection is not valid
 /// (ie, the lines given were parallel), the <see cref="Point"/> member will be invalid. You can use
-/// <see cref="AdamMil.Mathematics.Geometry.Point2.Valid"/> to check for this condition.
+/// <see cref="AdamMil.Mathematics.Geometry.Point2.IsValid"/> to check for this condition.
 /// </remarks>
 public struct LineIntersection
 {
@@ -1114,7 +1114,7 @@ public struct LineIntersection
   public bool OnBoth { get { return OnFirst && OnSecond; } }
   /// <summary>The intersection point, or an invalid point if the lines did not intersect.</summary>
   /// <remarks>If the lines did not intersect (because they were invalid or parallel), this will be an invalid
-  /// point. You can use <see cref="AdamMil.Mathematics.Geometry.Point2.Valid"/> to check for this condition.
+  /// point. You can use <see cref="AdamMil.Mathematics.Geometry.Point2.IsValid"/> to check for this condition.
   /// </remarks>
   public Point2 Point;
   /// <summary>Determines whether the intersection point lies on the first line segment.</summary>
@@ -1164,7 +1164,7 @@ public struct Line2
   /// <remarks>Invalid lines are returned by some mathematical functions to signal that the function is undefined
   /// given the input. A line returned by such a function can be tested for validity using this property.
   /// </remarks>
-  public bool Valid { get { return Start.Valid; } }
+  public bool IsValid { get { return Start.IsValid; } }
 
   /// <summary>Returns the point on the line segment closest to the given point.</summary>
   public Point2 ClosestPointOnSegment(Point2 point)
@@ -1236,7 +1236,7 @@ public struct Line2
 
   /// <summary>Returns the intersection point of two lines (not segments).</summary>
   /// <returns>The intersection point of the two lines, or an invalid point if the lines do not intersect.
-  /// You can check if the point is valid with <see cref="Point2.Valid"/>.
+  /// You can check if the point is valid with <see cref="Point2.IsValid"/>.
   /// </returns>
   public Point2 Intersection(Line2 line)
   {
@@ -1245,7 +1245,7 @@ public struct Line2
 
   /// <summary>Returns the intersection point of two lines segments.</summary>
   /// <returns>The intersection point of the two line segments, or an invalid point if the lines do not intersect.
-  /// You can check if the point is valid with <see cref="Point2.Valid"/>.
+  /// You can check if the point is valid with <see cref="Point2.IsValid"/>.
   /// </returns>
   public Point2 SegmentIntersection(Line2 segment)
   {
@@ -1356,11 +1356,11 @@ public struct Line2
   /// </remarks>
   public static Line2 FromPoints(double x1, double y1, double x2, double y2) { return new Line2(x1, y1, x2-x1, y2-y1); }
   /// <summary>Determines whether two line segments are exactly equal. You cannot use this method to compare against
-  /// <see cref="Invalid"/>. Use the <see cref="Valid"/> property for that.
+  /// <see cref="Invalid"/>. Use the <see cref="IsValid"/> property for that.
   /// </summary>
   public static bool operator==(Line2 lhs, Line2 rhs) { return lhs.Start==rhs.Start && lhs.Vector==rhs.Vector; }
   /// <summary>Determines whether two line segments are not exactly equal. You cannot use this method to compare against
-  /// <see cref="Invalid"/>. Use the <see cref="Valid"/> property for that.
+  /// <see cref="Invalid"/>. Use the <see cref="IsValid"/> property for that.
   /// </summary>
   public static bool operator!=(Line2 lhs, Line2 rhs) { return lhs.Start!=rhs.Start || lhs.Vector!=rhs.Vector; }
   /// <summary>Returns an invalid line.</summary>
@@ -2084,7 +2084,7 @@ public sealed class Polygon : ICloneable, ISerializable
                 LineIntersection lint = toExtend.GetIntersectionInfo(poly.GetEdge(sei));
                 // we don't want any points that are on the edge being extended (because it wouldn't be an extension)
                 // and we want to make sure the other point is actually on the line segment
-                if(lint.OnFirst || !lint.OnSecond || !lint.Point.Valid) continue;
+                if(lint.OnFirst || !lint.OnSecond || !lint.Point.IsValid) continue;
                 ept = 0;
                 d  = lint.Point.DistanceSquaredTo(toExtend.GetPoint(0)); // find the shortest cut
                 d2 = lint.Point.DistanceSquaredTo(toExtend.GetPoint(1));
