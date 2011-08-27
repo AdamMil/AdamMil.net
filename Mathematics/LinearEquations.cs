@@ -28,7 +28,8 @@ namespace AdamMil.Mathematics.LinearEquations
   /// <summary>Implements Gauss-Jordan elimination to solve systems of linear equations. This method also generates an inverse matrix as
   /// a side effect. If you don't need the inverse matrix, or if you want to find additional solutions on demand, or if you want the
   /// determinant or the upper or lower decomposition, you should use <see cref="LUDecomposition"/> instead. In general,
-  /// <see cref="LUDecomposition"/> is superior. However, this class may be slightly more numerically stable.
+  /// <see cref="LUDecomposition"/> is superior. However, this class may be slightly more numerically stable and therefore slightly more
+  /// accurate, although that is largely counteracted by the existence of the <see cref="LUDecomposition.RefineSolution"/> method.
   /// </summary>
   public static class GaussJordan
   {
@@ -100,13 +101,14 @@ namespace AdamMil.Mathematics.LinearEquations
       // identity matrix
       // 
       // now it happens to be the case that this basic form of the algorithm is numerically unstable due to rounding error. therefore the
-      // concept of "pivoting" is added to stabilize it. pivoting is essentially finding the best value to divide by in each iteration and
-      // swapping rows and colums of the matrix to place that value at a_ii. to avoid messing up the part of the matrix that we've already
-      // processed (and converted into identity form), we can choose from any value to the right of and below a_ii (or a_ii itself).
-      // swapping rows has no effect on the solution, but swapping columns does, so column swaps have to be reversed at the end. the
-      // criteria for choosing the best value to divide by remain undiscovered, but it works well in practice to divide by the coefficient
-      // having the largest magnitude. (this makes the behavior dependent on the original scaling of the equations, which may be
-      // undesirable in some rare cases, but that is not addressed in this implementation.)
+      // concept of "pivoting" is added to stabilize it. (pivoting is also needed to avoid division by zero in the case of zero entries on
+      // the diagonal.) pivoting is essentially finding the best value to divide by in each iteration and swapping rows and columns of the
+      // matrix to place that value at a_ii. to avoid messing up the part of the matrix that we've already processed (and converted into
+      // identity form), we can choose from any value to the right of and below a_ii (or a_ii itself). swapping rows has no effect on the
+      // solution, but swapping columns does, so column swaps have to be reversed at the end. the criteria for choosing the best value to
+      // divide by remain undiscovered, but it works well in practice to divide by the coefficient having the largest magnitude. (this
+      // makes the behavior dependent on the original scaling of the equations, which may be undesirable in some rare cases, but that is
+      // not addressed in this implementation.)
 
       // clone the matrices since we'll be modifying them
       coefficients = coefficients.Clone();
@@ -146,8 +148,8 @@ namespace AdamMil.Mathematics.LinearEquations
 
         if(pivotX != pivotY) // if the pivot element is not in the correct position vertically, then swap the current row and the pivot row
         {
-          for(int i=0; i<coefficients.Width; i++) coefficients.Swap(pivotY, i, pivotX, i);
-          for(int i=0; i<values.Width; i++) values.Swap(pivotY, i, pivotX, i);
+          coefficients.SwapRows(pivotY, pivotX);
+          values.SwapRows(pivotY, pivotX);
         }
 
         // store the location of the pivot element for this column so we can undo the swaps later
@@ -219,35 +221,8 @@ namespace AdamMil.Mathematics.LinearEquations
     {
       if((object)coefficients == null) throw new ArgumentNullException();
       if(!coefficients.IsSquare) throw new ArgumentException("The coefficient matrix must be square.");
-      this.matrix = coefficients.Clone();
-    }
-
-    /// <summary>Gets the decomposition of the coefficient matrix.</summary>
-    /// <remarks>
-    /// LU decomposition normally decomposes a matrix A
-    /// <code>
-    /// | a b c |
-    /// | d e f |
-    /// | g h i |
-    /// </code>
-    /// into two matrices L and U, which are lower and upper triangular matrices where A = L*U:
-    /// <code>
-    /// | n 0 0 |       | u v w |
-    /// | p q 0 |  and  | 0 x y |
-    /// | r s t |       | 0 0 z |
-    /// </code>
-    /// As an optimization, this class packs both triangular matrices into a single matrix:
-    /// <code>
-    /// | u v w |
-    /// | p x y |
-    /// | r s z |
-    /// </code>
-    /// Where the elements along the diagonal of L (n, p, and t in the example) are not stored, and are implicitly equal to be 1.
-    /// </remarks>
-    public Matrix GetDecomposition()
-    {
-      EnsureDecomposition();
-      return matrix.Clone();
+      this.matrix       = coefficients.Clone();
+      this.coefficients = coefficients; // keep a reference to the coefficient matrix for use by RefineSolution()
     }
 
     /// <summary>Gets the determinant of the coefficient matrix. For sizeable matrices, the determinant may be larger than the dynamic
@@ -295,6 +270,52 @@ namespace AdamMil.Mathematics.LinearEquations
       return sum;
     }
 
+    /// <summary>Improves a solution from <see cref="Solve"/>, assuming that the coefficient matrix given to the constructor has not
+    /// changed since the solution was produced.
+    /// </summary>
+    /// <param name="values">The values matrix passed to <see cref="Solve"/> to produce the solution matrix.</param>
+    /// <param name="solution">The solution matrix returned from <see cref="Solve"/>. This matrix will be changed to a refined solution,
+    /// which is usually better than the original solution, and never worse.
+    /// </param>
+    /// <remarks>When solving large matrices, roundoff errors accumulate during the process and manifest as a loss of precision in the
+    /// solution. This method can improve a solution to eliminate some of the accumulated roundoff error, and may be called
+    /// multiple times to further refine the solution, although once is usually enough.
+    /// The method requires the original coefficient matrix passed to the constructor. The <see cref="LUDecomposition"/> class
+    /// saves a reference to that matrix, and does not make a copy of it. It is assumed, therefore, that the coefficient matrix has not
+    /// been changed since the LU decomposition was constructed. If it has been changed, the solution will be destroyed.
+    /// </remarks>
+    public void RefineSolution(Matrix values, Matrix solution)
+    {
+      if((object)values == null || (object)solution == null) throw new ArgumentNullException();
+      if(values.Height != solution.Height || values.Width != solution.Width)
+      {
+        throw new ArgumentException("The value matrix must have the same size as the solution matrix.");
+      }
+      if(values.Height != matrix.Height)
+      {
+        throw new ArgumentException("The value matrix must have the same height as the coefficient matrix.");
+      }
+
+      EnsureDecomposition();
+
+      Matrix errors = new Matrix(solution.Width, solution.Height);
+      for(int x=0; x<solution.Width; x++) // for each solution vector...
+      {
+        for(int y=0; y<solution.Height; y++)
+        {
+          double error = -values[y, x]; // TODO: if possible, use a higher precision data type to do the multiply and accumulate the error
+          for(int i=0; i<solution.Height; i++) error += coefficients[y, i] * solution[i, x];
+          errors[y, x] = error;
+        }
+      }
+
+      Solve(errors, true);
+      for(int y=0; y<solution.Height; y++)
+      {
+        for(int x=0; x<solution.Width; x++) solution[y, x] -= errors[y, x];
+      }
+    }
+
     /// <summary>Solves the set of linear equations passed to the constructor with the given right-hand sides.</summary>
     /// <param name="values">A matrix of the same height as the coefficient matrix passed to the constructor, where each column contains
     /// the set of sums of the equation terms (i.e. what the equation equals).
@@ -317,15 +338,15 @@ namespace AdamMil.Mathematics.LinearEquations
       // LU decomposition works by decomposing a matrix A into two matrices L and U, which are lower and upper triangular matrices where
       // A = L*U:
       //
-      //     | a b c |       | n 0 0 |       | u v w |
-      // A = | d e f |   L = | p q 0 |   U = | 0 x y |
-      //     | g h i |       | r s t |       | 0 0 z |
-      // 
-      // As an optimization, this class packs both triangular matrices into a single matrix:
-      // | u v w |
-      // | p x y |
-      // | r s z |
-      // where the diagonal of L is not stored, and is assumed to be all ones.
+      //     | a b c |       | n 0 0 |       | u v w |            | nu nv    nw       |
+      // A = | d e f |   L = | p q 0 |   U = | 0 x y |   Thus A = | pu pv+qx pw+qy    |
+      //     | g h i |       | r s t |       | 0 0 z |            | ru rv+sx rw+sy+tz |
+      //
+      // As an optimization, this class packs both triangular matrices into a single matrix, where the diagonal of L is not stored, and is
+      // assumed to be all ones. Note that the matrices below do not take into account pivoting, discussed below.
+      // | u v w |             | 1 0 0 |       | u v w |            | u  v     w       |
+      // | p x y |  where  L = | p 1 0 |   U = | 0 x y |   Thus A = | pu pv+x  pw+y    |
+      // | r s z |             | r s 1 |       | 0 0 z |            | ru rv+sx rw+sy+z |
       //
       // To compute the decomposition, we'll use Crout's algorithm. This is an efficient way to compute the decomposition in place. If you
       // look at L and U above, multiply them, and examine which non-zero elements of L and U are accessed when computing the
@@ -335,15 +356,26 @@ namespace AdamMil.Mathematics.LinearEquations
       //
       // To be numerically stable, pivoting must be added, as it was to Gauss-Jordan, above. (See that class for a description of
       // pivoting.) It is difficult to implement full pivoting efficiently, but we'll implement partial pivoting (where rows can be swapped
-      // but not columns) and implicit pivoting (where when searching for the pivot, we treat the equations as though they were all scaled
+      // but not columns) and scaled pivoting (where when searching for the pivot, we treat the equations as though they were all scaled
       // so that their largest coefficient would have a magnitude of 1, in order to eliminate bias caused by the original scaling of the
       // equations and put them on more equal footing -- useful since the partial pivot search is much more limited in scope than a full
-      // pivot search).
+      // pivot search). the result is not a rowwise permutation of the decomposition, but the decomposition of a rowwise permutation of A.
+      //
+      // If, for instance, the top and bottom rows of A are swapped:
+      // | ru rv+sx rw+sy+z |                                         | r s 1 |       | u v w |                      | u v w |
+      // | pu pv+x  pw+y    | then our decomposition is actually  L = | p 1 0 |   U = | 0 x y |  but still stored as | p x y |
+      // | u  v     w       |                                         | 1 0 0 |       | 0 0 z |                      | r s z |
+      // If, instead, the bottow two rows are swapped:
+      // | u  v     w       |                                         | 1 0 0 |       | u v w |                      | u v w |
+      // | ru rv+sx rw+sy+z | then our decomposition is actually  L = | r s 1 |   U = | 0 x y |  but still stored as | p x y |
+      // | pu pv+x  pw+y    |                                         | p 1 0 |       | 0 0 z |                      | r s z |
+      // So, it would seem, the pivoting only affects the lower matrix, and not the upper matrix. Because this renders the L matrix no
+      // longer triangular, it doesn't really make sense for us to provide a method to retrieve the L and U matrices.
       if(!decomposed)
       {
         this.rowPermutation = new int[matrix.Height]; // keep track of rows swaps so we access them in the right order inside Solve()
 
-        // this step relates to implicit pivoting. we'll compute a scale factor to be applied to each equation that would scale it so that
+        // this step relates to scaled pivoting. we'll compute a scale factor to be applied to each equation that would scale it so that
         // its largest coefficient would equal 1.
         double[] scale = new double[matrix.Height];
         for(int y=0; y<matrix.Height; y++) // for each equation...
@@ -378,13 +410,13 @@ namespace AdamMil.Mathematics.LinearEquations
           // if the pivot element was in a row further down, then we'll swap the rows
           if(k != pivotRow)
           {
-            for(int x=0; x<matrix.Width; x++) matrix.Swap(k, x, pivotRow, x);
+            matrix.SwapRows(k, pivotRow);
             // keep track of whether the number of swaps was even or odd. swapping two rows or columns of a matrix negates its determinant.
             // so we use this in GetDeterminant() to determine whether we need to negate it back to get the correct value
             oddSwapCount = !oddSwapCount;
             // since the current row k was just swapped with the pivot row further down, we'll encounter it again later. when we do, we'll
             // need to have the correct scale value, so copy that too. we don't need to actually swap them, since we won't use the scale
-            // for the pivot row after we move past it
+            // for the pivot row anymore after we move past it
             scale[pivotRow] = scale[k];
           }
 
@@ -454,21 +486,19 @@ namespace AdamMil.Mathematics.LinearEquations
         int firstNonzeroIndex = -1; // the index of the first non-zero value in the column
         for(int y=0; y<values.Height; y++)
         {
-          // we have to account for the row permutation caused by pivoting
-          int rowIndex = rowPermutation[y];
+          int rowIndex = rowPermutation[y]; // we have to account for the row permutation caused by pivoting
           double sum = values[rowIndex, x];
           values[rowIndex, x] = values[y, x];
 
           if(firstNonzeroIndex != -1) // if we've found a non-zero element, solve it by forward substitution
           {
             for(int i=firstNonzeroIndex; i<y; i++) sum -= matrix[y, i] * values[i, x];
-            values[y, x] = sum;
           }
           else if(sum != 0) // otherwise, if this is the first non-zero element...
           {
-            values[y, x] = sum;
             firstNonzeroIndex = y;
           }
+          values[y, x] = sum;
         }
 
         // now do the backsubstitution. this transforms the y vector into the x vector from bottom to top
@@ -484,7 +514,7 @@ namespace AdamMil.Mathematics.LinearEquations
     }
 
     /// <summary>Before decomposition has been performed, this holds the coefficient matrix. Aftewards, it holds the LU decomposition.</summary>
-    readonly Matrix matrix;
+    readonly Matrix matrix, coefficients;
     /// <summary>Holds a copy of the matrix inverse, if the inverse has been generated.</summary>
     Matrix inverse;
     /// <summary>Represents the permutation that we performed during the pivot operation. rowPermutation[i] is the index of the row from

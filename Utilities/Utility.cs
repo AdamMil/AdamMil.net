@@ -49,7 +49,9 @@ public static class Utility
     }
   }
 
-  /// <summary>Enlarges the given array if it's too small to accommodate its current size plus the new elements.</summary>
+  /// <summary>Enlarges the given array if it's too small to accommodate its current size plus the new elements. If resized, the returned
+  /// array may contain additional elements beyond the requested number, to accomodate future growth.
+  /// </summary>
   public static T[] EnlargeArray<T>(T[] array, int currentSize, int newElements)
   {
     if(currentSize < 0 || newElements < 0 || array != null && currentSize > array.Length)
@@ -85,6 +87,49 @@ public static class Utility
   public static T ParseEnum<T>(string value, bool ignoreCase)
   {
     return (T)Enum.Parse(typeof(T), value, ignoreCase);
+  }
+
+  /// <summary>Rounds the given value up to a power of two. If it is already a power of two, it is returned unchanged. If it is negative,
+  /// zero is returned.
+  /// </summary>
+  public static int RoundUpToPowerOfTwo(int value)
+  {
+    return value <= 0 ? 0 : (int)RoundUpToPowerOfTwo((uint)value);
+  }
+
+  /// <summary>Rounds the given value up to a power of two. If it is already a power of two, it is returned unchanged.</summary>
+  [CLSCompliant(false)]
+  public static uint RoundUpToPowerOfTwo(uint value)
+  {
+    value--;
+    value |= (value >> 1);
+    value |= (value >> 2);
+    value |= (value >> 4);
+    value |= (value >> 8);
+    value |= (value >> 16);
+    return value+1;
+  }
+
+  /// <summary>Rounds the given value up to a power of two. If it is already a power of two, it is returned unchanged. If it is negative,
+  /// zero is returned.
+  /// </summary>
+  public static long RoundUpToPowerOfTwo(long value)
+  {
+    return value <= 0 ? 0 : (long)RoundUpToPowerOfTwo((ulong)value);
+  }
+
+  /// <summary>Rounds the given value up to a power of two. If it is already a power of two, it is returned unchanged.</summary>
+  [CLSCompliant(false)]
+  public static ulong RoundUpToPowerOfTwo(ulong value)
+  {
+    value--;
+    value |= (value >> 1);
+    value |= (value >> 2);
+    value |= (value >> 4);
+    value |= (value >> 8);
+    value |= (value >> 16);
+    value |= (value >> 32);
+    return value+1;
   }
 
   /// <summary>Swaps two variables.</summary>

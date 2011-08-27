@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 using System;
 using System.Collections.Generic;
+using System.Text;
 using AdamMil.Mathematics.Geometry;
 using AdamMil.Mathematics.LinearEquations;
 using AdamMil.Utilities;
@@ -104,27 +105,17 @@ namespace AdamMil.Mathematics
 
     public override bool Equals(object obj)
     {
-      return this == (obj as Matrix3);
+      return Equals(this, obj as Matrix);
     }
 
     public bool Equals(Matrix3 other)
     {
-      return this == other;
+      return Equals(this, other);
     }
 
-    public unsafe bool Equals(Matrix3 other, double epsilon)
+    public bool Equals(Matrix3 other, double tolerance)
     {
-      if((object)other == null) return false;
-
-      fixed(double* ap=&M00)
-      fixed(double* bp=&other.M00)
-      {
-        for(int i=0; i<Length; i++)
-        {
-          if(Math.Abs(ap[i]-bp[i]) > epsilon) return false;
-        }
-      }
-      return true;
+      return Equals(this, other, tolerance);
     }
 
     public double GetDeterminant()
@@ -238,6 +229,38 @@ namespace AdamMil.Mathematics
         dp[7] = ap[6]*bp[1] + ap[7]*bp[4] + ap[8]*bp[7];
         dp[8] = ap[6]*bp[2] + ap[7]*bp[5] + ap[8]*bp[8];
       }
+    }
+
+    public static unsafe bool Equals(Matrix3 a, Matrix3 b)
+    {
+      if((object)a == null) return (object)b == null;
+      else if((object)b == null) return false;
+
+      fixed(double* ap=&a.M00)
+      fixed(double* bp=&b.M00)
+      {
+        for(int i=0; i<Length; i++)
+        {
+          if(ap[i]!=bp[i]) return false;
+        }
+      }
+      return true;
+    }
+
+    public static unsafe bool Equals(Matrix3 a, Matrix3 b, double tolerance)
+    {
+      if((object)a == null) return (object)b == null;
+      else if((object)b == null) return false;
+
+      fixed(double* ap=&a.M00)
+      fixed(double* bp=&b.M00)
+      {
+        for(int i=0; i<Length; i++)
+        {
+          if(Math.Abs(ap[i]-bp[i]) > tolerance) return false;
+        }
+      }
+      return true;
     }
 
     public static Matrix3 Identity()
@@ -372,25 +395,14 @@ namespace AdamMil.Mathematics
       return matrix;
     }
 
-    public static unsafe bool operator==(Matrix3 a, Matrix3 b)
+    public static bool operator==(Matrix3 a, Matrix3 b)
     {
-      if((object)a == null) return (object)b == null;
-      else if((object)b == null) return false;
-
-      fixed(double* ap=&a.M00)
-      fixed(double* bp=&b.M00)
-      {
-        for(int i=0; i<Length; i++)
-        {
-          if(ap[i]!=bp[i]) return false;
-        }
-      }
-      return true;
+      return Equals(a, b);
     }
 
     public static bool operator!=(Matrix3 a, Matrix3 b)
     {
-      return !(a == b);
+      return !Equals(a, b);
     }
 
     public static Matrix3 operator+(Matrix3 a, Matrix3 b)
@@ -510,27 +522,17 @@ namespace AdamMil.Mathematics
 
     public override bool Equals(object obj)
     {
-      return this == (obj as Matrix4);
+      return Equals(this, obj as Matrix4);
     }
 
     public bool Equals(Matrix4 other)
     {
-      return this == other;
+      return Equals(this, other);
     }
 
-    public unsafe bool Equals(Matrix4 other, double epsilon)
+    public bool Equals(Matrix4 other, double tolerance)
     {
-      if((object)other == null) return false;
-
-      fixed(double* ap=&M00)
-      fixed(double* bp=&other.M00)
-      {
-        for(int i=0; i<Length; i++)
-        {
-          if(Math.Abs(ap[i]-bp[i])>epsilon) return false;
-        }
-      }
-      return true;
+      return Equals(this, other, tolerance);
     }
 
     public double GetDeterminant()
@@ -694,6 +696,38 @@ namespace AdamMil.Mathematics
       }
     }
 
+    public static unsafe bool Equals(Matrix4 a, Matrix4 b)
+    {
+      if((object)a == null) return (object)b == null;
+      else if((object)b == null) return false;
+
+      fixed(double* ap=&a.M00)
+      fixed(double* bp=&b.M00)
+      {
+        for(int i=0; i<Length; i++)
+        {
+          if(ap[i] != bp[i]) return false;
+        }
+      }
+      return true;
+    }
+
+    public static unsafe bool Equals(Matrix4 a, Matrix4 b, double tolerance)
+    {
+      if((object)a == null) return (object)b == null;
+      else if((object)b == null) return false;
+
+      fixed(double* ap=&a.M00)
+      fixed(double* bp=&b.M00)
+      {
+        for(int i=0; i<Length; i++)
+        {
+          if(Math.Abs(ap[i]-bp[i]) > tolerance) return false;
+        }
+      }
+      return true;
+    }
+
     public static Matrix4 Identity()
     {
       Matrix4 matrix = new Matrix4();
@@ -853,25 +887,14 @@ namespace AdamMil.Mathematics
       return ret;
     }
 
-    public static unsafe bool operator==(Matrix4 a, Matrix4 b)
+    public static bool operator==(Matrix4 a, Matrix4 b)
     {
-      if((object)a == null) return (object)b == null;
-      else if((object)b == null) return false;
-
-      fixed(double* ap=&a.M00)
-      fixed(double* bp=&b.M00)
-      {
-        for(int i=0; i<Length; i++)
-        {
-          if(ap[i] != bp[i]) return false;
-        }
-      }
-      return true;
+      return Equals(a, b);
     }
 
     public static bool operator!=(Matrix4 a, Matrix4 b)
     {
-      return !(a == b);
+      return !Equals(a, b);
     }
 
     public static Matrix4 operator*(Matrix4 a, Matrix4 b)
@@ -1001,12 +1024,17 @@ namespace AdamMil.Mathematics
 
     public override bool Equals(object obj)
     {
-      return this == (obj as Matrix);
+      return Equals(this, obj as Matrix);
     }
 
     public bool Equals(Matrix other)
     {
-      return this == other;
+      return Equals(this, other);
+    }
+
+    public bool Equals(Matrix other, double tolerance)
+    {
+      return Equals(this, other, tolerance);
     }
 
     public unsafe void Divide(double factor)
@@ -1082,6 +1110,48 @@ namespace AdamMil.Mathematics
       Utility.Swap(ref data[row1, column1], ref data[row2, column2]);
     }
 
+    public unsafe void SwapRows(int row1, int row2)
+    {
+      if((uint)row1 >= (uint)Height || (uint)row2 >= (uint)Height) throw new ArgumentOutOfRangeException();
+
+      fixed(double* pdata=data)
+      {
+        double* a = pdata + row1*Width, b = pdata + row2*Width;
+        for(int x=0; x<Width; x++)
+        {
+          double t = a[x];
+          a[x] = b[x];
+          b[x] = t;
+        }
+      }
+    }
+
+    /// <summary>Converts the matrix to a string.</summary>
+    public override string ToString()
+    {
+      // first compute all the column widths, so we can space the columns evenly
+      int[] columnWidths = new int[Width];
+      for(int x=0; x<columnWidths.Length; x++)
+      {
+        int maxWidth = 0;
+        for(int y=0; y<Height; y++) maxWidth = Math.Max(maxWidth, data[y, x].ToString().Length);
+        columnWidths[x] = maxWidth;
+      }
+
+      // then put it all together
+      // TODO: align numbers at the decimal point
+      StringBuilder sb = new StringBuilder();
+      for(int y=0; y<Height; y++)
+      {
+        if(sb.Length != 0) sb.Append('\n');
+        sb.Append("| ");
+        for(int x=0; x<Width; x++) sb.Append(data[y, x].ToString().PadRight(columnWidths[x])).Append(' ');
+        sb.Append('|');
+      }
+
+      return sb.ToString();
+    }
+
     public unsafe void Transpose()
     {
       // NOTE: there are faster algorithms to transpose both square and non-square matrices that could be implemented
@@ -1107,25 +1177,14 @@ namespace AdamMil.Mathematics
       }
     }
 
-    public unsafe static bool operator==(Matrix a, Matrix b)
+    public static bool operator==(Matrix a, Matrix b)
     {
-      if((object)a == null) return (object)b == null;
-      else if((object)b == null || a.Width != b.Width || a.Height != b.Height) return false;
-
-      fixed(double* pa=a.data)
-      fixed(double* pb=b.data)
-      {
-        for(int i=0, length=a.data.Length; i<length; i++)
-        {
-          if(pa[i] != pb[i]) return false;
-        }
-      }
-      return true;
+      return Equals(a, b);
     }
 
-    public unsafe static bool operator!=(Matrix a, Matrix b)
+    public static bool operator!=(Matrix a, Matrix b)
     {
-      return !(a == b);
+      return !Equals(a, b);
     }
 
     public static Matrix operator+(Matrix a, Matrix b)
@@ -1182,6 +1241,38 @@ namespace AdamMil.Mathematics
       return a;
     }
 
+    public unsafe static bool Equals(Matrix a, Matrix b)
+    {
+      if((object)a == null) return (object)b == null;
+      else if((object)b == null || a.Width != b.Width || a.Height != b.Height) return false;
+
+      fixed(double* pa=a.data)
+      fixed(double* pb=b.data)
+      {
+        for(int i=0, length=a.data.Length; i<length; i++)
+        {
+          if(pa[i] != pb[i]) return false;
+        }
+      }
+      return true;
+    }
+
+    public unsafe static bool Equals(Matrix a, Matrix b, double tolerance)
+    {
+      if((object)a == null) return (object)b == null;
+      else if((object)b == null || a.Width != b.Width || a.Height != b.Height) return false;
+
+      fixed(double* pa=a.data)
+      fixed(double* pb=b.data)
+      {
+        for(int i=0, length=a.data.Length; i<length; i++)
+        {
+          if(Math.Abs(pa[i] - pb[i]) > tolerance) return false;
+        }
+      }
+      return true;
+    }
+
     public static Matrix Multiply(Matrix a, double b)
     {
       if((object)a == null) throw new ArgumentNullException();
@@ -1193,6 +1284,8 @@ namespace AdamMil.Mathematics
     public static Matrix Multiply(Matrix a, Matrix b)
     {
       if((object)a == null || (object)b == null) throw new ArgumentNullException();
+      // when multiplying A*B, an element of the result is sum of the products of pairs of elements from the same row in A and the same
+      // column in B.
       Matrix result = new Matrix(b.Width, a.Height);
       for(int dy=0; dy<result.Height; dy++)
       {

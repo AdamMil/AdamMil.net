@@ -31,6 +31,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <BaseAddress>19922944</BaseAddress>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <NoWarn>419</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -43,16 +44,21 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <BaseAddress>19922944</BaseAddress>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <NoWarn>419</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Combinatorics.cs" />
     <Compile Include="CoherentNoise.cs" />
+    <Compile Include="Functions.cs" />
     <Compile Include="Geometry.cs" />
+    <Compile Include="IEEE754.cs" />
     <Compile Include="LinearEquations.cs" />
     <Compile Include="Matrices.cs" />
+    <Compile Include="Polynomials.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Random.cs" />
     <Compile Include="RectanglePacker.cs" />
+    <Compile Include="RootFinding.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
