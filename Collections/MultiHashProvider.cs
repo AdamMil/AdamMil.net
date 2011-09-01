@@ -404,7 +404,7 @@ public sealed class ArrayHashProvider : MultiHashProvider<Array>
     else if(elementSize != 0) // if it's an array of blittable types...
     {
       GCHandle handle = GCHandle.Alloc(array, GCHandleType.Pinned); // pin the array so we can get a pointer to the raw bytes
-      try
+      try                                                           // NOTE: GCHandle is relatively slow...
       {
         hash = HashHelper.HashBytes(hashFunction, Marshal.UnsafeAddrOfPinnedArrayElement(array, 0).ToPointer(),
                                     array.Length * elementSize);

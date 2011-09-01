@@ -89,5 +89,63 @@ namespace AdamMil.Mathematics.Tests
       Assert.IsFalse(FindRoot.BracketOutward(function, ref interval));
       Assert.AreEqual(0, FindRoot.BracketInward(function, new RootInterval(-10, 10), 20).Count);
     }
+
+    [Test]
+    public void T02_Multidimensional()
+    {
+      // TODO: after we implement singular value decomposition, test with functions that would fail due to having an infinite number of
+      // roots, like x^2 + y^2 = 10 and x+y = 0
+      TwoDimensionalFunction function = new TwoDimensionalFunction();
+      double[] point = new double[2] { 1, 1 }; // using 0,0 tends to cause a SingularMatrixException
+      // check that the first call finds the root with moderate accuracy
+      Assert.IsTrue(FindRoot.GlobalNewton(function, point));
+      double quality = point[0]*point[0] + (point[1]-4)*(point[1]-4);
+      Assert.AreEqual(0, quality, 1e-8);
+      // check that subsequent calls can improve the root
+      while(true)
+      {
+        double x=point[0], y=point[1];
+        Assert.IsTrue(FindRoot.GlobalNewton(function, point));
+        if(point[0] == x && point[1] == y) break; // if it stops changing, we're done
+      }
+      quality = point[0]*point[0] + (point[1]-4)*(point[1]-4);
+      Assert.AreEqual(0, quality, 1e-15);
+
+      // now try computing the Jacobian via finite differences rather than directly
+      point = new double[2] { 1, 1 };
+      Assert.IsTrue(FindRoot.GlobalNewton(new ApproximatelyDifferentiableVVFunction(function), point));
+      quality = point[0]*point[0] + (point[1]-4)*(point[1]-4);
+      Assert.AreEqual(0, quality, 1.5e-8);
+      // unfortunately, we can't call it again to improve it due to errors caused by excessive roundoff error
+    }
+
+    sealed class TwoDimensionalFunction : IDifferentiableVVFunction
+    {
+      public int InputArity
+      {
+        get { return 2; }
+      }
+
+      public int OutputArity
+      {
+        get { return 2; }
+      }
+
+      public void Evaluate(double[] input, double[] output)
+      {
+        double x = input[0], y = input[1];
+        output[0] = x*x + y*y - 16;
+        output[1] = x*x + (y-2)*(y-2) - 4;
+      }
+
+      public void EvaluateJacobian(double[] input, Matrix matrix)
+      {
+        double x = input[0], y = input[1];
+        matrix[0, 0] = 2*x;
+        matrix[0, 1] = 2*y;
+        matrix[1, 0] = 2*x;
+        matrix[1, 1] = 2*y-4;
+      }
+    }
   }
 }

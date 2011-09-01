@@ -20,9 +20,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using AdamMil.AI.Search;
 using AdamMil.Mathematics.Random;
+using AdamMil.Utilities;
 using AC=AdamMil.Collections;
 
 namespace AdamMil.AI.ConstraintSatisfaction
@@ -1534,7 +1534,7 @@ public class LocalSearchSolver<VarType> : IterativeSearchBase<Assignment,Assignm
         if(index < 0) // if the variable is not already in the array, insert it
         {
           index = ~index;
-          Array.Copy(conflictedVarIndices, index, conflictedVarIndices, index+1, numConflictedVars++ - index);
+          ArrayUtility.SmallCopy(conflictedVarIndices, index, conflictedVarIndices, index+1, numConflictedVars++ - index);
           conflictedVarIndices[index] = variable;
         }
       }
@@ -1661,7 +1661,7 @@ public class LocalSearchSolver<VarType> : IterativeSearchBase<Assignment,Assignm
     /// <summary>Removes the variable at the given index within the list of conflicted variables.</summary>
     void RemoveConflictedVariableAt(int index)
     {
-      Array.Copy(conflictedVarIndices, index+1, conflictedVarIndices, index, --numConflictedVars - index);
+      ArrayUtility.SmallCopy(conflictedVarIndices, index+1, conflictedVarIndices, index, --numConflictedVars - index);
     }
 
 

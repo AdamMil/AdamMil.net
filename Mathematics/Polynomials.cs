@@ -57,7 +57,7 @@ namespace AdamMil.Mathematics
     Polynomial(double[] coefficients, int length, int degree)
     {
       double[] array = new double[length];
-      Array.Copy(coefficients, array, degree+1);
+      ArrayUtility.SmallCopy(coefficients, array, degree+1);
 
       this.coefficients = array;
       Degree = degree;
@@ -115,7 +115,7 @@ namespace AdamMil.Mathematics
     /// <summary>Adds another polynomial to the polynomial.</summary>
     public void Add(Polynomial value)
     {
-      if((object)value == null) throw new ArgumentNullException();
+      if(value == null) throw new ArgumentNullException();
       if(value.Degree > Degree) coefficients = Utility.EnlargeArray(coefficients, Length, value.Degree-Degree);
       for(int i=0; i <= value.Degree; i++) coefficients[i] += value.coefficients[i];
       FixDegree(Math.Max(Degree, value.Degree));
@@ -134,7 +134,7 @@ namespace AdamMil.Mathematics
     public void CopyTo(double[] array, int index)
     {
       Utility.ValidateRange(array, index, Length);
-      Array.Copy(coefficients, 0, array, index, Length);
+      ArrayUtility.SmallCopy(coefficients, 0, array, index, Length);
     }
 
     /// <summary>Divides the polynomial by a constant factor.</summary>
@@ -146,7 +146,7 @@ namespace AdamMil.Mathematics
     /// <summary>Divides the polynomial by another polynomial and discards the remainder.</summary>
     public unsafe void Divide(Polynomial value)
     {
-      if((object)value == null) throw new ArgumentNullException();
+      if(value == null) throw new ArgumentNullException();
 
       if(value.Degree == 0) // if it's actually division by a constant, use the method specialized for that case
       {
@@ -176,12 +176,12 @@ namespace AdamMil.Mathematics
     /// <summary>Divides the polynomial by the given polynomial and stores the remainder in <paramref name="remainder"/>.</summary>
     public void Divide(Polynomial value, out Polynomial remainder)
     {
-      if((object)value == null) throw new ArgumentNullException();
+      if(value == null) throw new ArgumentNullException();
 
       double mainFactor = 1 / value.coefficients[value.Degree]; // this should catch division by zero
 
       double[] remain = new double[Length];
-      Array.Copy(coefficients, remain, Length);
+      ArrayUtility.SmallCopy(coefficients, remain, Length);
 
       int i = Degree;
       for(int end=Degree-value.Degree; i > end; i--) coefficients[i] = 0;
@@ -428,9 +428,10 @@ namespace AdamMil.Mathematics
     public unsafe override int GetHashCode()
     {
       int hash = 0;
-      fixed(double* data=coefficients)
+      for(int i=0; i<coefficients.Length; i++)
       {
-        for(int i=0, count=Length*2; i<count; i++) hash ^= ((int*)data)[i] ^ i;
+        double d = coefficients[i];
+        if(d != 0) hash ^= *(int*)&d ^ ((int*)&d)[1] ^ i; // +0 and -0 compare equally, so they mustn't lead to different hash codes
       }
       return hash;
     }
@@ -445,7 +446,7 @@ namespace AdamMil.Mathematics
     /// <summary>Multiplies the polynomial by another polynomial.</summary>
     public unsafe void Multiply(Polynomial value)
     {
-      if((object)value == null) throw new ArgumentNullException();
+      if(value == null) throw new ArgumentNullException();
 
       // (a0 + a1*x + a2*x^2) * (b0 + b1*x + b2^x^2 + b3*x^3) =
       //
@@ -503,7 +504,7 @@ namespace AdamMil.Mathematics
     /// <summary>Subtracts another polynomial from the polynomial.</summary>
     public void Subtract(Polynomial value)
     {
-      if((object)value == null) throw new ArgumentNullException();
+      if(value == null) throw new ArgumentNullException();
       if(value.Degree > Degree) coefficients = Utility.EnlargeArray(coefficients, Length, value.Degree-Degree);
       for(int i=0; i <= value.Degree; i++) coefficients[i] -= value.coefficients[i];
       FixDegree(Math.Max(Degree, value.Degree));
@@ -516,7 +517,7 @@ namespace AdamMil.Mathematics
     public double[] ToArray()
     {
       double[] array = new double[Length];
-      Array.Copy(coefficients, array, Length);
+      ArrayUtility.SmallCopy(coefficients, array, Length);
       return array;
     }
 
@@ -568,7 +569,7 @@ namespace AdamMil.Mathematics
     /// <summary>Adds two polynomials and returns the result.</summary>
     public static Polynomial Add(Polynomial a, Polynomial b)
     {
-      if((object)a == null || (object)b == null) throw new ArgumentNullException();
+      if(a == null || b == null) throw new ArgumentNullException();
       a = a.Clone(Math.Max(a.Degree, b.Degree));
       a.Add(b);
       return a;
@@ -577,7 +578,7 @@ namespace AdamMil.Mathematics
     /// <summary>Adds a constant value to a polynomial and returns the result.</summary>
     public static Polynomial Add(Polynomial a, double value)
     {
-      if((object)a == null) throw new ArgumentNullException();
+      if(a == null) throw new ArgumentNullException();
       a = a.Clone();
       a.Add(value);
       return a;
@@ -593,7 +594,7 @@ namespace AdamMil.Mathematics
     [CLSCompliant(false)] // this conflicts with Polynomial.Divide(Polynomial value, out Polynomial remainder)
     public static Polynomial Divide(Polynomial a, Polynomial b)
     {
-      if((object)a == null) throw new ArgumentNullException();
+      if(a == null) throw new ArgumentNullException();
       a = a.Clone();
       a.Divide(b);
       return a;
@@ -602,7 +603,7 @@ namespace AdamMil.Mathematics
     /// <summary>Divides one polynomial by another and returns the result, while storing remainder in <paramref name="remainder" />.</summary>
     public static Polynomial Divide(Polynomial a, Polynomial b, out Polynomial remainder)
     {
-      if((object)a == null) throw new ArgumentNullException();
+      if(a == null) throw new ArgumentNullException();
       a = a.Clone();
       a.Divide(b, out remainder);
       return a;
@@ -613,8 +614,8 @@ namespace AdamMil.Mathematics
     /// </summary>
     public static bool Equals(Polynomial a, Polynomial b)
     {
-      if((object)a == null) return (object)b == null;
-      else if((object)b == null || a.Degree != b.Degree) return false;
+      if(a == null) return b == null;
+      else if(b == null || a.Degree != b.Degree) return false;
 
       for(int i=0; i <= a.Degree; i++)
       {
@@ -630,8 +631,8 @@ namespace AdamMil.Mathematics
     /// </summary>
     public static bool Equals(Polynomial a, Polynomial b, double tolerance)
     {
-      if((object)a == null) return (object)b == null;
-      else if((object)b == null || a.Degree != b.Degree) return false;
+      if(a == null) return b == null;
+      else if(b == null || a.Degree != b.Degree) return false;
 
       for(int i=0; i <= a.Degree; i++)
       {
@@ -644,7 +645,7 @@ namespace AdamMil.Mathematics
     /// <summary>Multiplies a polynomial by a constant factor and returns the result.</summary>
     public static Polynomial Multiply(Polynomial a, double factor)
     {
-      if((object)a == null) throw new ArgumentNullException();
+      if(a == null) throw new ArgumentNullException();
       a = a.Clone();
       a.Multiply(factor);
       return a;
@@ -653,7 +654,7 @@ namespace AdamMil.Mathematics
     /// <summary>Multiplies one polynomial by another and returns the result.</summary>
     public static Polynomial Multiply(Polynomial a, Polynomial b)
     {
-      if((object)a == null || (object)b == null) throw new ArgumentNullException();
+      if(a == null || b == null) throw new ArgumentNullException();
       a = a.Clone(a.Degree + b.Degree);
       a.Multiply(b);
       return a;
@@ -662,7 +663,7 @@ namespace AdamMil.Mathematics
     /// <summary>Returns the negation of a polynomial.</summary>
     public static Polynomial Negate(Polynomial a)
     {
-      if((object)a == null) throw new ArgumentNullException();
+      if(a == null) throw new ArgumentNullException();
       a = a.Clone();
       a.Negate();
       return a;
@@ -671,7 +672,7 @@ namespace AdamMil.Mathematics
     /// <summary>Subtracts a constant value from a polynomial and returns the result.</summary>
     public static Polynomial Subtract(Polynomial a, double b)
     {
-      if((object)a == null) throw new ArgumentNullException();
+      if(a == null) throw new ArgumentNullException();
       a = a.Clone();
       a.Subtract(b);
       return a;
@@ -688,7 +689,7 @@ namespace AdamMil.Mathematics
     /// <summary>Subtracts one polynomial from another and returns the result.</summary>
     public static Polynomial Subtract(Polynomial a, Polynomial b)
     {
-      if((object)a == null || (object)b == null) throw new ArgumentNullException();
+      if(a == null || b == null) throw new ArgumentNullException();
       a = a.Clone(Math.Max(a.Degree, b.Degree));
       a.Subtract(b);
       return a;
@@ -760,18 +761,6 @@ namespace AdamMil.Mathematics
       return Multiply(b, a);
     }
 
-    /// <summary>Determines whether two polynomials are equal. Null polynomial objects are only equal to other null polynomials.</summary>
-    public static bool operator==(Polynomial a, Polynomial b)
-    {
-      return Equals(a, b);
-    }
-
-    /// <summary>Determines whether two polynomials are unequal. Null polynomial objects are always unequal to non-null polynomials.</summary>
-    public static bool operator!=(Polynomial a, Polynomial b)
-    {
-      return !Equals(a, b);
-    }
-
     /// <summary>Gets the number of coefficients stored in the array, which is one greater than the polynomial's degree.</summary>
     int Length
     {
@@ -805,7 +794,7 @@ namespace AdamMil.Mathematics
       if(clone || coefficients.Length-degree > 5 && degree <= coefficients.Length/2)
       {
         double[] array = new double[degree+1];
-        Array.Copy(coefficients, array, array.Length);
+        ArrayUtility.SmallCopy(coefficients, array, array.Length);
         coefficients = array;
       }
 

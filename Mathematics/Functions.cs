@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using AdamMil.Utilities;
 
 namespace AdamMil.Mathematics
 {
@@ -31,44 +32,93 @@ namespace AdamMil.Mathematics
   }
   #endregion
 
+  #region IMultidimensionalFunction
+  /// <summary>Represents a multidimensional function, which takes a vector of input values and returns a scalar.</summary>
+  public interface IMultidimensionalFunction
+  {
+    /// <summary>Gets the arity of the function, which is the number of arguments that it takes. This should be at least one.</summary>
+    int Arity { get; }
+    /// <summary>Returns the value of the function at the point specified by the given array of values.</summary>
+    double Evaluate(params double[] x);
+  }
+  #endregion
+
+  #region IVectorValuedFunction
+  /// <summary>Represents a vector-valued function, which returns a vector of values.</summary>
+  public interface IVectorValuedFunction
+  {
+    /// <summary>Gets the input arity of the function, which is the number of input arguments that it takes. This should be at least one.</summary>
+    int InputArity { get; }
+    /// <summary>Gets the output arity of the function, which is the length of the vector returned by the function.
+    /// This should be at least one.
+    /// </summary>
+    int OutputArity { get; }
+    /// <summary>Evaluates the function at the given input point. The function's value should be written into <paramref name="output"/>.</summary>
+    void Evaluate(double[] input, double[] output);
+  }
+  #endregion
+
   #region IDifferentiableFunction
   /// <summary>Represents a one-dimensional function that can be continuously differentiated in a region of interest.</summary>
   public interface IDifferentiableFunction : IOneDimensionalFunction
   {
-    /// <summary>Gets the number of derivatives that are supported by the function. This must be at least one. This is not necessarily
-    /// equal to the number of distinct derivatives. Many functions may support a practically unlimited number of derivatives, but with
-    /// almost all of them equal to zero. The purpose of this property is to allow a method to check that a function supports a given
-    /// number of derivatives, not to allow all of the derivatives to be enumerated.
-    /// </summary>
+    /// <include file="documentation.xml" path="/Math/Functions/DifferentiableFunction/DerivativeCount/*"/>
     int DerivativeCount { get; }
 
-    /// <summary>Returns the value of the function's first derivative at the given point.</summary>
-    double EvaluateDerivative(double x);
-    
-    /// <summary>Returns the nth derivative of the function at a the given point.</summary>
-    /// <param name="x">The point at which the derivative is to be evaluated.</param>
-    /// <param name="derivative">The derivative to evaluate. The first derivative is specify by passing 1, the second derivative by
-    /// passing 2, etc.
-    /// </param>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="derivative"/> is [ess than 1 or greater than
-    /// <see cref="DerivativeCount"/>.
-    /// </exception>
+    /// <include file="documentation.xml" path="/Math/Functions/DifferentiableFunction/EvaluateDerivative/*"/>
     double EvaluateDerivative(double x, int derivative);
   }
   #endregion
 
+  #region IDifferentiableMDFunction
+  /// <summary>Represents a differentiable multidimensional function.</summary>
+  public interface IDifferentiableMDFunction : IMultidimensionalFunction
+  {
+    /// <include file="documentation.xml" path="/Math/Functions/DifferentiableFunction/DerivativeCount/*"/>
+    int DerivativeCount { get; }
+
+    /// <include file="documentation.xml" path="/Math/Functions/DifferentiableFunction/EvaluateGradient/*"/>
+    void EvaluateGradient(double[] x, int derivative, double[] output);
+  }
+  #endregion
+
+  #region IDifferentiableVVFunction
+  /// <summary>Represents a vector-valued function that can be differentiated to produce a Jacobian matrix.</summary>
+  public interface IDifferentiableVVFunction : IVectorValuedFunction
+  {
+    /// <summary>Computes the Jacobian matrix. For a vector-valued function with input arity n and output arity m, the Jacobian is an
+    /// m-by-n matrix where each row i corresponds to the gradient of the input vector with respect to the output component i. That is,
+    /// an element at row i and column j is the partial derivative of the j'th input component with respect to the i'th output component.
+    /// </summary>
+    /// <param name="input">The point at which the Jacobian is to be evaluated.</param>
+    /// <param name="matrix">The matrix in which the Jacobian should be stored. It can be assumed that the matrix is of the correct size.</param>
+    void EvaluateJacobian(double[] input, Matrix matrix);
+  }
+  #endregion
+
   #region IFunctionallyDifferentiableFunction
-  /// <summary>Represents a one-dimensional differentiable function that can return a derivative as another function.</summary>
+  /// <summary>Represents a one-dimensional differentiable function that can provide its derivative as another function.</summary>
   public interface IFunctionallyDifferentiableFunction : IDifferentiableFunction
   {
-    /// <summary>Returns a function representing the </summary>
+    /// <summary>Returns a <see cref="IOneDimensionalFunction"/> representing the given derivative.</summary>
     IOneDimensionalFunction GetDerivative(int derivative);
+  }
+  #endregion
+
+  #region IFunctionallyDifferentiableMDFunction
+  /// <summary>Represents a differentiable multi-dimensional function that can provide its gradient (i.e. derivative) as another function.</summary>
+  public interface IFunctionallyDifferentiableMDFunction : IDifferentiableMDFunction
+  {
+    /// <summary>Returns a <see cref="IVectorValuedFunction"/> representing the given derivative. The vector-valued function should have
+    /// input and output arity equal to <see cref="IMultidimensionalFunction.Arity"/>.
+    /// </summary>
+    IVectorValuedFunction GetGradient(int derivative);
   }
   #endregion
 
   #region OneDimensionalFunction
   /// <summary>Implements an <see cref="IOneDimensionalFunction"/> that uses a delegate to provide the function.</summary>
-  public class OneDimensionalFunction : IOneDimensionalFunction
+  public class OneDimensionalFunction : IOneDimensionalFunction, IMultidimensionalFunction
   {
     /// <summary>Initializes a new <see cref="OneDimensionalFunction"/> using the given delegate for the function</summary>
     public OneDimensionalFunction(Func<double,double> function)
@@ -83,6 +133,18 @@ namespace AdamMil.Mathematics
       return function(x);
     }
 
+    #region IMultidimensionalFunction Members
+    int IMultidimensionalFunction.Arity
+    {
+      get { return 1; }
+    }
+
+    double IMultidimensionalFunction.Evaluate(params double[] x)
+    {
+      return function(x[0]);
+    }
+    #endregion
+
     readonly Func<double,double> function;
   }
   #endregion
@@ -91,14 +153,14 @@ namespace AdamMil.Mathematics
   /// <summary>Implements an <see cref="IDifferentiableFunction"/> that uses delegates to provide the function and derivative.</summary>
   public sealed class DifferentiableFunction : OneDimensionalFunction, IFunctionallyDifferentiableFunction
   {
-    /// <summary>Initializes a new <see cref="DifferentiableFunction"/> given delegates for the function and its derivative.</summary>
+    /// <summary>Initializes a new <see cref="DifferentiableFunction"/> given delegates for the function and its first derivative.</summary>
     public DifferentiableFunction(Func<double, double> function, Func<double, double> derivative) : base(function)
     {
       if(derivative == null) throw new ArgumentNullException();
       this.derivative = derivative;
     }
 
-    /// <summary>Returns the value of the function's derivative at the given point.</summary>
+    /// <summary>Returns the value of the function's first derivative at the given point.</summary>
     public double EvaluateDerivative(double x)
     {
       return derivative(x);
@@ -127,4 +189,131 @@ namespace AdamMil.Mathematics
   }
   #endregion
 
+  #region MultidimensionalFunction
+  /// <summary>Implements an <see cref="IMultidimensionalFunction"/> that uses a delegate to provide the function.</summary>
+  public sealed class MultidimensionalFunction : IMultidimensionalFunction
+  {
+    /// <summary>Initializes a new <see cref="MultidimensionalFunction"/> using the given delegate for the function.</summary>
+    public MultidimensionalFunction(Func<double[], double> function, int arity)
+    {
+      if(function == null) throw new ArgumentNullException();
+      if(arity <= 0) throw new ArgumentOutOfRangeException();
+      this.function = function;
+      this.arity    = arity;
+    }
+
+    /// <summary>Initializes a new <see cref="MultidimensionalFunction"/> using the given delegate for the function.</summary>
+    public MultidimensionalFunction(Func<double, double, double> function)
+    {
+      if(function == null) throw new ArgumentNullException();
+      this.function = x => function(x[0], x[1]);
+      this.arity    = 2;
+    }
+
+    /// <summary>Initializes a new <see cref="MultidimensionalFunction"/> using the given delegate for the function.</summary>
+    public MultidimensionalFunction(Func<double, double, double, double> function)
+    {
+      if(function == null) throw new ArgumentNullException();
+      this.function = x => function(x[0], x[1], x[2]);
+      this.arity    = 3;
+    }
+
+    /// <summary>Initializes a new <see cref="MultidimensionalFunction"/> using the given delegate for the function.</summary>
+    public MultidimensionalFunction(Func<double, double, double, double, double> function)
+    {
+      if(function == null) throw new ArgumentNullException();
+      this.function = x => function(x[0], x[1], x[2], x[3]);
+      this.arity    = 4;
+    }
+
+    /// <inheritdoc/>
+    public int Arity
+    {
+      get { return arity; }
+    }
+
+    /// <inheritdoc/>
+    public double Evaluate(params double[] x)
+    {
+      return function(x);
+    }
+
+    readonly Func<double[], double> function;
+    readonly int arity;
+  }
+  #endregion
+
+  #region ApproximatelyDifferentiableVVFunction
+  /// <summary>Provides an <see cref="IDifferentiableVVFunction"/> that computes the Jacobian matrix of an
+  /// <see cref="IVectorValuedFunction"/> via forward-difference approximation. This is based on the fact that
+  /// <c>(f(x+h) - f(x)) / h -> f'(x)</c> as <c>h -> 0</c>.
+  /// </summary>
+  public sealed class ApproximatelyDifferentiableVVFunction : IDifferentiableVVFunction
+  {
+    /// <summary>Initializes a new <see cref="ApproximatelyDifferentiableVVFunction"/> given an <see cref="IVectorValuedFunction"/> whose
+    /// Jacobian matrix should be approximated using a forward-difference method.
+    /// </summary>
+    public ApproximatelyDifferentiableVVFunction(IVectorValuedFunction function) : this(function, 1e-8) { }
+
+    /// <summary>Initializes a new <see cref="ApproximatelyDifferentiableVVFunction"/> given an <see cref="IVectorValuedFunction"/> whose
+    /// Jacobian matrix should be approximated using a forward-difference method, and the difference factor.
+    /// </summary>
+    /// <param name="function">The function whose Jacobian matrix will be approximated.</param>
+    /// <param name="factor">A very small positive quantity representing fractional amount by which each argument will be increased when
+    /// computing the Jacobian matrix. The default (used by <see cref="ApproximatelyDifferentiableVVFunction(IVectorValuedFunction)"/>) is
+    /// 0.00000001 (i.e. 1e-8). Smaller values might give a better approximation, but are more susceptible to roundoff error.
+    /// </param>
+    public ApproximatelyDifferentiableVVFunction(IVectorValuedFunction function, double factor)
+    {
+      if(function == null) throw new ArgumentNullException();
+      if(factor <= 0) throw new ArgumentOutOfRangeException();
+      this.function  = function;
+      this.input2    = new double[function.InputArity];  // the array used to hold x+h
+      this.output    = new double[function.OutputArity]; // the array used to hold f(x)
+      this.output2   = new double[function.OutputArity]; // the array used to hold f(x+h)
+      this.factor    = factor;
+    }
+
+    /// <inheritdoc/>
+    public int InputArity
+    {
+      get { return function.InputArity; }
+    }
+
+    /// <inheritdoc/>
+    public int OutputArity
+    {
+      get { return function.OutputArity; }
+    }
+
+    /// <inheritdoc/>
+    public void Evaluate(double[] input, double[] output)
+    {
+      function.Evaluate(input, output);
+    }
+
+    /// <inheritdoc/>
+    public void EvaluateJacobian(double[] input, Matrix matrix)
+    {
+      if(input == null || matrix == null) throw new ArgumentNullException();
+
+      function.Evaluate(input, output);
+      ArrayUtility.SmallCopy(input, input2, input.Length);
+      for(int x=0; x<input2.Length; x++)
+      {
+        double arg = input[x], h = arg*factor;
+        if(h == 0) h = factor;
+        input2[x] = arg + h; // this trick ensures that the value of h added to the input value is exactly the same as the value of h used
+        h = input2[x] - arg; // in the divisor later. essentially, it eliminates a source of error caused by the difference of precision
+        function.Evaluate(input2, output2);
+        input2[x] = arg;
+        for(int y=0; y<output.Length; y++) matrix[y, x] = (output2[y] - output[y]) / h;
+      }
+    }
+
+    readonly IVectorValuedFunction function;
+    readonly double[] input2, output, output2;
+    readonly double factor;
+  }
+  #endregion
 }
