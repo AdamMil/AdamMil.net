@@ -21,9 +21,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
+using AdamMil.Mathematics.LinearEquations;
 using AdamMil.Utilities;
 
-// these methods have been largely adapted from Numerical Recipes, 3rd edition
 // TODO: add polynomial-specific root finders
 
 namespace AdamMil.Mathematics.RootFinding
@@ -103,7 +103,7 @@ public static class FindRoot
     // of zero. when that happens, it switches to the subdivision method
 
     double guess = (interval.Max + interval.Min) * 0.5, step = Math.Abs(interval.Max - interval.Min), prevStep = step;
-    double value = function.Evaluate(guess), deriv = function.EvaluateDerivative(guess);
+    double value = function.Evaluate(guess), deriv = function.EvaluateDerivative(guess, 1);
     for(int i=0; i<MaxIterations; i++)
     {
       // in order to see decide whether to do Newton's method or simple subdivision in this iteration, we'll see whether the Newton step
@@ -139,7 +139,7 @@ public static class FindRoot
       else if(giveUp) break; // otherwise, if we can't go any further, give up
 
       value = function.Evaluate(guess);
-      deriv = function.EvaluateDerivative(guess);
+      deriv = function.EvaluateDerivative(guess, 1);
 
       // shrink the interval around the current best guess
       if(value < 0) interval.Min = guess;
@@ -349,6 +349,93 @@ public static class FindRoot
     throw RootNotFoundError();
   }
 
+  /// <summary>This method attempts to find the root of a vector-valued function, given an initial guess in <paramref name="x" />. That is,
+  /// it attempts to find a value of the function that causes it to return a zero vector. The found root is stored back
+  /// into <paramref name="x"/>. The method has a limitation that the vector-valued function must have the same input and output size.
+  /// The method returns true if a root (or near root) was found, and false if it converged on a local minimum in the search space. If that
+  /// happens, try again with a different initial guess.
+  /// </summary>
+  /// <remarks>If a root was found (i.e. the method returned true), you may be able to improve the root further by calling this method
+  /// repeatedly until the root stops changing.
+  /// </remarks>
+  public static bool GlobalNewton(IDifferentiableVVFunction function, double[] x)
+  {
+    if(function == null || x == null) throw new ArgumentNullException();
+    if(function.InputArity != function.OutputArity) throw new ArgumentException("The function must have the same input and output arity.");
+    if(function.InputArity != x.Length) throw new ArgumentException("The point array does not match the function's input arity.");
+
+    const int MaxIterations = 200;
+    const double ScaledMaxStep = 100, InitialValueTolerance = 1e-15, ValueTolerance = 1e-8, ConvergeTolerance = 1e-12;
+
+    double[] values = new double[function.OutputArity];
+    function.Evaluate(x, values);
+
+    // check to see if the initial value is sufficiently near a root. use a more strict test than ComponentTolerance to give the algorithm
+    // a chance to improve the point if it starts out being quite close
+    if(GetMaximumMagnitude(values) < InitialValueTolerance) return true;
+
+    // calculate the maximum step that we'll allow the line search to take. it'll be some multiple of the original point's magnitude, but
+    // not too small
+    double maxStep = 0;
+    for(int i=0; i<x.Length; i++) maxStep += x[i]*x[i];
+    maxStep = Math.Max(Math.Sqrt(maxStep), x.Length) * ScaledMaxStep;
+
+    SquaredFunction sqFunction = new SquaredFunction(function, values);
+    Vector gradient = new Vector(function.InputArity), step = new Vector(function.InputArity);
+    Matrix jacobian = new Matrix(function.InputArity, function.OutputArity), stepMatrix = step.ToColumnMatrix();
+    LUDecomposition lud = new LUDecomposition(); // TODO: replace LU decomposition with SV decomposition to help with singular matrices
+    double[] oldX = new double[x.Length];
+    double sqValue = SquaredFunction.GetSquaredValue(values);
+    for(int iteration=0; iteration < MaxIterations; iteration++)
+    {
+      function.EvaluateJacobian(x, jacobian);
+
+      // compute the gradient for the line search
+      for(int i=0; i<gradient.Size; i++)
+      {
+        double sum = 0;
+        for(int j=0; j<values.Length; j++) sum += jacobian[j, i] * values[j];
+        gradient[i] = sum;
+      }
+
+      ArrayUtility.SmallCopy(x, oldX, x.Length);
+
+      lud.Initialize(jacobian);
+      for(int i=0; i<step.Size; i++) step[i] = -values[i];
+      stepMatrix.SetColumn(0, step);
+      lud.Solve(stepMatrix, true).GetColumn(0, step.Array);
+      bool converged = LineSearch(sqFunction, oldX, sqValue, gradient, step, x, out sqValue, maxStep);
+
+      // check to see whether the function values have converged to nearly zero. the values array would have been updated by LineSearch()
+      // via SquaredFunction.Evaluate(), which stores new values into the array
+      if(GetMaximumMagnitude(values) < ValueTolerance) return true;
+
+      if(converged) // if the line search reported convergence at a minimum value...
+      {
+        // see if the convergence is spurious (i.e. if the gradient is zero)
+        double maxComponent = 0, divisor = Math.Max(sqValue, 0.5*x.Length);
+        for(int i=0; i<x.Length; i++)
+        {
+          double component = Math.Abs(gradient[i]) * Math.Max(Math.Abs(x[i]), 1) / divisor;
+          if(component > maxComponent) maxComponent = component;
+        }
+        return maxComponent >= ConvergeTolerance;
+      }
+      else // the line search didn't report convergence at a minimum value, so check to see whether the function parameters have converged
+      {
+        double maxArgument = 0;
+        for(int i=0; i<x.Length; i++)
+        {
+          double argument = Math.Abs(x[i]-oldX[i]) / Math.Max(1, Math.Abs(x[i]));
+          if(argument > maxArgument) maxArgument = argument;
+        }
+        if(maxArgument < IEEE754.DoublePrecision) return true;
+      }
+    }
+
+    throw RootNotFoundError();
+  }
+
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[@name != 'accuracy']"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/Subdivide/*"/>
   /// <returns>Returns a root of the function, to within a default level of accuracy. See the remarks for more details.</returns>
@@ -448,13 +535,184 @@ public static class FindRoot
     double guess = (interval.Max + interval.Min) * 0.5;
     for(int i=0; i<MaxIterations; i++)
     {
-      double step = function.Evaluate(guess) / function.EvaluateDerivative(guess);
+      double step = function.Evaluate(guess) / function.EvaluateDerivative(guess, 1);
       guess -= step;
       if((interval.Min-guess) * (guess-interval.Max) < 0) break; // if it went outside the interval, abort
       if(Math.Abs(step) <= accuracy) return guess; // if we're within the desired accuracy, then we're done
     }
 
     throw RootNotFoundError();
+  }
+  #region SquaredFunction
+  sealed class SquaredFunction : IMultidimensionalFunction
+  {
+    public SquaredFunction(IVectorValuedFunction function, double[] output)
+    {
+      this.function = function;
+      this.output   = output;
+    }
+
+    public int Arity
+    {
+      get { return function.InputArity; }
+    }
+
+    public double Evaluate(params double[] x)
+    {
+      function.Evaluate(x, output);
+      return GetSquaredValue(output);
+    }
+
+    public static double GetSquaredValue(double[] x)
+    {
+      double sum = 0;
+      for(int i=0; i<x.Length; i++)
+      {
+        double value = x[i];
+        sum += value*value;
+      }
+      return 0.5 * sum;
+    }
+
+    readonly IVectorValuedFunction function;
+    readonly double[] output;
+  }
+  #endregion
+
+  static double GetMaximumMagnitude(double[] values)
+  {
+    double maxMagnitude = 0;
+    for(int i=0; i<values.Length; i++)
+    {
+      double magnitude = Math.Abs(values[i]);
+      if(magnitude > maxMagnitude) maxMagnitude = magnitude;
+    }
+    return maxMagnitude;
+  }
+
+  static internal bool LineSearch(IMultidimensionalFunction function, double[] x, double value, Vector gradient, Vector step,
+                                  double[] newX, out double newValue, double maxStep=double.PositiveInfinity)
+  {
+    // when performing Newton's method against a function, taking the full Newton step may not decrease the function's value. the
+    // step points in the direction of decrease, but since it's based on the derivative at a single point, it's only guaranteed to
+    // initially decrease. as we go farther away from the point, the function can do who knows what. so if the Newton step would do
+    // newX = x + step, a line search will find a factor F such newX = x + F*step represents is sure to represent a decrease in the
+    // function's value, where 0 < F <= 1. in general, we want to set F = 1, representing the full Newton step, but if this doesn't
+    // decrease the function value sufficiently, then we try lower values of F. the function value is guaranteed to decrease if F is small
+    // enough, although there's no guarantee that it will decrease sufficiently.
+    //
+    // we will consider a decrease in value to be sufficient if it is a certain fraction of the ideal decrease implied by the full Newton
+    // step, that is, if f(newX) <= f(x) + c*gradient*step, where c is the fraction that we want and gradient is the function's gradient
+    // at x. we can get away with a small value for c. Numerical Recipes suggests 0.0001. this prevents f() from decreasing too slowly
+    // relative to the step length. the routine also needs to avoid taking steps that are too small.
+    //
+    // the way new step values are chosen (if the full Newton step is not good enough) is as follows:
+    // if we take the function g(F) = f(x + F*step), then g'(F) = gradient*step. we can then attempt to minimize g(F), which will have the
+    // effect of choosing a value for F that makes the new f() value as small as possible. to minimize g(F) we model it using the available
+    // information and then minimize the model. at the start, we have g(0) and g'(0) available as the old f() value and gradient*step,
+    // respectively. after trying the Newton step, we also have g(1). using this information, we can model g(F) as a quadratic that
+    // passes through the two known points:
+    //     g(F) ~= (g(1) - g(0) - g'(0))*F^2 + g'(0)*F + g(0)
+    // if F is 0, then clearly the quadratic equals the constant term, so the constant term must be g(0). given that, if F is 1, then the
+    // non-constant terms must equal g(1) - g(0), so that when the constant term is added, the result is g(1). i'm not exactly sure why
+    // g'(0) is used the way it is. there's probably an important reason for choosing it as the linear term. anyway, this is the
+    // quadratic model used in NR.
+    //
+    // the quadratic is a parabola that has its minimum when its derivative is zero. so we take the derivative (treating the coefficients
+    // as constants) and set it equal to zero. if g(F) ~= a*F^2 + b*F + d, then the derivative is 2a*F + b, and solving for F at 0 we get
+    // F = -b/2a, or:
+    //     F = -g'(0) / 2(g(1) - g(0) - g'(0))
+    // according to Numerical Recipes, it can be shown that usually F must be less than or equal to 1/2 when a (the constant we chose
+    // earlier) is small. so we enforce that F is <= 1/2. we also want to prevent the step from being too small, so we enforce that
+    // F >= 0.1.
+    //
+    // if the new step is not good enough, then we have more information. on future attempts, we can model g(F) as a cubic, using the
+    // previous two values of F (which we'll call F' and F''). then we have:
+    //     g(F) ~= a*F^3 + b*F^2 + g'(0)*F + g(0)
+    // to find the values of the coefficients a and b, we have to constrain the equation so it passes through the known values g(F') and
+    // g(F''). substituting those in, we get two equations that we can solve for the two unknowns:
+    //     a*F'^3  + b*F'^2  + g'(0)*F'  + g(0) = g(F')
+    //     a*F''^3 + b*F''^2 + g'(0)*F'' + g(0) = g(F'')
+    // once we have the coefficients a and b, we can find the minimum of the cubic. if we make certain assumptions like F > 0, and others
+    // that i don't quite understand (e.g. assumptions about the values of a and b?), we can use the tactic of solving for where the
+    // derivative is 0. since the derivative is quadratic, there would normally be two solutions, but based on the assumptions, we can
+    // discard one of them, and we end up with F = (-b + sqrt(b^2 - 3a*g'(0))) / 3a. we then enforce that the new F is between 0.1 and 0.5
+    // times the previous F and try again.
+
+    const double Alpha = 0.0001;
+
+    // first limit the step length to maxStep
+    if(!double.IsPositiveInfinity(maxStep))
+    {
+      double length = step.GetMagnitude();
+      if(length > maxStep) step *= maxStep/length;
+    }
+
+    // then calculate the slope as the dot product between the step and the gradient -- this is g'(0) in the description above
+    double slope = Vector.DotProduct(gradient, step);
+    if(slope >= 0) throw new ArgumentException("Invalid step vector, or too much roundoff error occurred.");
+
+    // find the minimum allowable factor. if the factor drops below this value, then we give up
+    double minFactor = 0;
+    for(int i=0; i<x.Length; i++)
+    {
+      double tempFactor = Math.Abs(step[i]) / Math.Max(1, Math.Abs(x[i]));
+      if(tempFactor > minFactor) minFactor = tempFactor;
+    }
+    minFactor = IEEE754.DoublePrecision / minFactor;
+
+    // start with a factor of 1, representing the full Newton step
+    double factor = 1, prevFactor = 0, prevValue = 0;
+    while(true) // while we're looking for a suitable step size...
+    {
+      // try the current step size
+      for(int i=0; i<newX.Length; i++) newX[i] = x[i] + step[i]*factor;
+      newValue = function.Evaluate(newX);
+
+      if(factor < minFactor) // if it's too small, then give up and return true, indicating that it has converged on a minimum
+      {
+        ArrayUtility.SmallCopy(x, newX, x.Length);
+        return true;
+      }
+      else if(newValue <= value + Alpha*factor*slope) // otherwise, if the function value has decreased significantly (see above)...
+      {                                               // this is basically checking if f(newX) <= f(x) + c*F*(gradient*step)
+        return false; // return false, indicating that it decreased and hasn't, so far as we know, hit a minimum
+      }
+      else // otherwise, the decrease wasn't sufficient and we have to find a smaller factor
+      {
+        double nextFactor;
+        if(factor == 1) // if this is the first time we've had to decrease F, use the quadratic model (F = -g'(0) / 2(g(1) - g(0) - g'(0)))
+        {
+          nextFactor = -slope / (2*(newValue-value-slope));
+        }
+        else // otherwise, it's the second or later time, so use the cubic model
+        {
+          // compute the coefficients of the cubic, a and b (discussed above)
+          double rhs1 = newValue - value - factor*slope, rhs2 = prevValue - value - prevValue*slope;
+          double a = (rhs1/(factor*factor) - rhs2/(prevFactor*prevFactor)) / (factor - prevFactor);
+          double b = (-prevFactor*rhs1/(factor*factor) + factor*rhs2/(prevFactor*prevFactor)) / (factor - prevFactor);
+
+          // the new F is found by solving for a point where the derivative is zero: F = (-b + sqrt(b^2 - 3a*g'(0))) / 3a
+          if(a == 0) // if that formula would cause division by zero, we can simplify the cubic by removing the cubic term (since a is 0),
+          {          // getting b*F^2 + g'(0)*F + g(0), and solve for a point where its derivative is zero: F = -g'(0) / 2b
+            nextFactor = -slope / (2*b);
+          }
+          else // otherwise, there wouldn't be a division by zero, so solve for F
+          {
+            double discriminant = b*b - 3*a*slope;
+            if(discriminant < 0) nextFactor = 0.5 * factor; // if there's no real solution, just set F to be as big as possible
+            else if(b <= 0) nextFactor = (-b+Math.Sqrt(discriminant)) / (3*a); // if the solution would come out normally, use it
+            else nextFactor = -slope / (b + Math.Sqrt(discriminant)); // otherwise... (i don't understand this bit)
+          }
+
+          if(nextFactor > 0.5*factor) nextFactor = 0.5*factor; // clip the new factor to be no larger than half the old factor
+        }
+
+        prevFactor = factor;   // keep track of the previous factor (F'')
+        prevValue  = newValue; // and the previous value g(F'')
+        factor     = Math.Max(nextFactor, 0.1*factor); // clip the new factor to be no smaller than one tenth the old factor
+      }
+    }
   }
 
   static double GetDefaultAccuracy(RootInterval interval)
@@ -484,10 +742,10 @@ public static class FindRoot
     if(accuracy < 0) throw new ArgumentOutOfRangeException();
   }
 
-  /// <summary>Returns a value having the magnitude of the first argument and the sign of the second argument, assuming it's nonzero.</summary>
+  /// <summary>Returns a value having the magnitude of the first argument and the sign of the second argument.</summary>
   static double WithSign(double value, double sign)
   {
-    return (sign < 0 ? value < 0 : value > 0) ? value : -value;
+    return (sign < 0) ^ (value < 0) ? -value : value;
   }
 }
 #endregion

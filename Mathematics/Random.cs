@@ -444,7 +444,7 @@ public sealed class ISAACRNG : RandomNumberGenerator
   {
     results = new uint[Size];
     state   = new uint[Size];
-    if(seed != null) Array.Copy(seed, results, Math.Min(Size, seed.Length));
+    if(seed != null) ArrayUtility.SmallCopy(seed, results, Math.Min(Size, seed.Length));
     Initialize(seed != null);
   }
 

@@ -19,11 +19,37 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
-
-// these methods have been largely adapted from Numerical Recipes, 3rd edition
+using System.Runtime.Serialization;
 
 namespace AdamMil.Mathematics.LinearEquations
 {
+  #region SingularMatrixException
+  /// <summary>An exception thrown when a matrix is singular and cannot be solved.</summary>
+  [Serializable]
+  public class SingularMatrixException : ArgumentException
+  {
+    /// <inheritdoc/>
+    public SingularMatrixException(string message) : base(message) { }
+    /// <inheritdoc/>
+    public SingularMatrixException(string message, Exception innerException) : base(message, innerException) { }
+    /// <inheritdoc/>
+    public SingularMatrixException(SerializationInfo info, StreamingContext context) : base(info, context) { }
+  }
+  #endregion
+
+  #region ILinearEquationSolver
+  /// <summary>Represents a class that can solve systems of linear equations.</summary>
+  public interface ILinearEquationSolver
+  {
+    /// <include file="documentation.xml" path="/Math/LinearEquations/ILinearEquationSolver/GetInverse/*"/>
+    Matrix GetInverse();
+    /// <include file="documentation.xml" path="/Math/LinearEquations/ILinearEquationSolver/Initialize/*"/>
+    void Initialize(Matrix coefficients);
+    /// <include file="documentation.xml" path="/Math/LinearEquations/ILinearEquationSolver/Solve/*"/>
+    Matrix Solve(Matrix values, bool tryInPlace);
+  }
+  #endregion
+
   #region GaussJordan
   /// <summary>Implements Gauss-Jordan elimination to solve systems of linear equations. This method also generates an inverse matrix as
   /// a side effect. If you don't need the inverse matrix, or if you want to find additional solutions on demand, or if you want the
@@ -31,34 +57,99 @@ namespace AdamMil.Mathematics.LinearEquations
   /// <see cref="LUDecomposition"/> is superior. However, this class may be slightly more numerically stable and therefore slightly more
   /// accurate, although that is largely counteracted by the existence of the <see cref="LUDecomposition.RefineSolution"/> method.
   /// </summary>
-  public static class GaussJordan
+  public sealed class GaussJordan : ILinearEquationSolver
   {
+    /// <summary>Initializes a new <see cref="GaussJordan"/> solver. It is generally not necessary to create a <see cref="GaussJordan"/>
+    /// object, as there are static methods to perform all of the same operations with less overhead.
+    /// </summary>
+    public GaussJordan() { }
+
+    /// <summary>Initializes a new <see cref="GaussJordan"/> solver with the given matrix of coefficients. It is generally not necessary
+    /// to create a <see cref="GaussJordan"/> object, as there are static methods to perform all of the same operations with less overhead.
+    /// </summary>
+    public GaussJordan(Matrix coefficients)
+    {
+      Initialize(coefficients);
+    }
+
+    /// <include file="documentation.xml" path="/Math/LinearEquations/ILinearEquationSolver/GetInverse/*"/>
+    public Matrix GetInverse()
+    {
+      AssertInitialized();
+      return inverse == null ? Invert(coefficients) : inverse.Clone();
+    }
+
+    /// <include file="documentation.xml" path="/Math/LinearEquations/ILinearEquationSolver/Initialize/*"/>
+    public void Initialize(Matrix coefficients)
+    {
+      Matrix.Assign(ref this.coefficients, coefficients);
+      inverse = null;
+    }
+
+    /// <include file="documentation.xml" path="/Math/LinearEquations/ILinearEquationSolver/Solve1/*"/>
+    public Matrix Solve(Matrix values)
+    {
+      return Solve(values, false);
+    }
+
+    /// <include file="documentation.xml" path="/Math/LinearEquations/ILinearEquationSolver/Solve/*"/>
+    /// <remarks>Gauss-Jordan is always capable of solving in place, if requested.</remarks>
+    public Matrix Solve(Matrix values, bool tryInPlace)
+    {
+      AssertInitialized();
+      Matrix inverse, solution = Solve(coefficients, values, out inverse, this.inverse == null, tryInPlace);
+      if(this.inverse == null) this.inverse = inverse;
+      return solution;
+    }
+
     /// <summary>Inverts a matrix.</summary>
     public static Matrix Invert(Matrix matrix)
     {
-      if((object)matrix == null) throw new ArgumentNullException();
+      if(matrix == null) throw new ArgumentNullException();
       Matrix inverse;
-      Solve(matrix, new Matrix(0, matrix.Height), out inverse, true);
+      Solve(matrix, new Matrix(matrix.Height, 0), out inverse, true, true);
       return inverse;
     }
 
     /// <summary>Solves a system of linear equations.</summary>
-    /// <include file="documentation.xml" path="/Math/LinearEquations/Solve/*[@name != 'inverse']"/>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/Solve/*[@name != 'inverse' and @name != 'tryInPlace']"/>
     public static Matrix Solve(Matrix coefficients, Matrix values)
     {
-      Matrix inverse;
-      return Solve(coefficients, values, out inverse, false);
+      return Solve(coefficients, values, false);
     }
 
-    /// <include file="documentation.xml" path="/Math/LinearEquations/Solve/*"/>
+    /// <summary>Solves a system of linear equations.</summary>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/Solve/*[@name != 'inverse']"/>
+    public static Matrix Solve(Matrix coefficients, Matrix values, bool tryInPlace)
+    {
+      Matrix inverse;
+      return Solve(coefficients, values, out inverse, false, tryInPlace);
+    }
+
+    /// <summary>Solves a system of linear equations and returns the inverse matrix.</summary>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/Solve/*[@name != 'tryInPlace']"/>
     public static Matrix Solve(Matrix coefficients, Matrix values, out Matrix inverse)
     {
-      return Solve(coefficients, values, out inverse, true);
+      return Solve(coefficients, values, out inverse, true, false);
     }
 
-    static Matrix Solve(Matrix coefficients, Matrix values, out Matrix inverse, bool wantInverse)
+    /// <summary>Solves a system of linear equations and returns the inverse matrix.</summary>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/Solve/*"/>
+    public static Matrix Solve(Matrix coefficients, Matrix values, out Matrix inverse, bool tryInPlace)
     {
-      if((object)coefficients == null || (object)values == null) throw new ArgumentNullException();
+      return Solve(coefficients, values, out inverse, true, tryInPlace);
+    }
+
+    void AssertInitialized()
+    {
+      if(coefficients == null) throw new InvalidOperationException("The solver has not been initialized.");
+    }
+
+    Matrix coefficients, inverse;
+
+    static Matrix Solve(Matrix coefficients, Matrix values, out Matrix inverse, bool wantInverse, bool valuesInPlace)
+    {
+      if(coefficients == null || values == null) throw new ArgumentNullException();
       if(!coefficients.IsSquare) throw new ArgumentException("The coefficient matrix must be square.");
       if(values.Height != coefficients.Height)
       {
@@ -112,7 +203,7 @@ namespace AdamMil.Mathematics.LinearEquations
 
       // clone the matrices since we'll be modifying them
       coefficients = coefficients.Clone();
-      values = values.Clone();
+      if(!valuesInPlace) values = values.Clone();
 
       bool[] processed = new bool[coefficients.Height]; // stores whether a particular row or column has been processed yet
       int[] pivotColumns = new int[coefficients.Height], pivotRows = new int[coefficients.Height]; // store the pivot point for each column
@@ -159,7 +250,7 @@ namespace AdamMil.Mathematics.LinearEquations
         // because of the swaps (done above if pivotX != pivotY), the pivot element is on the diagonal (at pivotX, pivotX) now.
         // we can't reuse maxCoefficient because it contains only the magnitude, but we need the sign as well
         value = coefficients[pivotX, pivotX];
-        if(value == 0) throw new ArgumentException("The coefficient matrix is singular.");
+        if(value == 0) throw new SingularMatrixException("The coefficient matrix is singular.");
         double inversePivot = 1 / value; // we'll multiply by the reciprocal rather than dividing
 
         // divide the row by the pivot, except the pivot element itself, which we'll set to 1 first. this is part of generating the inverse
@@ -210,8 +301,13 @@ namespace AdamMil.Mathematics.LinearEquations
   /// the inverse matrix, it may be slightly better to use <see cref="GaussJordan">Gauss-Jordan elimination</see>.
   /// </summary>
   /// <include file="documentation.xml" path="/Math/LinearEquations/Solve/remarks"/>
-  public sealed class LUDecomposition
+  public sealed class LUDecomposition : ILinearEquationSolver
   {
+    /// <summary>Initializes a new <see cref="LUDecomposition"/> with no matrix. <see cref="Initialize" /> can be called to provide a
+    /// matrix to decompose.
+    /// </summary>
+    public LUDecomposition() { }
+
     /// <summary>Initializes a new <see cref="LUDecomposition"/> with a square, invertible matrix. If used to solve linear equations, the
     /// matrix represents the left side of the equations, where the rows represent the individual equations and the columns represent the
     /// coefficients in the equations.
@@ -219,10 +315,7 @@ namespace AdamMil.Mathematics.LinearEquations
     /// <include file="documentation.xml" path="/Math/LinearEquations/Solve/remarks"/>
     public LUDecomposition(Matrix coefficients)
     {
-      if((object)coefficients == null) throw new ArgumentNullException();
-      if(!coefficients.IsSquare) throw new ArgumentException("The coefficient matrix must be square.");
-      this.matrix       = coefficients.Clone();
-      this.coefficients = coefficients; // keep a reference to the coefficient matrix for use by RefineSolution()
+      Initialize(coefficients);
     }
 
     /// <summary>Gets the determinant of the coefficient matrix. For sizeable matrices, the determinant may be larger than the dynamic
@@ -243,8 +336,8 @@ namespace AdamMil.Mathematics.LinearEquations
     /// <summary>Gets the inverse of the coefficient matrix.</summary>
     public Matrix GetInverse()
     {
-      if(inverse == null) inverse = Solve(Matrix.CreateIdentity(matrix.Height), true);
-      return inverse.Clone();
+      AssertDecomposition();
+      return Solve(Matrix.CreateIdentity(matrix.Height), true);
     }
 
     /// <summary>Gets the natural logarithm of the absolute value of the determinant of the coefficient matrix. This is useful because for
@@ -270,8 +363,21 @@ namespace AdamMil.Mathematics.LinearEquations
       return sum;
     }
 
-    /// <summary>Improves a solution from <see cref="Solve"/>, assuming that the coefficient matrix given to the constructor has not
-    /// changed since the solution was produced.
+    /// <summary>Decomposes a new matrix. The matrix must be square and invertible. If used to solve linear equations, the matrix
+    /// represents the left side of the equations, where the rows represent the individual equations and the columns represent the
+    /// coefficients in the equations.
+    /// </summary>
+    public void Initialize(Matrix coefficients)
+    {
+      if(coefficients == null) throw new ArgumentNullException();
+      if(!coefficients.IsSquare) throw new ArgumentException("The coefficient matrix must be square.");
+      Matrix.Assign(ref matrix, coefficients);
+      this.coefficients = coefficients; // keep a reference to the coefficient matrix for use by RefineSolution()
+      decomposed = false;
+    }
+
+    /// <summary>Improves a solution from <see cref="Solve"/>, assuming that the coefficient matrix given to the constructor (or to
+    /// <see cref="Initialize"/>) has not changed since the solution was produced.
     /// </summary>
     /// <param name="values">The values matrix passed to <see cref="Solve"/> to produce the solution matrix.</param>
     /// <param name="solution">The solution matrix returned from <see cref="Solve"/>. This matrix will be changed to a refined solution,
@@ -280,25 +386,26 @@ namespace AdamMil.Mathematics.LinearEquations
     /// <remarks>When solving large matrices, roundoff errors accumulate during the process and manifest as a loss of precision in the
     /// solution. This method can improve a solution to eliminate some of the accumulated roundoff error, and may be called
     /// multiple times to further refine the solution, although once is usually enough.
-    /// The method requires the original coefficient matrix passed to the constructor. The <see cref="LUDecomposition"/> class
-    /// saves a reference to that matrix, and does not make a copy of it. It is assumed, therefore, that the coefficient matrix has not
-    /// been changed since the LU decomposition was constructed. If it has been changed, the solution will be destroyed.
+    /// The method requires the original coefficient matrix passed to the constructor or to <see cref="Initialize"/>. The
+    /// <see cref="LUDecomposition"/> class saves a reference to that matrix, and does not make a copy of it. It is assumed, therefore,
+    /// that the coefficient matrix has not been changed since the LU decomposition was constructed. If it has been changed, this method
+    /// must not be used.
     /// </remarks>
     public void RefineSolution(Matrix values, Matrix solution)
     {
-      if((object)values == null || (object)solution == null) throw new ArgumentNullException();
+      if(values == null || solution == null) throw new ArgumentNullException();
       if(values.Height != solution.Height || values.Width != solution.Width)
       {
         throw new ArgumentException("The value matrix must have the same size as the solution matrix.");
       }
+
+      EnsureDecomposition();
       if(values.Height != matrix.Height)
       {
         throw new ArgumentException("The value matrix must have the same height as the coefficient matrix.");
       }
 
-      EnsureDecomposition();
-
-      Matrix errors = new Matrix(solution.Width, solution.Height);
+      Matrix errors = new Matrix(solution.Height, solution.Width);
       for(int x=0; x<solution.Width; x++) // for each solution vector...
       {
         for(int y=0; y<solution.Height; y++)
@@ -318,18 +425,92 @@ namespace AdamMil.Mathematics.LinearEquations
 
     /// <summary>Solves the set of linear equations passed to the constructor with the given right-hand sides.</summary>
     /// <param name="values">A matrix of the same height as the coefficient matrix passed to the constructor, where each column contains
-    /// the set of sums of the equation terms (i.e. what the equation equals).
+    /// a set of right-hand side values of the equations.
     /// </param>
     /// <include file="documentation.xml" path="/Math/LinearEquations/Solve/remarks"/>
     public Matrix Solve(Matrix values)
     {
-      if((object)values == null) throw new ArgumentNullException();
+      return Solve(values, false);
+    }
+
+    /// <summary>Solves the set of linear equations passed to the constructor with the given right-hand sides.</summary>
+    /// <param name="values">A matrix of the same height as the coefficient matrix passed to the constructor, where each column contains
+    /// a set of right-hand side values of the equations.
+    /// </param>
+    /// <param name="inPlace">If true, the matrix will be solved in place and returned directly. If false, the solution will be returned
+    /// in a new matrix.
+    /// </param>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/Solve/remarks"/>
+    public Matrix Solve(Matrix values, bool inPlace)
+    {
+      if(values == null) throw new ArgumentNullException();
+
+      // Solving a matrix based on an LU decomposition uses the idea of backsubstitution and forward substitution. these work as follows.
+      // look above at the discussion of Gauss-Jordan elimination. imagine if instead of transforming the coefficient matrix into the
+      // identity matrix, we only subtracted from the portion of the matrix below the diagonal. we would wind up with a partially
+      // transformed upper triangular matrix and a partially solved value matrix:
+      //
+      //      | a b c |         | p |               | x |
+      // A' = | 0 d e |    B' = | q |   (where A' * | y | = B')
+      //      | 0 0 f |         | r |               | z |
+      //
+      // Given this, it's actually quite simple to complete the solution. The x, y, z vector above contains the unknowns. Because only one
+      // element in the bottom row of A' is non-zero, we can solve for z immediately: z = r/f. (Because in the matrix multiplication,
+      // r = 0*x + 0*y + f*z = f*z.) With z solved, we move onto y. Because q = 0*x + d*y + e*z = d*y + e*z, we can substitute r/f for z
+      // and get q = d*y + e*r/f and solve for y: y = (q - e*r/f) / d. We can solve x similarly. This is called backsubstitution.
+      // Forward substitution is exactly analogous, and works on a lower triangular matrix.
+      //
+      // The LU decomposition gives us upper and lower triangular matrices that are amenable to back and forward substitution. We need only
+      // arrange the problem to combine the results appropriately. The standard linear equation formula is A·x = b, where A is the
+      // coefficient matrix, b is the value vector, and x is a vector containing the unknowns. The goal is to solve for x. With LU
+      // decomposition, we have A·x = (L·U)·x = b. Note that (L·U)·x = L·(U·x). We can then let y = U·x and get two equations:
+      // U·x = y and L·y = b. These both correspond to the form used above for backsubstitution. So we first solve for y using forward
+      // substitution and then we solve for x using backsubstitution.
+      EnsureDecomposition();
       if(values.Height != matrix.Height)
       {
         throw new ArgumentException("The value matrix must have the same height as the coefficient matrix.");
       }
 
-      return Solve(values, false);
+      if(!inPlace) values = values.Clone(); // make a copy, since we'll be modifying it
+      for(int x=0; x<values.Width; x++) // for each set of values (i.e. each column vector)...
+      {
+        // do the forward substitution. this transforms the column vector into the y vector from top to bottom. as an optimization, we'll
+        // skip over leading zeroes in the column vector. this especially helps when GetInverse() is called, since it works by solving for
+        // an identity matrix (which of course has lots of zeroes)
+        int firstNonzeroIndex = -1; // the index of the first non-zero value in the column
+        for(int y=0; y<values.Height; y++)
+        {
+          int rowIndex = rowPermutation[y]; // we have to account for the row permutation caused by pivoting
+          double sum = values[rowIndex, x];
+          values[rowIndex, x] = values[y, x];
+
+          if(firstNonzeroIndex != -1) // if we've found a non-zero element, solve it by forward substitution
+          {
+            for(int i=firstNonzeroIndex; i<y; i++) sum -= matrix[y, i] * values[i, x];
+          }
+          else if(sum != 0) // otherwise, if this is the first non-zero element...
+          {
+            firstNonzeroIndex = y;
+          }
+          values[y, x] = sum;
+        }
+
+        // now do the backsubstitution. this transforms the y vector into the x vector from bottom to top
+        for(int y=values.Height-1; y >= 0; y--)
+        {
+          double sum = values[y, x];
+          for(int i=y+1; i<values.Height; i++) sum -= matrix[y, i] * values[i, x];
+          values[y, x] = sum / matrix[y, y];
+        }
+      }
+
+      return values;
+    }
+
+    void AssertDecomposition()
+    {
+      if(matrix == null) throw new InvalidOperationException("No matrix has been decomposed yet.");
     }
 
     /// <summary>Performs the LU decomposition if it hasn't been done yet.</summary>
@@ -373,7 +554,9 @@ namespace AdamMil.Mathematics.LinearEquations
       // longer triangular, it doesn't really make sense for us to provide a method to retrieve the L and U matrices.
       if(!decomposed)
       {
+        AssertDecomposition();
         this.rowPermutation = new int[matrix.Height]; // keep track of rows swaps so we access them in the right order inside Solve()
+        this.oddSwapCount = false;
 
         // this step relates to scaled pivoting. we'll compute a scale factor to be applied to each equation that would scale it so that
         // its largest coefficient would equal 1.
@@ -387,7 +570,7 @@ namespace AdamMil.Mathematics.LinearEquations
             if(value > maxCoefficient) maxCoefficient = value;
           }
           // if all coefficients were zero, that represents a row degeneracy (i think). in any case, it's singular and we can't solve it
-          if(maxCoefficient == 0) throw new InvalidOperationException("The coefficient matrix is singular.");
+          if(maxCoefficient == 0) throw new SingularMatrixException("The coefficient matrix is singular.");
           scale[y] = 1 / maxCoefficient; // store the scale factor for each row
         }
 
@@ -452,76 +635,614 @@ namespace AdamMil.Mathematics.LinearEquations
       }
     }
 
-    Matrix Solve(Matrix values, bool inPlace)
-    {
-      // Solving a matrix based on an LU decomposition uses the idea of backsubstitution and forward substitution. these work as follows.
-      // look above at the discussion of Gauss-Jordan elimination. imagine if instead of transforming the coefficient matrix into the
-      // identity matrix, we only subtracted from the portion of the matrix below the diagonal. we would wind up with a partially
-      // transformed upper triangular matrix and a partially solved value matrix:
-      //
-      //      | a b c |         | p |               | x |
-      // A' = | 0 d e |    B' = | q |   (where A' * | y | = B')
-      //      | 0 0 f |         | r |               | z |
-      //
-      // Given this, it's actually quite simple to complete the solution. The x, y, z vector above contains the unknowns. Because only one
-      // element in the bottom row of A' is non-zero, we can solve for z immediately: z = r/f. (Because in the matrix multiplication,
-      // r = 0*x + 0*y + f*z = f*z.) With z solved, we move onto y. Because q = 0*x + d*y + e*z = d*y + e*z, we can substitute r/f for z
-      // and get q = d*y + e*r/f and solve for y: y = (q - e*r/f) / d. We can solve x similarly. This is called backsubstitution.
-      // Forward substitution is exactly analogous, and works on a lower triangular matrix.
-      //
-      // The LU decomposition gives us upper and lower triangular matrices that are amenable to back and forward substitution. We need only
-      // arrange the problem to combine the results appropriately. The standard linear equation formula is A·x = b, where A is the
-      // coefficient matrix, b is the value vector, and x is a vector containing the unknowns. The goal is to solve for x. With LU
-      // decomposition, we have A·x = (L·U)·x = b. Note that (L·U)·x = L·(U·x). We can then let y = U·x and get two equations:
-      // U·x = y and L·y = b. These both correspond to the form used above for backsubstitution. So we first solve for y using forward
-      // substitution and then we solve for x using backsubstitution.
-      EnsureDecomposition();
-
-      if(!inPlace) values = values.Clone(); // make a copy, since we'll be modifying it
-      for(int x=0; x<values.Width; x++) // for each set of values (i.e. each column vector)...
-      {
-        // do the forward substitution. this transforms the column vector into the y vector from top to bottom. as an optimization, we'll
-        // skip over leading zeroes in the column vector. this especially helps when GetInverse() is called, since it works by solving for
-        // an identity matrix (which of course has lots of zeroes)
-        int firstNonzeroIndex = -1; // the index of the first non-zero value in the column
-        for(int y=0; y<values.Height; y++)
-        {
-          int rowIndex = rowPermutation[y]; // we have to account for the row permutation caused by pivoting
-          double sum = values[rowIndex, x];
-          values[rowIndex, x] = values[y, x];
-
-          if(firstNonzeroIndex != -1) // if we've found a non-zero element, solve it by forward substitution
-          {
-            for(int i=firstNonzeroIndex; i<y; i++) sum -= matrix[y, i] * values[i, x];
-          }
-          else if(sum != 0) // otherwise, if this is the first non-zero element...
-          {
-            firstNonzeroIndex = y;
-          }
-          values[y, x] = sum;
-        }
-
-        // now do the backsubstitution. this transforms the y vector into the x vector from bottom to top
-        for(int y=values.Height-1; y >= 0; y--)
-        {
-          double sum = values[y, x];
-          for(int i=y+1; i<values.Height; i++) sum -= matrix[y, i] * values[i, x];
-          values[y, x] = sum / matrix[y, y];
-        }
-      }
-
-      return values;
-    }
-
     /// <summary>Before decomposition has been performed, this holds the coefficient matrix. Aftewards, it holds the LU decomposition.</summary>
-    readonly Matrix matrix, coefficients;
-    /// <summary>Holds a copy of the matrix inverse, if the inverse has been generated.</summary>
-    Matrix inverse;
+    Matrix matrix;
+    Matrix coefficients;
     /// <summary>Represents the permutation that we performed during the pivot operation. rowPermutation[i] is the index of the row from
     /// which the pivot value was taken (and thus the row that row i was swapped with).
     /// </summary>
     int[] rowPermutation;
     bool decomposed, oddSwapCount;
+  }
+  #endregion
+
+  #region SVDecomposition
+  /// <summary>Implements singular value decomposition to solve systems of linear equations. This method is substantially slower than both
+  /// <see cref="GaussJordan" /> and <see cref="LUDecomposition" />, as well as being slightly less accurate, but it has a number of
+  /// powerful features. First, it is able to "solve" overdetermined, underdetermined, and singular (degenerate) systems. Given an
+  /// underdetermined system, which will generally have an infinite number of solutions, it can give one of the solutions as well as
+  /// provide a description of the solution space that allows you to generate the others.
+  /// Given an overdetermined system, which will generally have no solution, it can provide
+  /// a "solution" that is as close as possible to solving the equations in a least squares sense. Given a degenerate system, it can
+  /// provide an approximate solution as well as allow you to diagnose exactly what makes the system degenerate. This flexibility allows
+  /// <see cref="SVDecomposition"/> to succeed where other methods fail. Singular value decomposition can also be used to obtain a
+  /// quantitative description of how near a system is to being singular (i.e. how ill-conditioned it is), to compute the Moore-Penrose
+  /// pseudoinverse of a matrix, and to approximate (i.e. lossily compress) a matrix to a specified degree by removing the elements that
+  /// contribute the least to it.
+  /// </summary>
+  /// <include file="documentation.xml" path="/Math/LinearEquations/Solve/remarks"/>
+  public sealed class SVDecomposition : ILinearEquationSolver
+  {
+    /// <summary>Initializes a new <see cref="SVDecomposition"/> with no matrix. You can decompose a matrix by calling
+    /// <see cref="Initialize"/>.
+    /// </summary>
+    public SVDecomposition() { }
+
+    /// <summary>Initializes a new <see cref="SVDecomposition"/> with a matrix to decompose.</summary>
+    public SVDecomposition(Matrix coefficients)
+    {
+      Initialize(coefficients);
+    }
+
+    /// <summary>Gets the default threshold for singular values. Singular values less than or equal to this value will be considered to be
+    /// zero. See the remarks for more details. This property is only valid after a matrix has been decomposed.
+    /// </summary>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/GeneralRemarks/*"/>
+    /// <remarks>This property returns the default threshold that singular values must be above in order to be considered non-zero. By
+    /// default, methods of the <see cref="SVDecomposition"/> class will use the default threshold, but you can use your own threshold
+    /// (perhaps based on the default threshold).
+    /// </remarks>
+    public double DefaultThreshold
+    {
+      get
+      {
+        AssertDecomposition();
+        return _defaultThreshold;
+      }
+    }
+
+    /// <summary>Returns the inverse or Moore-Penrose pseudoinverse of the decomposed matrix, using the <see cref="DefaultThreshold"/>.</summary>
+    /// <remarks>For decomposed matrices that are invertible, this method returns the inverse. For matrices that are not invertible, this
+    /// method returns the Moore-Penrose pseudoinverse.
+    /// </remarks>
+    public Matrix GetInverse()
+    {
+      return GetInverse(_defaultThreshold);
+    }
+
+    /// <summary>Returns the inverse or Moore-Penrose pseudoinverse of the decomposed matrix, using the given threshold.</summary>
+    /// <remarks>For decomposed matrices that are invertible, this method returns the inverse. For matrices that are not invertible, this
+    /// method returns the Moore-Penrose pseudoinverse.
+    /// </remarks>
+    /// <seealso cref="DefaultThreshold"/>
+    public Matrix GetInverse(double threshold)
+    {
+      AssertDecomposition();
+      if(!u.IsSquare) throw new InvalidOperationException("The inverse can only be computed when the coefficient matrix is square.");
+      return Solve(Matrix.CreateIdentity(u.Height), threshold, true);
+    }
+
+    /// <summary>Returns the inverse of the decomposed matrix's condition number.</summary>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/GeneralRemarks/*"/>
+    /// <remarks>Rather than returning the condition number described above, this method returns its inverse. The reason is that with
+    /// singular matrices, the condition number is infinite (since it involves a division by zero), and for very ill-conditoned matrices
+    /// it may overflow. So with this method, an inverse condition number of zero indicates an exactly singular matrix, and a condition
+    /// number much smaller than 1 represents a nearly singular matrix.
+    /// </remarks>
+    public double GetInverseCondition()
+    {
+      AssertDecomposition();
+      return w[0] <= 0 || w[w.Size-1] <= 0 ? 0 : w[w.Size-1] / w[0];
+    }
+
+    /// <summary>Returns the nullity of the matrix, which is the dimension of its null space, using the <see cref="DefaultThreshold"/>.</summary>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/GeneralRemarks/*"/>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/NullSpaceRemarks/*"/>
+    public int GetNullity()
+    {
+      return GetNullity(_defaultThreshold);
+    }
+
+    /// <summary>Returns the nullity of the matrix, which is the dimension of its null space, using the given threshold.</summary>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/GeneralRemarks/*"/>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/NullSpaceRemarks/*"/>
+    /// <seealso cref="DefaultThreshold"/>
+    public int GetNullity(double threshold)
+    {
+      AssertDecomposition();
+      return w.Size - GetRank(threshold);
+    }
+
+    /// <summary>Returns a description of the null space of the decomposed matrix, as a matrix whose column vectors represent the
+    /// orthogonal basis of the null space, using the <see cref="DefaultThreshold"/>.
+    /// </summary>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/GeneralRemarks/*"/>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/NullSpaceRemarks/*"/>
+    public Matrix GetNullSpace()
+    {
+      return GetNullSpace(_defaultThreshold);
+    }
+
+    /// <summary>Returns a description of the null space of the decomposed matrix, as a matrix whose column vectors represent the
+    /// orthogonal basis of the null space, using the given threshold.
+    /// </summary>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/GeneralRemarks/*"/>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/NullSpaceRemarks/*"/>
+    /// <seealso cref="DefaultThreshold"/>
+    public Matrix GetNullSpace(double threshold)
+    {
+      AssertDecomposition();
+      Matrix nullSpace = new Matrix(v.Height, GetNullity(threshold));
+      for(int nullity=0, x=0; x<v.Width; x++)
+      {
+        if(w[x] <= threshold) nullSpace.SetColumn(nullity++, v, x);
+      }
+      return nullSpace;
+    }
+
+    /// <summary>Returns a description of the range of the decomposed matrix, as a matrix whose column vectors represent the
+    /// orthogonal basis of the range, using the <see cref="DefaultThreshold"/>.
+    /// </summary>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/GeneralRemarks/*"/>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/RangeRemarks/*"/>
+    public Matrix GetRange()
+    {
+      return GetRange(_defaultThreshold);
+    }
+
+    /// <summary>Returns a description of the range of the decomposed matrix, as a matrix whose column vectors represent the
+    /// orthogonal basis of the range, using the given threshold.
+    /// </summary>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/GeneralRemarks/*"/>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/RangeRemarks/*"/>
+    /// <seealso cref="DefaultThreshold"/>
+    public Matrix GetRange(double threshold)
+    {
+      AssertDecomposition();
+      Matrix range = new Matrix(u.Height, GetRank(threshold));
+      for(int rank=0,x=0; x<u.Width; x++)
+      {
+        if(w[x] > threshold) range.SetColumn(rank++, u, x);
+      }
+      return range;
+    }
+
+    /// <summary>Returns the rank of the matrix, which is the dimension of its range, using the <see cref="DefaultThreshold"/>.</summary>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/GeneralRemarks/*"/>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/RangeRemarks/*"/>
+    public int GetRank()
+    {
+      return GetRank(_defaultThreshold);
+    }
+
+    /// <summary>Returns the rank of the matrix, which is the dimension of its range, using the given threshold.</summary>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/GeneralRemarks/*"/>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/RangeRemarks/*"/>
+    public int GetRank(double threshold)
+    {
+      AssertDecomposition();
+      int rank = 0;
+      for(int i=0; i<w.Size; i++)
+      {
+        if(w[i] > threshold) rank++;
+      }
+      return rank;
+    }
+
+    /// <summary>Returns a vector containing the singular values of the matrix, sorted from largest to smallest.</summary>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/GeneralRemarks/*"/>
+    public Vector GetSingularValues()
+    {
+      AssertDecomposition();
+      return w.Clone();
+    }
+
+    /// <include file="documentation.xml" path="/Math/LinearEquations/ILinearEquationSolver/Initialize/*"/>
+    public void Initialize(Matrix coefficients)
+    {
+      // this routine was mostly adapted from http://www.public.iastate.edu/~dicook/JSS/paper/code/svd.c, which was adapted from a routine
+      // in XLISP-STAT 2.1, which was adapted from some version of Numerical Recipes. i don't claim to understand anything more than the
+      // high level approach. i don't understand why people write such inscrutable code...
+
+      if(coefficients == null) throw new ArgumentNullException();
+      if(coefficients.Width == 0 || coefficients.Height == 0) throw new ArgumentException("The coefficient array is empty.");
+
+      Matrix.Assign(ref u, coefficients);
+      Matrix.Resize(ref v, u.Width, u.Width);
+      Vector.Resize(ref w, u.Width);
+
+      #region SV Decomposition gobbledygook
+      // first, reduce the matrix to bidiagonal form using the Householder reduction
+      double[] rv = new double[u.Width];
+      double scale = 0, g = 0, anorm = 0;
+      for(int i=0; i < rv.Length; i++)
+      {
+        int L = i+1;
+        rv[i] = scale*g;
+
+        // left-hand reduction
+        g = scale = 0;
+        double s = 0;
+        if(i < u.Height)
+        {
+          for(int k=i; k<u.Height; k++) scale += Math.Abs(u[k, i]);
+          if(scale != 0)
+          {
+            for(int k=i; k<u.Height; k++)
+            {
+              double value = u[k, i] / scale;
+              u[k, i] = value;
+              s += value*value;
+            }
+
+            double f = u[i, i];
+            g = -WithSign(Math.Sqrt(s), f);
+            double h = f*g - s;
+            u[i, i] = f - g;
+            for(int j=L; j<u.Width; j++)
+            {
+              s = 0;
+              for(int k=i; k<u.Height; k++) s += u[k, i] * u[k, j];
+              f = s / h;
+              for(int k=i; k<u.Height; k++) u[k, j] += f * u[k, i];
+            }
+            for(int k=i; k<u.Height; k++) u[k, i] *= scale;
+          }
+        }
+
+        w[i] = scale * g;
+
+        // right-hand reduction
+        g = s = scale = 0;
+        if(i < u.Height && L != u.Width)
+        {
+          for(int k=L; k<u.Width; k++) scale += Math.Abs(u[i, k]);
+          if(scale != 0)
+          {
+            for(int k=L; k<u.Width; k++)
+            {
+              double value = u[i, k] / scale;
+              u[i, k] = value;
+              s += value*value;
+            }
+
+            double f = u[i, L];
+            g = -WithSign(Math.Sqrt(s), f);
+            double h = f*g - s;
+            u[i, L] = f - g;
+
+            for(int k=L; k<u.Width; k++) rv[k] = u[i, k] / h;
+            for(int j=L; j<u.Height; j++)
+            {
+              s = 0;
+              for(int k=L; k<u.Width; k++) s += u[j, k] * u[i, k];
+              for(int k=L; k<rv.Length; k++) u[j, k] += s * rv[k];
+            }
+            for(int k=L; k<u.Width; k++) u[i, k] *= scale;
+          }
+        }
+
+        anorm = Math.Max(anorm, Math.Abs(w[i]) + Math.Abs(rv[i]));
+      }
+      anorm *= IEEE754.DoublePrecision;
+
+      // accumulate right-hand transformation
+      for(int i=u.Width-1; i >= 0; i--)
+      {
+        int L = i+1;
+        if(L != u.Width) // if this isn't the first iteration...
+        {
+          if(g != 0)
+          {
+            for(int j=L; j<u.Width; j++) v[j, i] = u[i, j] / u[i, L] / g; // double division avoids possible underflow
+            for(int j=L; j<u.Width; j++)
+            {
+              double s = 0;
+              for(int k=L; k<u.Width; k++) s += u[i, k] * v[k, j];
+              for(int k=L; k<u.Width; k++) v[k, j] += s * v[k, i];
+            }
+          }
+
+          for(int j=L; j<u.Width; j++)
+          {
+            v[i, j] = 0;
+            v[j, i] = 0;
+          }
+        }
+
+        v[i, i] = 1;
+        g = rv[i];
+      }
+
+      // accumulate left-hand transformation
+      for(int i=Math.Min(u.Width, u.Height)-1; i >= 0; i--)
+      {
+        int L = i+1;
+        for(int j=L; j<u.Width; j++) u[i, j] = 0;
+
+        g = w[i];
+        if(g == 0)
+        {
+          for(int j=i; j<u.Height; j++) u[j, i] = 0;
+        }
+        else
+        {
+          g = 1 / g;
+          for(int j=L; j<u.Width; j++)
+          {
+            double s = 0;
+            for(int k=L; k<u.Height; k++) s += u[k, i] * u[k, j];
+            double f = s / u[i, i] * g;
+            for(int k=i; k<u.Height; k++) u[k, j] += f * u[k, i];
+          }
+          for(int j=i; j<u.Height; j++) u[j, i] *= g;
+        }
+        u[i, i] = u[i, i] + 1;
+      }
+
+      // now we have a bidiagonal form, and we'll diagonalize it
+      for(int k=u.Width-1; k >= 0; k--)
+      {
+        const int MaxIterations = 30;
+        for(int iteration=0; iteration < MaxIterations; iteration++)
+        {
+          int nm = -1, L;
+          bool flag = true;
+          for(L=k; L >= 0; L--)
+          {
+            nm = L-1;
+            if(L == 0 || Math.Abs(rv[L]) <= anorm)
+            {
+              flag = false;
+              break;
+            }
+            if(Math.Abs(w[nm]) <= anorm) break;
+          }
+
+          if(flag)
+          {
+            double c = 0, s = 1;
+            for(int i=L; i <= k; i++)
+            {
+              double f = s * rv[i];
+              rv[i] *= c;
+              if(Math.Abs(f) <= anorm) break;
+
+              g = w[i];
+              double h = Pythag(f, g);
+              w[i] = h;
+              h = 1 / h;
+              c = g * h;
+              s = -f * h;
+              for(int j=0; j<u.Height; j++)
+              {
+                double a = u[j, nm], b = u[j, i];
+                u[j, nm] = a*c + b*s;
+                u[j, i]  = b*c - a*s;
+              }
+            }
+          }
+
+          {
+            double z = w[k], f, x;
+            if(L == k) // convergence
+            {
+              if(z < 0) // if the singular value is negative, make it non-negative
+              {
+                w[k] = -z;
+                for(int j=0; j<u.Width; j++) v[j, k] = -v[j, k];
+              }
+              break;
+            }
+            else if(iteration == MaxIterations-1)
+            {
+              u = null; // clear 'u' so other methods will not think there is a valid decomposition
+              throw new ArgumentException("Singular value decomposition failed to converge with this matrix.");
+            }
+            else // after that, we'll do some crazy stuff
+            {
+              x  = w[L];
+              nm = k-1;
+              double y = w[nm], h = rv[k];
+              g  = rv[nm];
+              f = ((y-z)*(y+z) + (g-h)*(g+h)) / (2*h*y);
+              g = Pythag(f, 1);
+              f = ((x-z)*(x+z) + h*(y/(f+WithSign(g, f)) - h)) / x;
+              double c = 1, s = 1;
+              for(int j=L; j <= nm; j++)
+              {
+                int i = j+1;
+                g = rv[i];
+                y = w[i];
+                h = s * g;
+                g = c * g;
+                z = Pythag(f, h);
+                rv[j] = z;
+                c = f / z;
+                s = h / z;
+                f = x*c + g*s;
+                g = g*c - x*s;
+                h = y * s;
+                y *= c;
+                for(int m=0; m<u.Width; m++)
+                {
+                  x = v[m, j];
+                  z = v[m, i];
+                  v[m, j] = x*c + z*s;
+                  v[m, i] = z*c - x*s;
+                }
+                z = Pythag(f, h);
+                w[j] = z;
+                if(z != 0)
+                {
+                  z = 1 / z;
+                  c = f * z;
+                  s = h * z;
+                }
+                f = c*g + s*y;
+                x = c*y - s*g;
+                for(int m=0; m<u.Height; m++)
+                {
+                  y = u[m, j];
+                  z = u[m, i];
+                  u[m, j] = y*c + z*s;
+                  u[m, i] = z*c - y*s;
+                }
+              }
+            }
+
+            rv[L] = 0;
+            rv[k] = f;
+            w[k]  = x;
+          }
+        }
+      }
+
+      // now that the SV decomposition is done, we'll sort the matrix into a canonical order
+      double[] su = new double[u.Height];
+      int inc = 1;
+      do inc = inc*3+1; while(inc <= u.Width);
+      do
+      {
+        inc /= 3;
+        for(int i=inc; i<u.Width; i++)
+        {
+          g = w[i];
+          u.GetColumn(i, su);
+          v.GetColumn(i, rv);
+          int j = i;
+          while(w[j-inc] < g)
+          {
+            w[j] = w[j-inc];
+            for(int k=0; k<u.Height; k++) u[k, j] = u[k, j-inc];
+            for(int k=0; k<u.Width; k++) v[k, j] = v[k, j-inc];
+            j -= inc;
+            if(j < inc) break;
+          }
+          w[j] = g;
+          u.SetColumn(j, su);
+          v.SetColumn(j, rv);
+        }
+      } while(inc > 1);
+
+      // flip signs to make as many elements positive as possible
+      for(int k=0; k<u.Width; k++)
+      {
+        int count = 0;
+        for(int i=0; i<u.Height; i++)
+        {
+          if(u[i, k] < 0) count++;
+        }
+        for(int i=0; i<u.Width; i++)
+        {
+          if(v[i, k] < 0) count++;
+        }
+        if(count > (u.Width+u.Height)/2)
+        {
+          for(int i=0; i<u.Height; i++) u[i, k] = -u[i, k];
+          for(int i=0; i<u.Width; i++) v[i, k] = -v[i, k];
+        }
+      }
+      #endregion
+
+      // set the default threshold based on the result
+      _defaultThreshold = 0.5 * Math.Sqrt(u.Width + u.Height + 1) * w[0] * IEEE754.DoublePrecision;
+    }
+
+    /// <summary>Solves a system of linear equations using the <see cref="DefaultThreshold"/>.</summary>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/ILinearEquationSolver/Solve/*[not(self::summary) and @name != 'tryInPlace']"/>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/SolveRemarks/*"/>
+    public Matrix Solve(Matrix values)
+    {
+      return Solve(values, _defaultThreshold, false);
+    }
+
+    /// <summary>Solves a system of linear equations using the given threshold.</summary>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/ILinearEquationSolver/Solve/*[not(self::summary) and @name != 'tryInPlace']"/>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/SolveRemarks/*"/>
+    /// <seealso cref="DefaultThreshold"/>
+    public Matrix Solve(Matrix values, double threshold)
+    {
+      return Solve(values, threshold, false);
+    }
+
+    /// <summary>Solves a system of linear equations using the <see cref="DefaultThreshold"/>.</summary>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/ILinearEquationSolver/Solve/*[not(self::summary)]"/>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/SolveRemarks/*"/>
+    public Matrix Solve(Matrix values, bool tryInPlace)
+    {
+      return Solve(values, _defaultThreshold, tryInPlace);
+    }
+
+    /// <summary>Solves a system of linear equations using the given threshold.</summary>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/ILinearEquationSolver/Solve/*[not(self::summary)]"/>
+    /// <include file="documentation.xml" path="/Math/LinearEquations/SVDecomposition/SolveRemarks/*"/>
+    /// <seealso cref="DefaultThreshold"/>
+    public Matrix Solve(Matrix values, double threshold, bool tryInPlace)
+    {
+      if(values == null) throw new ArgumentNullException();
+      AssertDecomposition();
+      if(values.Height != u.Height) throw new ArgumentException("The value matrix must have the same height as the coefficient matrix.");
+      // we can only solve in place if the values matrix has the same height as the width of the coefficient matrix, or if the values
+      // matrix has a width of 1 (so that we'll only make a single pass through the outer loop below)
+      Matrix solutions = tryInPlace && (values.Height == u.Width || values.Width == 1) ? values : new Matrix(u.Width, values.Width);
+      double[] temp = new double[u.Width];
+
+      for(int x=0; x<values.Width; x++)
+      {
+        for(int j=0; j<temp.Length; j++)
+        {
+          double sum = 0;
+          if(w[j] > threshold)
+          {
+            for(int i=0; i<u.Height; i++) sum += u[i, j] * values[i, x];
+            sum /= w[j];
+          }
+          temp[j] = sum;
+        }
+
+        // if we want in-place solution, but the values matrix has the wrong height, then it must be the case that it has a width of 1
+        // (given the above logic), so we can resize it now, before writing the answer into it
+        if(tryInPlace && values.Height != u.Width) values.Resize(u.Width, 1);
+
+        for(int j=0; j<u.Width; j++)
+        {
+          double sum = 0;
+          for(int k=0; k<temp.Length; k++) sum += v[j, k] * temp[k];
+          solutions[j, x] = sum;
+        }
+      }
+
+      return solutions;
+    }
+
+    void AssertDecomposition()
+    {
+      if(u == null) throw new InvalidOperationException("No matrix has been decomposed yet.");
+    }
+
+    Matrix u, v;
+    Vector w;
+    double _defaultThreshold;
+
+    static double Pythag(double a, double b)
+    {
+      // pythagorean theorem (sqrt(a^2 + b^2)), implemented to avoid overflow and underflow
+      a = Math.Abs(a);
+      b = Math.Abs(b);
+      if(a > b)
+      {
+        double c = b/a;
+        return a * Math.Sqrt(1 + c*c);
+      }
+      else if(b != 0)
+      {
+        double c = a/b;
+        return b * Math.Sqrt(1 + c*c);
+      }
+      else
+      {
+        return 0;
+      }
+    }
+
+    /// <summary>Returns a value having the magnitude of the first argument and the sign of the second argument. If the second argument is
+    /// zero, it will be treated as though it was positive.
+    /// </summary>
+    static double WithSign(double value, double sign)
+    {
+      return (sign < 0) ^ (value < 0) ? -value : value;
+    }
   }
   #endregion
 }

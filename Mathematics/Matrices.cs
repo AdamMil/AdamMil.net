@@ -49,7 +49,7 @@ namespace AdamMil.Mathematics
 
     public unsafe Matrix3(Matrix3 matrix)
     {
-      if((object)matrix == null) throw new ArgumentNullException();
+      if(matrix == null) throw new ArgumentNullException();
       fixed(double* src=&matrix.M00)
       fixed(double* dest=&M00)
       {
@@ -59,7 +59,7 @@ namespace AdamMil.Mathematics
 
     public unsafe Matrix3(Matrix matrix)
     {
-      if((object)matrix == null) throw new ArgumentNullException();
+      if(matrix == null) throw new ArgumentNullException();
       if(matrix.Width != Width || matrix.Height != Height) throw new ArgumentException("The matrix is the wrong size.");
       fixed(double* src=matrix.Data)
       fixed(double* dest=&M00)
@@ -127,7 +127,14 @@ namespace AdamMil.Mathematics
     public unsafe override int GetHashCode()
     {
       int hash = 0;
-      fixed(double* dp=&M00) { int* p=(int*)dp; for(int i=0; i<Length*2; i++) hash ^= p[i]; }
+      fixed(double* dp=&M00)
+      {
+        for(int i=0; i<Length; i++)
+        {
+          double d = dp[i];
+          if(d != 0) hash ^= *(int*)&d ^ ((int*)&d)[1] ^ i; // +0 and -0 compare equally, so they mustn't lead to different hash codes
+        }
+      }
       return hash;
     }
 
@@ -165,7 +172,7 @@ namespace AdamMil.Mathematics
 
     public unsafe Matrix ToMatrix()
     {
-      fixed(double* data=&M00) return new Matrix(data, Width, Height);
+      fixed(double* data=&M00) return new Matrix(data, Height, Width);
     }
 
     public Vector3 Transform(Vector3 v)
@@ -189,7 +196,7 @@ namespace AdamMil.Mathematics
 
     public static unsafe void Add(Matrix3 a, Matrix3 b, Matrix3 dest)
     {
-      if((object)a == null || (object)b == null || (object)dest == null) throw new ArgumentNullException();
+      if(a == null || b == null || dest == null) throw new ArgumentNullException();
 
       fixed(double* ap=&a.M00)
       fixed(double* bp=&b.M00)
@@ -201,7 +208,7 @@ namespace AdamMil.Mathematics
 
     public static unsafe void Subtract(Matrix3 a, Matrix3 b, Matrix3 dest)
     {
-      if((object)a == null || (object)b == null || (object)dest == null) throw new ArgumentNullException();
+      if(a == null || b == null || dest == null) throw new ArgumentNullException();
 
       fixed(double* ap=&a.M00)
       fixed(double* bp=&b.M00)
@@ -213,7 +220,7 @@ namespace AdamMil.Mathematics
 
     public static unsafe void Multiply(Matrix3 a, Matrix3 b, Matrix3 dest)
     {
-      if((object)a == null || (object)b == null || (object)dest == null) throw new ArgumentNullException();
+      if(a == null || b == null || dest == null) throw new ArgumentNullException();
 
       fixed(double* ap=&a.M00)
       fixed(double* bp=&b.M00)
@@ -233,8 +240,8 @@ namespace AdamMil.Mathematics
 
     public static unsafe bool Equals(Matrix3 a, Matrix3 b)
     {
-      if((object)a == null) return (object)b == null;
-      else if((object)b == null) return false;
+      if(a == null) return b == null;
+      else if(b == null) return false;
 
       fixed(double* ap=&a.M00)
       fixed(double* bp=&b.M00)
@@ -249,8 +256,8 @@ namespace AdamMil.Mathematics
 
     public static unsafe bool Equals(Matrix3 a, Matrix3 b, double tolerance)
     {
-      if((object)a == null) return (object)b == null;
-      else if((object)b == null) return false;
+      if(a == null) return b == null;
+      else if(b == null) return false;
 
       fixed(double* ap=&a.M00)
       fixed(double* bp=&b.M00)
@@ -274,7 +281,7 @@ namespace AdamMil.Mathematics
 
     public static Matrix3 Invert(Matrix3 matrix)
     {
-      if((object)matrix == null) throw new ArgumentNullException();
+      if(matrix == null) throw new ArgumentNullException();
       matrix = matrix.Clone();
       matrix.Invert();
       return matrix;
@@ -389,20 +396,10 @@ namespace AdamMil.Mathematics
 
     public static Matrix3 Transpose(Matrix3 matrix)
     {
-      if((object)matrix == null) throw new ArgumentNullException();
+      if(matrix == null) throw new ArgumentNullException();
       matrix = matrix.Clone();
       matrix.Transpose();
       return matrix;
-    }
-
-    public static bool operator==(Matrix3 a, Matrix3 b)
-    {
-      return Equals(a, b);
-    }
-
-    public static bool operator!=(Matrix3 a, Matrix3 b)
-    {
-      return !Equals(a, b);
     }
 
     public static Matrix3 operator+(Matrix3 a, Matrix3 b)
@@ -466,7 +463,7 @@ namespace AdamMil.Mathematics
 
     public unsafe Matrix4(Matrix4 matrix)
     {
-      if((object)matrix == null) throw new ArgumentNullException();
+      if(matrix == null) throw new ArgumentNullException();
       fixed(double* src=&matrix.M00)
       fixed(double* dest=&M00)
       {
@@ -476,7 +473,7 @@ namespace AdamMil.Mathematics
 
     public unsafe Matrix4(Matrix matrix)
     {
-      if((object)matrix == null) throw new ArgumentNullException();
+      if(matrix == null) throw new ArgumentNullException();
       if(matrix.Width != Width || matrix.Height != Height) throw new ArgumentException("The matrix is the wrong size.");
       fixed(double* src=matrix.Data)
       fixed(double* dest=&M00)
@@ -546,7 +543,14 @@ namespace AdamMil.Mathematics
     public unsafe override int GetHashCode()
     {
       int hash = 0;
-      fixed(double* dp=&M00) { int* p=(int*)dp; for(int i=0; i<Length*2; i++) hash ^= p[i]; }
+      fixed(double* dp=&M00)
+      {
+        for(int i=0; i<Length; i++)
+        {
+          double d = dp[i];
+          if(d != 0) hash ^= *(int*)&d ^ ((int*)&d)[1] ^ i; // +0 and -0 compare equally, so they mustn't lead to different hash codes
+        }
+      }
       return hash;
     }
 
@@ -602,7 +606,7 @@ namespace AdamMil.Mathematics
 
     public unsafe Matrix ToMatrix()
     {
-      fixed(double* data=&M00) return new Matrix(data, Width, Height);
+      fixed(double* data=&M00) return new Matrix(data, Height, Width);
     }
 
     public Vector3 Transform(Vector3 v)
@@ -647,7 +651,7 @@ namespace AdamMil.Mathematics
 
     public static unsafe void Add(Matrix4 a, Matrix4 b, Matrix4 dest)
     {
-      if((object)a == null || (object)b == null || (object)dest == null) throw new ArgumentNullException();
+      if(a == null || b == null || dest == null) throw new ArgumentNullException();
 
       fixed(double* ap=&a.M00)
       fixed(double* bp=&b.M00)
@@ -659,7 +663,7 @@ namespace AdamMil.Mathematics
 
     public static unsafe void Subtract(Matrix4 a, Matrix4 b, Matrix4 dest)
     {
-      if((object)a == null || (object)b == null || (object)dest == null) throw new ArgumentNullException();
+      if(a == null || b == null || dest == null) throw new ArgumentNullException();
 
       fixed(double* ap=&a.M00)
       fixed(double* bp=&b.M00)
@@ -671,7 +675,7 @@ namespace AdamMil.Mathematics
 
     public static unsafe void Multiply(Matrix4 a, Matrix4 b, Matrix4 dest)
     {
-      if((object)a == null || (object)b == null || (object)dest == null) throw new ArgumentNullException();
+      if(a == null || b == null || dest == null) throw new ArgumentNullException();
 
       fixed(double* ap=&a.M00)
       fixed(double* bp=&b.M00)
@@ -698,8 +702,8 @@ namespace AdamMil.Mathematics
 
     public static unsafe bool Equals(Matrix4 a, Matrix4 b)
     {
-      if((object)a == null) return (object)b == null;
-      else if((object)b == null) return false;
+      if(a == null) return b == null;
+      else if(b == null) return false;
 
       fixed(double* ap=&a.M00)
       fixed(double* bp=&b.M00)
@@ -714,8 +718,8 @@ namespace AdamMil.Mathematics
 
     public static unsafe bool Equals(Matrix4 a, Matrix4 b, double tolerance)
     {
-      if((object)a == null) return (object)b == null;
-      else if((object)b == null) return false;
+      if(a == null) return b == null;
+      else if(b == null) return false;
 
       fixed(double* ap=&a.M00)
       fixed(double* bp=&b.M00)
@@ -740,7 +744,7 @@ namespace AdamMil.Mathematics
 
     public static Matrix4 Invert(Matrix4 matrix)
     {
-      if((object)matrix == null) throw new ArgumentNullException();
+      if(matrix == null) throw new ArgumentNullException();
       matrix = matrix.Clone();
       matrix.Invert();
       return matrix;
@@ -867,7 +871,7 @@ namespace AdamMil.Mathematics
 
     public static Matrix4 Transpose(Matrix4 matrix)
     {
-      if((object)matrix == null) throw new ArgumentNullException();
+      if(matrix == null) throw new ArgumentNullException();
       matrix = matrix.Clone();
       matrix.Transpose();
       return matrix;
@@ -885,16 +889,6 @@ namespace AdamMil.Mathematics
       Matrix4 ret = new Matrix4();
       Subtract(a, b, ret);
       return ret;
-    }
-
-    public static bool operator==(Matrix4 a, Matrix4 b)
-    {
-      return Equals(a, b);
-    }
-
-    public static bool operator!=(Matrix4 a, Matrix4 b)
-    {
-      return !Equals(a, b);
     }
 
     public static Matrix4 operator*(Matrix4 a, Matrix4 b)
@@ -930,9 +924,9 @@ namespace AdamMil.Mathematics
   [Serializable]
   public sealed class Matrix : ICloneable, IEquatable<Matrix>
   {
-    public Matrix(int width, int height)
+    public Matrix(int height, int width)
     {
-      Resize(width, height);
+      Resize(height, width);
     }
 
     public Matrix(double[,] data)
@@ -951,15 +945,16 @@ namespace AdamMil.Mathematics
       Width  = width;
       Height = data.Length / width;
       this.data = new double[Height, Width];
-      fixed(double* source=data)
-      fixed(double* dest=this.data)
+
+      fixed(double* psrc=data)
+      fixed(double* pdest=this.data)
       {
-        Unsafe.Copy(source, dest, data.Length*sizeof(double));
+        Unsafe.Copy(psrc, pdest, data.Length*sizeof(double));
       }
     }
 
     [CLSCompliant(false)]
-    public unsafe Matrix(double* data, int width, int height)
+    public unsafe Matrix(double* data, int height, int width)
     {
       if(width < 0 || height < 0) throw new ArgumentOutOfRangeException();
       Width     = width;
@@ -970,7 +965,7 @@ namespace AdamMil.Mathematics
 
     public Matrix(Matrix matrix)
     {
-      if((object)matrix == null) throw new ArgumentNullException();
+      if(matrix == null) throw new ArgumentNullException();
       Width  = matrix.Width;
       Height = matrix.Height;
       data   = matrix.data.Length == 0 ? matrix.data : (double[,])matrix.data.Clone();
@@ -997,7 +992,7 @@ namespace AdamMil.Mathematics
 
     public unsafe void Add(Matrix matrix)
     {
-      if((object)matrix == null) throw new ArgumentNullException();
+      if(matrix == null) throw new ArgumentNullException();
       AssertSameSize(matrix);
       fixed(double* dest=data)
       fixed(double* src=matrix.data)
@@ -1006,15 +1001,11 @@ namespace AdamMil.Mathematics
       }
     }
 
-    public unsafe void Subtract(Matrix matrix)
+    public void Assign(Matrix matrix)
     {
-      if((object)matrix == null) throw new ArgumentNullException();
-      AssertSameSize(matrix);
-      fixed(double* dest=data)
-      fixed(double* src=matrix.data)
-      {
-        for(int i=0, length=data.Length; i<length; i++) dest[i] -= src[i];
-      }
+      if(matrix == null) throw new ArgumentNullException();
+      Resize(matrix.Height, matrix.Width);
+      Array.Copy(matrix.data, this.data, Width*Height);
     }
 
     public Matrix Clone()
@@ -1039,9 +1030,28 @@ namespace AdamMil.Mathematics
 
     public unsafe void Divide(double factor)
     {
+      Multiply(1 / factor);
+    }
+
+    public Vector GetColumn(int column)
+    {
+      double[] colData = new double[Height];
+      GetColumn(column, colData);
+      return new Vector(colData, false);
+    }
+
+    public void GetColumn(int column, double[] array)
+    {
+      GetColumn(column, array, 0);
+    }
+
+    public unsafe void GetColumn(int column, double[] array, int index)
+    {
+      if((uint)column >= (uint)Width) throw new ArgumentOutOfRangeException();
+      Utility.ValidateRange(array, index, Height);
       fixed(double* pdata=data)
       {
-        for(int i=0, length=data.Length; i<length; i++) pdata[i] /= factor;
+        for(int i=0; i<Height; column += Width, i++) array[index+i] = pdata[column];
       }
     }
 
@@ -1056,8 +1066,11 @@ namespace AdamMil.Mathematics
       int hash = 0;
       fixed(double* pdata=data)
       {
-        int* p=(int*)pdata;
-        for(int i=0, length=data.Length*2; i<length; i++) hash ^= p[i];
+        for(int i=0,length=Width*Height; i<length; i++)
+        {
+          double d = pdata[i];
+          if(d != 0) hash ^= *(int*)&d ^ ((int*)&d)[1] ^ i; // +0 and -0 compare equally, so they mustn't lead to different hash codes
+        }
       }
       return hash;
     }
@@ -1066,6 +1079,27 @@ namespace AdamMil.Mathematics
     {
       AssertSquare();
       return new LUDecomposition(this).GetLogDeterminant(out negative);
+    }
+
+    public unsafe Vector GetRow(int row)
+    {
+      fixed(double* pdata=data) return new Vector(pdata+row*Width, Width);
+    }
+
+    public void GetRow(int row, double[] array)
+    {
+      GetRow(row, array, 0);
+    }
+
+    public unsafe void GetRow(int row, double[] array, int index)
+    {
+      if((uint)row >= (uint)Height) throw new ArgumentOutOfRangeException();
+      Utility.ValidateRange(array, index, Width);
+      fixed(double* psrc=data)
+      fixed(double* pdest=array)
+      {
+        Unsafe.Copy(psrc+row*Width, pdest+index, Width*sizeof(double));
+      }
     }
 
     public unsafe void Invert()
@@ -1087,7 +1121,7 @@ namespace AdamMil.Mathematics
       }
     }
 
-    public void Resize(int width, int height)
+    public void Resize(int height, int width)
     {
       if(width != Width || height != Height)
       {
@@ -1098,11 +1132,87 @@ namespace AdamMil.Mathematics
       }
     }
 
+    public void SetColumn(int column, Vector vector)
+    {
+      if(vector == null) throw new ArgumentNullException();
+      SetColumn(column, vector.Array, 0);
+    }
+
+    public unsafe void SetColumn(int destColumn, Matrix srcMatrix, int srcColumn)
+    {
+      if(srcMatrix == null) throw new ArgumentNullException();
+      if((uint)destColumn >= (uint)Width || (uint)srcColumn >= (uint)srcMatrix.Width) throw new ArgumentOutOfRangeException();
+      if(Height != srcMatrix.Height) throw new ArgumentException("The matrixes must have the same height.");
+      fixed(double* src=srcMatrix.data)
+      fixed(double* dest=data)
+      {
+        for(int i=0; i<Height; srcColumn += srcMatrix.Width, destColumn += Width, i++) dest[destColumn] = src[srcColumn];
+      }
+    }
+
+    public void SetColumn(int column, double[] array)
+    {
+      SetColumn(column, array, 0);
+    }
+
+    public unsafe void SetColumn(int column, double[] array, int index)
+    {
+      if((uint)column >= (uint)Width) throw new ArgumentOutOfRangeException();
+      Utility.ValidateRange(array, index, Height);
+      fixed(double* pdata=data)
+      {
+        for(int i=0; i<Height; column += Width, i++) pdata[column] = array[index+i];
+      }
+    }
+
     public void SetIdentity()
     {
       AssertSquare();
       Array.Clear(data, 0, data.Length);
       for(int i=0; i<Width; i++) data[i, i] = 1;
+    }
+
+    public void SetRow(int row, Vector vector)
+    {
+      if(vector == null) throw new ArgumentNullException();
+      SetRow(row, vector.Array, 0);
+    }
+
+    public unsafe void SetRow(int destRow, Matrix srcMatrix, int srcRow)
+    {
+      if(srcMatrix == null) throw new ArgumentNullException();
+      if((uint)srcRow >= (uint)srcMatrix.Height) throw new ArgumentOutOfRangeException();
+      if(Width != srcMatrix.Width) throw new ArgumentException("The matrixes must have the same width.");
+      fixed(double* psrc=srcMatrix.data) SetRow(destRow, psrc + srcRow*srcMatrix.Width);
+    }
+
+    public void SetRow(int row, double[] array)
+    {
+      SetRow(row, array, 0);
+    }
+
+    public unsafe void SetRow(int row, double[] array, int index)
+    {
+      Utility.ValidateRange(array, index, Width);
+      fixed(double* psrc=array) SetRow(row, psrc+index);
+    }
+
+    [CLSCompliant(false)]
+    public unsafe void SetRow(int row, double* data)
+    {
+      if((uint)row >= (uint)Height) throw new ArgumentOutOfRangeException();
+      fixed(double* dest=this.data) Unsafe.Copy(data, dest + row*Width, Width*sizeof(double));
+    }
+
+    public unsafe void Subtract(Matrix matrix)
+    {
+      if(matrix == null) throw new ArgumentNullException();
+      AssertSameSize(matrix);
+      fixed(double* src=matrix.data)
+      fixed(double* dest=data)
+      {
+        for(int i=0, length=data.Length; i<length; i++) dest[i] -= src[i];
+      }
     }
 
     public void Swap(int row1, int column1, int row2, int column2)
@@ -1177,16 +1287,6 @@ namespace AdamMil.Mathematics
       }
     }
 
-    public static bool operator==(Matrix a, Matrix b)
-    {
-      return Equals(a, b);
-    }
-
-    public static bool operator!=(Matrix a, Matrix b)
-    {
-      return !Equals(a, b);
-    }
-
     public static Matrix operator+(Matrix a, Matrix b)
     {
       return Add(a, b);
@@ -1219,23 +1319,52 @@ namespace AdamMil.Mathematics
 
     public static Matrix Add(Matrix a, Matrix b)
     {
-      if((object)a == null) throw new ArgumentNullException();
+      if(a == null) throw new ArgumentNullException();
       Matrix result = a.Clone();
       result.Add(b);
       return result;
     }
 
-    public static Matrix Subtract(Matrix a, Matrix b)
+    public static void Assign(ref Matrix dest, Matrix source)
     {
-      if((object)a == null) throw new ArgumentNullException();
-      Matrix result = a.Clone();
-      result.Subtract(b);
+      if(source == null) throw new ArgumentNullException();
+      if(dest == null) dest = source.Clone();
+      else dest.Assign(source);
+    }
+
+    public static unsafe Matrix Augment(Matrix a, Matrix b)
+    {
+      if(a == null || b == null) throw new ArgumentNullException();
+      if(a.Height != b.Height) throw new ArgumentException("The matrices must have the same height.");
+      Matrix result = new Matrix(a.Height, a.Width+b.Width);
+
+      fixed(double* pdest=result.Data)
+      fixed(double* pa=a.Data)
+      fixed(double* pb=b.Data)
+      {
+        for(int dy=0, di=0, ai=0, bi=0; dy<result.Height; dy++)
+        {
+          Unsafe.Copy(pa+ai, pdest+di, a.Width*sizeof(double));
+          di += a.Width;
+          ai += a.Width;
+          Unsafe.Copy(pb+bi, pdest+di, b.Width*sizeof(double));
+          di += b.Width;
+          bi += b.Width;
+        }
+      }
       return result;
+    }
+
+    public static Matrix CreateIdentity(int size)
+    {
+      Matrix matrix = new Matrix(size, size);
+      for(int i=0; i<size; i++) matrix[i, i] = 1;
+      return matrix;
     }
 
     public static Matrix Divide(Matrix a, double b)
     {
-      if((object)a == null) throw new ArgumentNullException();
+      if(a == null) throw new ArgumentNullException();
       a = a.Clone();
       a.Divide(b);
       return a;
@@ -1243,8 +1372,8 @@ namespace AdamMil.Mathematics
 
     public unsafe static bool Equals(Matrix a, Matrix b)
     {
-      if((object)a == null) return (object)b == null;
-      else if((object)b == null || a.Width != b.Width || a.Height != b.Height) return false;
+      if(a == null) return b == null;
+      else if(b == null || a.Width != b.Width || a.Height != b.Height) return false;
 
       fixed(double* pa=a.data)
       fixed(double* pb=b.data)
@@ -1259,8 +1388,8 @@ namespace AdamMil.Mathematics
 
     public unsafe static bool Equals(Matrix a, Matrix b, double tolerance)
     {
-      if((object)a == null) return (object)b == null;
-      else if((object)b == null || a.Width != b.Width || a.Height != b.Height) return false;
+      if(a == null) return b == null;
+      else if(b == null || a.Width != b.Width || a.Height != b.Height) return false;
 
       fixed(double* pa=a.data)
       fixed(double* pb=b.data)
@@ -1273,9 +1402,14 @@ namespace AdamMil.Mathematics
       return true;
     }
 
+    public static Matrix Invert(Matrix matrix)
+    {
+      return GaussJordan.Invert(matrix);
+    }
+
     public static Matrix Multiply(Matrix a, double b)
     {
-      if((object)a == null) throw new ArgumentNullException();
+      if(a == null) throw new ArgumentNullException();
       a = a.Clone();
       a.Multiply(b);
       return a;
@@ -1283,10 +1417,10 @@ namespace AdamMil.Mathematics
 
     public static Matrix Multiply(Matrix a, Matrix b)
     {
-      if((object)a == null || (object)b == null) throw new ArgumentNullException();
+      if(a == null || b == null) throw new ArgumentNullException();
       // when multiplying A*B, an element of the result is sum of the products of pairs of elements from the same row in A and the same
       // column in B.
-      Matrix result = new Matrix(b.Width, a.Height);
+      Matrix result = new Matrix(a.Height, b.Width);
       for(int dy=0; dy<result.Height; dy++)
       {
         for(int dx=0; dx<result.Width; dx++)
@@ -1299,49 +1433,31 @@ namespace AdamMil.Mathematics
       return result;
     }
 
-    public static unsafe Matrix Augment(Matrix a, Matrix b)
+    /// <summary>Resizes the given matrix if it exists, or allocates a new matrix if it is null.</summary>
+    public static void Resize(ref Matrix dest, int height, int width)
     {
-      if((object)a == null || (object)b == null) throw new ArgumentNullException();
-      if(a.Height != b.Height) throw new ArgumentException("The matrices must have the same height.");
-      Matrix result = new Matrix(a.Width+b.Width, a.Height);
+      if(dest == null) dest = new Matrix(height, width);
+      else dest.Resize(height, width);
+    }
 
-      fixed(double* pdest=result.Data)
-      fixed(double* pa=a.Data)
-      fixed(double* pb=b.Data)
-      for(int dy=0,di=0,ai=0,bi=0; dy<result.Height; dy++)
-      {
-        Unsafe.Copy(pa+ai, pdest+di, a.Width*sizeof(double));
-        di += a.Width;
-        ai += a.Width;
-        Unsafe.Copy(pb+bi, pdest+di, b.Width*sizeof(double));
-        di += b.Width;
-        bi += b.Width;
-      }
+    public static Matrix Subtract(Matrix a, Matrix b)
+    {
+      if(a == null) throw new ArgumentNullException();
+      Matrix result = a.Clone();
+      result.Subtract(b);
       return result;
-    }
-
-    public static Matrix CreateIdentity(int size)
-    {
-      Matrix matrix = new Matrix(size, size);
-      for(int i=0; i<size; i++) matrix[i, i] = 1;
-      return matrix;
-    }
-
-    public static Matrix Invert(Matrix matrix)
-    {
-      return GaussJordan.Invert(matrix);
     }
 
     public static Matrix Transpose(Matrix matrix)
     {
-      if((object)matrix == null) throw new ArgumentNullException();
+      if(matrix == null) throw new ArgumentNullException();
 
-      Matrix dest = new Matrix(matrix.Height, matrix.Width);
+      Matrix dest = new Matrix(matrix.Width, matrix.Height);
       for(int y=0; y<matrix.Height; y++)
       {
         for(int x=0; x<matrix.Width; x++) dest[x, y] = matrix[y, x];
       }
-      return matrix;
+      return dest;
     }
 
     void AssertSameSize(Matrix matrix)

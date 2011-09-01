@@ -54,7 +54,7 @@ namespace AdamMil.Mathematics.Tests
       Assert.AreEqual(-5, coeffs[4]);
       Assert.AreEqual(7,  coeffs[5]);
 
-      Assert.IsTrue(new Polynomial(11, 18, 33, -5, 7) == poly + new Polynomial(10, 20, 30));
+      Assert.AreEqual(new Polynomial(11, 18, 33, -5, 7), poly + new Polynomial(10, 20, 30));
       Assert.AreEqual(new Polynomial(-9, -22, -27, -5, 7), poly - new Polynomial(10, 20, 30));
       Assert.AreEqual(new Polynomial(-1, 2, -3, 5, -7), -poly);
       Assert.AreEqual(new Polynomial(2, -4, 6, -10, 14), poly*2);

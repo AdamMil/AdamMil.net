@@ -1011,9 +1011,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     if(length > 0) Skip(length);
   }
 
-  /// <summary>
-  /// Overrides <see cref="PinnedBuffer.CreateResizeBuffer"/> to properly resize the circular array that we're using.
-  /// </summary>
+  /// <summary>Overrides <see cref="PinnedBuffer.CreateResizeBuffer"/> to properly resize the circular array that we're using.</summary>
   protected override byte[] CreateResizeBuffer(int newSize)
   {
     byte[] newBuffer = new byte[newSize];

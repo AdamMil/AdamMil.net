@@ -27,6 +27,46 @@
     <GetHashCode>Returns a hash code for the object.</GetHashCode>
   </Common>
 
+  <Functions>
+    <DifferentiableFunction>
+      <DerivativeCount>
+        <summary>
+          Gets the number of derivatives that are supported by the function. This must be at least one. This is not necessarily
+          equal to the number of distinct derivatives. Many functions may support a practically unlimited number of derivatives, but with
+          almost all of them equal to zero. The purpose of this property is to allow a method to check that a function supports a given
+          number of derivatives, not to allow all of the derivatives to be enumerated.
+        </summary>
+      </DerivativeCount>
+      <EvaluateDerivative>
+        <summary>Returns the nth derivative of the function at a the given point.</summary>
+        <param name="x">The point at which the derivative is to be evaluated.</param>
+        <param name="derivative">
+          The derivative to evaluate. The first derivative is specify by passing 1, the second derivative by
+          passing 2, etc.
+        </param>
+        <exception cref="ArgumentOutOfRangeException">
+          Thrown if <paramref name="derivative"/> is [ess than 1 or greater than
+          <see cref="DerivativeCount"/>.
+        </exception>
+      </EvaluateDerivative>
+      <EvaluateGradient>
+        <summary>Returns the nth derivative (i.e. gradient) of the function at a the given point. This is an array of the same arity of
+          the function, where each element is the nth partial derivative of the function with respect to that parameter.
+        </summary>
+        <param name="x">The point at which the derivative is to be evaluated.</param>
+        <param name="derivative">
+          The derivative to evaluate. The first derivative is specify by passing 1, the second derivative by
+          passing 2, etc.
+        </param>
+        <param name="output">The array into which the gradient of the function should be stored.</param>
+        <exception cref="ArgumentOutOfRangeException">
+          Thrown if <paramref name="derivative"/> is [ess than 1 or greater than
+          <see cref="DerivativeCount"/>.
+        </exception>
+      </EvaluateGradient>
+    </DifferentiableFunction>
+  </Functions>
+  
   <Geometry>
     <Math2D>
       <AngleBetween>
@@ -161,6 +201,27 @@
   </Geometry>
 
   <LinearEquations>
+    <ILinearEquationSolver>
+      <GetInverse>
+        <summary>Returns the inverse of the coefficient matrix.</summary>
+      </GetInverse>
+      <Initialize>
+        <summary>Initializes the solver with the given coefficient matrix.</summary>
+        <param name="coefficients">
+          A square matrix representing the left side of the equations, where the rows represent the individual
+          equations and the columns represent the coefficients in the equations. The matrix must be invertible.
+        </param>
+      </Initialize>
+      <Solve>
+        <summary>Solves a system of linear equations.</summary>
+        <!--include file="documentation.xml" path="/Math/LinearEquations/Solve/*[@name != 'inverse']"/-->
+      </Solve>
+      <Solve1>
+        <summary>Solves a system of linear equations.</summary>
+        <!--include file="documentation.xml" path="/Math/LinearEquations/Solve/*[@name != 'inverse' and @name != 'inPlace']"/-->
+      </Solve1>
+    </ILinearEquationSolver>
+    
     <Solve>
       <param name="coefficients">A square matrix representing the left side of the equations, where the rows represent the individual
         equations and the columns represent the coefficients in the equations. The matrix must be invertible.
@@ -169,6 +230,10 @@
         equations, where each column contains the set of sums of the equation terms (i.e. what the equation equals).
       </param>
       <param name="inverse">A variable that receives the inverse of the <paramref name="coefficients" /> matrix.</param>
+      <param name="tryInPlace">If true, the values matrix will be updated in place to become the solution matrix, if possible. If false, a
+        new solution matrix will always be allocated. Note that in-place solution is not always possible, so you should always take the
+        return value as the answer rather than assuming that the solution was done in place.
+      </param>
       <returns>
         A matrix of the same size as <paramref name="values" /> where each column contains a solution to the system of equations (using
         the values from the corresponding column in <paramref name="values" />), and each row represents a variable.
@@ -200,6 +265,74 @@
         </code>
       </remarks>
     </Solve>
+    
+    <SVDecomposition>
+      <GeneralRemarks>
+        <remarks>
+          <para>
+            An MxN matrix A transforms an N-dimensional vector into an M-dimensional vector. That is, it represents a transformation
+            from N-dimensional space to M-dimensional space. However, sometimes the transformation only maps to a subspace of M. This is
+            always true, for instance, when N &lt; M. Singular value decomposition decomposes A into two column-orthogonal matrices,
+            commonly denoted U and V (each of width N), a subset of whose columns represent orthonormal basis vectors of the range and null
+            space of the matrix, respectively. The range of A describes the subspace of M-dimensional space mapped to by the
+            transformation, while the null space describes the subset of N-dimensional space that is mapped to zero in M-dimensional space.
+            The dimension of A's range is known as A's rank, and the dimension of A's null space is known as A's nullity.
+          </para>
+          <para>
+            In addition to U and V, singular value decomposition produces the singular values of A. (Technically, the singular values are
+            the square roots of the eigenvalues of transpose(A) * A, and also of A * transpose(A).) Geometrically, the matrix A transforms an
+            N-dimensional unit sphere into an M-dimensional ellipsoid, and the non-zero singular values are the lengths of the ellipsoid's
+            semi-axes. Practically, singular values are rarely exactly zero with numerical methods, given roundoff error, so we treat very
+            small singular values (less than a given fraction of the largest singular value) as though they were zero.
+          </para>
+          <para>
+            The singular values provide a number of things. First, they determine which columns of U and V are part of the matrix's range
+            and null space, respectively. Columns in U whose corresponding singular value is non-zero (in practice, above a threshold) form the
+            basis of the range, while columns in V whose corresponding singular values are zero (in practice, very small) form the basis of the
+            null space.
+            The singular values also provide a measure of how singular a matrix is. The so-called condition number of a matrix is the ratio of
+            the largest singular value to the smallest. If infinite (i.e. if a singular value is zero), the matrix is singular (degenerate).
+            If very large, the matrix is ill-conditioned. The condition number roughly corresponds to how much the solution to the matrix
+            changes with a change in right-hand side values, so with a large condition number, a small error in right-hand side values will
+            become a large error in the solution. Also, roundoff error can be multiplied by the condition number.
+          </para>
+          <para>
+            If the vector of singular values is named <c>w</c>, then <c>A = U * diag(w) * transpose(V)</c>.
+          </para>
+        </remarks>
+      </GeneralRemarks>
+      <NullSpaceRemarks>
+        <remarks>
+          As mentioned above, the null space of a matrix represents the subset of N-dimensional space that is mapped to zero in
+          M-dimensional space, and the nullity of a matrix is the dimension of its null space.
+          If a matrix representing a set of linear equations has a unique solution, then the null space contains only
+          the zero vector. That is to say that only the zero vector in N-space becomes a zero vector in M-space. In general, the set of
+          solutions can be found using the description of the space returned from <see cref="GetNullSpace" />. The set of solutions is
+          any solution vector plus any linear combination of the column vectors of the null space. You can use <see cref="Solve" /> to
+          retrieve an initial solution vector from which the other solutions can be generated. (If the null space is empty, then that
+          solution is unique.)
+        </remarks>
+      </NullSpaceRemarks>
+      <RangeRemarks>
+        <remarks>
+          As mentioned above, the range of a matrix represents the subset of M-dimensional space that is mapped to by the transformation
+          represented by the matrix, and the rank of a matrix is the dimension of its range.
+          The range of the decomposed matrix is set of M-dimensional points (vectors) formed by the addition of
+          any linear combination of the column vectors of the matrix returned by <see cref="GetRange" />.
+        </remarks>
+      </RangeRemarks>
+      <SolveRemarks>
+        <remarks>
+          When using singular value decomposition to solve a system of linear equations, there are three main cases to consider. First,
+          when the linear system has a single solution, single value decomposition (SVD) will find it. When the system has no solution, SVD
+          will produce the closest vector to a solution in the least squares sense. When the system has an infinite number of solutions,
+          SVD will produce the smallest solution vector, which can be used with <see cref="GetNullSpace"/> to generate any of the other
+          solutions. This implementation of SVD can only do in-place solving when the solution matrix has the same height as the width of
+          the decomposed matrix, or the solution matrix has a width of 1. In other situations, it will return a new matrix, even if you
+          requested in-place solving.
+        </remarks>
+      </SolveRemarks>
+    </SVDecomposition>
   </LinearEquations>
 
   <RNG>
