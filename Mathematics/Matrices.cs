@@ -22,7 +22,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using AdamMil.Mathematics.Geometry;
-using AdamMil.Mathematics.LinearEquations;
+using AdamMil.Mathematics.LinearAlgebra;
 using AdamMil.Utilities;
 
 #warning Document matrices!
@@ -61,7 +61,7 @@ namespace AdamMil.Mathematics
     {
       if(matrix == null) throw new ArgumentNullException();
       if(matrix.Width != Width || matrix.Height != Height) throw new ArgumentException("The matrix is the wrong size.");
-      fixed(double* src=matrix.Data)
+      fixed(double* src=matrix.Array)
       fixed(double* dest=&M00)
       {
         Unsafe.Copy(src, dest, Length*sizeof(double));
@@ -475,7 +475,7 @@ namespace AdamMil.Mathematics
     {
       if(matrix == null) throw new ArgumentNullException();
       if(matrix.Width != Width || matrix.Height != Height) throw new ArgumentException("The matrix is the wrong size.");
-      fixed(double* src=matrix.Data)
+      fixed(double* src=matrix.Array)
       fixed(double* dest=&M00)
       {
         Unsafe.Copy(src, dest, Length*sizeof(double));
@@ -977,7 +977,7 @@ namespace AdamMil.Mathematics
       set { data[row, column] = value; }
     }
 
-    public double[,] Data
+    public double[,] Array
     {
       get { return data; }
     }
@@ -1005,7 +1005,7 @@ namespace AdamMil.Mathematics
     {
       if(matrix == null) throw new ArgumentNullException();
       Resize(matrix.Height, matrix.Width);
-      Array.Copy(matrix.data, this.data, Width*Height);
+      System.Array.Copy(matrix.data, this.data, Width*Height);
     }
 
     public Matrix Clone()
@@ -1028,9 +1028,12 @@ namespace AdamMil.Mathematics
       return Equals(this, other, tolerance);
     }
 
-    public unsafe void Divide(double factor)
+    public unsafe void Divide(double dividend)
     {
-      Multiply(1 / factor);
+      fixed(double* pdata=data)
+      {
+        for(int i=0, length=data.Length; i<length; i++) pdata[i] /= dividend;
+      }
     }
 
     public Vector GetColumn(int column)
@@ -1121,6 +1124,15 @@ namespace AdamMil.Mathematics
       }
     }
 
+    public unsafe void ScaleRow(int row, double factor)
+    {
+      if((uint)row >= (uint)Height) throw new ArgumentOutOfRangeException();
+      fixed(double* pdata=data)
+      {
+        for(int i=row*Width, end=i+Width; i<end; i++) pdata[i] *= factor;
+      }
+    }
+
     public void Resize(int height, int width)
     {
       if(width != Width || height != Height)
@@ -1168,7 +1180,7 @@ namespace AdamMil.Mathematics
     public void SetIdentity()
     {
       AssertSquare();
-      Array.Clear(data, 0, data.Length);
+      System.Array.Clear(data, 0, data.Length);
       for(int i=0; i<Width; i++) data[i, i] = 1;
     }
 
@@ -1218,6 +1230,20 @@ namespace AdamMil.Mathematics
     public void Swap(int row1, int column1, int row2, int column2)
     {
       Utility.Swap(ref data[row1, column1], ref data[row2, column2]);
+    }
+
+    public unsafe void SwapColumns(int column1, int column2)
+    {
+      if((uint)column1 >= (uint)Width || (uint)column2 >= (uint)Width) throw new ArgumentOutOfRangeException();
+      fixed(double* pdata=data)
+      {
+        for(int i=0; i<Height; column1 += Width, column2 += Width, i++)
+        {
+          double t = pdata[column1];
+          pdata[column1] = pdata[column2];
+          pdata[column2] = t;
+        }
+      }
     }
 
     public unsafe void SwapRows(int row1, int row2)
@@ -1338,9 +1364,9 @@ namespace AdamMil.Mathematics
       if(a.Height != b.Height) throw new ArgumentException("The matrices must have the same height.");
       Matrix result = new Matrix(a.Height, a.Width+b.Width);
 
-      fixed(double* pdest=result.Data)
-      fixed(double* pa=a.Data)
-      fixed(double* pb=b.Data)
+      fixed(double* pdest=result.Array)
+      fixed(double* pa=a.Array)
+      fixed(double* pb=b.Array)
       {
         for(int dy=0, di=0, ai=0, bi=0; dy<result.Height; dy++)
         {
@@ -1415,22 +1441,134 @@ namespace AdamMil.Mathematics
       return a;
     }
 
-    public static Matrix Multiply(Matrix a, Matrix b)
+    // TODO: add multiplication instance methods that reuse the matrix storage if it's already of the correct size, and use only O(N)
+    // additional storage rather than O(MN)
+
+    public static unsafe Matrix Multiply(Matrix a, Matrix b)
     {
       if(a == null || b == null) throw new ArgumentNullException();
+      if(a.Width != b.Height) throw new ArgumentException("The width of the left matrix does not match the height of the right matrix.");
       // when multiplying A*B, an element of the result is sum of the products of pairs of elements from the same row in A and the same
       // column in B.
       Matrix result = new Matrix(a.Height, b.Width);
-      for(int dy=0; dy<result.Height; dy++)
+      fixed(double* plhs=a.data)
+      fixed(double* prhs=b.data)
+      fixed(double* pdest=result.data)
       {
-        for(int dx=0; dx<result.Width; dx++)
+        double* lhs=plhs, dest=pdest;
+        for(int i=0; i<result.Height; lhs += a.Width, i++)
         {
-          double sum = 0;
-          for(int i=0; i<a.Width; i++) sum += a[dy, i] * b[i, dx];
-          result[dy, dx] = sum;
+          double* rhs=prhs;
+          for(int j=0; j<result.Width; rhs++, dest++, j++)
+          {
+            double sum = 0;
+            for(int k=0, ri=0; k<a.Width; ri += b.Width, k++) sum += lhs[k] * rhs[ri];
+            *dest = sum;
+          }
         }
       }
       return result;
+    }
+
+    public static unsafe Matrix MultiplyByDiagonal(Matrix a, Matrix bDiagonal)
+    {
+      if(a == null || bDiagonal == null) throw new ArgumentNullException();
+      if(a.Width != bDiagonal.Height)
+      {
+        throw new ArgumentException("The width of the left matrix does not match the height of the right matrix.");
+      }
+      // A * B: | a b c |   | g 0 |   | ag bh |
+      //        | d e f | * | 0 h | = | dg eh |
+      //                    | 0 0 |
+      Matrix result = new Matrix(a.Height, bDiagonal.Width);
+      fixed(double* plhs=a.data)
+      fixed(double* rhs=bDiagonal.data)
+      fixed(double* pdest=result.data)
+      {
+        double* lhs=plhs, dest=pdest;
+        for(int i=0; i<result.Height; lhs += a.Width, i++)
+        {
+          for(int j=0,ri=0; j<result.Width; ri += bDiagonal.Width+1, dest++, j++) *dest = lhs[j] * rhs[ri];
+        }
+      }
+      return result;
+    }
+
+    public static unsafe Matrix MultiplyByDiagonal(Matrix a, Vector bDiagonal)
+    {
+      if(a == null || bDiagonal == null) throw new ArgumentNullException();
+      if(a.Width != bDiagonal.Size) throw new ArgumentException("The width of the matrix does not match the size of the vector.");
+      Matrix result = new Matrix(a.Height, bDiagonal.Size);
+      fixed(double* plhs=a.data)
+      fixed(double* rhs=bDiagonal.Array)
+      fixed(double* pdest=result.data)
+      {
+        double* lhs=plhs, dest=pdest;
+        for(int i=0; i<result.Height; lhs += a.Width, i++)
+        {
+          for(int j=0; j<result.Width; dest++, j++) *dest = lhs[j] * rhs[j];
+        }
+      }
+      return result;
+    }
+
+    public static unsafe Matrix MultiplyByTranspose(Matrix a, Matrix bToTranspose)
+    {
+      if(a == null || bToTranspose == null) throw new ArgumentNullException();
+      if(a.Width != bToTranspose.Width) throw new ArgumentException("The widths of the matrices do not match.");
+      // A * transpose(B):  | a b c |             | g h i |    | a b c |   | g j |
+      //                    | d e f | * transpose(| j k l |) = | d e f | * | h k |
+      //                                                                   | i l |
+      Matrix result = new Matrix(a.Height, bToTranspose.Height);
+      fixed(double* plhs=a.data)
+      fixed(double* prhs=bToTranspose.data)
+      fixed(double* pdest=result.data)
+      {
+        double* lhs=plhs, dest=pdest;
+        for(int i=0; i<result.Height; lhs += a.Width, i++)
+        {
+          double* rhs=prhs;
+          for(int j=0; j<result.Width; rhs += bToTranspose.Width, dest++, j++)
+          {
+            double sum = 0;
+            for(int k=0; k<a.Width; k++) sum += lhs[k] * rhs[k];
+            *dest = sum;
+          }
+        }
+      }
+      return result;
+    }
+
+    public static unsafe Matrix PremultiplyByTranspose(Matrix aToTranspose, Matrix b)
+    {
+      if(aToTranspose == null || b == null) throw new ArgumentNullException();
+      if(aToTranspose.Height != b.Height) throw new ArgumentException("The heights of the matrices do not match.");
+      // transpose(A) * B:            | a b c |    | g h i |   | a d |   | g h i |
+      //                    transpose(| d e f |) * | j k l | = | b e | * | j k l |
+      //                                                       | c f |
+      Matrix result = new Matrix(aToTranspose.Width, b.Width);
+      fixed(double* plhs=aToTranspose.data)
+      fixed(double* prhs=b.data)
+      fixed(double* pdest=result.data)
+      {
+        double* lhs=plhs, dest=pdest;
+        for(int i=0; i<result.Height; lhs++, i++)
+        {
+          double* rhs=prhs;
+          for(int j=0; j<result.Width; rhs++, dest++, j++)
+          {
+            double sum = 0;
+            for(int k=0, li=0, ri=0; k<aToTranspose.Height; li += aToTranspose.Width, ri += b.Width, k++) sum += lhs[li] * rhs[ri];
+            *dest = sum;
+          }
+        }
+      }
+      return result;
+    }
+
+    public static Matrix Pseudoinvert(Matrix matrix)
+    {
+      return new SVDecomposition(matrix).GetInverse();
     }
 
     /// <summary>Resizes the given matrix if it exists, or allocates a new matrix if it is null.</summary>

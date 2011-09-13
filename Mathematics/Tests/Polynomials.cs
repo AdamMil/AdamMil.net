@@ -73,10 +73,11 @@ namespace AdamMil.Mathematics.Tests
       Assert.AreEqual(new Polynomial(110.375, -106.375), remainder);
       Assert.AreEqual(new Polynomial(21.875, -7.75, 3.5), Polynomial.Divide(poly, new Polynomial(-5, 3, 2)));
 
+      // check that we can set coefficients outside the current size of the polynomial
       poly[10] = 42;
       Assert.AreEqual(10, poly.Degree);
       Assert.AreEqual("42x^10 + 7x^4 - 5x^3 + 3x^2 - 2x + 1", poly.ToString());
-      poly[10] = 0;
+      poly[10] = 0; // check that the degree decreases when we set the higher coefficients to zero
       Assert.AreEqual(4, poly.Degree);
       Assert.AreEqual(new Polynomial(1, -2, 3, -5, 7), poly);
     }

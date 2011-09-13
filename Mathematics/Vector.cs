@@ -258,7 +258,7 @@ namespace AdamMil.Mathematics
       return Multiply(vector, 1 / factor);
     }
 
-    /// <summary>Returns the dot product of two vectors.</summary>
+    /// <summary>Returns the dot product, also known as the inner product, of two vectors.</summary>
     public static double DotProduct(Vector a, Vector b)
     {
       ValidateSameSize(a, b);
@@ -345,6 +345,24 @@ namespace AdamMil.Mathematics
       double[] data = new double[a.Size];
       for(int i=0; i<data.Length; i++) data[i] = a.data[i] - b.data[i];
       return new Vector(data, false);
+    }
+
+    /// <summary>Returns the tensor product of two vectors, also known as the outer product, which is a matrix equal to the left side taken
+    /// as a column vector times the right side taken as a row vector.
+    /// </summary>
+    public static unsafe Matrix TensorProduct(Vector a, Vector b)
+    {
+      if(a == null || b == null) throw new ArgumentNullException();
+      Matrix matrix = new Matrix(a.Size, b.Size);
+      fixed(double* dest=matrix.Array)
+      {
+        for(int ai=0,di=0; ai<a.data.Length; ai++)
+        {
+          double av = a.data[ai];
+          for(int bi=0; bi<b.data.Length; di++, bi++) dest[di] = av*b.data[bi];
+        }
+      }
+      return matrix;
     }
 
     /// <summary>Adds two vectors and returns the result.</summary>

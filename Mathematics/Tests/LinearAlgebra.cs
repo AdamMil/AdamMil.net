@@ -1,11 +1,11 @@
-﻿using AdamMil.Mathematics.LinearEquations;
+﻿using System;
+using AdamMil.Mathematics.LinearAlgebra;
 using NUnit.Framework;
-using System;
 
 namespace AdamMil.Mathematics.Tests
 {
   [TestFixture]
-  public class LinearEquations
+  public class LinearAlgebra
   {
     [Test]
     public void T01_BasicLinearEquations()
@@ -52,6 +52,13 @@ namespace AdamMil.Mathematics.Tests
       // check that the inverses are about the same from both methods
       Assert.IsTrue(gjInverse.Equals(lud.GetInverse(), Accuracy));
 
+      // then solve using QR decomposition
+      QRDecomposition qrd = new QRDecomposition(coefficients.ToMatrix());
+      solution = qrd.Solve(values);
+      CheckSolution(solution, Accuracy);
+      CheckSolution(qrd.GetInverse() * values, Accuracy); // check that the inverse can be multiplied to produce a good solution
+      // TODO: test qrd.Update()
+
       // finally, try solving using singular value decomposition
       SVDecomposition svd = new SVDecomposition(coefficients.ToMatrix());
       solution = svd.Solve(values);
@@ -94,6 +101,7 @@ namespace AdamMil.Mathematics.Tests
       Assert.AreEqual(3, v[2], Accuracy);
 
       // try using the pseudoinverse to generate the same solution
+      // TODO: test pseudoinverse with non-square matrices
       Matrix inverse = svd.GetInverse();
       Matrix solution = inverse * values;
       Assert.AreEqual(1, solution.Width);
