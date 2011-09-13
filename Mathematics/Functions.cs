@@ -21,6 +21,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 using System;
 using AdamMil.Utilities;
 
+// TODO: add a method to evaluate both the value and (first?) derivative, and update methods to use it, to help reduce redundant
+// calculation?
+
 namespace AdamMil.Mathematics
 {
   #region IOneDimensionalFunction
@@ -244,10 +247,13 @@ namespace AdamMil.Mathematics
   #endregion
 
   #region ApproximatelyDifferentiableVVFunction
-  /// <summary>Provides an <see cref="IDifferentiableVVFunction"/> that computes the Jacobian matrix of an
+  /// <summary>Provides an <see cref="IDifferentiableVVFunction"/> that estimates the Jacobian matrix of an
   /// <see cref="IVectorValuedFunction"/> via forward-difference approximation. This is based on the fact that
   /// <c>(f(x+h) - f(x)) / h -> f'(x)</c> as <c>h -> 0</c>.
   /// </summary>
+  /// <remarks>In general, it is faster and more accurate to compute the Jacobian matrix directly rather than approximating it, but in
+  /// cases where that is difficult to achieve, this approximation may be helpful.
+  /// </remarks>
   public sealed class ApproximatelyDifferentiableVVFunction : IDifferentiableVVFunction
   {
     /// <summary>Initializes a new <see cref="ApproximatelyDifferentiableVVFunction"/> given an <see cref="IVectorValuedFunction"/> whose

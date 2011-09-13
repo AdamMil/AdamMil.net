@@ -21,7 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
-using AdamMil.Mathematics.LinearEquations;
+using AdamMil.Mathematics.LinearAlgebra;
 using AdamMil.Utilities;
 
 // TODO: add polynomial-specific root finders
@@ -29,13 +29,13 @@ using AdamMil.Utilities;
 namespace AdamMil.Mathematics.RootFinding
 {
 
-// TODO: replace with a more general Interval structure someday?
-#region RootInterval
+#region RootBracket
 /// <summary>Represents an interval in which a root of a one-dimensional function is assumed to exist.</summary>
-public struct RootInterval
+[Serializable]
+public struct RootBracket
 {
-  /// <summary>Initializes a new <see cref="RootInterval"/> with the given lower and upper bounds for the function argument.</summary>
-  public RootInterval(double min, double max)
+  /// <summary>Initializes a new <see cref="RootBracket"/> with the given lower and upper bounds for the function argument.</summary>
+  public RootBracket(double min, double max)
   {
     if(min > max) throw new ArgumentException("The minimum must be less than or equal to the maximum.");
     Min = min;
@@ -60,23 +60,40 @@ public struct RootInterval
 [Serializable]
 public class RootNotFoundException : Exception
 {
-  /// <inheritdoc/>
+  /// <summary>Initializes a new <see cref="RootNotFoundException"/>.</summary>
+  public RootNotFoundException() { }
+  /// <summary>Initializes a new <see cref="RootNotFoundException"/>.</summary>
   public RootNotFoundException(string message) : base(message) { }
-  /// <inheritdoc/>
+  /// <summary>Initializes a new <see cref="RootNotFoundException"/>.</summary>
   public RootNotFoundException(string message, Exception innerException) : base(message, innerException) { }
-  /// <inheritdoc/>
+  /// <summary>Initializes a new <see cref="RootNotFoundException"/>.</summary>
   public RootNotFoundException(SerializationInfo info, StreamingContext context) : base(info, context) { }
 }
 #endregion
 
 #region FindRoot
-/// <summary>Provides methods for finding roots of one-dimensional functions.</summary>
+/// <summary>Provides methods for finding roots of functions.</summary>
+/// <remarks>
+/// <para>For one-dimensional root finding, <see cref="BoundedNewtonRaphson"/> is the recommended method, but it requires a
+/// differentiable function. If you cannot compute the derivative, then <see cref="Brent"/> is the best choice.
+/// <see cref="UnboundedNewtonRaphson"/> is generally inferior to those methods, but has the benefit of being able to find double roots,
+/// which the other methods cannot. <see cref="Subdivide"/> is a simple and highly robust method, but not particularly fast, and should
+/// generally not be used, as it is dominated by the other methods in almost all cases. Before performing one-dimensional root finding, it
+/// is necessary to first bracket the root. <see cref="BracketInward"/> and <see cref="BracketOutward"/> can assist with this.
+/// </para>
+/// <para>For finding roots of general multidimensional and vector-valued functions, the recommended method is <see cref="GlobalNewton"/>
+/// when you can efficiently compute the Jacobian matrix, and <see cref="Broyden"/> when you cannot. Using
+/// <see cref="ApproximatelyDifferentiableVVFunction"/> to approximate the Jacobian for use with <see cref="GlobalNewton"/> is also
+/// possible, but is usually slower and less accurate than using Broyden's method. Similarly, using a differentiable vector-valued function
+/// with <see cref="Broyden"/> is possible, but it is generally slower than using Newton's method.
+/// </para>
+/// </remarks>
 public static class FindRoot
 {
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[@name != 'accuracy']"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/BoundedNewtonRaphson/*"/>
   /// <returns>Returns a root of the function, to within a default accuracy. See the remarks for more details.</returns>
-  public static double BoundedNewtonRaphson(IDifferentiableFunction function, RootInterval interval)
+  public static double BoundedNewtonRaphson(IDifferentiableFunction function, RootBracket interval)
   {
     return BoundedNewtonRaphson(function, interval, GetDefaultAccuracy(interval));
   }
@@ -84,7 +101,7 @@ public static class FindRoot
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/BoundedNewtonRaphson/*"/>
   /// <returns>Returns a root of the function, to within the specified accuracy. See the remarks for more details.</returns>
-  public static double BoundedNewtonRaphson(IDifferentiableFunction function, RootInterval interval, double accuracy)
+  public static double BoundedNewtonRaphson(IDifferentiableFunction function, RootBracket interval, double accuracy)
   {
     ValidateArguments(function, interval, accuracy);
 
@@ -150,45 +167,44 @@ public static class FindRoot
   }
 
   /// <include file="documentation.xml" path="/Math/RootFinding/BracketInward/*"/>
-  public static List<RootInterval> BracketInward(IOneDimensionalFunction function, RootInterval interval, int segments)
+  public static IEnumerable<RootBracket> BracketInward(IOneDimensionalFunction function, RootBracket interval, int segments)
   {
     if(function == null) throw new ArgumentNullException();
     return BracketInward(function.Evaluate, interval, segments);
   }
 
   /// <include file="documentation.xml" path="/Math/RootFinding/BracketInward/*"/>
-  public static List<RootInterval> BracketInward(Func<double, double> function, RootInterval interval, int segments)
+  public static IEnumerable<RootBracket> BracketInward(Func<double, double> function, RootBracket interval, int segments)
   {
     ValidateArguments(function, interval);
     if(segments <= 0) throw new ArgumentOutOfRangeException();
 
-    List<RootInterval> intervals = new List<RootInterval>();
+    List<RootBracket> intervals = new List<RootBracket>();
     double segmentSize = (interval.Max - interval.Min) / segments, max = interval.Min, vMin = function(interval.Min);
     for(int i=0; i<segments; i++)
     {
       max = i == segments-1 ? interval.Max : max + segmentSize; // make sure the end of the last segment exactly matches the the interval
       double vMax = function(max);
-      if(vMin*vMax <= 0) intervals.Add(new RootInterval(interval.Min, max)); // if a zero crossing (or zero touching) was found, add it
+      if(vMin*vMax <= 0) yield return new RootBracket(interval.Min, max); // if a zero crossing (or zero touching) was found, return it
       vMin = vMax;
       interval.Min = max;
     }
-    return intervals;
   }
 
   /// <include file="documentation.xml" path="/Math/RootFinding/BracketOutward/*"/>
-  public static bool BracketOutward(IOneDimensionalFunction function, ref RootInterval initialGuess)
+  public static bool BracketOutward(IOneDimensionalFunction function, ref RootBracket initialGuess)
   {
     if(function == null) throw new ArgumentNullException();
     return BracketOutward(function.Evaluate, ref initialGuess);
   }
 
   /// <include file="documentation.xml" path="/Math/RootFinding/BracketOutward/*"/>
-  public static bool BracketOutward(Func<double, double> function, ref RootInterval initialGuess)
+  public static bool BracketOutward(Func<double, double> function, ref RootBracket initialGuess)
   {
     ValidateArguments(function, initialGuess);
 
-    const int MaxTries = 50;
     const double Expansion = 1.6;
+    const int MaxTries = 50;
 
     double vMin = function(initialGuess.Min), vMax = function(initialGuess.Max);
     for(int i=0; i<MaxTries; i++)
@@ -214,7 +230,7 @@ public static class FindRoot
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[@name != 'accuracy']"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/Brent/*"/>
   /// <returns>Returns a root of the function, to within a default level of accuracy. See the remarks for more details.</returns>
-  public static double Brent(IOneDimensionalFunction function, RootInterval interval)
+  public static double Brent(IOneDimensionalFunction function, RootBracket interval)
   {
     if(function == null) throw new ArgumentNullException();
     return Brent(function.Evaluate, interval);
@@ -223,7 +239,7 @@ public static class FindRoot
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[@name != 'accuracy']"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/Brent/*"/>
   /// <returns>Returns a root of the function, to within a default level of accuracy. See the remarks for more details.</returns>
-  public static double Brent(Func<double, double> function, RootInterval interval)
+  public static double Brent(Func<double, double> function, RootBracket interval)
   {
     return Brent(function, interval, GetDefaultAccuracy(interval));
   }
@@ -231,7 +247,7 @@ public static class FindRoot
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/Brent/*"/>
   /// <returns>Returns a root of the function, to within the specified accuracy. See the remarks for more details.</returns>
-  public static double Brent(IOneDimensionalFunction function, RootInterval interval, double accuracy)
+  public static double Brent(IOneDimensionalFunction function, RootBracket interval, double accuracy)
   {
     return Brent(function.Evaluate, interval, accuracy);
   }
@@ -239,7 +255,7 @@ public static class FindRoot
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/Brent/*"/>
   /// <returns>Returns a root of the function, to within the specified accuracy. See the remarks for more details.</returns>
-  public static double Brent(Func<double, double> function, RootInterval interval, double accuracy)
+  public static double Brent(Func<double, double> function, RootBracket interval, double accuracy)
   {
     ValidateArguments(function, interval, accuracy);
 
@@ -308,7 +324,7 @@ public static class FindRoot
         {
           // P = S * ((R-1)*2xm + (1-R)*2xm) = S * 2xm * ((R-1) + (1-R)) = S * 2xm = S * 2 * 0.5 * (c-b) = S * (c-b)
           p = s * (c-b);
-          // this seems like it should simplify Q = (T-1)*(R-1)*(S-1) = Q = (1-1)*(R-1)*(S-1) = 0. but that would lead to division by zero
+          // this seems like it should simplify Q = (T-1)*(R-1)*(S-1) = (1-1)*(R-1)*(S-1) = 0. but that would lead to division by zero
           // later when we divide P by Q, so Brent's method uses this instead. i'm not sure why.
           q = 1 - s;
         }
@@ -342,7 +358,7 @@ public static class FindRoot
 
       a  = b;
       va = vb;
-      b += Math.Abs(range) > tolerance ? range : WithSign(tolerance, xm);
+      b += Math.Abs(range) > tolerance ? range : MathHelpers.WithSign(tolerance, xm);
       vb = function(b);
     }
 
@@ -356,9 +372,181 @@ public static class FindRoot
   /// happens, try again with a different initial guess.
   /// </summary>
   /// <remarks>If a root was found (i.e. the method returned true), you may be able to improve the root further by calling this method
-  /// repeatedly until the root stops changing.
+  /// repeatedly until the root stops changing. If you get <see cref="SingularMatrixException"/> errors and changing the initial point
+  /// doesn't help, try using <see cref="GlobalNewton(IDifferentiableVVFunction,double[],ILinearEquationSolver)"/> with
+  /// <see cref="SVDecomposition"/> for the linear equation solver. This is slower, but better able to handle degenerate cases. (If
+  /// <see cref="GlobalNewton"/> is used, you must supply a differentiable vector-valued function. If you cannot compute the derivative
+  /// matrix (i.e. the Jacobian), you can try using <see cref="ApproximatelyDifferentiableVVFunction"/> to approximate it.)
+  /// </remarks>
+  public static bool Broyden(IVectorValuedFunction function, double[] x)
+  {
+    return Broyden(new ApproximatelyDifferentiableVVFunction(function), x);
+  }
+
+  /// <summary>This method attempts to find the root of a differentiable vector-valued function, given an initial guess in
+  /// <paramref name="x" />. That is, it attempts to find a value of the function that causes it to return a zero vector. The found root is
+  /// stored back into <paramref name="x"/>. The method has a limitation that the vector-valued function must have the same input and
+  /// output size. The method returns true if a root (or near root) was found, and false if it converged on a local minimum in the search
+  /// space. If that happens, try again with a different initial guess.
+  /// </summary>
+  /// <remarks>Although this override accepts a general <see cref="IDifferentiableVVFunction"/>, it is expected to be used with
+  /// <see cref="ApproximatelyDifferentiableVVFunction"/>. If you have a truly differentiable function, it is generally better to use
+  /// <see cref="GlobalNewton"/>, but if computing the Jacobian is prohibitively slow, this method can be faster, since although it does
+  /// more work per iteration, it requires substantially fewer calculations of the Jacobian. If a root was found (i.e. the method returned
+  /// true), you may be able to improve the root further by calling this method repeatedly until the root stops changing.
+  /// If you get <see cref="SingularMatrixException"/> errors and changing the initial point doesn't help, try using
+  /// <see cref="GlobalNewton(IDifferentiableVVFunction,double[],ILinearEquationSolver)"/> with <see cref="SVDecomposition"/>
+  /// for the linear equation solver.
+  /// </remarks>
+  public static bool Broyden(IDifferentiableVVFunction function, double[] x)
+  {
+    if(function == null || x == null) throw new ArgumentNullException();
+    if(function.InputArity != function.OutputArity) throw new ArgumentException("The function must have the same input and output arity.");
+    if(function.InputArity != x.Length) throw new ArgumentException("The point array does not match the function's input arity.");
+
+    const int MaxIterations = 200;
+    const double ScaledMaxStep = 100, InitialValueTolerance = 1e-15, ValueTolerance = 1e-8, ConvergeTolerance = 1e-12;
+
+    double[] values = new double[function.OutputArity];
+    function.Evaluate(x, values);
+
+    if(GetMaximumMagnitude(values) < InitialValueTolerance) return true;
+
+    // calculate the maximum step that we'll allow the line search to take. it'll be some multiple of the original point's magnitude, but
+    // not too small
+    double maxStep = Math.Max(MathHelpers.SumSquaredVector(x), x.Length) * ScaledMaxStep;
+
+    SquaredFunction sqFunction = new SquaredFunction(function, values);
+    QRDecomposition qrd = new QRDecomposition();
+    Matrix jacobian = new Matrix(function.InputArity, function.OutputArity);
+    Matrix qt=null, r=null;
+    double[] prevX = new double[x.Length], prevValues = new double[x.Length], s = new double[x.Length], t = new double[x.Length], w = null;
+    double sqValue = SquaredFunction.GetSquaredValue(values);
+    bool recomputeJacobian = true; // compute the approximate Jacobian on the first iteration
+    for(int iteration=0; iteration < MaxIterations; iteration++)
+    {
+      if(recomputeJacobian) // if we need to recompute the Jacobian from scratch...
+      {
+        function.EvaluateJacobian(x, jacobian);
+        try
+        {
+          qrd.Initialize(jacobian);
+        }
+        catch(SingularMatrixException) // if the jacobian is degenerate, use the identity matrix, which we'll gradually update into a
+        {                              // hopefully non-degenerate approximation of the jacobian
+          jacobian.SetIdentity();
+          qrd.Initialize(jacobian);
+        }
+        qrd.GetDecomposition(ref qt, ref r);
+      }
+      else // otherwise, we'll attempt to update the existing Jacobian matrix
+      {
+        if(w == null) w = new double[x.Length]; // allocate our array the first time through
+        
+        for(int i=0; i<s.Length; i++) s[i] = x[i] - prevX[i]; // s = x - oldX
+
+        // multiply by R (optimized to account for R being upper triangular)
+        for(int i=0; i<t.Length; i++) t[i] = MathHelpers.SumRowTimesVector(r, i, s, i);
+
+        // see if the values changed enough to warrant an update
+        bool skipUpdate = true;
+        for(int i=0; i<w.Length; i++)
+        {
+          w[i] = values[i] - prevValues[i] - MathHelpers.SumColumnTimesVector(qt, i, t);
+          // if a change in value was substantial (i.e. bigger than the approximate roundoff error), then we need to do the update
+          if(Math.Abs(w[i]) >= (Math.Abs(values[i]) + Math.Abs(prevValues[i]))*IEEE754.DoublePrecision) skipUpdate = false;
+          else w[i] = 0; // otherwise, ignore values of w[i] near the roundoff error, which would only contribute noise
+        }
+
+        if(!skipUpdate)
+        {
+          MathHelpers.Multiply(qt, w, t); // t = transpose(Q)*w
+          MathHelpers.DivideVector(s, MathHelpers.SumSquaredVector(s)); // normalize the s vector, i.e. s = s / (s.s)
+          qrd.Update(t, s);
+          qrd.GetDecomposition(ref qt, ref r);
+        }
+      }
+
+      // compute the step for the line search in s
+      MathHelpers.Multiply(qt, values, s);
+      MathHelpers.NegateVector(s);
+
+      // compute the gradient for the line search in t
+      for(int i=0; i<t.Length; i++)
+      {
+        double sum = 0;
+        for(int j=0; j <= i; j++) sum -= r[j, i]*s[j];
+        t[i] = sum;
+      }
+
+      MathHelpers.Backsubstitute(r, s);
+
+      if(MathHelpers.DotProduct(s, t) >= 0)
+      {
+        recomputeJacobian = true;
+        continue;
+      }
+
+      ArrayUtility.SmallCopy(x, prevX, x.Length);
+      ArrayUtility.SmallCopy(values, prevValues, x.Length);
+      bool converged = LineSearch(sqFunction, prevX, sqValue, t, s, x, out sqValue, maxStep);
+
+      // check to see whether the function values have converged to nearly zero. the values array would have been updated by LineSearch()
+      // via SquaredFunction.Evaluate(), which stores new values into the array
+      if(GetMaximumMagnitude(values) < ValueTolerance) return true;
+
+      if(converged) // if the line search reported convergence at a minimum value (i.e. if it failed to move the full distance)...
+      {
+        // if we already tried recomputing the jacobian, or it got stuck on a local minimum, give up
+        if(recomputeJacobian) return GetMaximumRelativeGradientMagnitude(x, t, sqValue) >= ConvergeTolerance;
+        else recomputeJacobian = true; // otherwise, restart with a recomputation of the jacobian
+      }
+      else // the line completed successfully
+      {
+        if(GetParameterConvergence(x, prevX) < IEEE754.DoublePrecision) return true;
+        recomputeJacobian = false;
+      }
+    }
+
+    throw RootNotFoundError();
+  }
+
+  /// <summary>This method attempts to find the root of a differentiable vector-valued function, given an initial guess in
+  /// <paramref name="x" />. That is, it attempts to find a value of the function that causes it to return a zero vector. The found root is
+  /// stored back into <paramref name="x"/>. The method has a limitation that the vector-valued function must have the same input and
+  /// output size. The method returns true if a root (or near root) was found, and false if it converged on a local minimum in the search
+  /// space. If that happens, try again with a different initial guess.
+  /// </summary>
+  /// <remarks>If your function has an approximate Jacobian computed by <see cref="ApproximatelyDifferentiableVVFunction"/>, it is usually
+  /// better to use <see cref="Broyden"/>, which is especially designed for use with approximate Jacobians.
+  /// If a root was found (i.e. the method returned true), you may be able to improve the root further by calling this method
+  /// repeatedly until the root stops changing. If you get <see cref="SingularMatrixException"/> errors and changing the initial point
+  /// doesn't help, try using <see cref="GlobalNewton(IDifferentiableVVFunction,double[],ILinearEquationSolver)"/> with
+  /// <see cref="SVDecomposition"/> for the linear equation solver. This is slower, but better able to handle degenerate cases.
   /// </remarks>
   public static bool GlobalNewton(IDifferentiableVVFunction function, double[] x)
+  {
+    return GlobalNewton(function, x, null);
+  }
+
+  /// <summary>This method attempts to find the root of a vector-valued function, given an initial guess in <paramref name="x" />. That is,
+  /// it attempts to find a value of the function that causes it to return a zero vector. The found root is stored back
+  /// into <paramref name="x"/>. The method has a limitation that the vector-valued function must have the same input and output size.
+  /// The method returns true if a root (or near root) was found, and false if it converged on a local minimum in the search space. If that
+  /// happens, try again with a different initial guess.
+  /// </summary>
+  /// <param name="function">The function whose root should be found.</param>
+  /// <param name="x">The initial guess for the location of the root.</param>
+  /// <param name="solver">An <see cref="ILinearEquationSolver"/> used internally to solve for the Newton step. If null, the default of
+  /// <see cref="LUDecomposition"/> is used. In general, the default works well. However, if you get <see cref="SingularMatrixException"/>
+  /// errors and changing the initial point doesn't help, you may want to use <see cref="SVDecomposition"/>, which is slower and slightly
+  /// less accurate, but better able to handle certain difficult cases.
+  /// </param>
+  /// <remarks>If your function has an approximate Jacobian computed by <see cref="ApproximatelyDifferentiableVVFunction"/>, it is usually
+  /// better to use <see cref="Broyden"/>, which is especially designed for use with approximate Jacobians. If a root was found (i.e. the
+  /// method returned true), you may be able to improve the root further by calling this method repeatedly until the root stops changing.
+  /// </remarks>
+  public static bool GlobalNewton(IDifferentiableVVFunction function, double[] x, ILinearEquationSolver solver)
   {
     if(function == null || x == null) throw new ArgumentNullException();
     if(function.InputArity != function.OutputArity) throw new ArgumentException("The function must have the same input and output arity.");
@@ -376,35 +564,28 @@ public static class FindRoot
 
     // calculate the maximum step that we'll allow the line search to take. it'll be some multiple of the original point's magnitude, but
     // not too small
-    double maxStep = 0;
-    for(int i=0; i<x.Length; i++) maxStep += x[i]*x[i];
-    maxStep = Math.Max(Math.Sqrt(maxStep), x.Length) * ScaledMaxStep;
+    double maxStep = Math.Max(MathHelpers.SumSquaredVector(x), x.Length) * ScaledMaxStep;
 
     SquaredFunction sqFunction = new SquaredFunction(function, values);
-    Vector gradient = new Vector(function.InputArity), step = new Vector(function.InputArity);
-    Matrix jacobian = new Matrix(function.InputArity, function.OutputArity), stepMatrix = step.ToColumnMatrix();
-    LUDecomposition lud = new LUDecomposition(); // TODO: replace LU decomposition with SV decomposition to help with singular matrices
-    double[] oldX = new double[x.Length];
+    double[] gradient = new double[function.InputArity], step = new double[function.InputArity];
+    Matrix jacobian = new Matrix(function.InputArity, function.OutputArity), stepMatrix = new Matrix(function.InputArity, 1);
+    double[] prevX = new double[x.Length];
     double sqValue = SquaredFunction.GetSquaredValue(values);
+    if(solver == null) solver = new LUDecomposition();
     for(int iteration=0; iteration < MaxIterations; iteration++)
     {
       function.EvaluateJacobian(x, jacobian);
 
       // compute the gradient for the line search
-      for(int i=0; i<gradient.Size; i++)
-      {
-        double sum = 0;
-        for(int j=0; j<values.Length; j++) sum += jacobian[j, i] * values[j];
-        gradient[i] = sum;
-      }
+      for(int i=0; i<gradient.Length; i++) gradient[i] = MathHelpers.SumColumnTimesVector(jacobian, i, values);
 
-      ArrayUtility.SmallCopy(x, oldX, x.Length);
-
-      lud.Initialize(jacobian);
-      for(int i=0; i<step.Size; i++) step[i] = -values[i];
+      for(int i=0; i<step.Length; i++) step[i] = -values[i];
       stepMatrix.SetColumn(0, step);
-      lud.Solve(stepMatrix, true).GetColumn(0, step.Array);
-      bool converged = LineSearch(sqFunction, oldX, sqValue, gradient, step, x, out sqValue, maxStep);
+      solver.Initialize(jacobian);
+      solver.Solve(stepMatrix, true).GetColumn(0, step);
+
+      ArrayUtility.SmallCopy(x, prevX, x.Length);
+      bool converged = LineSearch(sqFunction, prevX, sqValue, gradient, step, x, out sqValue, maxStep);
 
       // check to see whether the function values have converged to nearly zero. the values array would have been updated by LineSearch()
       // via SquaredFunction.Evaluate(), which stores new values into the array
@@ -412,24 +593,12 @@ public static class FindRoot
 
       if(converged) // if the line search reported convergence at a minimum value...
       {
-        // see if the convergence is spurious (i.e. if the gradient is zero)
-        double maxComponent = 0, divisor = Math.Max(sqValue, 0.5*x.Length);
-        for(int i=0; i<x.Length; i++)
-        {
-          double component = Math.Abs(gradient[i]) * Math.Max(Math.Abs(x[i]), 1) / divisor;
-          if(component > maxComponent) maxComponent = component;
-        }
-        return maxComponent >= ConvergeTolerance;
+        // see if the convergence is spurious (i.e. if the gradient is near zero)
+        return GetMaximumRelativeGradientMagnitude(x, gradient, sqValue) >= ConvergeTolerance;
       }
       else // the line search didn't report convergence at a minimum value, so check to see whether the function parameters have converged
       {
-        double maxArgument = 0;
-        for(int i=0; i<x.Length; i++)
-        {
-          double argument = Math.Abs(x[i]-oldX[i]) / Math.Max(1, Math.Abs(x[i]));
-          if(argument > maxArgument) maxArgument = argument;
-        }
-        if(maxArgument < IEEE754.DoublePrecision) return true;
+        if(GetParameterConvergence(x, prevX) < IEEE754.DoublePrecision) return true;
       }
     }
 
@@ -439,7 +608,7 @@ public static class FindRoot
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[@name != 'accuracy']"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/Subdivide/*"/>
   /// <returns>Returns a root of the function, to within a default level of accuracy. See the remarks for more details.</returns>
-  public static double Subdivide(IOneDimensionalFunction function, RootInterval interval)
+  public static double Subdivide(IOneDimensionalFunction function, RootBracket interval)
   {
     if(function == null) throw new ArgumentNullException();
     return Subdivide(function.Evaluate, interval);
@@ -448,7 +617,7 @@ public static class FindRoot
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[@name != 'accuracy']"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/Subdivide/*"/>
   /// <returns>Returns a root of the function, to within a default level of accuracy. See the remarks for more details.</returns>
-  public static double Subdivide(Func<double, double> function, RootInterval interval)
+  public static double Subdivide(Func<double, double> function, RootBracket interval)
   {
     return Subdivide(function, interval, GetDefaultAccuracy(interval));
   }
@@ -456,7 +625,7 @@ public static class FindRoot
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/Subdivide/*"/>
   /// <returns>Returns a root of the function, to within the specified accuracy. See the remarks for more details.</returns>
-  public static double Subdivide(IOneDimensionalFunction function, RootInterval interval, double accuracy)
+  public static double Subdivide(IOneDimensionalFunction function, RootBracket interval, double accuracy)
   {
     if(function == null) throw new ArgumentNullException();
     return Subdivide(function.Evaluate, interval, accuracy);
@@ -465,7 +634,7 @@ public static class FindRoot
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/Subdivide/*"/>
   /// <returns>Returns a root of the function, to within the specified accuracy. See the remarks for more details.</returns>
-  public static double Subdivide(Func<double, double> function, RootInterval interval, double accuracy)
+  public static double Subdivide(Func<double, double> function, RootBracket interval, double accuracy)
   {
     ValidateArguments(function, interval, accuracy);
 
@@ -504,7 +673,7 @@ public static class FindRoot
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[@name != 'accuracy']"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/UnboundedNewtonRaphson/*"/>
   /// <returns>Returns a root of the function, to within a default accuracy. See the remarks for more details.</returns>
-  public static double UnboundedNewtonRaphson(IDifferentiableFunction function, RootInterval interval)
+  public static double UnboundedNewtonRaphson(IDifferentiableFunction function, RootBracket interval)
   {
     return UnboundedNewtonRaphson(function, interval, GetDefaultAccuracy(interval));
   }
@@ -512,7 +681,7 @@ public static class FindRoot
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/UnboundedNewtonRaphson/*"/>
   /// <returns>Returns a root of the function, to within the specified accuracy. See the remarks for more details.</returns>
-  public static double UnboundedNewtonRaphson(IDifferentiableFunction function, RootInterval interval, double accuracy)
+  public static double UnboundedNewtonRaphson(IDifferentiableFunction function, RootBracket interval, double accuracy)
   {
     ValidateArguments(function, interval, accuracy);
 
@@ -543,6 +712,7 @@ public static class FindRoot
 
     throw RootNotFoundError();
   }
+
   #region SquaredFunction
   sealed class SquaredFunction : IMultidimensionalFunction
   {
@@ -590,7 +760,29 @@ public static class FindRoot
     return maxMagnitude;
   }
 
-  static internal bool LineSearch(IMultidimensionalFunction function, double[] x, double value, Vector gradient, Vector step,
+  static double GetMaximumRelativeGradientMagnitude(double[] x, double[] gradient, double sqValue)
+  {
+    double maxComponent = 0, divisor = Math.Max(sqValue, 0.5*x.Length);
+    for(int i=0; i<x.Length; i++)
+    {
+      double component = Math.Abs(gradient[i]) * Math.Max(Math.Abs(x[i]), 1) / divisor;
+      if(component > maxComponent) maxComponent = component;
+    }
+    return maxComponent;
+  }
+
+  static double GetParameterConvergence(double[] x, double[] prevX)
+  {
+    double maxArgument = 0;
+    for(int i=0; i<x.Length; i++)
+    {
+      double argument = Math.Abs(x[i]-prevX[i]) / Math.Max(1, Math.Abs(x[i]));
+      if(argument > maxArgument) maxArgument = argument;
+    }
+    return maxArgument;
+  }
+
+  static internal bool LineSearch(IMultidimensionalFunction function, double[] x, double value, double[] gradient, double[] step,
                                   double[] newX, out double newValue, double maxStep=double.PositiveInfinity)
   {
     // when performing Newton's method against a function, taking the full Newton step may not decrease the function's value. the
@@ -644,12 +836,12 @@ public static class FindRoot
     // first limit the step length to maxStep
     if(!double.IsPositiveInfinity(maxStep))
     {
-      double length = step.GetMagnitude();
-      if(length > maxStep) step *= maxStep/length;
+      double length = MathHelpers.SumSquaredVector(step);
+      if(length > maxStep) MathHelpers.ScaleVector(step, maxStep/length);
     }
 
     // then calculate the slope as the dot product between the step and the gradient -- this is g'(0) in the description above
-    double slope = Vector.DotProduct(gradient, step);
+    double slope = MathHelpers.DotProduct(gradient, step);
     if(slope >= 0) throw new ArgumentException("Invalid step vector, or too much roundoff error occurred.");
 
     // find the minimum allowable factor. if the factor drops below this value, then we give up
@@ -715,7 +907,7 @@ public static class FindRoot
     }
   }
 
-  static double GetDefaultAccuracy(RootInterval interval)
+  static double GetDefaultAccuracy(RootBracket interval)
   {
     return (Math.Abs(interval.Min) + Math.Abs(interval.Max)) * (0.5 * IEEE754.DoublePrecision);
   }
@@ -730,22 +922,16 @@ public static class FindRoot
     return new RootNotFoundException("No root found within the given interval and tolerance.");
   }
 
-  static void ValidateArguments(object function, RootInterval interval)
+  static void ValidateArguments(object function, RootBracket interval)
   {
     if(function == null) throw new ArgumentNullException();
     if(interval.Min > interval.Max) throw new ArgumentException("Invalid interval.");
   }
 
-  static void ValidateArguments(object function, RootInterval interval, double accuracy)
+  static void ValidateArguments(object function, RootBracket interval, double accuracy)
   {
     ValidateArguments(function, interval);
     if(accuracy < 0) throw new ArgumentOutOfRangeException();
-  }
-
-  /// <summary>Returns a value having the magnitude of the first argument and the sign of the second argument.</summary>
-  static double WithSign(double value, double sign)
-  {
-    return (sign < 0) ^ (value < 0) ? -value : value;
   }
 }
 #endregion

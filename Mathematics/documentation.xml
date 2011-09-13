@@ -200,7 +200,7 @@
     </Vector>
   </Geometry>
 
-  <LinearEquations>
+  <LinearAlgebra>
     <ILinearEquationSolver>
       <GetInverse>
         <summary>Returns the inverse of the coefficient matrix.</summary>
@@ -213,15 +213,28 @@
         </param>
       </Initialize>
       <Solve>
-        <summary>Solves a system of linear equations.</summary>
+        <summary>Solves the system of linear equations using the given right-hand side values.</summary>
         <!--include file="documentation.xml" path="/Math/LinearEquations/Solve/*[@name != 'inverse']"/-->
       </Solve>
       <Solve1>
-        <summary>Solves a system of linear equations.</summary>
+        <summary>Solves the system of linear equations using the given right-hand side values.</summary>
         <!--include file="documentation.xml" path="/Math/LinearEquations/Solve/*[@name != 'inverse' and @name != 'inPlace']"/-->
       </Solve1>
     </ILinearEquationSolver>
-    
+
+    <QRDecomposition>
+      <Update>
+        <summary>Updates the QR decomposition to represent a new, related set of linear equations.</summary>
+        <remarks>
+          A special property of the QR decomposition is that the coefficient matrix A can be efficiently updated to a new
+          coefficient matrix equal to A + (s ⊗ t) where s and t are vectors and ⊗ is the tensor product. (This is related to the
+          Sherman-Morrison formula for updating the matrix inverse of a matrix M given an update to M of the form M = M + (a ⊗ b).)
+          This method performs that update indirectly. Given that A = Q*R, we have A + (s ⊗ t) = Q*(R + (u ⊗ v)), where t = v and
+          s = Q*u (or u = transpose(Q)*s).
+        </remarks>
+      </Update>
+    </QRDecomposition>
+
     <Solve>
       <param name="coefficients">A square matrix representing the left side of the equations, where the rows represent the individual
         equations and the columns represent the coefficients in the equations. The matrix must be invertible.
@@ -265,7 +278,7 @@
         </code>
       </remarks>
     </Solve>
-    
+
     <SVDecomposition>
       <GeneralRemarks>
         <remarks>
@@ -333,7 +346,77 @@
         </remarks>
       </SolveRemarks>
     </SVDecomposition>
-  </LinearEquations>
+  </LinearAlgebra>
+
+  <Optimization>
+    <Minimize>
+      <BracketInward>
+        <summary>Attempts to enumerate brackets containing local minima within an interval of a function.</summary>
+        <param name="function">The function to be evaluated.</param>
+        <param name="x1">The first point bounding the interval to search within.</param>
+        <param name="x2">The second point bounding the interval to search within.</param>
+        <param name="segments">The number of subintervals into which the interval will be divided when looking for minima.</param>
+        <remarks>
+          This method works by dividing the interval into a number of equal-sized subintervals. Within each subinterval, it takes the
+          function value at the two edges and at the midpoint. If the midpoint is lower than the edges, then the subinterval brackets a
+          minimum and is returned. Otherwise, the method assumes that the function's local behavior can be approximated by a quadratic
+          form, fits a parabola to the three known points, and examines the function's value at the minimum of the parabola. Again, if the
+          function's value there is less than the edges, then the subinterval brackets a minimum and is returned. This method may fail if
+          the local behavior of the function within the subinterval cannot be approximated well by a quadratic form. For well-behaved
+          functions, using smaller subintervals (by increasing the number of segments) can usually give better results.
+        </remarks>
+      </BracketInward>
+      <BracketOutward>
+        <summary>Given an initial guess of an interval containing a local minimum, expands the interval outward until a minimum is found.</summary>
+        <param name="function">The function to evaluate.</param>
+        <param name="x1">The first point bounding the interval of the initial guess.</param>
+        <param name="x2">The second point bounding the interval of the initial guess.</param>
+        <param name="bracket">A variable that is set to the bracket containing a minimum, if one is found.</param>
+        <returns>Returns true if an interval containing a local minimum was found, or false if no interval was found.</returns>
+        <remarks>
+          This method identifies a local minimum by searching for three points where the middle point is less than or equal to the
+          both edge points, but if the function values at the initial points are not equal, a minimum will all three points equal will not
+          be returned. The method is not guaranteed to find minima in all cases where they exist, but for well-behaved functions it should
+          be quite robust.
+        </remarks>
+      </BracketOutward>
+      <DBrentRemarks>
+        <remarks>
+          This method implements Brent's method for minimization of differentiable one-dimensional functions, which is the
+          recommended method.
+        </remarks>
+      </DBrentRemarks>
+      <NDBrentRemarks>
+        <remarks>
+          This method implements Brent's method for minimization of general one-dimensional functions. Brent's method is the recommended
+          method for one-dimensional function minimization, but if you can efficiently calculate the derivative of your function, it is
+          better to use an override that takes an <see cref="IDifferentiableFunction"/> rather than this general version, which does not
+          make use of derivative information.
+        </remarks>
+      </NDBrentRemarks>
+      <GoldenSectionRemarks>
+        <remarks>
+          This method implements golden section search, which is a method for one-dimensional function minimization that is simple and
+          highly robust, but fairly slow. It is better in almost all cases to use <see cref="Brent" />.
+        </remarks>
+      </GoldenSectionRemarks>
+      <Minimize1D>
+        <summary>Finds a local minimum of a one-dimensional function within the given bracket.</summary>
+        <param name="function">The function to evaluate.</param>
+        <param name="bracket">
+          A <see cref="MinimumBracket"/> that is assumed to bracket a local minimum.
+        </param>
+        <param name="accuracy">
+          The desired fractional accuracy. The location of the minimum will be found approximately plus or minus an
+          error equal the accuracy value times the location of the minimum. The should be greater than or equal to
+          <see cref="IEEE754.SqrtDoublePrecision" />, as roundoff error prevents the achievement of any better accuracy.
+        </param>
+        <param name="value">A variable that will receive the value of the function at the minimum.</param>
+        <returns>Returns the value of the function's argument that produces a minimum within the given bracket.</returns>
+        <exception cref="MinimumNotFoundException">Thrown if no minimum was found within the bracket.</exception>
+      </Minimize1D>
+    </Minimize>
+  </Optimization>
 
   <RNG>
     <SeedSize>The number of uints that should be used to used to seed the random number generator.</SeedSize>
@@ -363,8 +446,8 @@
 
     <BracketInward>
       <summary>
-        Given an initial guess of an interval containing a root, divides the interval into a number of segments and returns a list
-        containing the subintervals that contain a zero crossings, which usually indicate the existence of roots.
+        Given an initial guess of an interval containing a root, divides the interval into a number of subintervals and enumerates the
+        subintervals that contain zero crossings, which usually indicate the existence of roots.
       </summary>
       <param name="function">The function to evaluate.</param>
       <param name="interval">
@@ -375,7 +458,6 @@
         The number of equal-sized segments into which the interval should be divided when searching for subintervals
         that contain zero crossings.
       </param>
-      <returns>Returns a list of the subintervals containing zero crossings.</returns>
       <remarks>
         This method doesn't necessarily find roots. It merely looks for zero crossings, which usually indicate a root but could also
         indicate a singularity or discontinuity. Also, roots that don't cross zero, such as double roots, are unlikely to be found by this
@@ -393,7 +475,7 @@
         An initial guess of an interval of parameter values for which the function contains a root (i.e.
         evaluates to zero).
       </param>
-      <returns>Returns if an interval was found for which the function values cross zero, or false if no interval was found.</returns>
+      <returns>Returns true if an interval was found for which the function values cross zero, or false if no interval was found.</returns>
       <remarks>
         This method doesn't necessarily find roots. It merely looks for zero crossings, which usually indicate a root but could also
         indicate a singularity or discontinuity. Also, roots that don't cross zero, such as double roots, are unlikely to be found by this
