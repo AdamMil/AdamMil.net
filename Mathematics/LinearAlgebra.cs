@@ -818,6 +818,8 @@ namespace AdamMil.Mathematics.LinearAlgebra
       this.r  = r;
     }
 
+    internal Matrix qt, r;
+
     void AssertDecomposition()
     {
       if(qt == null) throw new InvalidOperationException("No matrix has been decomposed yet.");
@@ -827,8 +829,6 @@ namespace AdamMil.Mathematics.LinearAlgebra
     {
       return Solve(values);
     }
-
-    Matrix qt, r;
 
     static void Rotate(Matrix qt, Matrix r, int i, double a, double b)
     {

@@ -205,6 +205,22 @@ namespace AdamMil.Mathematics
       this.arity    = arity;
     }
 
+    /// <summary>Initializes a new <see cref="MultidimensionalFunction"/> using an <see cref="IOneDimensionalFunction"/> for the function.</summary>
+    public MultidimensionalFunction(IOneDimensionalFunction function)
+    {
+      if(function == null) throw new ArgumentNullException();
+      this.function = x => function.Evaluate(x[0]);
+      this.arity    = 1;
+    }
+
+    /// <summary>Initializes a new <see cref="MultidimensionalFunction"/> using the given delegate for the function.</summary>
+    public MultidimensionalFunction(Func<double, double> function)
+    {
+      if(function == null) throw new ArgumentNullException();
+      this.function = x => function(x[0]);
+      this.arity    = 1;
+    }
+
     /// <summary>Initializes a new <see cref="MultidimensionalFunction"/> using the given delegate for the function.</summary>
     public MultidimensionalFunction(Func<double, double, double> function)
     {
@@ -243,6 +259,82 @@ namespace AdamMil.Mathematics
 
     readonly Func<double[], double> function;
     readonly int arity;
+  }
+  #endregion
+
+  #region ApproximatelyDifferentiableMDFunction
+  /// <summary>Provides an <see cref="IDifferentiableMDFunction"/> that estimates the gradient of an
+  /// <see cref="IMultidimensionalFunction"/> via forward-difference approximation. This is based on the fact that
+  /// <c>(f(x+h) - f(x)) / h -> f'(x)</c> as <c>h -> 0</c>.
+  /// </summary>
+  /// <remarks>In general, it is faster and more accurate to compute the gradient directly rather than approximating it, but in
+  /// cases where that is difficult to achieve, this approximation may be helpful.
+  /// </remarks>
+  public sealed class ApproximatelyDifferentiableMDFunction : IDifferentiableMDFunction
+  {
+    /// <summary>Initializes a new <see cref="ApproximatelyDifferentiableMDFunction"/> given an <see cref="IMultidimensionalFunction"/>
+    /// whose gradient should be approximated using a forward-difference method.
+    /// </summary>
+    public ApproximatelyDifferentiableMDFunction(IMultidimensionalFunction function) : this(function, 1e-8) { }
+
+    /// <summary>Initializes a new <see cref="ApproximatelyDifferentiableMDFunction"/> given an <see cref="IMultidimensionalFunction"/>
+    /// whose gradient should be approximated using a forward-difference method, and the difference factor.
+    /// </summary>
+    /// <param name="function">The function whose gradient will be approximated.</param>
+    /// <param name="factor">A very small positive quantity representing fractional amount by which each argument will be increased when
+    /// computing the gradient. The default (used by <see cref="ApproximatelyDifferentiableVVFunction(IVectorValuedFunction)"/>) is
+    /// 0.00000001 (i.e. 1e-8). Smaller values might give a better approximation, but are more susceptible to roundoff error.
+    /// </param>
+    public ApproximatelyDifferentiableMDFunction(IMultidimensionalFunction function, double factor)
+    {
+      if(function == null) throw new ArgumentNullException();
+      if(factor <= 0) throw new ArgumentOutOfRangeException();
+      this.function = function;
+      this.input2   = new double[function.Arity];  // the array used to hold x+h
+      this.factor   = factor;
+    }
+
+    /// <inheritdoc/>
+    public int Arity
+    {
+      get { return function.Arity; }
+    }
+
+    /// <inheritdoc/>
+    public int DerivativeCount
+    {
+      get { return 1; }
+    }
+
+    /// <inheritdoc/>
+    public double Evaluate(double[] input)
+    {
+      return function.Evaluate(input);
+    }
+
+    /// <inheritdoc/>
+    public void EvaluateGradient(double[] input, int derivative, double[] output)
+    {
+      if(input == null || output == null) throw new ArgumentNullException();
+      if(derivative != 1) throw new ArgumentOutOfRangeException();
+
+      double value = function.Evaluate(input);
+      ArrayUtility.SmallCopy(input, input2, input.Length);
+      for(int x=0; x<input2.Length; x++)
+      {
+        double arg = input[x], h = arg*factor;
+        if(h == 0) h = factor;
+        input2[x] = arg + h; // this trick ensures that the value of h added to the input value is exactly the same as the value of h used
+        h = input2[x] - arg; // in the divisor later. essentially, it eliminates a source of error caused by the difference of precision
+        double value2 = function.Evaluate(input2);
+        input2[x] = arg;
+        output[x] = (value2 - value) / h;
+      }
+    }
+
+    readonly IMultidimensionalFunction function;
+    readonly double[] input2;
+    readonly double factor;
   }
   #endregion
 
