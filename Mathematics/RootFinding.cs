@@ -90,20 +90,20 @@ public class RootNotFoundException : Exception
 /// </remarks>
 public static class FindRoot
 {
-  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[@name != 'accuracy']"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[@name != 'tolerance']"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/BoundedNewtonRaphson/*"/>
-  /// <returns>Returns a root of the function, to within a default accuracy. See the remarks for more details.</returns>
+  /// <returns>Returns a root of the function, to within a default tolerance. See the remarks for more details.</returns>
   public static double BoundedNewtonRaphson(IDifferentiableFunction function, RootBracket interval)
   {
-    return BoundedNewtonRaphson(function, interval, GetDefaultAccuracy(interval));
+    return BoundedNewtonRaphson(function, interval, GetDefaultTolerance(interval));
   }
 
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/BoundedNewtonRaphson/*"/>
-  /// <returns>Returns a root of the function, to within the specified accuracy. See the remarks for more details.</returns>
-  public static double BoundedNewtonRaphson(IDifferentiableFunction function, RootBracket interval, double accuracy)
+  /// <returns>Returns a root of the function, to within the specified tolerance. See the remarks for more details.</returns>
+  public static double BoundedNewtonRaphson(IDifferentiableFunction function, RootBracket interval, double tolerance)
   {
-    ValidateArguments(function, interval, accuracy);
+    ValidateArguments(function, interval, tolerance);
 
     const int MaxIterations = 100;
 
@@ -152,7 +152,7 @@ public static class FindRoot
         giveUp = guess == temp; // if the step was so small as to make no difference in the value, then we're as close as we can get
       }
 
-      if(Math.Abs(step) <= accuracy) return guess; // if we're within the desired accuracy, then we're done
+      if(Math.Abs(step) <= tolerance) return guess; // if we're within the desired tolerance, then we're done
       else if(giveUp) break; // otherwise, if we can't go any further, give up
 
       value = function.Evaluate(guess);
@@ -227,37 +227,37 @@ public static class FindRoot
     return vMin * vMin <= 0;
   }
 
-  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[@name != 'accuracy']"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[@name != 'tolerance']"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/Brent/*"/>
-  /// <returns>Returns a root of the function, to within a default level of accuracy. See the remarks for more details.</returns>
+  /// <returns>Returns a root of the function, to within a default level of tolerance. See the remarks for more details.</returns>
   public static double Brent(IOneDimensionalFunction function, RootBracket interval)
   {
     if(function == null) throw new ArgumentNullException();
     return Brent(function.Evaluate, interval);
   }
 
-  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[@name != 'accuracy']"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[@name != 'tolerance']"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/Brent/*"/>
-  /// <returns>Returns a root of the function, to within a default level of accuracy. See the remarks for more details.</returns>
+  /// <returns>Returns a root of the function, to within a default level of tolerance. See the remarks for more details.</returns>
   public static double Brent(Func<double, double> function, RootBracket interval)
   {
-    return Brent(function, interval, GetDefaultAccuracy(interval));
+    return Brent(function, interval, GetDefaultTolerance(interval));
   }
 
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/Brent/*"/>
-  /// <returns>Returns a root of the function, to within the specified accuracy. See the remarks for more details.</returns>
-  public static double Brent(IOneDimensionalFunction function, RootBracket interval, double accuracy)
+  /// <returns>Returns a root of the function, to within the specified tolerance. See the remarks for more details.</returns>
+  public static double Brent(IOneDimensionalFunction function, RootBracket interval, double tolerance)
   {
-    return Brent(function.Evaluate, interval, accuracy);
+    return Brent(function.Evaluate, interval, tolerance);
   }
 
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/Brent/*"/>
-  /// <returns>Returns a root of the function, to within the specified accuracy. See the remarks for more details.</returns>
-  public static double Brent(Func<double, double> function, RootBracket interval, double accuracy)
+  /// <returns>Returns a root of the function, to within the specified tolerance. See the remarks for more details.</returns>
+  public static double Brent(Func<double, double> function, RootBracket interval, double tolerance)
   {
-    ValidateArguments(function, interval, accuracy);
+    ValidateArguments(function, interval, tolerance);
 
     const int MaxIterations = 100;
     double a = interval.Min, b = interval.Max, va = function(a), vb = function(b);
@@ -283,7 +283,7 @@ public static class FindRoot
     // quadratic convergence while guaranteeing at least linear convergence. unlike the simpler methods, i can't claim to actually
     // understand all the math behind it, but here's the implementation
 
-    accuracy *= 0.5; // we actually use half the accuracy in the math below, so do the division only once
+    tolerance *= 0.5; // we actually use half the tolerance in the math below, so do the division only once
 
     // a, b, and c are the three points defining the current estimate of the root's position. va, vb, and vc are the values of the function
     // corresponding those points. b corresponds to the current best estimate
@@ -307,11 +307,11 @@ public static class FindRoot
       }
 
       // check to see how well we're converging on the root
-      double tolerance = 2*IEEE754.DoublePrecision * Math.Abs(b) + accuracy, xm = 0.5 * (c-b);
+      double tol = 2*IEEE754.DoublePrecision * Math.Abs(b) + tolerance, xm = 0.5 * (c-b);
       
-      if(Math.Abs(xm) <= tolerance || vb == 0) return b; // if the current best estimate is close enough, return it
+      if(Math.Abs(xm) <= tol || vb == 0) return b; // if the current best estimate is close enough, return it
 
-      if(Math.Abs(e) >= tolerance && Math.Abs(va) > Math.Abs(vb)) // if the bounds are increasing quickly enough...
+      if(Math.Abs(e) >= tol && Math.Abs(va) > Math.Abs(vb)) // if the bounds are increasing quickly enough...
       {
         // attempt inverse quadratic interpolation. the next root estimate basically equals b + P/Q where:
         // P = S * (T*(R-T)*(c-b) - (1-R)*(b-a)) and
@@ -339,7 +339,7 @@ public static class FindRoot
         if(p > 0) q = -q;
         else p = -p;
 
-        if(2*p < Math.Min(3*xm*q - Math.Abs(tolerance*q), Math.Abs(e*q))) // if the interpolation puts us within bounds, then use it
+        if(2*p < Math.Min(3*xm*q - Math.Abs(tol*q), Math.Abs(e*q))) // if the interpolation puts us within bounds, then use it
         {
           e = range;
           range = p / q;
@@ -358,7 +358,7 @@ public static class FindRoot
 
       a  = b;
       va = vb;
-      b += Math.Abs(range) > tolerance ? range : MathHelpers.WithSign(tolerance, xm);
+      b += Math.Abs(range) > tol ? range : MathHelpers.WithSign(tol, xm);
       vb = function(b);
     }
 
@@ -414,7 +414,7 @@ public static class FindRoot
 
     // calculate the maximum step that we'll allow the line search to take. it'll be some multiple of the original point's magnitude, but
     // not too small
-    double maxStep = Math.Max(MathHelpers.SumSquaredVector(x), x.Length) * ScaledMaxStep;
+    double maxStep = Math.Max(MathHelpers.GetMagnitude(x), x.Length) * ScaledMaxStep;
 
     SquaredFunction sqFunction = new SquaredFunction(function, values);
     QRDecomposition qrd = new QRDecomposition();
@@ -437,7 +437,8 @@ public static class FindRoot
           jacobian.SetIdentity();
           qrd.Initialize(jacobian);
         }
-        qrd.GetDecomposition(ref qt, ref r);
+        qt = qrd.qt;
+        r  = qrd.r;
       }
       else // otherwise, we'll attempt to update the existing Jacobian matrix
       {
@@ -460,15 +461,16 @@ public static class FindRoot
 
         if(!skipUpdate)
         {
-          MathHelpers.Multiply(qt, w, t); // t = transpose(Q)*w
+          MathHelpers.MultiplyTranspose(qt, w, t); // t = transpose(Q)*w
           MathHelpers.DivideVector(s, MathHelpers.SumSquaredVector(s)); // normalize the s vector, i.e. s = s / (s.s)
           qrd.Update(t, s);
-          qrd.GetDecomposition(ref qt, ref r);
+          qt = qrd.qt;
+          r  = qrd.r;
         }
       }
 
       // compute the step for the line search in s
-      MathHelpers.Multiply(qt, values, s);
+      MathHelpers.MultiplyTranspose(qt, values, s);
       MathHelpers.NegateVector(s);
 
       // compute the gradient for the line search in t
@@ -564,7 +566,7 @@ public static class FindRoot
 
     // calculate the maximum step that we'll allow the line search to take. it'll be some multiple of the original point's magnitude, but
     // not too small
-    double maxStep = Math.Max(MathHelpers.SumSquaredVector(x), x.Length) * ScaledMaxStep;
+    double maxStep = Math.Max(MathHelpers.GetMagnitude(x), x.Length) * ScaledMaxStep;
 
     SquaredFunction sqFunction = new SquaredFunction(function, values);
     double[] gradient = new double[function.InputArity], step = new double[function.InputArity];
@@ -579,7 +581,7 @@ public static class FindRoot
       // compute the gradient for the line search
       for(int i=0; i<gradient.Length; i++) gradient[i] = MathHelpers.SumColumnTimesVector(jacobian, i, values);
 
-      for(int i=0; i<step.Length; i++) step[i] = -values[i];
+      MathHelpers.NegateVector(values, step);
       stepMatrix.SetColumn(0, step);
       solver.Initialize(jacobian);
       solver.Solve(stepMatrix, true).GetColumn(0, step);
@@ -605,38 +607,38 @@ public static class FindRoot
     throw RootNotFoundError();
   }
 
-  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[@name != 'accuracy']"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[@name != 'tolerance']"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/Subdivide/*"/>
-  /// <returns>Returns a root of the function, to within a default level of accuracy. See the remarks for more details.</returns>
+  /// <returns>Returns a root of the function, to within a default level of tolerance. See the remarks for more details.</returns>
   public static double Subdivide(IOneDimensionalFunction function, RootBracket interval)
   {
     if(function == null) throw new ArgumentNullException();
     return Subdivide(function.Evaluate, interval);
   }
 
-  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[@name != 'accuracy']"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[@name != 'tolerance']"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/Subdivide/*"/>
-  /// <returns>Returns a root of the function, to within a default level of accuracy. See the remarks for more details.</returns>
+  /// <returns>Returns a root of the function, to within a default level of tolerance. See the remarks for more details.</returns>
   public static double Subdivide(Func<double, double> function, RootBracket interval)
   {
-    return Subdivide(function, interval, GetDefaultAccuracy(interval));
+    return Subdivide(function, interval, GetDefaultTolerance(interval));
   }
 
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/Subdivide/*"/>
-  /// <returns>Returns a root of the function, to within the specified accuracy. See the remarks for more details.</returns>
-  public static double Subdivide(IOneDimensionalFunction function, RootBracket interval, double accuracy)
+  /// <returns>Returns a root of the function, to within the specified tolerance. See the remarks for more details.</returns>
+  public static double Subdivide(IOneDimensionalFunction function, RootBracket interval, double tolerance)
   {
     if(function == null) throw new ArgumentNullException();
-    return Subdivide(function.Evaluate, interval, accuracy);
+    return Subdivide(function.Evaluate, interval, tolerance);
   }
 
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/Subdivide/*"/>
-  /// <returns>Returns a root of the function, to within the specified accuracy. See the remarks for more details.</returns>
-  public static double Subdivide(Func<double, double> function, RootBracket interval, double accuracy)
+  /// <returns>Returns a root of the function, to within the specified tolerance. See the remarks for more details.</returns>
+  public static double Subdivide(Func<double, double> function, RootBracket interval, double tolerance)
   {
-    ValidateArguments(function, interval, accuracy);
+    ValidateArguments(function, interval, tolerance);
 
     const int MaxIterations = 100;
 
@@ -664,26 +666,26 @@ public static class FindRoot
       difference *= 0.5;
       double mid = start + difference, value = function(mid);
       if(value <= 0) start = mid;
-      if(Math.Abs(difference) <= accuracy || value == 0) return mid;
+      if(Math.Abs(difference) <= tolerance || value == 0) return mid;
     }
 
     throw RootNotFoundError();
   }
 
-  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[@name != 'accuracy']"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[@name != 'tolerance']"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/UnboundedNewtonRaphson/*"/>
-  /// <returns>Returns a root of the function, to within a default accuracy. See the remarks for more details.</returns>
+  /// <returns>Returns a root of the function, to within a default tolerance. See the remarks for more details.</returns>
   public static double UnboundedNewtonRaphson(IDifferentiableFunction function, RootBracket interval)
   {
-    return UnboundedNewtonRaphson(function, interval, GetDefaultAccuracy(interval));
+    return UnboundedNewtonRaphson(function, interval, GetDefaultTolerance(interval));
   }
 
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*"/>
   /// <include file="documentation.xml" path="/Math/RootFinding/UnboundedNewtonRaphson/*"/>
-  /// <returns>Returns a root of the function, to within the specified accuracy. See the remarks for more details.</returns>
-  public static double UnboundedNewtonRaphson(IDifferentiableFunction function, RootBracket interval, double accuracy)
+  /// <returns>Returns a root of the function, to within the specified tolerance. See the remarks for more details.</returns>
+  public static double UnboundedNewtonRaphson(IDifferentiableFunction function, RootBracket interval, double tolerance)
   {
-    ValidateArguments(function, interval, accuracy);
+    ValidateArguments(function, interval, tolerance);
 
     // Newton's method (also called Newton-Raphson after Joseph Raphson who independently invented the method some time after Newton, but
     // who published it before Newton) uses a function's derivative to estimate the location of the root. it works by repeatedly taking a
@@ -707,10 +709,21 @@ public static class FindRoot
       double step = function.Evaluate(guess) / function.EvaluateDerivative(guess, 1);
       guess -= step;
       if((interval.Min-guess) * (guess-interval.Max) < 0) break; // if it went outside the interval, abort
-      if(Math.Abs(step) <= accuracy) return guess; // if we're within the desired accuracy, then we're done
+      if(Math.Abs(step) <= tolerance) return guess; // if we're within the desired tolerance, then we're done
     }
 
     throw RootNotFoundError();
+  }
+
+  internal static double GetParameterConvergence(double[] x, double[] prevX)
+  {
+    double maxChange = 0;
+    for(int i=0; i<x.Length; i++)
+    {
+      double change = Math.Abs(x[i]-prevX[i]) / Math.Max(1, Math.Abs(x[i]));
+      if(change > maxChange) maxChange = change;
+    }
+    return maxChange;
   }
 
   #region SquaredFunction
@@ -771,17 +784,6 @@ public static class FindRoot
     return maxComponent;
   }
 
-  static double GetParameterConvergence(double[] x, double[] prevX)
-  {
-    double maxArgument = 0;
-    for(int i=0; i<x.Length; i++)
-    {
-      double argument = Math.Abs(x[i]-prevX[i]) / Math.Max(1, Math.Abs(x[i]));
-      if(argument > maxArgument) maxArgument = argument;
-    }
-    return maxArgument;
-  }
-
   static internal bool LineSearch(IMultidimensionalFunction function, double[] x, double value, double[] gradient, double[] step,
                                   double[] newX, out double newValue, double maxStep=double.PositiveInfinity)
   {
@@ -836,7 +838,7 @@ public static class FindRoot
     // first limit the step length to maxStep
     if(!double.IsPositiveInfinity(maxStep))
     {
-      double length = MathHelpers.SumSquaredVector(step);
+      double length = MathHelpers.GetMagnitude(step);
       if(length > maxStep) MathHelpers.ScaleVector(step, maxStep/length);
     }
 
@@ -863,7 +865,8 @@ public static class FindRoot
 
       if(factor < minFactor) // if it's too small, then give up and return true, indicating that it has converged on a minimum
       {
-        ArrayUtility.SmallCopy(x, newX, x.Length);
+        ArrayUtility.SmallCopy(x, newX, x.Length); // put the original parameter and value back
+        newValue = value;
         return true;
       }
       else if(newValue <= value + Alpha*factor*slope) // otherwise, if the function value has decreased significantly (see above)...
@@ -900,6 +903,10 @@ public static class FindRoot
           if(nextFactor > 0.5*factor) nextFactor = 0.5*factor; // clip the new factor to be no larger than half the old factor
         }
 
+        // if the function went out of bounds or whatever, reduce the step size. this prevents the function from going into an infinite
+        // loop and helps solve problems based on barrier methods
+        if(double.IsNaN(nextFactor)) nextFactor = 0;
+
         prevFactor = factor;   // keep track of the previous factor (F'')
         prevValue  = newValue; // and the previous value g(F'')
         factor     = Math.Max(nextFactor, 0.1*factor); // clip the new factor to be no smaller than one tenth the old factor
@@ -907,7 +914,7 @@ public static class FindRoot
     }
   }
 
-  static double GetDefaultAccuracy(RootBracket interval)
+  static double GetDefaultTolerance(RootBracket interval)
   {
     return (Math.Abs(interval.Min) + Math.Abs(interval.Max)) * (0.5 * IEEE754.DoublePrecision);
   }
@@ -928,10 +935,10 @@ public static class FindRoot
     if(interval.Min > interval.Max) throw new ArgumentException("Invalid interval.");
   }
 
-  static void ValidateArguments(object function, RootBracket interval, double accuracy)
+  static void ValidateArguments(object function, RootBracket interval, double tolerance)
   {
     ValidateArguments(function, interval);
-    if(accuracy < 0) throw new ArgumentOutOfRangeException();
+    if(tolerance < 0) throw new ArgumentOutOfRangeException();
   }
 }
 #endregion

@@ -21,10 +21,451 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
+using AdamMil.Mathematics.RootFinding;
 using AdamMil.Utilities;
 
 namespace AdamMil.Mathematics.Optimization
 {
+
+#region ConstrainedMinimizer
+/// <summary>Solves a general constrained optimization problem by solving a series of related unconstrained optimization problems.</summary>
+/// <remarks>
+/// <para>This class works based on the fact that a constrained optimization problem can be represented as functions f(x), representing the
+/// objective without constraints, and c(x), representing how near the parameters are to violating the constraints, and that minimizing the
+/// new function h(x) = f(x) + r*p(c(x)) is equivalent to solving the original constrained problem in the limit as r goes to either
+/// infinity or zero (depending on the <see cref="ConstraintEnforcement"/> method), and where p(e) is a function that converts the measure
+/// of how near the parameters are to violating the constraints into a penalty value.
+/// </para>
+/// </remarks>
+/// <include file="documentation.xml" path="/Math/Optimization/ConstrainedMinimizer/OOBRemarks/*"/>
+public sealed class ConstrainedMinimizer
+{
+  /// <summary>Initializes the <see cref="ConstrainedMinimizer"/> with the objective function to minimize.</summary>
+  /// <include file="documentation.xml" path="/Math/Optimization/ConstrainedMinimizer/OOBRemarks/*"/>
+  public ConstrainedMinimizer(IDifferentiableMDFunction objectiveFunction)
+  {
+    if(objectiveFunction == null) throw new ArgumentNullException();
+    function = objectiveFunction;
+    ConstraintEnforcement = ConstraintEnforcement.QuadraticPenalty;
+  }
+
+  /// <summary>Gets or sets the base penalty multiplier. This is the multiplier applied to be penalty on the first iteration. On each later
+  /// iteration, the penalty multiplier will be multiplied by a factor of <see cref="PenaltyChangeFactor"/>. The default is 1.
+  /// </summary>
+  public double BasePenaltyMultipier
+  {
+    get { return _basePenaltyMultiplier; }
+    set
+    {
+      if(value <= 0) throw new ArgumentOutOfRangeException();
+      _basePenaltyMultiplier = value;
+    }
+  }
+
+  /// <summary>Gets or sets the factor by which the penalty changes on each iteration after the first. The default is 100, indicating
+  /// that the penalty multiplier changes by a factor of 100 on each iteration. (For penalty methods (the default), the penalty
+  /// multiplier increases by this factor each iteration, but for barrier methods, it decreases.) Increasing the value generally decreases
+  /// the number of iterations required to solve the problem, but increases the chance of missing the answer entirely.
+  /// </summary>
+  public double PenaltyChangeFactor
+  {
+    get { return _penaltyChangeFactor; }
+    set
+    {
+      if(value <= 1) throw new ArgumentOutOfRangeException();
+      _penaltyChangeFactor = value;
+    }
+  }
+
+  /// <summary>Gets or sets the method by which the constraints and bounds will be enforced. The default is
+  /// <see cref="Optimization.ConstraintEnforcement.QuadraticPenalty"/>.
+  /// </summary>
+  public ConstraintEnforcement ConstraintEnforcement
+  {
+    get; set;
+  }
+
+  /// <summary>Gets or sets the constraint tolerance. The minimization process will be terminated if the fractional contribution of the
+  /// penalty to the function value is no greater than the constraint tolerance. Larger values will allow the process to terminate with a
+  /// greater degree of constraint violation. The default is <c>1e-9</c>.
+  /// </summary>
+  public double ConstraintTolerance
+  {
+    get { return _constraintTolerance; }
+    set
+    {
+      if(value < 0) throw new ArgumentOutOfRangeException();
+      _constraintTolerance = value;
+    }
+  }
+
+  /// <summary>Gets or sets the parameter convergence tolerance. The minimization process will be terminated if the approximate fractional
+  /// change in all parameters is no greater than the parameter tolerance. Larger values allow the process to terminate when the
+  /// parameters are changing by a larger amount between iterations. The default is <see cref="IEEE754.DoublePrecision"/> times 4, and
+  /// should not be made smaller than <see cref="IEEE754.DoublePrecision"/>.
+  /// </summary>
+  public double ParameterTolerance
+  {
+    get { return _parameterTolerance; }
+    set
+    {
+      if(value < 0) throw new ArgumentOutOfRangeException();
+      _parameterTolerance = value;
+    }
+  }
+
+  /// <summary>Gets or sets the value convergence tolerance. The minimization process will be terminated if the fractional change in value
+  /// is no greater than the value tolerance. Larger values allow the process to terminate when the objective value is changing by a
+  /// larger amount between iterations. The default is <c>1e-9</c>.
+  /// </summary>
+  public double ValueTolerance
+  {
+    get { return _valueTolerance; }
+    set
+    {
+      if(value < 0) throw new ArgumentOutOfRangeException();
+      _valueTolerance = value;
+    }
+  }
+
+  /// <summary>Adds a constraint to the system.</summary>
+  /// <param name="constraint">A function that returns the distance from the parameters to the edge of the constraints. A positive return
+  /// value indicates that the parameters violate the constraints, and a non-positive return value indicates that the parameters do not
+  /// violate the constraints. You should not merely return constant values indicating whether the constraint is violated or not, but
+  /// actually measure the distance to the constraint. For example, to implement the constraint <c>x*y &gt;= 5</c>, return <c>5 - x*y</c>,
+  /// and to implement the constraint <c>x*y = 5</c>, return <c>Math.Abs(5 - x*y)</c>.
+  /// </param>
+  /// <remarks>For simple bounds constraints, such as <c>y &gt;= 10</c> or <c>0 &lt;= x &lt;= 5</c>, it is usually more convenient to use
+  /// the <see cref="SetBounds"/> method, which adds the appropriate constraint automatically.
+  /// </remarks>
+  public void AddConstraint(IDifferentiableMDFunction constraint)
+  {
+    if(constraint == null) throw new ArgumentNullException();
+    if(constraint.Arity != function.Arity)
+    {
+      throw new ArgumentException("The arity of the constraint does not match that of the objective.");
+    }
+    if(constraints == null) constraints = new List<IDifferentiableMDFunction>();
+    constraints.Add(constraint);
+  }
+
+  /// <summary>Minimizes the objective function passed to the constructor subject to the constraints that have been added.</summary>
+  /// <param name="x">An initial guess for the location of the minimum. In general, a global minimum may not be found unless you can supply
+  /// a nearby initial point. If you cannot, then only a local minimum may be found. The initial point is not required to satisfy any
+  /// bounds or constraints unless <see cref="ConstraintEnforcement"/> is set to a barrier method.
+  /// </param>
+  public double Minimize(double[] x)
+  {
+    if(x == null) throw new ArgumentNullException();
+    if(x.Length != function.Arity) throw new ArgumentException("The initial point does not have the correct number of dimensions.");
+
+    const int MaxIterations = 200;
+    PenaltyFunction penaltyFunction = new PenaltyFunction(this);
+    double[] oldX = new double[x.Length];
+    double value = 0;
+
+    penaltyFunction.PenaltyFactor = BasePenaltyMultipier;
+    for(int iteration=0; iteration<MaxIterations; iteration++)
+    {
+      // reduce the tolerance on the first two iterations as the result will be approximate anyway
+      double newValue = Optimization.Minimize.BFGS(penaltyFunction, x);
+
+      if(Math.Abs(penaltyFunction.LastPenalty) <= Math.Abs(newValue)*ConstraintTolerance ||
+         (iteration != 0 &&
+          (FindRoot.GetParameterConvergence(x, oldX) <= ParameterTolerance ||
+            Math.Abs(newValue-value) / Math.Max(1, Math.Abs(value)) <= ValueTolerance)))
+      {
+        return newValue;
+      }
+
+      value = newValue;
+      ArrayUtility.SmallCopy(x, oldX, x.Length);
+
+      // if we're using a barrier method, we need to decrease the penalty factor on each iteration. otherwise, we need to increase it
+      if(IsBarrierMethod) penaltyFunction.PenaltyFactor /= PenaltyChangeFactor;
+      else penaltyFunction.PenaltyFactor *= PenaltyChangeFactor;
+    }
+
+    throw Optimization.Minimize.MinimumNotFoundError();
+  }
+
+  /// <summary>Adds or removes a bounds constraint on a parameter.</summary>
+  /// <param name="parameter">The ordinal of the parameter to bound, from 0 to one less than the arity of the objective function.</param>
+  /// <param name="minimum">
+  /// The minimum value of the parameter, or <see cref="double.NegativeInfinity"/> if the parameter is unbounded below.
+  /// </param>
+  /// <param name="maximum">
+  /// The maximum value of the parameter, or <see cref="double.PositiveInfinity"/> if the parameter is unbounded above.
+  /// </param>
+  /// <remarks>To remove a bounds constraint, use <see cref="double.NegativeInfinity"/> for the minimum and
+  /// <see cref="double.PositiveInfinity"/> for the maximum.
+  /// To set an equality constraint, pass the same value for <paramref name="minimum"/> and <paramref name="maximum"/>. Note that
+  /// equality constraints are not suitable for use with interior-point <see cref="ConstraintEnforcement"/> methods. Setting a bound with
+  /// this method merely adds a constraint as though <see cref="AddConstraint"/> were called with a suitable constraint function. It does
+  /// not in itself prevent the parameter from going out of bounds (although some types of <see cref="ConstraintEnforcement"/> methods do).
+  /// </remarks>
+  public void SetBounds(int parameter, double minimum, double maximum)
+  {
+    if((uint)parameter >= (uint)function.Arity || minimum > maximum ||
+       minimum == double.PositiveInfinity || maximum == double.NegativeInfinity)
+    {
+      throw new ArgumentOutOfRangeException();
+    }
+
+    // if the bound is infinite, then we're actually removing the bound
+    if(minimum == double.NegativeInfinity && maximum == double.PositiveInfinity)
+    {
+      if(minBound != null) // if the arrays have been allocated (i.e. if there are any bounds to remove)
+      {
+        minBound[parameter] = minimum; // remove it
+        maxBound[parameter] = maximum;
+
+        // see if there are any bounds remaining
+        bool boundRemaining = false;
+        for(int i=0; i<minBound.Length; i++)
+        {
+          if(minBound[i] != double.NegativeInfinity || maxBound[i] != double.PositiveInfinity)
+          {
+            boundRemaining = true;
+            break;
+          }
+        }
+
+        // if there are no bounds remaining, free the arrays to indicate that we don't need to perform bounds checking at all
+        if(!boundRemaining) minBound = maxBound = null;
+      }
+    }
+    else // otherwise, we're adding the bound
+    {
+      if(minBound == null) // if the necessary arrays haven't been allocated, do it now
+      {
+        minBound = new double[function.Arity];
+        maxBound = new double[function.Arity];
+      }
+      minBound[parameter] = minimum;
+      maxBound[parameter] = maximum;
+    }
+  }
+
+  #region PenaltyFunction
+  sealed class PenaltyFunction : IDifferentiableMDFunction
+  {
+    public PenaltyFunction(ConstrainedMinimizer minimizer)
+    {
+      this.minimizer = minimizer;
+      gradient = new double[Arity];
+    }
+
+    public int Arity
+    {
+      get { return minimizer.function.Arity; }
+    }
+
+    public int DerivativeCount
+    {
+      get { return 1; }
+    }
+
+    public double PenaltyFactor, LastPenalty;
+
+    public double Evaluate(params double[] x)
+    {
+      double totalPenalty = 0;
+
+      // compute the penalty for out-of-bound parameters
+      if(minimizer.minBound != null)
+      {
+        if(minimizer.IsBarrierMethod) // barrier methods apply penalties everywhere
+        {
+          for(int i=0; i<x.Length; i++)
+          {
+            if(minimizer.minBound[i] != double.NegativeInfinity) totalPenalty += GetPenaltyValue(minimizer.minBound[i] - x[i]);
+            if(minimizer.maxBound[i] != double.PositiveInfinity) totalPenalty += GetPenaltyValue(x[i] - minimizer.maxBound[i]);
+          }
+          if(double.IsNaN(totalPenalty)) goto done; // quit early if a barrier constraint is violated
+        }
+        else // penalty methods have penalties only when constraints are violated
+        {
+          for(int i=0; i<x.Length; i++)
+          {
+            double param = x[i], penalty;
+            if(param < minimizer.minBound[i]) penalty = minimizer.minBound[i] - param;
+            else if(param > minimizer.maxBound[i]) penalty = param - minimizer.maxBound[i];
+            else continue;
+            totalPenalty += GetPenaltyValue(penalty);
+          }
+        }
+      }
+
+      if(minimizer.constraints != null)
+      {
+        for(int i=0; i<minimizer.constraints.Count; i++)
+        {
+          IDifferentiableMDFunction constraint = minimizer.constraints[i];
+          double penalty = constraint.Evaluate(x);
+          if(penalty > 0)
+          {
+            totalPenalty += GetPenaltyValue(penalty);
+            if(double.IsNaN(totalPenalty)) goto done; // quit early if a barrier constraint is violated
+          }
+        }
+      }
+
+      totalPenalty *= PenaltyFactor;
+      done:
+      LastPenalty = totalPenalty;
+
+      return double.IsNaN(totalPenalty) ? double.NaN : minimizer.function.Evaluate(x) + totalPenalty;
+    }
+
+    public void EvaluateGradient(double[] x, int derivative, double[] output)
+    {
+      if(derivative != 1) throw new ArgumentOutOfRangeException();
+      minimizer.function.EvaluateGradient(x, 1, output);
+
+      // compute the penalty for out-of-bound parameters
+      if(minimizer.minBound != null)
+      {
+        if(minimizer.IsBarrierMethod) // barrier methods apply penalties everywhere
+        {
+          for(int i=0; i<x.Length; i++)
+          {
+            if(minimizer.minBound[i] != double.NegativeInfinity)
+            {
+              output[i] -= PenaltyFactor * GetPenaltyGradient(minimizer.minBound[i] - x[i]);
+            }
+            if(minimizer.maxBound[i] != double.PositiveInfinity)
+            {
+              output[i] += PenaltyFactor * GetPenaltyGradient(x[i] - minimizer.maxBound[i]);
+            }
+          }
+        }
+        else // penalty methods have penalties only when constraints are violated
+        {
+          for(int i=0; i<x.Length; i++)
+          {
+            double param = x[i];
+            if(param < minimizer.minBound[i]) output[i] -= PenaltyFactor * GetPenaltyGradient(minimizer.minBound[i] - param);
+            else if(param > minimizer.maxBound[i]) output[i] += PenaltyFactor * GetPenaltyGradient(param - minimizer.maxBound[i]);
+          }
+        }
+      }
+
+      if(minimizer.constraints != null)
+      {
+        for(int i=0; i<minimizer.constraints.Count; i++)
+        {
+          IDifferentiableMDFunction constraint = minimizer.constraints[i];
+          double penalty = constraint.Evaluate(x);
+          if(penalty > 0)
+          {
+            penalty = PenaltyFactor * GetPenaltyGradient(penalty);
+            constraint.EvaluateGradient(x, 1, gradient);
+            for(int j=0; j<output.Length; j++) output[j] += penalty*gradient[j];
+          }
+        }
+      }
+    }
+
+    double GetPenaltyGradient(double penalty)
+    {
+      switch(minimizer.ConstraintEnforcement)
+      {
+        case ConstraintEnforcement.LinearPenalty: return 1;
+        case ConstraintEnforcement.QuadraticPenalty: return 2*penalty;
+        case ConstraintEnforcement.InverseBarrier: return penalty >= 0 ? double.NaN : 1/(penalty*penalty);
+        case ConstraintEnforcement.LogBarrier: return penalty >= 0 ? double.NaN : -1/penalty;
+        default: throw new NotImplementedException();
+      }
+    }
+
+    double GetPenaltyValue(double penalty)
+    {
+      switch(minimizer.ConstraintEnforcement)
+      {
+        case ConstraintEnforcement.LinearPenalty: return penalty;
+        case ConstraintEnforcement.QuadraticPenalty: return penalty*penalty;
+        case ConstraintEnforcement.InverseBarrier: return penalty >= 0 ? double.NaN : -1/penalty;
+        case ConstraintEnforcement.LogBarrier: return penalty >= 0 ? double.NaN : -Math.Log(-penalty);
+        default: throw new NotImplementedException();
+      }
+    }
+
+    readonly ConstrainedMinimizer minimizer;
+    readonly double[] gradient;
+  }
+  #endregion
+
+  bool IsBarrierMethod
+  {
+    get
+    {
+      return ConstraintEnforcement == ConstraintEnforcement.LogBarrier || ConstraintEnforcement == ConstraintEnforcement.InverseBarrier;
+    }
+  }
+
+  readonly IDifferentiableMDFunction function;
+  List<IDifferentiableMDFunction> constraints;
+  double[] minBound, maxBound;
+  double _basePenaltyMultiplier=1, _penaltyChangeFactor=100;
+  double _parameterTolerance=IEEE754.DoublePrecision*4, _constraintTolerance=1e-9, _valueTolerance=1e-9;
+}
+#endregion
+
+#region ConstraintEnforcement
+/// <summary>Determines the method of constraint enforcement used by the <see cref="ConstrainedMinimizer"/> class.</summary>
+/// <remarks>There are two general types of penalty leading to two names for the constrained minimization process, called the penalty
+/// method and the barrier method. In the penalty method, the penalty in zero in the feasible region and smoothly increases as the
+/// constraints is violated. Violations of the constraint are merely penalized but not prevented. As such, it is also called an
+/// exterior-point method, since the search point can move outside the feasible region. The penalty starts out weak and gradually
+/// increases, enforcing the constraints with greater effectiveness. In the barrier method, a varying amount of penalty applies to
+/// (and distorts) the entire feasible region, but the penalty climbs rapidly near the edge of the region, and reaches infinity at the edge
+/// (beyond which a constraint would be violated). This singularity prevents the constraint from being violated at all, and so the method
+/// is also known as an interior-point method. The penalty starts out strong (pushing the solution away from the edges of the feasible
+/// area) and weakens gradually, allowing the solution to approach the edge if necessary, but making the transition into the singularity
+/// more abrupt.
+/// </para>
+/// <para>There are pros and cons to both approaches. With the penalty method, the process can potentially produce results that
+/// violate the constraints, but is capable of navigating regions of the search space outside the feasible area, and the process can be
+/// started from any point. With the barrier method, the process is restricted to the feasible area, and can never leave it. This restricts
+/// its possible movement, and requires that the initial point satisfy the constraints. If the barrier divides the space into separate
+/// subspaces, the process is unlikely to escape the subspace containing the initial point, so if the minimum resides in another subspace,
+/// it won't be found. In rare cases, the early distortion of the feasible region may force solutions toward the center of the space from
+/// which the process may not escape. The barrier method is also generally unsuitable for equality constraints, as the penalty would always
+/// be infinite, and even if it was not, the infinitesimally narrow feasible region would likely prevent all movement, given floating point
+/// inaccuracy. Despite the barrier method's apparent limitations, when it works it works quite well, usually producing good results with
+/// much less computational effort than penalty methods.
+/// </para>
+/// </remarks>
+public enum ConstraintEnforcement
+{
+  /// <summary>A barrier (internal-point) method where the penalty is the negative logarithm of the negative distance from the feasible
+  /// region (i.e. <c>-log -c(x)</c>). This results in a negative penalty over the entire feasible region up to a distance of 1 from the
+  /// edge, and a positive penalty closer than that which increases exponentially. Generally, the distortion from a log barrier is greater
+  /// than the distortion from an inverse barrier, but nonetheless the log barrier is somewhat superior to <see cref="InverseBarrier"/> in
+  /// both accuracy and speed for many problems.
+  /// </summary>
+  LogBarrier,
+  /// <summary>A barrier (internal-point) method where the penalty is equal to the negative inverse of the distance from the feasible
+  /// region (i.e. <c>-1/c(x)</c>, but defined to be infinite when c(x) &gt;= 0). This results in a positive penalty applied to the entire
+  /// feasible region which gets exponentially large near the barrier. Generally, the distortion from an inverse barrier is less than the
+  /// distortion from a log barrier, but nonetheless the inverse barrier is somewhat inferior to <see cref="LogBarrier"/> in both accuracy
+  /// and speed for many problems.
+  /// </summary>
+  InverseBarrier,
+  /// <summary>A penalty (exterior-point) method where the penalty equals the square of the distance from the feasible region (e.g.
+  /// <c>max(0, c(x)^2 * sgn(c(x)))</c>. This causes rapid increase in penalty the futher a point is outside the feasible region. Although
+  /// it distorts the topography to a greater degree, for many problems, this gives faster and more accurate results than
+  /// <see cref="LinearPenalty"/>.
+  /// </summary>
+  QuadraticPenalty,
+  /// <summary>A penalty (exterior-point) method where the penalty equals the distance from the feasible region (e.g. <c>max(0, c(x))</c>).
+  /// This causes only a steady increase in penalty outside the feasible region. This is usually inferior to
+  /// <see cref="QuadraticPenalty"/>.
+  /// </summary>
+  LinearPenalty,
+}
+#endregion
 
 #region MinimumBracket
 /// <summary>Represents an interval in which a local minimum of a one-dimensional function is assumed to exist.</summary>
@@ -81,6 +522,73 @@ public class MinimumNotFoundException : Exception
 /// </remarks>
 public static class Minimize
 {
+  /// <summary>Finds a local minimum of multi-dimensional function near the given initial point, using a default error tolerance.</summary>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/BGFS/*[@name != 'tolerance']"/>
+  public static double BFGS(IDifferentiableMDFunction function, double[] x)
+  {
+    return BFGS(function, x, 1e-8);
+  }
+
+  /// <summary>Finds a local minimum of multi-dimensional function near the given initial point.</summary>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/BGFS/*"/>
+  public static double BFGS(IDifferentiableMDFunction function, double[] x, double tolerance)
+  {
+    if(function == null || x == null) throw new ArgumentNullException();
+    if(function.Arity != x.Length) throw new ArgumentException("The dimensions of the initial point must match the function's arity.");
+    if(tolerance < 0) throw new ArgumentOutOfRangeException();
+
+    const int MaxIterations = 200;
+    const double ScaledMaxStep = 100, ParameterTolerance = IEEE754.DoublePrecision*4;
+
+    Matrix invHessian = Matrix.CreateIdentity(x.Length);
+    double[] gradient = new double[x.Length], step = new double[x.Length], tmp = new double[x.Length], gradDiff = new double[x.Length];
+    double value = function.Evaluate(x), maxStep = Math.Max(MathHelpers.GetMagnitude(x), x.Length)*ScaledMaxStep;
+    function.EvaluateGradient(x, 1, gradient);
+    MathHelpers.NegateVector(gradient, step); // the initial step is the opposite of the gradient (i.e. directly downhill)
+
+    for(int iteration=0; iteration < MaxIterations; iteration++)
+    {
+      // move in the step direction as far as we can go. the new point is output in 'tmp'
+      FindRoot.LineSearch(function, x, value, gradient, step, tmp, out value, maxStep);
+      MathHelpers.SubtractVectors(tmp, x, step); // store the actual distance moved into 'step'
+      ArrayUtility.SmallCopy(tmp, x, x.Length); // update the current point
+
+      // if the parameters are barely changing, then we've converged
+      if(GetParameterConvergence(x, step) <= ParameterTolerance) return value;
+
+      // evaluate the gradient at the new point. if the gradient is about zero, we're done
+      ArrayUtility.SmallCopy(gradient, gradDiff, gradient.Length); // copy the old gradient
+      function.EvaluateGradient(x, 1, gradient); // get the new gradient
+      if(GetGradientConvergence(x, gradient, value) <= tolerance) return value; // check the new gradient for convergence to zero
+
+      // compute the difference between the new and old gradients, and multiply the difference by the inverse hessian
+      MathHelpers.SubtractVectors(gradient, gradDiff, gradDiff);
+      MathHelpers.Multiply(invHessian, gradDiff, tmp);
+
+      double fac = MathHelpers.DotProduct(gradDiff, step);
+      double gdSqr = MathHelpers.SumSquaredVector(tmp), stepSqr = MathHelpers.SumSquaredVector(step);
+      if(fac > Math.Sqrt(gdSqr*stepSqr*IEEE754.DoublePrecision)) // skip the hessian update if the vectors are nearly orthogonal
+      {
+        fac = 1 / fac;
+        double fae = MathHelpers.DotProduct(gradDiff, tmp), fad = 1 / fae;
+        for(int i=0; i<gradDiff.Length; i++) gradDiff[i] = fac*step[i] - fad*tmp[i];
+        for(int i=0; i<step.Length; i++)
+        {
+          for(int j=i; j<step.Length; j++)
+          {
+            double element = invHessian[i,j] + fac*step[i]*step[j] - fad*tmp[i]*tmp[j] + fae*gradDiff[i]*gradDiff[j];
+            invHessian[i, j] = element;
+            invHessian[j, i] = element;
+          }
+        }
+      }
+
+      for(int i=0; i<step.Length; i++) step[i] = -MathHelpers.SumRowTimesVector(invHessian, i, gradient);
+    }
+
+    throw MinimumNotFoundError();
+  }
+
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/BracketInward/*"/>
   public static IEnumerable<MinimumBracket> BracketInward(IOneDimensionalFunction function, double x1, double x2, int segments)
   {
@@ -251,7 +759,7 @@ public static class Minimize
     return !double.IsInfinity(x2-x1);
   }
 
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'accuracy' and @name != 'value']"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'tolerance' and @name != 'value']"/>
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/*"/>
   public static double Brent(IOneDimensionalFunction function, MinimumBracket bracket)
   {
@@ -259,7 +767,7 @@ public static class Minimize
     return Brent(function.Evaluate, bracket);
   }
 
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'accuracy']"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'tolerance']"/>
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/*"/>
   public static double Brent(IOneDimensionalFunction function, MinimumBracket bracket, out double value)
   {
@@ -270,21 +778,21 @@ public static class Minimize
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'value']"/>
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/*"/>
   [CLSCompliant(false)]
-  public static double Brent(IOneDimensionalFunction function, MinimumBracket bracket, double accuracy)
+  public static double Brent(IOneDimensionalFunction function, MinimumBracket bracket, double tolerance)
   {
     if(function == null) throw new ArgumentNullException();
-    return Brent(function.Evaluate, bracket, accuracy);
+    return Brent(function.Evaluate, bracket, tolerance);
   }
 
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*"/>
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/*"/>
-  public static double Brent(IOneDimensionalFunction function, MinimumBracket bracket, double accuracy, out double value)
+  public static double Brent(IOneDimensionalFunction function, MinimumBracket bracket, double tolerance, out double value)
   {
     if(function == null) throw new ArgumentNullException();
-    return Brent(function.Evaluate, bracket, accuracy, out value);
+    return Brent(function.Evaluate, bracket, tolerance, out value);
   }
 
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'accuracy' and @name != 'value']"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'tolerance' and @name != 'value']"/>
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/*"/>
   public static double Brent(Func<double, double> function, MinimumBracket bracket)
   {
@@ -292,7 +800,7 @@ public static class Minimize
     return Brent(function, bracket, IEEE754.SqrtDoublePrecision, out value);
   }
 
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'accuracy']"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'tolerance']"/>
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/*"/>
   public static double Brent(Func<double, double> function, MinimumBracket bracket, out double value)
   {
@@ -302,18 +810,18 @@ public static class Minimize
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'value']"/>
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/*"/>
   [CLSCompliant(false)]
-  public static double Brent(Func<double, double> function, MinimumBracket bracket, double accuracy)
+  public static double Brent(Func<double, double> function, MinimumBracket bracket, double tolerance)
   {
     double value;
-    return Brent(function, bracket, accuracy, out value);
+    return Brent(function, bracket, tolerance, out value);
   }
 
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*"/>
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/*"/>
-  public static double Brent(Func<double, double> function, MinimumBracket bracket, double accuracy, out double value)
+  public static double Brent(Func<double, double> function, MinimumBracket bracket, double tolerance, out double value)
   {
     if(function == null) throw new ArgumentNullException();
-    if(accuracy < 0) throw new ArgumentOutOfRangeException();
+    if(tolerance < 0) throw new ArgumentOutOfRangeException();
 
     // Brent's method combines the sureness of the golden section search with the parabolic interpolation described in BracketInside().
     // this allows it to converge quickly to the minimum if the local behavior of the function can be roughly approximated by a
@@ -334,9 +842,9 @@ public static class Minimize
 
     for(int iteration=0; iteration < MaxIterations; iteration++)
     {
-      // we're done when the distance between the brackets is less than or equal to minPt*accuracy*2 and minPt is centered in the bracket
+      // we're done when the distance between the brackets is less than or equal to minPt*tolerance*2 and minPt is centered in the bracket
       double mid = 0.5*(left+right);
-      double tol1 = accuracy * Math.Abs(minPt) + (IEEE754.DoublePrecision*0.001); // prevent tol2 from being zero when minPt is zero
+      double tol1 = tolerance * Math.Abs(minPt) + (IEEE754.DoublePrecision*0.001); // prevent tol2 from being zero when minPt is zero
       double tol2 = tol1 * 2;
       if(Math.Abs(minPt-mid) <= tol2 - 0.5*(right-left))
       {
@@ -415,7 +923,7 @@ public static class Minimize
     throw MinimumNotFoundError();
   }
 
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'accuracy' and @name != 'value']"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'tolerance' and @name != 'value']"/>
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/DBrentRemarks/*"/>
   public static double Brent(IDifferentiableFunction function, MinimumBracket bracket)
   {
@@ -423,7 +931,7 @@ public static class Minimize
     return Brent(function, bracket, IEEE754.SqrtDoublePrecision, out value);
   }
 
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'accuracy']"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'tolerance']"/>
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/DBrentRemarks/*"/>
   public static double Brent(IDifferentiableFunction function, MinimumBracket bracket, out double value)
   {
@@ -433,18 +941,18 @@ public static class Minimize
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'value']"/>
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/DBrentRemarks/*"/>
   [CLSCompliant(false)]
-  public static double Brent(IDifferentiableFunction function, MinimumBracket bracket, double accuracy)
+  public static double Brent(IDifferentiableFunction function, MinimumBracket bracket, double tolerance)
   {
     double value;
-    return Brent(function, bracket, accuracy, out value);
+    return Brent(function, bracket, tolerance, out value);
   }
 
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*"/>
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/DBrentRemarks/*"/>
-  public static double Brent(IDifferentiableFunction function, MinimumBracket bracket, double accuracy, out double value)
+  public static double Brent(IDifferentiableFunction function, MinimumBracket bracket, double tolerance, out double value)
   {
     if(function == null) throw new ArgumentNullException();
-    if(accuracy < 0) throw new ArgumentOutOfRangeException();
+    if(tolerance < 0) throw new ArgumentOutOfRangeException();
 
     // Brent's method with derivative information is somewhat different from Brent's method without. the basic idea is that, given a
     // bracketed minimum, the sign of the derivative at the low point indicates which direction is downhill (to the left when positive and
@@ -461,9 +969,9 @@ public static class Minimize
 
     for(int iteration=0; iteration < MaxIterations; iteration++)
     {
-      // we're done when the distance between the brackets is less than or equal to minPt*accuracy*2 and minPt is centered in the bracket
+      // we're done when the distance between the brackets is less than or equal to minPt*tolerance*2 and minPt is centered in the bracket
       double mid = 0.5*(left+right);
-      double tol1 = accuracy * Math.Abs(minPt) + (IEEE754.DoublePrecision*0.001); // prevent tol2 from being zero when minPt is zero
+      double tol1 = tolerance * Math.Abs(minPt) + (IEEE754.DoublePrecision*0.001); // prevent tol2 from being zero when minPt is zero
       double tol2 = tol1 * 2;
       if(Math.Abs(minPt-mid) <= tol2 - 0.5*(right-left))
       {
@@ -576,7 +1084,7 @@ public static class Minimize
     throw MinimumNotFoundError();
   }
 
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'accuracy' and @name != 'value']"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'tolerance' and @name != 'value']"/>
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/*"/>
   public static double GoldenSection(IOneDimensionalFunction function, MinimumBracket bracket)
   {
@@ -584,7 +1092,7 @@ public static class Minimize
     return GoldenSection(function.Evaluate, bracket);
   }
 
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'accuracy']"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'tolerance']"/>
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/*"/>
   public static double GoldenSection(IOneDimensionalFunction function, MinimumBracket bracket, out double value)
   {
@@ -595,21 +1103,21 @@ public static class Minimize
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'value']"/>
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/*"/>
   [CLSCompliant(false)]
-  public static double GoldenSection(IOneDimensionalFunction function, MinimumBracket bracket, double accuracy)
+  public static double GoldenSection(IOneDimensionalFunction function, MinimumBracket bracket, double tolerance)
   {
     if(function == null) throw new ArgumentNullException();
-    return GoldenSection(function.Evaluate, bracket, accuracy);
+    return GoldenSection(function.Evaluate, bracket, tolerance);
   }
 
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*"/>
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/*"/>
-  public static double GoldenSection(IOneDimensionalFunction function, MinimumBracket bracket, double accuracy, out double value)
+  public static double GoldenSection(IOneDimensionalFunction function, MinimumBracket bracket, double tolerance, out double value)
   {
     if(function == null) throw new ArgumentNullException();
-    return GoldenSection(function.Evaluate, bracket, accuracy, out value);
+    return GoldenSection(function.Evaluate, bracket, tolerance, out value);
   }
 
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'accuracy' and @name != 'value']"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'tolerance' and @name != 'value']"/>
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/*"/>
   public static double GoldenSection(Func<double, double> function, MinimumBracket bracket)
   {
@@ -617,7 +1125,7 @@ public static class Minimize
     return GoldenSection(function, bracket, IEEE754.SqrtDoublePrecision, out value);
   }
 
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'accuracy']"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'tolerance']"/>
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/*"/>
   public static double GoldenSection(Func<double, double> function, MinimumBracket bracket, out double value)
   {
@@ -627,18 +1135,18 @@ public static class Minimize
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[@name != 'value']"/>
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/*"/>
   [CLSCompliant(false)]
-  public static double GoldenSection(Func<double, double> function, MinimumBracket bracket, double accuracy)
+  public static double GoldenSection(Func<double, double> function, MinimumBracket bracket, double tolerance)
   {
     double value;
-    return GoldenSection(function, bracket, accuracy, out value);
+    return GoldenSection(function, bracket, tolerance, out value);
   }
 
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*"/>
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/*"/>
-  public static double GoldenSection(Func<double, double> function, MinimumBracket bracket, double accuracy, out double value)
+  public static double GoldenSection(Func<double, double> function, MinimumBracket bracket, double tolerance, out double value)
   {
     if(function == null) throw new ArgumentNullException();
-    if(accuracy < 0) throw new ArgumentOutOfRangeException();
+    if(tolerance < 0) throw new ArgumentOutOfRangeException();
 
     // the golden section search works is analogous to the bisection search for finding roots. it works by repeatedly shrinking the bracket
     // around the minimum until the bracket is very small. we maintain four points x0, x1, x2, and x3 where f(x0) >= f(x1) and
@@ -678,7 +1186,7 @@ public static class Minimize
 
     double v1 = function(x1), v2 = function(x2);
     // in general, we can only expect to get the answer to within a fraction of the center value
-    while(Math.Abs(x3-x0) > (Math.Abs(x1)+Math.Abs(x2))*accuracy) // while the bracket is still too large compared to the center values...
+    while(Math.Abs(x3-x0) > (Math.Abs(x1)+Math.Abs(x2))*tolerance) // while the bracket is still too large compared to the center values...
     {
       if(v2 < v1) // if f(x2) < f(x1) then we have f(x1) > f(x2) and f(x3) >= f(x2), so we can take x1,x2,x3 as the new bracket
       {
@@ -709,9 +1217,31 @@ public static class Minimize
     }
   }
 
-  static MinimumNotFoundException MinimumNotFoundError()
+  internal static double GetParameterConvergence(double[] x, double[] step)
+  {
+    double maxValue = 0;
+    for(int i=0; i<x.Length; i++)
+    {
+      double value = Math.Abs(step[i]) / Math.Max(Math.Abs(x[i]), 1);
+      if(value > maxValue) maxValue = value;
+    }
+    return maxValue;
+  }
+
+  internal static MinimumNotFoundException MinimumNotFoundError()
   {
     throw new MinimumNotFoundException("No minimum found within the given interval and tolerance.");
+  }
+
+  static double GetGradientConvergence(double[] x, double[] gradient, double value)
+  {
+    double maxValue = 0, divisor = Math.Max(Math.Abs(value), 1);
+    for(int i=0; i<x.Length; i++)
+    {
+      double component = Math.Abs(gradient[i]) * Math.Max(Math.Abs(x[i]), 1) / divisor;
+      if(component > maxValue) maxValue = component;
+    }
+    return maxValue;
   }
 }
 #endregion

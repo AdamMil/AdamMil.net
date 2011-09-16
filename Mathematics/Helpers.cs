@@ -41,14 +41,14 @@ namespace AdamMil.Mathematics
       for(int i=0; i<dest.Height; i++) dest[i, destColumn] = src[i, srcColumn];
     }
 
-    public static void DivideColumn(Matrix matrix, int column, double dividend, int startI=0)
+    public static void DivideColumn(Matrix matrix, int column, double divisor, int startI=0)
     {
-      for(; startI < matrix.Height; startI++) matrix[startI, column] /= dividend;
+      for(; startI < matrix.Height; startI++) matrix[startI, column] /= divisor;
     }
 
-    public static void DivideVector(double[] vector, double dividend)
+    public static void DivideVector(double[] vector, double divisor)
     {
-      for(int i=0; i<vector.Length; i++) vector[i] /= dividend;
+      for(int i=0; i<vector.Length; i++) vector[i] /= divisor;
     }
 
     public static double DotProduct(double[] a, double[] b)
@@ -56,6 +56,11 @@ namespace AdamMil.Mathematics
       double sum = 0;
       for(int i=0; i<a.Length; i++) sum += a[i]*b[i];
       return sum;
+    }
+
+    public static double GetMagnitude(double[] vector)
+    {
+      return Math.Sqrt(SumSquaredVector(vector));
     }
 
     public static double GetMaxMagnitudeInColumn(Matrix matrix, int column, int startI=0)
@@ -82,7 +87,12 @@ namespace AdamMil.Mathematics
 
     public static void Multiply(Matrix lhs, double[] rhsColumn, double[] destColumn)
     {
-      for(int i=0; i<destColumn.Length; i++) destColumn[i] = SumColumnTimesVector(lhs, i, rhsColumn);
+      for(int i=0; i<destColumn.Length; i++) destColumn[i] = SumRowTimesVector(lhs, i, rhsColumn);
+    }
+
+    public static void MultiplyTranspose(Matrix lhsToTranspose, double[] rhsColumn, double[] destColumn)
+    {
+      for(int i=0; i<destColumn.Length; i++) destColumn[i] = SumColumnTimesVector(lhsToTranspose, i, rhsColumn);
     }
 
     public static void NegateColumn(Matrix matrix, int column)
@@ -93,6 +103,11 @@ namespace AdamMil.Mathematics
     public static void NegateVector(double[] vector)
     {
       for(int i=0; i<vector.Length; i++) vector[i] = -vector[i];
+    }
+
+    public static void NegateVector(double[] srcVector, double[] destVector)
+    {
+      for(int i=0; i<destVector.Length; i++) destVector[i] = -srcVector[i];
     }
 
     public static void PostJacobiRotation(Matrix matrix, int column1, int column2, double c, double s, int startI=0)
@@ -138,6 +153,11 @@ namespace AdamMil.Mathematics
     public static void SubtractScaledRow(Matrix matrix1, int row1, Matrix matrix2, int row2, double scale, int startJ=0)
     {
       for(; startJ < matrix1.Width; startJ++) matrix1[row1, startJ] -= scale * matrix2[row2, startJ];
+    }
+
+    public static void SubtractVectors(double[] lhs, double[] rhs, double[] dest)
+    {
+      for(int i=0; i<dest.Length; i++) dest[i] = lhs[i] - rhs[i];
     }
 
     public static double SumColumnTimesColumn(Matrix matrix1, int column1, Matrix matrix2, int column2, int startI=0)

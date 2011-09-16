@@ -349,7 +349,35 @@
   </LinearAlgebra>
 
   <Optimization>
+    <ConstrainedMinimizer>
+      <OOBRemarks>
+        <remarks>
+          Note that if <see cref="ConstraintEnforcement"/> is set to a penalty method, the objective function may be invoked with
+          parameter values that don't satisfy the constraints. It should not throw an exception in that case. If possible, the behavior of
+          the function outside the bounds of the constraints should be smooth, to allow the search to easily traverse the topography of the
+          function back into the feasible region. However, if the objective function is meaningless outside its bounds, an appropriate
+          behavior is to return <see cref="double.NaN"/> and/or to set <see cref="ConstraintEnforcement"/> to use a barrier method rather
+          than a penalty method.
+        </remarks>
+      </OOBRemarks>
+    </ConstrainedMinimizer>
     <Minimize>
+      <BGFS>
+        <param name="function">The function to evaluate.</param>
+        <param name="x">
+          The initial point at which the function will be evaluated. The value of the function parameter at the minimum point
+          will be stored here.
+        </param>
+        <param name="tolerance">
+          The error tolerance to which the minimum will be found. Specifically, the function's gradient will be
+          reduced until it is below the tolerance.
+        </param>
+        <returns>Returns the value of the function at the minimum point.</returns>
+        <remarks>This method implements the Broyden-Fletcher-Goldfarb-Shanno (BFGS) quasi-Newton algorithm for multidimensional
+          minimization. Although it expects a differentiable multidimensional function, if you cannot calculate a gradient for your
+          function, it is possible in many cases to approximate it using <see cref="ApproximatelyDifferentiableMDFunction" />.
+        </remarks>
+      </BGFS>
       <BracketInward>
         <summary>Attempts to enumerate brackets containing local minima within an interval of a function.</summary>
         <param name="function">The function to be evaluated.</param>
@@ -406,9 +434,9 @@
         <param name="bracket">
           A <see cref="MinimumBracket"/> that is assumed to bracket a local minimum.
         </param>
-        <param name="accuracy">
-          The desired fractional accuracy. The location of the minimum will be found approximately plus or minus an
-          error equal the accuracy value times the location of the minimum. The should be greater than or equal to
+        <param name="tolerance">
+          The desired fractional tolerance. The location of the minimum will be found approximately plus or minus an
+          error equal the tolerance value times the location of the minimum. The should be greater than or equal to
           <see cref="IEEE754.SqrtDoublePrecision" />, as roundoff error prevents the achievement of any better accuracy.
         </param>
         <param name="value">A variable that will receive the value of the function at the minimum.</param>
@@ -499,12 +527,13 @@
         An interval in which a root has been bracketed. If the interval does not contain a root, the method will
         produce the wrong result.
       </param>
-      <param name="accuracy">
-        The accuracy to which the root will be found. The root will be refined until it is within the given distance of the true root.
+      <param name="tolerance">
+        The error tolerance to which the root will be found. The root will be refined until it is within the given distance of the
+        true root.
       </param>
-      <returns>Returns a root of the function, to within the specified accuracy. See the remarks for more details.</returns>
+      <returns>Returns a root of the function, to within the specified tolerance. See the remarks for more details.</returns>
       <exception cref="ArgumentException">Thrown if the interval is invalid, the interval does not bracket a zero crossing, or the function
-        cannot find a zero crossing within the given interval to the desired accuracy.
+        cannot find a zero crossing within the given interval to the desired tolerance.
       </exception>
       <remarks>
         Specifically, this function homes in on the point at the function changes sign. This usually indicates a root, but it could
