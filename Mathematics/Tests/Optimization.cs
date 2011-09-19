@@ -163,24 +163,16 @@ namespace AdamMil.Mathematics.Tests
         get { return 2; }
       }
 
-      public int DerivativeCount
-      {
-        get { return 1; }
-      }
-
-      public int its, grits;
       public double Evaluate(double[] x)
       {
-        its++;
         return x[0]*x[0]*x[1]*x[1];
       }
 
-      public void EvaluateGradient(double[] x, int derivative, double[] output)
+      public void EvaluateGradient(double[] x, double[] gradient)
       {
-        grits++;
         double a = x[0], b = x[1], ab2 = 2*a*b;
-        output[0] = ab2 * b;
-        output[1] = ab2 * a;
+        gradient[0] = ab2 * b;
+        gradient[1] = ab2 * a;
       }
     }
     #endregion
@@ -206,38 +198,32 @@ namespace AdamMil.Mathematics.Tests
       }
 
 
-      public int DerivativeCount
-      {
-        get { return 1; }
-      }
-
       public double Evaluate(double[] input)
       {
         double x = input[0], y = input[1];
         return Math.Abs(xd*(input[1]-ys) - yd*(input[0]-xs)) - distance;
       }
 
-      public void EvaluateGradient(double[] input, int derivative, double[] output)
+      public void EvaluateGradient(double[] input, double[] gradient)
       {
-        if(derivative != 1) throw new ArgumentOutOfRangeException();
         double sdist = xd*(input[1]-ys) - yd*(input[0]-xs), nerror = Math.Abs(sdist) - distance;
         if(nerror > 0)
         {
           if(sdist < 0)
           {
-            output[0] = yd;
-            output[1] = -xd;
+            gradient[0] = yd;
+            gradient[1] = -xd;
           }
           else
           {
-            output[0] = -yd;
-            output[1] = xd;
+            gradient[0] = -yd;
+            gradient[1] = xd;
           }
         }
         else
         {
-          output[0] = 0;
-          output[1] = 0;
+          gradient[0] = 0;
+          gradient[1] = 0;
         }
       }
 
@@ -254,23 +240,17 @@ namespace AdamMil.Mathematics.Tests
         get { return 2; }
       }
 
-      public int DerivativeCount
-      {
-        get { return 1; }
-      }
-
       public double Evaluate(params double[] x)
       {
         double a = x[0], b = x[1], aa = a*a;
         return 100*(b-aa)*(b-aa) + (1-a)*(1-a);
       }
 
-      public void EvaluateGradient(double[] x, int derivative, double[] output)
+      public void EvaluateGradient(double[] x, double[] gradient)
       {
-        if(derivative != 1) throw new ArgumentOutOfRangeException();
         double a = x[0], b = x[1], aa = a*a, v = 200*(b-aa);
-        output[0] = 2*((a-1) - v*a);
-        output[1] = v;
+        gradient[0] = 2*((a-1) - v*a);
+        gradient[1] = v;
       }
     }
     #endregion

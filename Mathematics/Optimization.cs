@@ -38,7 +38,7 @@ namespace AdamMil.Mathematics.Optimization
 /// </para>
 /// </remarks>
 /// <include file="documentation.xml" path="/Math/Optimization/ConstrainedMinimizer/OOBRemarks/*"/>
-public sealed class ConstrainedMinimizer
+public class ConstrainedMinimizer
 {
   /// <summary>Initializes the <see cref="ConstrainedMinimizer"/> with the objective function to minimize.</summary>
   /// <include file="documentation.xml" path="/Math/Optimization/ConstrainedMinimizer/OOBRemarks/*"/>
@@ -48,6 +48,10 @@ public sealed class ConstrainedMinimizer
     function = objectiveFunction;
     ConstraintEnforcement = ConstraintEnforcement.QuadraticPenalty;
   }
+
+  /// <summary>Initializes the <see cref="ConstrainedMinimizer"/> with the objective function to minimize.</summary>
+  /// <include file="documentation.xml" path="/Math/Optimization/ConstrainedMinimizer/OOBRemarks/*"/>
+  public ConstrainedMinimizer(IDifferentiableFunction objectiveFunction) : this(new DifferentiableMDFunction(objectiveFunction)) { }
 
   /// <summary>Gets or sets the base penalty multiplier. This is the multiplier applied to be penalty on the first iteration. On each later
   /// iteration, the penalty multiplier will be multiplied by a factor of <see cref="PenaltyChangeFactor"/>. The default is 1.
@@ -96,6 +100,21 @@ public sealed class ConstrainedMinimizer
     {
       if(value < 0) throw new ArgumentOutOfRangeException();
       _constraintTolerance = value;
+    }
+  }
+
+  /// <summary>Gets or sets the gradient tolerance. Each iteration of the minimization process will attempt to reduce the gradient to
+  /// zero, but since it is unlikely to ever reach zero exactly, it will terminate when the gradient is fractionally less than the
+  /// gradient tolerance. Larger values allow the process to terminate slightly further from the minimum. The default is <c>1e-8</c>.
+  /// If you receive <see cref="MinimumNotFoundException"/> errors, increasing this value may help.
+  /// </summary>
+  public double GradientTolerance
+  {
+    get { return _gradientTolerance; }
+    set
+    {
+      if(value < 0) throw new ArgumentOutOfRangeException();
+      _gradientTolerance = value;
     }
   }
 
@@ -149,17 +168,24 @@ public sealed class ConstrainedMinimizer
     constraints.Add(constraint);
   }
 
-  /// <summary>Minimizes the objective function passed to the constructor subject to the constraints that have been added.</summary>
+  /// <summary>Locally minimizes the objective function passed to the constructor subject to the constraints that have been added.</summary>
   /// <param name="x">An initial guess for the location of the minimum. In general, a global minimum may not be found unless you can supply
   /// a nearby initial point. If you cannot, then only a local minimum may be found. The initial point is not required to satisfy any
   /// bounds or constraints unless <see cref="ConstraintEnforcement"/> is set to a barrier method.
   /// </param>
+  /// <remarks>This method is safe to call from multiple threads simultaneously, as long as the properties of the object are not modified
+  /// while any minimization is ongoing. If you receive <see cref="MinimumNotFoundException"/> errors, try increasing the value of
+  /// <see cref="GradientTolerance"/>.
+  /// </remarks>
   public double Minimize(double[] x)
   {
     if(x == null) throw new ArgumentNullException();
     if(x.Length != function.Arity) throw new ArgumentException("The initial point does not have the correct number of dimensions.");
 
-    const int MaxIterations = 200;
+    // if no constraints have been added, just minimize the function normally
+    if(minBound == null && constraints == null) return Optimization.Minimize.BFGS(function, x, GradientTolerance);
+
+    const int MaxIterations = 100;
     PenaltyFunction penaltyFunction = new PenaltyFunction(this);
     double[] oldX = new double[x.Length];
     double value = 0;
@@ -167,8 +193,16 @@ public sealed class ConstrainedMinimizer
     penaltyFunction.PenaltyFactor = BasePenaltyMultipier;
     for(int iteration=0; iteration<MaxIterations; iteration++)
     {
-      // reduce the tolerance on the first two iterations as the result will be approximate anyway
-      double newValue = Optimization.Minimize.BFGS(penaltyFunction, x);
+      double newValue;
+      try
+      {
+        newValue = Optimization.Minimize.BFGS(penaltyFunction, x, GradientTolerance);
+      }
+      catch(MinimumNotFoundException) // sometimes early on (e.g. just the first iteration or two) it will fail to find a minimum
+      {                               // but will succeed after the penalty factor ramps up. so we'll ignore those errors at first
+        if(iteration < 10) newValue = penaltyFunction.Evaluate(x);
+        else throw;
+      }
 
       if(Math.Abs(penaltyFunction.LastPenalty) <= Math.Abs(newValue)*ConstraintTolerance ||
          (iteration != 0 &&
@@ -241,6 +275,8 @@ public sealed class ConstrainedMinimizer
       {
         minBound = new double[function.Arity];
         maxBound = new double[function.Arity];
+        for(int i=0; i<minBound.Length; i++) minBound[i] = double.NegativeInfinity;
+        for(int i=0; i<maxBound.Length; i++) maxBound[i] = double.PositiveInfinity;
       }
       minBound[parameter] = minimum;
       maxBound[parameter] = maximum;
@@ -259,11 +295,6 @@ public sealed class ConstrainedMinimizer
     public int Arity
     {
       get { return minimizer.function.Arity; }
-    }
-
-    public int DerivativeCount
-    {
-      get { return 1; }
     }
 
     public double PenaltyFactor, LastPenalty;
@@ -318,10 +349,9 @@ public sealed class ConstrainedMinimizer
       return double.IsNaN(totalPenalty) ? double.NaN : minimizer.function.Evaluate(x) + totalPenalty;
     }
 
-    public void EvaluateGradient(double[] x, int derivative, double[] output)
+    public void EvaluateGradient(double[] x, double[] output)
     {
-      if(derivative != 1) throw new ArgumentOutOfRangeException();
-      minimizer.function.EvaluateGradient(x, 1, output);
+      minimizer.function.EvaluateGradient(x, output);
 
       // compute the penalty for out-of-bound parameters
       if(minimizer.minBound != null)
@@ -360,7 +390,7 @@ public sealed class ConstrainedMinimizer
           if(penalty > 0)
           {
             penalty = PenaltyFactor * GetPenaltyGradient(penalty);
-            constraint.EvaluateGradient(x, 1, gradient);
+            constraint.EvaluateGradient(x, gradient);
             for(int j=0; j<output.Length; j++) output[j] += penalty*gradient[j];
           }
         }
@@ -408,13 +438,14 @@ public sealed class ConstrainedMinimizer
   List<IDifferentiableMDFunction> constraints;
   double[] minBound, maxBound;
   double _basePenaltyMultiplier=1, _penaltyChangeFactor=100;
-  double _parameterTolerance=IEEE754.DoublePrecision*4, _constraintTolerance=1e-9, _valueTolerance=1e-9;
+  double _parameterTolerance=IEEE754.DoublePrecision*4, _constraintTolerance=1e-9, _valueTolerance=1e-9, _gradientTolerance=1e-8;
 }
 #endregion
 
 #region ConstraintEnforcement
 /// <summary>Determines the method of constraint enforcement used by the <see cref="ConstrainedMinimizer"/> class.</summary>
-/// <remarks>There are two general types of penalty leading to two names for the constrained minimization process, called the penalty
+/// <remarks>
+/// <para>There are two general types of penalty leading to two names for the constrained minimization process, called the penalty
 /// method and the barrier method. In the penalty method, the penalty in zero in the feasible region and smoothly increases as the
 /// constraints is violated. Violations of the constraint are merely penalized but not prevented. As such, it is also called an
 /// exterior-point method, since the search point can move outside the feasible region. The penalty starts out weak and gradually
@@ -526,7 +557,7 @@ public static class Minimize
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/BGFS/*[@name != 'tolerance']"/>
   public static double BFGS(IDifferentiableMDFunction function, double[] x)
   {
-    return BFGS(function, x, 1e-8);
+    return BFGS(function, x, 1e-8); // NOTE: this constant is duplicated in ConstrainedMinimizer, so update it there if changed
   }
 
   /// <summary>Finds a local minimum of multi-dimensional function near the given initial point.</summary>
@@ -537,53 +568,58 @@ public static class Minimize
     if(function.Arity != x.Length) throw new ArgumentException("The dimensions of the initial point must match the function's arity.");
     if(tolerance < 0) throw new ArgumentOutOfRangeException();
 
-    const int MaxIterations = 200;
+    const int MaxIterations = 100;
     const double ScaledMaxStep = 100, ParameterTolerance = IEEE754.DoublePrecision*4;
 
-    Matrix invHessian = Matrix.CreateIdentity(x.Length);
+    Matrix invHessian = new Matrix(x.Length, x.Length);
     double[] gradient = new double[x.Length], step = new double[x.Length], tmp = new double[x.Length], gradDiff = new double[x.Length];
-    double value = function.Evaluate(x), maxStep = Math.Max(MathHelpers.GetMagnitude(x), x.Length)*ScaledMaxStep;
-    function.EvaluateGradient(x, 1, gradient);
-    MathHelpers.NegateVector(gradient, step); // the initial step is the opposite of the gradient (i.e. directly downhill)
-
-    for(int iteration=0; iteration < MaxIterations; iteration++)
+    // occasionally, it stalls. if that happens, we'll try restarting. (we do two 100 iteration tries rather than one 200 iteration try.)
+    for(int tries=0; tries<2; tries++)
     {
-      // move in the step direction as far as we can go. the new point is output in 'tmp'
-      FindRoot.LineSearch(function, x, value, gradient, step, tmp, out value, maxStep);
-      MathHelpers.SubtractVectors(tmp, x, step); // store the actual distance moved into 'step'
-      ArrayUtility.SmallCopy(tmp, x, x.Length); // update the current point
+      invHessian.SetIdentity();
+      double value = function.Evaluate(x), maxStep = Math.Max(MathHelpers.GetMagnitude(x), x.Length)*ScaledMaxStep;
+      function.EvaluateGradient(x, gradient);
+      MathHelpers.NegateVector(gradient, step); // the initial step is the opposite of the gradient (i.e. directly downhill)
 
-      // if the parameters are barely changing, then we've converged
-      if(GetParameterConvergence(x, step) <= ParameterTolerance) return value;
-
-      // evaluate the gradient at the new point. if the gradient is about zero, we're done
-      ArrayUtility.SmallCopy(gradient, gradDiff, gradient.Length); // copy the old gradient
-      function.EvaluateGradient(x, 1, gradient); // get the new gradient
-      if(GetGradientConvergence(x, gradient, value) <= tolerance) return value; // check the new gradient for convergence to zero
-
-      // compute the difference between the new and old gradients, and multiply the difference by the inverse hessian
-      MathHelpers.SubtractVectors(gradient, gradDiff, gradDiff);
-      MathHelpers.Multiply(invHessian, gradDiff, tmp);
-
-      double fac = MathHelpers.DotProduct(gradDiff, step);
-      double gdSqr = MathHelpers.SumSquaredVector(tmp), stepSqr = MathHelpers.SumSquaredVector(step);
-      if(fac > Math.Sqrt(gdSqr*stepSqr*IEEE754.DoublePrecision)) // skip the hessian update if the vectors are nearly orthogonal
+      for(int iteration=0; iteration < MaxIterations; iteration++)
       {
-        fac = 1 / fac;
-        double fae = MathHelpers.DotProduct(gradDiff, tmp), fad = 1 / fae;
-        for(int i=0; i<gradDiff.Length; i++) gradDiff[i] = fac*step[i] - fad*tmp[i];
-        for(int i=0; i<step.Length; i++)
+        // move in the step direction as far as we can go. the new point is output in 'tmp'
+        FindRoot.LineSearch(function, x, value, gradient, step, tmp, out value, maxStep);
+        MathHelpers.SubtractVectors(tmp, x, step); // store the actual distance moved into 'step'
+        ArrayUtility.SmallCopy(tmp, x, x.Length); // update the current point
+
+        // if the parameters are barely changing, then we've converged
+        if(GetParameterConvergence(x, step) <= ParameterTolerance) return value;
+
+        // evaluate the gradient at the new point. if the gradient is about zero, we're done
+        ArrayUtility.SmallCopy(gradient, gradDiff, gradient.Length); // copy the old gradient
+        function.EvaluateGradient(x, gradient); // get the new gradient
+        if(GetGradientConvergence(x, gradient, value) <= tolerance) return value; // check the new gradient for convergence to zero
+
+        // compute the difference between the new and old gradients, and multiply the difference by the inverse hessian
+        MathHelpers.SubtractVectors(gradient, gradDiff, gradDiff);
+        MathHelpers.Multiply(invHessian, gradDiff, tmp);
+
+        double fac = MathHelpers.DotProduct(gradDiff, step);
+        double gdSqr = MathHelpers.SumSquaredVector(tmp), stepSqr = MathHelpers.SumSquaredVector(step);
+        if(fac > Math.Sqrt(gdSqr*stepSqr*IEEE754.DoublePrecision)) // skip the hessian update if the vectors are nearly orthogonal
         {
-          for(int j=i; j<step.Length; j++)
+          fac = 1 / fac;
+          double fae = MathHelpers.DotProduct(gradDiff, tmp), fad = 1 / fae;
+          for(int i=0; i<gradDiff.Length; i++) gradDiff[i] = fac*step[i] - fad*tmp[i];
+          for(int i=0; i<step.Length; i++)
           {
-            double element = invHessian[i,j] + fac*step[i]*step[j] - fad*tmp[i]*tmp[j] + fae*gradDiff[i]*gradDiff[j];
-            invHessian[i, j] = element;
-            invHessian[j, i] = element;
+            for(int j=i; j<step.Length; j++)
+            {
+              double element = invHessian[i, j] + fac*step[i]*step[j] - fad*tmp[i]*tmp[j] + fae*gradDiff[i]*gradDiff[j];
+              invHessian[i, j] = element;
+              invHessian[j, i] = element;
+            }
           }
         }
-      }
 
-      for(int i=0; i<step.Length; i++) step[i] = -MathHelpers.SumRowTimesVector(invHessian, i, gradient);
+        for(int i=0; i<step.Length; i++) step[i] = -MathHelpers.SumRowTimesVector(invHessian, i, gradient);
+      }
     }
 
     throw MinimumNotFoundError();
