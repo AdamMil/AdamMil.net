@@ -50,19 +50,11 @@
         </exception>
       </EvaluateDerivative>
       <EvaluateGradient>
-        <summary>Returns the nth derivative (i.e. gradient) of the function at a the given point. This is an array of the same arity of
-          the function, where each element is the nth partial derivative of the function with respect to that parameter.
+        <summary>Returns the gradient (i.e. derivative) of the function at a the given point. This is an array of the same arity of
+          the function, where each element is the partial derivative of the function with respect to that parameter.
         </summary>
         <param name="x">The point at which the derivative is to be evaluated.</param>
-        <param name="derivative">
-          The derivative to evaluate. The first derivative is specify by passing 1, the second derivative by
-          passing 2, etc.
-        </param>
-        <param name="output">The array into which the gradient of the function should be stored.</param>
-        <exception cref="ArgumentOutOfRangeException">
-          Thrown if <paramref name="derivative"/> is [ess than 1 or greater than
-          <see cref="DerivativeCount"/>.
-        </exception>
+        <param name="gradient">The array into which the gradient of the function should be stored.</param>
       </EvaluateGradient>
     </DifferentiableFunction>
   </Functions>

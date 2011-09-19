@@ -77,11 +77,8 @@ namespace AdamMil.Mathematics
   /// <summary>Represents a differentiable multidimensional function.</summary>
   public interface IDifferentiableMDFunction : IMultidimensionalFunction
   {
-    /// <include file="documentation.xml" path="/Math/Functions/DifferentiableFunction/DerivativeCount/*"/>
-    int DerivativeCount { get; }
-
     /// <include file="documentation.xml" path="/Math/Functions/DifferentiableFunction/EvaluateGradient/*"/>
-    void EvaluateGradient(double[] x, int derivative, double[] output);
+    void EvaluateGradient(double[] x, double[] gradient);
   }
   #endregion
 
@@ -112,10 +109,10 @@ namespace AdamMil.Mathematics
   /// <summary>Represents a differentiable multi-dimensional function that can provide its gradient (i.e. derivative) as another function.</summary>
   public interface IFunctionallyDifferentiableMDFunction : IDifferentiableMDFunction
   {
-    /// <summary>Returns a <see cref="IVectorValuedFunction"/> representing the given derivative. The vector-valued function should have
+    /// <summary>Returns a <see cref="IVectorValuedFunction"/> representing the gradient. The vector-valued function should have
     /// input and output arity equal to <see cref="IMultidimensionalFunction.Arity"/>.
     /// </summary>
-    IVectorValuedFunction GetGradient(int derivative);
+    IVectorValuedFunction GetGradient();
   }
   #endregion
 
@@ -194,7 +191,7 @@ namespace AdamMil.Mathematics
 
   #region MultidimensionalFunction
   /// <summary>Implements an <see cref="IMultidimensionalFunction"/> that uses a delegate to provide the function.</summary>
-  public sealed class MultidimensionalFunction : IMultidimensionalFunction
+  public class MultidimensionalFunction : IMultidimensionalFunction
   {
     /// <summary>Initializes a new <see cref="MultidimensionalFunction"/> using the given delegate for the function.</summary>
     public MultidimensionalFunction(Func<double[], double> function, int arity)
@@ -262,6 +259,56 @@ namespace AdamMil.Mathematics
   }
   #endregion
 
+  #region DifferentiableMDFunction
+  /// <summary>Implements an <see cref="IDifferentiableMDFunction"/> that uses delegates to provide the function and its gradient.</summary>
+  public sealed class DifferentiableMDFunction : MultidimensionalFunction, IDifferentiableMDFunction
+  {
+    /// <summary>Initializes a new <see cref="DifferentiableMDFunction"/> from a <see cref="IDifferentiableFunction"/>.</summary>
+    public DifferentiableMDFunction(IDifferentiableFunction function) : base(function)
+    {
+      gradient = (x, output) => output[0] = function.EvaluateDerivative(x[0], 1);
+    }
+
+    /// <summary>Initializes a new <see cref="DifferentiableMDFunction"/> from a one-dimensional function and its derivative.</summary>
+    public DifferentiableMDFunction(Func<double, double> function, Func<double, double> derivative) : base(function)
+    {
+      if(derivative == null) throw new ArgumentNullException();
+      gradient = (x, output) => output[0] = derivative(x[0]);
+    }
+
+    /// <summary>Initializes a new <see cref="DifferentiableMDFunction"/> from a two-dimensional function and its gradient.</summary>
+    public DifferentiableMDFunction(Func<double, double, double> function, Action<double, double, double[]> gradient) : base(function)
+    {
+      if(gradient == null) throw new ArgumentNullException();
+      this.gradient = (x, output) => gradient(x[0], x[1], output);
+    }
+
+    /// <summary>Initializes a new <see cref="DifferentiableMDFunction"/> from a three-dimensional function and its gradient.</summary>
+    public DifferentiableMDFunction(Func<double, double, double, double> function, Action<double, double, double, double[]> gradient)
+      : base(function)
+    {
+      if(gradient == null) throw new ArgumentNullException();
+      this.gradient = (x, output) => gradient(x[0], x[1], x[2], output);
+    }
+
+    /// <summary>Initializes a new <see cref="DifferentiableMDFunction"/> from a multidimensional function and its gradient.</summary>
+    public DifferentiableMDFunction(Func<double[], double> function, Action<double[], double[]> gradient, int arity)
+      : base(function, arity)
+    {
+      if(gradient == null) throw new ArgumentNullException();
+      this.gradient = gradient;
+    }
+
+    /// <include file="documentation.xml" path="/Math/Functions/DifferentiableFunction/EvaluateGradient/*"/>
+    public void EvaluateGradient(double[] x, double[] gradient)
+    {
+      this.gradient(x, gradient);
+    }
+
+    readonly Action<double[], double[]> gradient;
+  }
+  #endregion
+
   #region ApproximatelyDifferentiableMDFunction
   /// <summary>Provides an <see cref="IDifferentiableMDFunction"/> that estimates the gradient of an
   /// <see cref="IMultidimensionalFunction"/> via forward-difference approximation. This is based on the fact that
@@ -301,22 +348,15 @@ namespace AdamMil.Mathematics
     }
 
     /// <inheritdoc/>
-    public int DerivativeCount
-    {
-      get { return 1; }
-    }
-
-    /// <inheritdoc/>
     public double Evaluate(double[] input)
     {
       return function.Evaluate(input);
     }
 
     /// <inheritdoc/>
-    public void EvaluateGradient(double[] input, int derivative, double[] output)
+    public void EvaluateGradient(double[] input, double[] gradient)
     {
-      if(input == null || output == null) throw new ArgumentNullException();
-      if(derivative != 1) throw new ArgumentOutOfRangeException();
+      if(input == null || gradient == null) throw new ArgumentNullException();
 
       double value = function.Evaluate(input);
       ArrayUtility.SmallCopy(input, input2, input.Length);
@@ -328,7 +368,7 @@ namespace AdamMil.Mathematics
         h = input2[x] - arg; // in the divisor later. essentially, it eliminates a source of error caused by the difference of precision
         double value2 = function.Evaluate(input2);
         input2[x] = arg;
-        output[x] = (value2 - value) / h;
+        gradient[x] = (value2 - value) / h;
       }
     }
 
