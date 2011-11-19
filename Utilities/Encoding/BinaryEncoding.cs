@@ -20,10 +20,10 @@ public abstract class BinaryEncoder
   /// The default implementation copies the data into arrays and calls <see cref="Encode(byte[],int,int,byte[],int,bool)"/>.
   /// </remarks>
   [CLSCompliant(false)]
-  public unsafe virtual int Encode(byte* source, int sourceCount, byte* destination, int destinationCount, bool flush)
+  public unsafe virtual int Encode(byte* source, int sourceCount, byte* destination, int destinationCapacity, bool flush)
   {
-    if(sourceCount < 0 || destinationCount < 0) throw new ArgumentOutOfRangeException();
-    byte[] sourceArray = new byte[sourceCount], destinationArray = new byte[destinationCount];
+    if(sourceCount < 0 || destinationCapacity < 0) throw new ArgumentOutOfRangeException();
+    byte[] sourceArray = new byte[sourceCount], destinationArray = new byte[destinationCapacity];
     fixed(byte* srcPtr=sourceArray) Unsafe.Copy(source, srcPtr, sourceCount);
     return Encode(sourceArray, 0, sourceCount, destinationArray, 0, flush);
   }
@@ -105,10 +105,10 @@ public abstract class BinaryEncoding
   /// The default implementation copies the data into an array and calls <see cref="Decode(byte[],int,int,byte[],int)"/>.
   /// </remarks>
   [CLSCompliant(false)]
-  public unsafe virtual int Decode(byte* encodedBytes, int encodedByteCount, byte* decodedBytes, int decodedByteCount)
+  public unsafe virtual int Decode(byte* encodedBytes, int encodedByteCount, byte* decodedBytes, int decodedByteCapacity)
   {
-    if(encodedByteCount < 0 || decodedByteCount < 0) throw new ArgumentOutOfRangeException();
-    byte[] encodedByteArray = new byte[encodedByteCount], decodedByteArray = new byte[decodedByteCount];
+    if(encodedByteCount < 0 || decodedByteCapacity < 0) throw new ArgumentOutOfRangeException();
+    byte[] encodedByteArray = new byte[encodedByteCount], decodedByteArray = new byte[decodedByteCapacity];
     fixed(byte* ebPtr=encodedByteArray) Unsafe.Copy(encodedBytes, ebPtr, encodedByteCount);
     return Decode(encodedByteArray, 0, encodedByteCount, decodedByteArray, 0);
   }
@@ -142,10 +142,10 @@ public abstract class BinaryEncoding
   /// The default implementation copies the data into an array and calls <see cref="Encode(byte[],int,int,byte[],int)"/>.
   /// </remarks>
   [CLSCompliant(false)]
-  public unsafe virtual int Encode(byte* data, int dataByteCount, byte* encodedBytes, int encodedByteCount)
+  public unsafe virtual int Encode(byte* data, int dataByteCount, byte* encodedBytes, int encodedByteCapacity)
   {
-    if(encodedByteCount < 0 || dataByteCount < 0) throw new ArgumentOutOfRangeException();
-    byte[] decodedByteArray = new byte[dataByteCount], encodedByteArray = new byte[encodedByteCount];
+    if(encodedByteCapacity < 0 || dataByteCount < 0) throw new ArgumentOutOfRangeException();
+    byte[] decodedByteArray = new byte[dataByteCount], encodedByteArray = new byte[encodedByteCapacity];
     fixed(byte* dbPtr=decodedByteArray) Unsafe.Copy(data, dbPtr, dataByteCount);
     return Encode(decodedByteArray, 0, dataByteCount, encodedByteArray, 0);
   }
@@ -263,10 +263,10 @@ public sealed class DefaultBinaryEncoder : BinaryEncoder
 
   /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/EncodePtr/*"/>
   [CLSCompliant(false)]
-  public override unsafe int Encode(byte* source, int sourceCount, byte* destination, int destinationCount, bool flush)
+  public override unsafe int Encode(byte* source, int sourceCount, byte* destination, int destinationCapacity, bool flush)
   {
-    return encode ? encoding.Encode(source, sourceCount, destination, destinationCount) :
-                    encoding.Decode(source, sourceCount, destination, destinationCount);
+    return encode ? encoding.Encode(source, sourceCount, destination, destinationCapacity) :
+                    encoding.Decode(source, sourceCount, destination, destinationCapacity);
   }
 
   /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Encode/*"/>
@@ -333,10 +333,10 @@ public class EncoderDecoderBinaryEncoding : BinaryEncoding
 
   /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/DecodePtr/*"/>
   [CLSCompliant(false)]
-  public override unsafe int Decode(byte* encodedBytes, int encodedByteCount, byte* decodedBytes, int decodedByteCount)
+  public override unsafe int Decode(byte* encodedBytes, int encodedByteCount, byte* decodedBytes, int decodedByteCapacity)
   {
     decoder.Reset();
-    return decoder.Encode(encodedBytes, encodedByteCount, decodedBytes, decodedByteCount, true);
+    return decoder.Encode(encodedBytes, encodedByteCount, decodedBytes, decodedByteCapacity, true);
   }
 
   /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/Decode/*"/>
@@ -349,10 +349,10 @@ public class EncoderDecoderBinaryEncoding : BinaryEncoding
 
   /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/EncodePtr/*"/>
   [CLSCompliant(false)]
-  public override unsafe int Encode(byte* data, int dataByteCount, byte* encodedBytes, int encodedByteCount)
+  public override unsafe int Encode(byte* data, int dataByteCount, byte* encodedBytes, int encodedByteCapacity)
   {
     encoder.Reset();
-    return encoder.Encode(data, dataByteCount, encodedBytes, encodedByteCount, true);
+    return encoder.Encode(data, dataByteCount, encodedBytes, encodedByteCapacity, true);
   }
 
   /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/Encode/*"/>

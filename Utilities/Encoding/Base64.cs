@@ -17,9 +17,9 @@ public sealed class Base64Decoder : BinaryEncoder
 
   /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/EncodePtr/*"/>
   [CLSCompliant(false)]
-  public unsafe override int Encode(byte* source, int sourceCount, byte* destination, int destinationCount, bool flush)
+  public unsafe override int Encode(byte* source, int sourceCount, byte* destination, int destinationCapacity, bool flush)
   {
-    if(sourceCount < 0 || destinationCount < 0) throw new ArgumentOutOfRangeException();
+    if(sourceCount < 0 || destinationCapacity < 0) throw new ArgumentOutOfRangeException();
 
     // go through the characters, collecting valid ones into a buffer, and processing them whenever we get 4 valid characters
     byte* originalBytePtr = destination;
@@ -31,12 +31,12 @@ public sealed class Base64Decoder : BinaryEncoder
         charBuffer = (charBuffer << 6) | (byte)value;
         if(++bufferChars == 4)
         {
-          if(destinationCount < 3) throw Exceptions.InsufficientBufferSpace();
+          if(destinationCapacity < 3) throw Exceptions.InsufficientBufferSpace();
           destination[0] = (byte)(charBuffer >> 16);
           destination[1] = (byte)(charBuffer >> 8);
           destination[2] = (byte)charBuffer;
           destination      += 3;
-          destinationCount -= 3;
+          destinationCapacity -= 3;
           bufferChars = 0;
         }
       }
@@ -47,12 +47,12 @@ public sealed class Base64Decoder : BinaryEncoder
     {
       if(bufferChars == 2) // there is 1 data byte in 2 buffer bytes (012345 67xxxx -> xxxx0123 4567xxxx)
       {
-        if(destinationCount == 0) throw Exceptions.InsufficientBufferSpace();
+        if(destinationCapacity == 0) throw Exceptions.InsufficientBufferSpace();
         *destination++ = (byte)(charBuffer >> 4);
       }
       else if(bufferChars == 3) // there are 2 data bytes in 3 buffer bytes (012345 670123 4567xx -> 01 23456701 234567xx)
       {
-        if(destinationCount < 2) throw Exceptions.InsufficientBufferSpace();
+        if(destinationCapacity < 2) throw Exceptions.InsufficientBufferSpace();
         destination[0] = (byte)(charBuffer >> 10);
         destination[1] = (byte)(charBuffer >> 2);
         destination += 2;
@@ -106,7 +106,7 @@ public sealed class Base64Decoder : BinaryEncoder
   public override int GetMaxBytes(int unencodedByteCount)
   {
     int wholeChunks = unencodedByteCount/4, leftOver = unencodedByteCount&3;
-    return wholeChunks*3 + (leftOver == 3 ? 2 : leftOver == 2 ? 1 : 0);
+    return wholeChunks*3 + (leftOver == 3 ? 2 : leftOver == 2 ? 1 : 0) + bufferChars;
   }
 
   /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Reset/*"/>
@@ -160,9 +160,9 @@ public sealed class Base64Encoder : BinaryEncoder
 
   /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/EncodePtr/*"/>
   [CLSCompliant(false)]
-  public unsafe override int Encode(byte* source, int sourceCount, byte* destination, int destinationCount, bool flush)
+  public unsafe override int Encode(byte* source, int sourceCount, byte* destination, int destinationCapacity, bool flush)
   {
-    if(destinationCount < GetByteCount(sourceCount, flush)) throw new ArgumentOutOfRangeException();
+    if(destinationCapacity < GetByteCount(sourceCount, flush)) throw new ArgumentOutOfRangeException();
 
     // if there's something in the buffer already, try to pad it out to 3 bytes and encode that
     byte* originalDestPtr = destination;
@@ -192,7 +192,7 @@ public sealed class Base64Encoder : BinaryEncoder
     {
       if(byteBuffer.Count != 0) // if we have one or two bytes remaining...
       {
-        if(destinationCount < 4) throw Exceptions.InsufficientBufferSpace();
+        if(destinationCapacity < 4) throw Exceptions.InsufficientBufferSpace();
         if(byteBuffer.Count == 1)
         {
           int value = byteBuffer[0]; // 00000011

@@ -42,10 +42,10 @@ public unsafe static partial class StreamExtensions
   /// <summary>Copies a source stream into a destination stream and returns the number of bytes copied. The streams
   /// are not rewound or disposed.
   /// </summary>
-  public static int CopyTo(this Stream source, Stream dest) { return CopyTo(source, dest, false, 0); }
+  public static long CopyTo(this Stream source, Stream dest) { return CopyTo(source, dest, false, 0); }
 
   /// <summary>Copies a source stream into a destination stream and returns the number of bytes copied.</summary>
-  public static int CopyTo(this Stream source, Stream dest, bool rewindSource)
+  public static long CopyTo(this Stream source, Stream dest, bool rewindSource)
   {
     return CopyTo(source, dest, rewindSource, 0);
   }
@@ -57,7 +57,7 @@ public unsafe static partial class StreamExtensions
   /// to 0 first to ensure that the entire source stream is copied.
   /// </param>
   /// <param name="bufferSize">The size of the buffer to use. Passing zero will use a default value.</param>
-  public static int CopyTo(this Stream source, Stream dest, bool rewindSource, int bufferSize)
+  public static long CopyTo(this Stream source, Stream dest, bool rewindSource, int bufferSize)
   {
     if(source == null || dest == null) throw new ArgumentNullException();
     if(bufferSize < 0) throw new ArgumentOutOfRangeException("bufferSize");
@@ -65,12 +65,13 @@ public unsafe static partial class StreamExtensions
 
     if(rewindSource) source.Position = 0;
     byte[] buf = new byte[bufferSize];
-    int read, total = 0;
+    long totalLength = 0;
+    int read;
     while(true)
     {
       read = source.Read(buf, 0, bufferSize);
-      if(read == 0) return total;
-      total += read;
+      if(read == 0) return totalLength;
+      totalLength += read;
       dest.Write(buf, 0, read);
     }
   }

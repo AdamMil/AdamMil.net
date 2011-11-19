@@ -45,6 +45,12 @@ public static class PathUtility
     return directory + Path.GetFileNameWithoutExtension(filename) + suffix + Path.GetExtension(filename);
   }
 
+  /// <summary>Determines whether two path strings reference the same file or directory.</summary>
+  public static bool ArePathsEqual(string a, string b)
+  {
+    return string.Equals(NormalizePath(a), NormalizePath(b), StringComparison.Ordinal);
+  }
+
   /// <summary>Works like <see cref="Directory.GetFiles(string,string)"/>, but without the unintuitive behavior regarding
   /// wildcards with 3-character extensions.
   /// </summary>
@@ -131,6 +137,30 @@ public static class PathUtility
     } while(suffix <= int.MaxValue);
 
     return GetTempFileNameWithExtension(directory, Path.GetExtension(fileName));
+  }
+
+  /// <summary>Normalizes a path by converting it to upper case, normalizing directory separator
+  /// characters, and removing a trailing slash if there is one.
+  /// </summary>
+  public static string NormalizePath(string path)
+  {
+    if(!string.IsNullOrEmpty(path)) // let empty strings and nulls pass through
+    {
+      // some weird paths start with this, but .NET thinks it's illegal, so strip it off.
+      // it doesn't change the way Windows handles it.
+      if(path.StartsWith(@"\??\", StringComparison.Ordinal)) path = path.Substring(4);
+
+      path = Path.GetFullPath(path).ToUpperInvariant()
+                 .Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+
+      // strip off a trailing slash if there is one
+      if(path.Length != 0 && path[path.Length-1] == Path.DirectorySeparatorChar)
+      {
+        path = path.Substring(0, path.Length-1);
+      }
+    }
+
+    return path;
   }
 
   /// <summary>Removes invalid filename characters from the given string, and returns it.</summary>

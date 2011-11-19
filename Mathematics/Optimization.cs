@@ -457,8 +457,8 @@ public class ConstrainedMinimizer
 /// more abrupt.
 /// </para>
 /// <para>There are pros and cons to both approaches. With the penalty method, the process can potentially produce results that
-/// violate the constraints, but is capable of navigating regions of the search space outside the feasible area, and the process can be
-/// started from any point. With the barrier method, the process is restricted to the feasible area, and can never leave it. This restricts
+/// violate the constraints, but is capable of navigating areas of the search space outside the feasible region, and the process can be
+/// started from any point. With the barrier method, the process can never leave the feasible region. This restricts
 /// its possible movement, and requires that the initial point satisfy the constraints. If the barrier divides the space into separate
 /// subspaces, the process is unlikely to escape the subspace containing the initial point, so if the minimum resides in another subspace,
 /// it won't be found. In rare cases, the early distortion of the feasible region may force solutions toward the center of the space from

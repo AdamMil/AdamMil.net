@@ -512,36 +512,49 @@ public class EncodedStream : Stream
   /// to read. If <paramref name="ownStream"/> is true, the base stream will be closed when the encoded stream is closed.
   /// </summary>
   public EncodedStream(Stream baseStream, BinaryEncoding encoding, bool ownStream)
-    : this(baseStream, encoding.GetDecoder(), encoding.GetEncoder(), ownStream) { }
+    : this(baseStream, GetDecoder(encoding), GetEncoder(encoding), true, ownStream) { }
 
   /// <summary>Initializes a new <see cref="EncodedStream"/> with the given base stream and a pair of <see cref="BinaryEncoder"/>
   /// objects. Either <see cref="BinaryEncoder"/> may be null. If the <paramref name="readEncoder"/> is given, the underlying
   /// stream data will be encoded using that encoder. Similarly, if the <paramref name="writeEncoder"/> is given, data written
-  /// will be encoded using that encoder before being written to the base stream.
-  /// The base stream will be closed when the encoded stream is closed.
+  /// will be encoded using that encoder before being written to the base stream. A null encoder will prevent the stream from being read
+  /// from or written to (depending on which encoder is null). The base stream will be closed when the encoded stream is closed.
   /// </summary>
   public EncodedStream(Stream baseStream, BinaryEncoder readEncoder, BinaryEncoder writeEncoder)
-    : this(baseStream, readEncoder, writeEncoder, true) { }
+    : this(baseStream, readEncoder, writeEncoder, true, true) { }
 
   /// <summary>Initializes a new <see cref="EncodedStream"/> with the given base stream and a pair of <see cref="BinaryEncoder"/>
   /// objects. Either <see cref="BinaryEncoder"/> may be null. If the <paramref name="readEncoder"/> is given, the underlying
   /// stream data will be encoded using that encoder. Similarly, if the <paramref name="writeEncoder"/> is given, data written
-  /// will be encoded using that encoder before being written to the base stream.
-  /// If <paramref name="ownStream"/> is true, the base stream will be closed when the encoded stream is closed.
+  /// will be encoded using that encoder before being written to the base stream. If <paramref name="requireEncoding"/> is true, a null
+  /// encoder will prevent the stream from being read from or written to (depending on which encoder is null). If false, a null encoder
+  /// will allow the data to pass through unchanged. The base stream will be closed when the encoded stream is closed.
   /// </summary>
-  public EncodedStream(Stream baseStream, BinaryEncoder readEncoder, BinaryEncoder writeEncoder, bool ownStream)
+  public EncodedStream(Stream baseStream, BinaryEncoder readEncoder, BinaryEncoder writeEncoder, bool requireEncoding)
+    : this(baseStream, readEncoder, writeEncoder, requireEncoding, true) { }
+
+  /// <summary>Initializes a new <see cref="EncodedStream"/> with the given base stream and a pair of <see cref="BinaryEncoder"/>
+  /// objects. Either <see cref="BinaryEncoder"/> may be null. If the <paramref name="readEncoder"/> is given, the underlying
+  /// stream data will be encoded using that encoder. Similarly, if the <paramref name="writeEncoder"/> is given, data written
+  /// will be encoded using that encoder before being written to the base stream. If <paramref name="requireEncoding"/> is true, a null
+  /// encoder will prevent the stream from being read from or written to (depending on which encoder is null). If false, a null encoder
+  /// will allow the data to pass through unchanged. If <paramref name="ownStream"/> is true, the base stream will be closed when the
+  /// encoded stream is closed.
+  /// </summary>
+  public EncodedStream(Stream baseStream, BinaryEncoder readEncoder, BinaryEncoder writeEncoder, bool requireEncoding, bool ownStream)
   {
     if(baseStream == null) throw new ArgumentNullException();
 
-    this.baseStream   = baseStream;
-    this.readEncoder  = readEncoder;
-    this.writeEncoder = writeEncoder;
-    this.ownStream    = ownStream;
+    this.baseStream      = baseStream;
+    this.readEncoder     = readEncoder;
+    this.writeEncoder    = writeEncoder;
+    this.requireEncoding = requireEncoding;
+    this.ownStream       = ownStream;
   }
 
   public override bool CanRead
   {
-    get { return baseStream.CanRead; }
+    get { return (!requireEncoding || readEncoder != null) && baseStream.CanRead; }
   }
 
   public override bool CanSeek
@@ -551,7 +564,7 @@ public class EncodedStream : Stream
 
   public override bool CanWrite
   {
-    get { return baseStream.CanWrite; }
+    get { return (!requireEncoding || writeEncoder != null) && baseStream.CanWrite; }
   }
 
   public override long Length
@@ -579,6 +592,7 @@ public class EncodedStream : Stream
   {
     if(readEncoder == null)
     {
+      if(requireEncoding) throw new NotSupportedException();
       return baseStream.Read(buffer, offset, count);
     }
     else
@@ -600,11 +614,14 @@ public class EncodedStream : Stream
           }
           else
           {
-            if(encodeBuffer == null) encodeBuffer = new ByteBuffer(4096);
+            if(encodeBuffer == null) encodeBuffer = new ByteBuffer(readBuffer.Capacity);
             else encodeBuffer.Clear();
             encodeBuffer.AddCount(baseStream.Read(encodeBuffer.Buffer, 0, encodeBuffer.Capacity));
             bool flush = encodeBuffer.Count == 0;
-            readBuffer.EnsureCapacity(readEncoder.GetByteCount(encodeBuffer.Buffer, 0, encodeBuffer.Count, flush));
+            // use the value from GetMaxBytes(), which should have much higher performance, as long as the result is not too large
+            int maxNeeded = readEncoder.GetMaxBytes(encodeBuffer.Count);
+            readBuffer.EnsureCapacity(maxNeeded <= MaxEncodeBufferSize ?
+                                        maxNeeded : readEncoder.GetByteCount(encodeBuffer.Buffer, 0, encodeBuffer.Count, flush));
             readBuffer.AddCount(readEncoder.Encode(encodeBuffer.Buffer, 0, encodeBuffer.Count, readBuffer.Buffer, 0, flush));
           }
 
@@ -635,6 +652,7 @@ public class EncodedStream : Stream
   {
     if(writeEncoder == null)
     {
+      if(requireEncoding) throw new NotSupportedException();
       baseStream.Write(buffer, offset, count);
     }
     else
@@ -657,16 +675,32 @@ public class EncodedStream : Stream
     base.Dispose(disposing);
   }
 
+  const int MaxEncodeBufferSize = 64*1024;
+
   void EncodedWrite(byte[] buffer, int offset, int count, bool flush)
   {
-    writeBuffer.EnsureCapacity(writeEncoder.GetByteCount(buffer, offset, count, flush));
+    // use the value from GetMaxBytes(), which should have much higher performance, as long as the result is not too large
+    int maxNeeded = writeEncoder.GetMaxBytes(count);
+    writeBuffer.EnsureCapacity(maxNeeded <= MaxEncodeBufferSize ? maxNeeded : writeEncoder.GetByteCount(buffer, offset, count, flush));
     baseStream.Write(writeBuffer.Buffer, 0, writeEncoder.Encode(buffer, offset, count, writeBuffer.Buffer, 0, flush));
   }
 
   readonly Stream baseStream;
   readonly BinaryEncoder readEncoder, writeEncoder;
-  readonly bool ownStream;
+  readonly bool ownStream, requireEncoding;
   ByteBuffer readBuffer, writeBuffer, encodeBuffer;
+
+  static BinaryEncoder GetDecoder(BinaryEncoding encoding)
+  {
+    if(encoding == null) throw new ArgumentNullException();
+    return encoding.GetDecoder();
+  }
+
+  static BinaryEncoder GetEncoder(BinaryEncoding encoding)
+  {
+    if(encoding == null) throw new ArgumentNullException();
+    return encoding.GetEncoder();
+  }
 }
 #endregion
 
