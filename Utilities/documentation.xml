@@ -40,7 +40,7 @@
       <param name="source">A pointer to the beginning of the source data.</param>
       <param name="sourceCount">The number of bytes to encode.</param>
       <param name="destination">A pointer to where the encoded bytes should be written.</param>
-      <param name="destinationCount">The amount of space available in the destination buffer.</param>
+      <param name="destinationCapacity">The amount of space available in the destination buffer.</param>
       <param name="flush">
         If false, the encoder may not write all encoded bytes to the destination buffer, if it needs to see
         bytes from future calls before it can do so. If true, the encoder will assume that this is the end of the source data, and
@@ -74,7 +74,11 @@
       <returns>Returns the number of bytes needed to encode the given chunk of data given the current encoder state.</returns>
     </GetByteCountPtr>
     <GetMaxBytes>
-      <summary>Gets the maximum number of bytes that would be needed to fully encode source data of the given size.</summary>
+      <summary>Gets the maximum number of bytes that would be needed to encode source data of the given size.</summary>
+      <remarks>This method may be called for chunks of data in the middle of the data stream, so you should not assume that the byte count
+        must contain space for required headers or footers. If the encoder is in the middle of encoding, the returned byte count should
+        include any data that would be written if the encoder was flushed.
+      </remarks>
     </GetMaxBytes>
     <Reset>
       <summary>
@@ -111,7 +115,7 @@
       <param name="encodedBytes">A pointer to the encoded data.</param>
       <param name="encodedByteCount">The number of encoded bytes to decode.</param>
       <param name="decodedBytes">A pointer to the destination buffer where the decoded bytes will be written.</param>
-      <param name="decodedByteCount">The number of bytes available in the destination buffer.</param>
+      <param name="decodedByteCapacity">The number of bytes available in the destination buffer.</param>
       <returns>Returns the number of bytes actually written to the destination buffer.</returns>
     </DecodePtr>
     <Encode>
@@ -128,7 +132,7 @@
       <param name="data">A pointer to the source data.</param>
       <param name="dataByteCount">The number of bytes to encode.</param>
       <param name="encodedBytes">A pointer to the destination buffer where the encoded bytes will be written.</param>
-      <param name="encodedByteCount">The number of bytes available in the destination buffer.</param>
+      <param name="encodedByteCapacity">The number of bytes available in the destination buffer.</param>
       <returns>Returns the number of bytes actually written to the destination buffer.</returns>
     </EncodePtr>
     <GetDecodedByteCount>

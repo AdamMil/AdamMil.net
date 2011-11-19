@@ -29,6 +29,133 @@ namespace AdamMil.Utilities
 [System.Security.SuppressUnmanagedCodeSecurity]
 public static class Unsafe
 {
+  /// <summary>This method checks two blocks of memory for equality.</summary>
+  public static unsafe bool AreEqual(void* a, void* b, int count)
+  {
+    if(count < 0) throw new ArgumentOutOfRangeException();
+
+    if(sizeof(IntPtr) < 8) // if this is not a 64-bit (or greater) architecture, do 32-bit comparisons
+    {
+      if(count >= 16)
+      {
+        // align the memory if possible. it may only be possible to align one pointer, but that's better than nothing
+        int offset = (int)a & 3;
+        if(offset != 0)
+        {
+          offset = 4 - offset;
+          count -= offset;
+          do
+          {
+            if(*(byte*)a != *(byte*)b) goto notEqual;
+            a = (byte*)a + 1;
+            b = (byte*)b + 1;
+          } while(--offset != 0);
+          if(count < 16) goto lastBytes;
+        }
+
+        // now compare as many 16-byte chunks as possible
+        do
+        {
+          if(*(uint*)a != *(uint*)b || *(uint*)((byte*)a+4) != *(uint*)((byte*)b+4) ||
+             *(uint*)((byte*)a+8) != *(uint*)((byte*)b+8) || *(uint*)((byte*)a+12) != *(uint*)((byte*)b+12))
+          {
+            goto notEqual;
+          }
+          a = ((byte*)a + 16);
+          b = ((byte*)b + 16);
+          count -= 16;
+        } while(count >= 16);
+      }
+
+      lastBytes:
+      if((count & 8) != 0)
+      {
+        if(*(uint*)a != *(uint*)b || *(uint*)((byte*)a+4) != *(uint*)((byte*)b+4)) goto notEqual;
+        a = ((byte*)a + 8);
+        b = ((byte*)b + 8);
+      }
+    }
+    else // the architecture is at least 64-bit, so do 64-bit copies
+    {
+      if(count >= 32)
+      {
+        // align the memory if possible. it may only be possible to align one pointer, but that's better than nothing
+        int offset = (int)a & 7;
+        if(offset != 0)
+        {
+          offset = 8 - offset;
+          count -= offset;
+          do
+          {
+            if(*(byte*)a != *(byte*)b) goto notEqual;
+            a = (byte*)a + 1;
+            b = (byte*)b + 1;
+          } while(--offset != 0);
+          if(count < 32) goto lastBytes;
+        }
+
+        // now compare as many 32-byte chunks as possible
+        do
+        {
+          if(*(ulong*)a != *(ulong*)b || *(ulong*)((byte*)a+8) != *(ulong*)((byte*)b+8) ||
+             *(ulong*)((byte*)a+16) != *(ulong*)((byte*)b+16) || *(ulong*)((byte*)a+24) != *(ulong*)((byte*)b+24))
+          {
+            goto notEqual;
+          }
+          a = ((byte*)a + 32);
+          b = ((byte*)b + 32);
+          count -= 32;
+        } while(count >= 32);
+      }
+
+      lastBytes:
+      if((count & 16) != 0)
+      {
+        if(*(ulong*)a != *(ulong*)b || *(ulong*)((byte*)a+8) != *(ulong*)((byte*)b+8)) goto notEqual;
+        a = ((byte*)a + 16);
+        b = ((byte*)b + 16);
+      }
+      if((count & 8) != 0)
+      {
+        if(*(ulong*)a != *(ulong*)b) goto notEqual;
+        a = ((byte*)a + 8);
+        b = ((byte*)b + 8);
+      }
+    }
+
+    switch(count & 7)
+    {
+      case 1:
+        if(*(byte*)a != *(byte*)b) goto notEqual;
+        break;
+      case 2:
+        if(*(ushort*)a != *(ushort*)b) goto notEqual;
+        break;
+      case 3:
+        // it would be possible to avoid branching here and below by comparing uints after masking off the unwanted bits, but i don't want
+        //to read past the end of the user's buffer for fear it just happens to lie at the end of a segment
+        if(*(ushort*)a != *(ushort*)b || *((byte*)a+2) != *((byte*)b+2)) goto notEqual;
+        break;
+      case 4:
+        if(*(uint*)a != *(uint*)b) goto notEqual;
+        break;
+      case 5:
+        if(*(uint*)a != *(uint*)b || *((byte*)a+4) != *((byte*)b+4)) goto notEqual;
+        break;
+      case 6:
+        if(*(uint*)a != *(uint*)b || *(ushort*)((byte*)a+4) != *(ushort*)((byte*)b+4)) goto notEqual;
+        break;
+      case 7:
+        if(*(uint*)a != *(uint*)b || *(ushort*)((byte*)a+4) != *(ushort*)((byte*)b+4) || *((byte*)a+6) != *((byte*)b+6)) goto notEqual;
+        break;
+    }
+
+    return true;
+
+    notEqual:
+    return false;
+  }
+
   /// <summary>This method fills a block of memory with zeros.</summary>
   /// <param name="dest">A pointer to the beginning of the block of memory.</param>
   /// <param name="length">The number of bytes to fill with zeros.</param>
@@ -52,11 +179,9 @@ public static class Unsafe
     // it would be advantageous to do so (as measured on my machine). the method is faster than Array.Copy only for small amounts of data.
     // the ArrayUtility.SmallCopy() method exists to switch between this method and Array.Copy() based on measured thresholds
 
-    // this doesn't check for all overlaps, only for overlaps that would impact the main copy algorithm (i.e. when the source
-    // block comes starts before and overlaps the destination block in memory)
-    bool overlap = src < (byte*)dest+count && (byte*)src+count > dest;
-
-    if(overlap) // we'll handle overlap by copying backwards from the end
+    // check if the blocks overlap. this doesn't check for all overlaps, only for overlaps that would impact the main copy algorithm (i.e.
+    // when the source block comes starts before and overlaps the destination block in memory)
+    if(src < (byte*)dest+count && (byte*)src+count > dest)
     {
       #if WINDOWS
       if(count > 132) // RtlMoveMemory is measured to be faster than the loop below for overlapping blocks larger than ~132 bytes
@@ -65,7 +190,7 @@ public static class Unsafe
       }
       else
       #endif
-      if(count != 0)
+      if(count != 0) // we'll handle overlap by copying backwards from the end
       {
         // TODO: this could be optimized... (if we do so, recalibrate the 132 byte threshold above)
         byte* sp = (byte*)src + count - 1;
@@ -94,7 +219,7 @@ public static class Unsafe
             do
             {
               *(byte*)dest = *(byte*)src;
-              src  = (byte*)src + 1;
+              src  = (byte*)src  + 1;
               dest = (byte*)dest + 1;
             } while(--offset != 0);
             if(count < 16) goto lastBytes; // if there's not enough space left to do the unrolled version, don't
@@ -114,38 +239,19 @@ public static class Unsafe
             *(uint*)((byte*)dest+4)  = *(uint*)((byte*)src+4);
             *(uint*)((byte*)dest+8)  = *(uint*)((byte*)src+8);
             *(uint*)((byte*)dest+12) = *(uint*)((byte*)src+12);
-            src    = (byte*)src + 16;
+            src    = (byte*)src  + 16;
             dest   = (byte*)dest + 16;
             count -= 16;
           } while(count >= 16);
         }
 
         lastBytes:
-        if(count != 0) // now copy whatever bytes remain
+        if((count & 8) != 0)
         {
-          if((count & 8) != 0)
-          {
-            *(uint*)dest = *(uint*)src;
-            *(uint*)((byte*)dest+4) = *(uint*)((byte*)src+4);
-            src  = (byte*)src  + 8;
-            dest = (byte*)dest + 8;
-          }
-          if((count & 4) != 0)
-          {
-            *(uint*)dest = *(uint*)src;
-            src  = (byte*)src  + 4;
-            dest = (byte*)dest + 4;
-          }
-          if((count & 2) != 0)
-          {
-            *(ushort*)dest = *(ushort*)src;
-            src  = (byte*)src  + 2;
-            dest = (byte*)dest + 2;
-          }
-          if((count & 1) != 0)
-          {
-            *(byte*)dest = *(byte*)src;
-          }
+          *(uint*)dest = *(uint*)src;
+          *(uint*)((byte*)dest+4) = *(uint*)((byte*)src+4);
+          src  = (byte*)src  + 8;
+          dest = (byte*)dest + 8;
         }
       }
       else // the architecture is at least 64-bit, so copy 64-bit words
@@ -162,7 +268,7 @@ public static class Unsafe
             do
             {
               *(byte*)dest = *(byte*)src;
-              src  = (byte*)src + 1;
+              src  = (byte*)src  + 1;
               dest = (byte*)dest + 1;
             } while(--offset != 0);
             if(count < 32) goto lastBytes; // if there's not enough space left to do the unrolled version, don't
@@ -190,38 +296,43 @@ public static class Unsafe
         }
 
         lastBytes:
-        if(count != 0) // now copy whatever bytes remain
+        if((count & 16) != 0)
         {
-          if((count & 16) != 0)
-          {
-            *(ulong*)dest = *(ulong*)src;
-            *(ulong*)((byte*)dest+8) = *(ulong*)((byte*)src+8);
-            src  = (byte*)src  + 16;
-            dest = (byte*)dest + 16;
-          }
-          if((count & 8) != 0)
-          {
-            *(ulong*)dest = *(ulong*)src;
-            src  = (byte*)src  + 8;
-            dest = (byte*)dest + 8;
-          }
-          if((count & 4) != 0)
-          {
-            *(uint*)dest = *(uint*)src;
-            src  = (byte*)src  + 4;
-            dest = (byte*)dest + 4;
-          }
-          if((count & 2) != 0)
-          {
-            *(ushort*)dest = *(ushort*)src;
-            src  = (byte*)src  + 2;
-            dest = (byte*)dest + 2;
-          }
-          if((count & 1) != 0)
-          {
-            *(byte*)dest = *(byte*)src;
-          }
+          *(ulong*)dest = *(ulong*)src;
+          *(ulong*)((byte*)dest+8) = *(ulong*)((byte*)src+8);
+          src  = (byte*)src  + 16;
+          dest = (byte*)dest + 16;
         }
+        if((count & 8) != 0)
+        {
+          *(ulong*)dest = *(ulong*)src;
+          src  = (byte*)src  + 8;
+          dest = (byte*)dest + 8;
+        }
+      }
+
+      switch(count & 7)
+      {
+        case 1: *(byte*)dest = *(byte*)src; break;
+        case 2: *(ushort*)dest = *(ushort*)src; break;
+        case 3:
+          *(ushort*)dest   = *(ushort*)src;
+          *((byte*)dest+2) = *((byte*)src+2);
+          break;
+        case 4: *(uint*)dest = *(uint*)src; break;
+        case 5:
+          *(uint*)dest     = *(uint*)src;
+          *((byte*)dest+4) = *((byte*)src+4);
+          break;
+        case 6:
+          *(uint*)dest = *(uint*)src;
+          *(ushort*)((byte*)dest+4) = *(ushort*)((byte*)src+4);
+          break;
+        case 7:
+          *(uint*)dest = *(uint*)src;
+          *(ushort*)((byte*)dest+4) = *(ushort*)((byte*)src+4);
+          *((byte*)dest+6) = *((byte*)src+6);
+          break;
       }
     }
   }
@@ -295,28 +406,36 @@ public static class Unsafe
       }
 
       lastBytes:
-      if(count != 0) // now fill whatever bytes are left
+      if((count & 8) != 0)
       {
-        if((count & 8) != 0)
-        {
+        *(uint*)dest = value;
+        *(uint*)((byte*)dest+4) = value;
+        dest = (byte*)dest + 8;
+        count &= 7;
+      }
+
+      switch(count)
+      {
+        case 1: *(byte*)dest = (byte)value; break;
+        case 2: *(ushort*)dest = (ushort)value; break;
+        case 3:
+          *(ushort*)dest   = (ushort)value;
+          *((byte*)dest+2) = (byte)value;
+          break;
+        case 4: *(uint*)dest = value; break;
+        case 5: 
+          *(uint*)dest     = value;
+          *((byte*)dest+4) = (byte)value;
+          break;
+        case 6:
           *(uint*)dest = value;
-          *(uint*)((byte*)dest+4) = value;
-          dest = (byte*)dest + 8;
-        }
-        if((count & 4) != 0)
-        {
+          *(ushort*)((byte*)dest+4) = (ushort)value;
+          break;
+        case 7:
           *(uint*)dest = value;
-          dest = (byte*)dest + 4;
-        }
-        if((count & 2) != 0)
-        {
-          *(ushort*)dest = (ushort)value;
-          dest = (byte*)dest + 2;
-        }
-        if((count & 1) != 0)
-        {
-          *(byte*)dest = (byte)value;
-        }
+          *(ushort*)((byte*)dest+4) = (ushort)value;
+          *((byte*)dest+6) = (byte)value;
+          break;
       }
     }
   }
@@ -372,33 +491,40 @@ public static class Unsafe
       }
 
       lastBytes:
-      if(count != 0) // now fill whatever bytes are left
+      if((count & 16) != 0)
       {
-        if((count & 16) != 0)
-        {
-          *(ulong*)dest            = value;
-          *(ulong*)((byte*)dest+8) = value;
-          dest = (byte*)dest + 16;
-        }
-        if((count & 8) != 0)
-        {
-          *(ulong*)dest = value;
-          dest = (byte*)dest + 8;
-        }
-        if((count & 4) != 0)
-        {
+        *(ulong*)dest            = value;
+        *(ulong*)((byte*)dest+8) = value;
+        dest = (byte*)dest + 16;
+      }
+      if((count & 8) != 0)
+      {
+        *(ulong*)dest = value;
+        dest = (byte*)dest + 8;
+      }
+
+      switch(count)
+      {
+        case 1: *(byte*)dest = (byte)value; break;
+        case 2: *(ushort*)dest = (ushort)value; break;
+        case 3:
+          *(ushort*)dest   = (ushort)value;
+          *((byte*)dest+2) = (byte)value;
+          break;
+        case 4: *(uint*)dest = (uint)value; break;
+        case 5:
+          *(uint*)dest     = (uint)value;
+          *((byte*)dest+4) = (byte)value;
+          break;
+        case 6:
           *(uint*)dest = (uint)value;
-          dest = (byte*)dest + 4;
-        }
-        if((count & 2) != 0)
-        {
-          *(ushort*)dest = (ushort)value;
-          dest = (byte*)dest + 2;
-        }
-        if((count & 1) != 0)
-        {
-          *(byte*)dest = (byte)value;
-        }
+          *(ushort*)((byte*)dest+4) = (ushort)value;
+          break;
+        case 7:
+          *(uint*)dest = (uint)value;
+          *(ushort*)((byte*)dest+4) = (ushort)value;
+          *((byte*)dest+6) = (byte)value;
+          break;
       }
     }
   }

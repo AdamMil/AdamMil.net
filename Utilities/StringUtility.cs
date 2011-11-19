@@ -173,6 +173,15 @@ public static class StringUtility
     return str;
   }
 
+  /// <summary>Reverses a string.</summary>
+  public static string Reverse(this string str)
+  {
+    if(str == null) throw new ArgumentNullException();
+    char[] chars = str.ToCharArray();
+    for(int i=0, len=chars.Length/2; i<len; i++) Utility.Swap(ref chars[i], ref chars[chars.Length-i-1]);
+    return new string(chars);
+  }
+
   /// <summary>Splits a string by the given substring.</summary>
   public static string[] Split(this string str, string separator)
   {

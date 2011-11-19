@@ -68,6 +68,7 @@
   <ItemGroup>
     <Compile Include="ArrayIO.cs" />
     <Compile Include="BinaryReaderWriter.cs" />
+    <Compile Include="Compression.cs" />
     <Compile Include="Pipes.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Streams.cs" />
