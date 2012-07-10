@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
@@ -16,6 +17,36 @@ public static class TestHelpers
     Assert.AreEqual(actual.Length, expected.Length);
     for(int i=0; i<actual.Length; i++) Assert.AreEqual(expected[i], actual[i]);
   }
+
+  public static void AssertEqual(object expected, object actual)
+  {
+    if(expected == null && actual == null) return;
+    else if(expected is IList && actual is IList) AssertListEquals((IList)expected, (IList)actual);
+    else if(expected is DateTime && actual is DateTime)
+    {
+      DateTime expectedTime = (DateTime)expected, actualTime = (DateTime)actual;
+      Assert.AreEqual(expectedTime, actualTime);
+      Assert.AreEqual(expectedTime.Kind, actualTime.Kind);
+    }
+    else
+    {
+      Assert.AreEqual(expected, actual);
+    }
+  }
+
+  public static void AssertListEquals(IList expected, IList actual)
+  {
+    AssertListEquals(expected, actual, true);
+  }
+
+  public static void AssertListEquals(IList expected, IList actual, bool requireSameType)
+  {
+    if(expected == null && actual == null) return;
+    Assert.IsFalse(expected == null || actual == null);
+    if(requireSameType) Assert.AreSame(expected.GetType(), actual.GetType());
+    Assert.AreEqual(expected.Count, actual.Count);
+    for(int i=0; i<expected.Count; i++) Assert.AreEqual(expected[i], actual[i]);
+   }
 
   public static void AssertPropertyEquals(string propertyName, object expected, object actual)
   {
@@ -77,14 +108,23 @@ public static class TestHelpers
 
   public static void TestException<T>(Action block) where T : Exception
   {
+    TestException<T>(null, block);
+  }
+
+  public static void TestException<T>(string substring, Action block) where T : Exception
+  {
     bool threw = false;
-    try { block(); }
+    try
+    {
+      block();
+    }
     catch(Exception ex)
     {
-      if(!typeof(T).IsAssignableFrom(ex.GetType())) throw;
+      if(!typeof(T).IsAssignableFrom(ex.GetType()) || substring != null && !ex.Message.Contains(substring)) throw;
       threw = true;
     }
-    Assert.That(threw, "A "+typeof(T).Name+" exception was expected, but did not occur.");
+    Assert.IsTrue(threw, "A " + typeof(T).Name + " exception was expected" + (substring == null ? null : " (with substring \"" +
+                         substring + "\")") + ", but did not occur.");
   }
 
   static object GetPropertyValue(object obj, string propertyName)

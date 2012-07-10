@@ -54,7 +54,7 @@ namespace AdamMil.Transactions
 {
 
 #region ISTMTransactionalValue
-/// <summary>An interface that can be implemented by a value type to provide some control over its use within a transaction.</summary>
+/// <summary>An interface that can be implemented by a value type to provide some control over its use within the transaction.</summary>
 public interface ISTMTransactionalValue
 {
   /// <summary>Called just before a transaction commits this value to a variable opened for write. This method can perform final
@@ -71,7 +71,7 @@ public static class STM
   /// <summary>Allocates and returns a new <see cref="TransactionalVariable{T}"/> with a default value. This is equivalent to
   /// constructing a <see cref="TransactionalVariable{T}"/> using its constructor.
   /// </summary>
-  /// <include file="documentation.xml" path="TX/STM/Allocate/*" />
+  /// <include file="documentation.xml" path="/TX/STM/Allocate/node()" />
   public static TransactionalVariable<T> Allocate<T>()
   {
     return new TransactionalVariable<T>();
@@ -80,28 +80,28 @@ public static class STM
   /// <summary>Allocates and returns a new <see cref="TransactionalVariable{T}"/> with the given value. This is equivalent to
   /// constructing a <see cref="TransactionalVariable{T}"/> using its constructor.
   /// </summary>
-  /// <include file="documentation.xml" path="TX/STM/Allocate/*" />
+  /// <include file="documentation.xml" path="/TX/STM/Allocate/node()" />
   public static TransactionalVariable<T> Allocate<T>(T initialValue)
   {
     return new TransactionalVariable<T>(initialValue);
   }
 
   /// <exception cref="InvalidOperationException">Thrown if there is no current transaction, or if it is no longer active.</exception>
-  /// <include file="documentation.xml" path="TX/STM/CheckConsistency/*" />
+  /// <include file="documentation.xml" path="/TX/STM/CheckConsistency/node()" />
   public static void CheckConsistency()
   {
     GetTransaction().CheckConsistency();
   }
 
   /// <exception cref="InvalidOperationException">Thrown if there is no current transaction, or if it is no longer active.</exception>
-  /// <include file="documentation.xml" path="TX/STM/IsConsistent/*" />
+  /// <include file="documentation.xml" path="/TX/STM/IsConsistent/node()" />
   public static bool IsConsistent()
   {
     return GetTransaction().IsConsistent();
   }
 
   /// <summary>Executes an action until it successfully commits in a transaction.</summary>
-  /// <include file="documentation.xml" path="TX/STM/Retry/*[@name != 'options' and @name != 'postCommitAction']"/>
+  /// <include file="documentation.xml" path="/TX/STM/Retry/*[@name != 'options' and @name != 'postCommitAction']"/>
   public static void Retry(Action action)
   {
     Retry(Timeout.Infinite, STMOptions.Default, action, null);
@@ -109,7 +109,7 @@ public static class STM
 
   /// <summary>Executes an action until it successfully commits in a transaction.</summary>
   /// <param name="action">The action to execute.</param>
-  /// <include file="documentation.xml" path="TX/STM/Retry/*[@name != 'options']"/>
+  /// <include file="documentation.xml" path="/TX/STM/Retry/*[@name != 'options']"/>
   public static void Retry(Action action, Action postCommitAction)
   {
     Retry(Timeout.Infinite, STMOptions.Default, action, postCommitAction);
@@ -117,7 +117,7 @@ public static class STM
 
   /// <summary>Executes an action until it successfully commits in a transaction.</summary>
   /// <param name="action">The action to execute.</param>
-  /// <include file="documentation.xml" path="TX/STM/Retry/*[@name != 'postCommitAction']"/>
+  /// <include file="documentation.xml" path="/TX/STM/Retry/*[@name != 'postCommitAction']"/>
   public static void Retry(STMOptions options, Action action)
   {
     Retry(Timeout.Infinite, options, action, null);
@@ -125,7 +125,7 @@ public static class STM
 
   /// <summary>Executes an action until it successfully commits in a transaction.</summary>
   /// <param name="action">The action to execute.</param>
-  /// <include file="documentation.xml" path="TX/STM/Retry/*"/>
+  /// <include file="documentation.xml" path="/TX/STM/Retry/node()"/>
   public static void Retry(STMOptions options, Action action, Action postCommitAction)
   {
     Retry(Timeout.Infinite, options, action, postCommitAction);
@@ -133,7 +133,7 @@ public static class STM
 
   /// <summary>Executes an action until it successfully commits in a transaction, or until the given time limit has elapsed.</summary>
   /// <param name="action">The action to execute.</param>
-  /// <include file="documentation.xml" path="TX/STM/RetryWithTimeout/*[@name != 'options' and @name != 'postCommitAction']"/>
+  /// <include file="documentation.xml" path="/TX/STM/RetryWithTimeout/*[@name != 'options' and @name != 'postCommitAction']"/>
   public static void Retry(int timeoutMs, Action action)
   {
     Retry(timeoutMs, STMOptions.Default, action, null);
@@ -141,7 +141,7 @@ public static class STM
 
   /// <summary>Executes an action until it successfully commits in a transaction, or until the given time limit has elapsed.</summary>
   /// <param name="action">The action to execute.</param>
-  /// <include file="documentation.xml" path="TX/STM/RetryWithTimeout/*[@name != 'postCommitAction']"/>
+  /// <include file="documentation.xml" path="/TX/STM/RetryWithTimeout/*[@name != 'postCommitAction']"/>
   public static void Retry(int timeoutMs, STMOptions options, Action action)
   {
     Retry(timeoutMs, options, action, null);
@@ -149,7 +149,7 @@ public static class STM
 
   /// <summary>Executes an action until it successfully commits in a transaction, or until the given time limit has elapsed.</summary>
   /// <param name="action">The action to execute.</param>
-  /// <include file="documentation.xml" path="TX/STM/RetryWithTimeout/*"/>
+  /// <include file="documentation.xml" path="/TX/STM/RetryWithTimeout/node()"/>
   public static void Retry(int timeoutMs, STMOptions options, Action action, Action postCommitAction)
   {
     Retry(timeoutMs, options, (Func<object>)delegate { action(); return null; }, postCommitAction);
@@ -158,7 +158,7 @@ public static class STM
   /// <summary>Executes a function until it successfully commits in a transaction. The value returned from the function in the
   /// first successful transaction will then be returned.
   /// </summary>
-  /// <include file="documentation.xml" path="TX/STM/Retry/*[@name != 'options' and @name != 'postCommitAction']"/>
+  /// <include file="documentation.xml" path="/TX/STM/Retry/*[@name != 'options' and @name != 'postCommitAction']"/>
   public static T Retry<T>(Func<T> function)
   {
     return Retry(Timeout.Infinite, STMOptions.Default, function, null);
@@ -168,7 +168,7 @@ public static class STM
   /// first successful transaction will then be returned.
   /// </summary>
   /// <param name="function">The function to execute.</param>
-  /// <include file="documentation.xml" path="TX/STM/Retry/*[@name != 'options']"/>
+  /// <include file="documentation.xml" path="/TX/STM/Retry/*[@name != 'options']"/>
   public static T Retry<T>(Func<T> function, Action postCommitAction)
   {
     return Retry(Timeout.Infinite, STMOptions.Default, function, postCommitAction);
@@ -178,7 +178,7 @@ public static class STM
   /// first successful transaction will then be returned.
   /// </summary>
   /// <param name="function">The function to execute.</param>
-  /// <include file="documentation.xml" path="TX/STM/Retry/*[@name != 'postCommitAction']"/>
+  /// <include file="documentation.xml" path="/TX/STM/Retry/*[@name != 'postCommitAction']"/>
   public static T Retry<T>(STMOptions options, Func<T> function)
   {
     return Retry(Timeout.Infinite, options, function, null);
@@ -188,7 +188,7 @@ public static class STM
   /// first successful transaction will then be returned.
   /// </summary>
   /// <param name="function">The function to execute.</param>
-  /// <include file="documentation.xml" path="TX/STM/Retry/*"/>
+  /// <include file="documentation.xml" path="/TX/STM/Retry/node()"/>
   public static T Retry<T>(STMOptions options, Func<T> function, Action postCommitAction)
   {
     return Retry(Timeout.Infinite, options, function, postCommitAction);
@@ -198,7 +198,7 @@ public static class STM
   /// The value returned from the function in the first successful transaction will then be returned.
   /// </summary>
   /// <param name="function">The function to execute.</param>
-  /// <include file="documentation.xml" path="TX/STM/RetryWithTimeout/*[@name != 'options' and @name != 'postCommitAction']"/>
+  /// <include file="documentation.xml" path="/TX/STM/RetryWithTimeout/*[@name != 'options' and @name != 'postCommitAction']"/>
   public static T Retry<T>(int timeoutMs, Func<T> function)
   {
     return Retry(timeoutMs, STMOptions.Default, function, null);
@@ -208,7 +208,7 @@ public static class STM
   /// The value returned from the function in the first successful transaction will then be returned.
   /// </summary>
   /// <param name="function">The function to execute.</param>
-  /// <include file="documentation.xml" path="TX/STM/RetryWithTimeout/*[@name != 'postCommitAction']"/>
+  /// <include file="documentation.xml" path="/TX/STM/RetryWithTimeout/*[@name != 'postCommitAction']"/>
   public static T Retry<T>(int timeoutMs, STMOptions options, Func<T> function)
   {
     return Retry(timeoutMs, options, function, null);
@@ -218,7 +218,7 @@ public static class STM
   /// The value returned from the function in the first successful transaction will then be returned.
   /// </summary>
   /// <param name="function">The function to execute.</param>
-  /// <include file="documentation.xml" path="TX/STM/RetryWithTimeout/*"/>
+  /// <include file="documentation.xml" path="/TX/STM/RetryWithTimeout/node()"/>
   public static T Retry<T>(int timeoutMs, STMOptions options, Func<T> function, Action postCommitAction)
   {
     if(function == null) throw new ArgumentNullException();
@@ -247,10 +247,39 @@ public static class STM
     throw new TransactionAbortedException();
   }
 
+  /// <summary>Executes an action in the context of a transaction, using the current transaction if it exists, or creating and committing
+  /// a new one if not.
+  /// </summary>
+  public static void RunInTransaction(Action action)
+  {
+    RunInTransaction((Func<object>)delegate { action(); return null; });
+  }
+
+  /// <summary>Executes a function in the context of a transaction, using the current transaction if it exists, or creating and committing
+  /// a new one if not.
+  /// </summary>
+  public static T RunInTransaction<T>(Func<T> function)
+  {
+    if(function == null) throw new ArgumentNullException();
+    STMTransaction tx = STMTransaction.Current;
+    bool ownTransaction = tx == null;
+    try
+    {
+      if(tx == null) tx = STMTransaction.Create();
+      T value = function();
+      if(ownTransaction) tx.Commit();
+      return value;
+    }
+    finally
+    {
+      if(ownTransaction && tx != null) tx.Dispose();
+    }
+  }
+
   static STMTransaction GetTransaction()
   {
     STMTransaction transaction = STMTransaction.Current;
-    if(transaction == null) throw new InvalidOperationException();
+    if(transaction == null) throw new InvalidOperationException("There is no current transaction.");
     return transaction;
   }
 }
@@ -285,10 +314,6 @@ public enum STMOptions
   /// <see cref="STMTransaction.CheckConsistency"/> for details.
   /// </summary>
   EnsureConsistency=1,
-  /// <summary>No attempt will be made to integrate the STM transaction with System.Transactions, but if an enclosing transaction
-  /// was already integrated, then the newly created one will be implicitly integrated as well.
-  /// </summary>
-  IgnoreSystemTransaction=2
 }
 #endregion
 
@@ -303,14 +328,14 @@ public enum STMOptions
 /// transaction is committed. If a nested <see cref="STMTransaction"/> aborts, it can be retried and does not necessarily force
 /// the parent transaction to abort.
 /// </para>
-/// <para>By default, <see cref="STMTransaction"/> objects integrate with the System.Transactions <see cref="Transaction"/>
-/// class. When <see cref="Create"/> is called to create a new <see cref="STMTransaction"/>, it will be enlisted in the current
+/// <para><see cref="STMTransaction"/> objects integrate with the System.Transactions <see cref="Transaction"/> class. When
+/// <see cref="Create"/> is called to create a new <see cref="STMTransaction"/>, it will be enlisted in the current
 /// <see cref="Transaction"/> if there is one, and the changes will not be committed until the <see cref="STMTransaction"/> and
-/// the <see cref="Transaction"/> are both committed. Integration with System.Transactions can be disabled using
-/// <see cref="STMOptions.IgnoreSystemTransaction"/>.
+/// the <see cref="Transaction"/> are both committed. Similarly, if <see cref="Current"/> will implicitly create an
+/// <see cref="STMTransaction"/> that integrates with a <see cref="Transaction"/> if necessary.
 /// </para>
 /// </remarks>
-/// <include file="documentation.xml" path="TX/STM/ConsistencyRemarks/*" />
+/// <include file="documentation.xml" path="/TX/STM/ConsistencyRemarks/node()" />
 public sealed class STMTransaction : IDisposable, IEnlistmentNotification
 {
   internal STMTransaction(STMTransaction parent, STMOptions options)
@@ -332,7 +357,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   /// is required, or better yet, write write your transactions so that they can tolerate inconsistency. See <see
   /// cref="STMTransaction.CheckConsistency"/> for details.
   /// </summary>
-  /// <include file="documentation.xml" path="TX/STM/ConsistencyRemarks/*" />
+  /// <include file="documentation.xml" path="/TX/STM/ConsistencyRemarks/node()" />
   public bool EnsureConsistency
   {
     get { return (options & STMOptions.EnsureConsistency) != 0; }
@@ -348,13 +373,13 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   /// <see cref="STM.CheckConsistency"/>.
   /// </remarks>
   /// <seealso cref="STM.CheckConsistency"/>
-  /// <include file="documentation.xml" path="TX/STM/CheckConsistency/*" />
+  /// <include file="documentation.xml" path="/TX/STM/CheckConsistency/node()" />
   public void CheckConsistency()
   {
     if(!IsConsistent()) throw new TransactionAbortedException();
   }
 
-  /// <include file="documentation.xml" path="TX/STM/Commit/*"/>
+  /// <include file="documentation.xml" path="/TX/STM/Commit/node()"/>
   public void Commit()
   {
     Commit(null);
@@ -367,10 +392,10 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   /// commit successfully. If the action throws an exception, it will not be caught by the <see cref="Commit"/> method, and will
   /// prevent post-commit actions from enclosing transactions from running.
   /// </param>
-  /// <include file="documentation.xml" path="TX/STM/Commit/*"/>
+  /// <include file="documentation.xml" path="/TX/STM/Commit/node()"/>
   public void Commit(Action postCommitAction)
   {
-    if(this != Current) throw new InvalidOperationException();
+    if(this != CurrentUnmanaged) throw new InvalidOperationException();
     else if(!TryCommit()) throw new TransactionAbortedException();
 
     if(postCommitAction != null)
@@ -388,9 +413,12 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   /// </summary>
   public void Dispose()
   {
-    // decouple the transaction from System.Transactions to prevent it from holding up other transactions
-    systemTransaction = null;
     RemoveFromStack();
+    // decouple the transaction from System.Transactions to prevent it from holding up other transactions, but only do it if the
+    // transaction has been removed from the stack. that should be the case most of the time, but sometimes a system transaction will be
+    // committed on a separate thread and we won't be able to remove it. (i've only seen this happen with distributed transactions.) in
+    // that case, we have little choice but to leave it on the stack until it gets removed by UnmanagedCurrent
+    if(removedFromStack) systemTransaction = null;
   }
 
   /// <exception cref="InvalidOperationException">Thrown if the transaction is no longer active.</exception>
@@ -398,7 +426,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   /// <see cref="STM.IsConsistent"/>.
   /// </remarks>
   /// <seealso cref="STM.IsConsistent"/>
-  /// <include file="documentation.xml" path="TX/STM/IsConsistent/*" />
+  /// <include file="documentation.xml" path="/TX/STM/IsConsistent/node()" />
   public bool IsConsistent()
   {
     AssertActive();
@@ -411,11 +439,54 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     return "STM Transaction #" + id.ToInvariantString();
   }
 
-  /// <summary>Gets the current <see cref="STMTransaction"/> for this thread, or null if no transaction has been created.</summary>
+  /// <summary>Gets the current <see cref="STMTransaction"/> for this thread, or null if no transaction has been created and there is no
+  /// current <see cref="Transaction"/>.
+  /// </summary>
+  /// <remarks>If no <see cref="STMTransaction"/> has been created but a current <see cref="Transaction"/> exists, a new
+  /// <see cref="STMTransaction"/> will be created and enlisted in the <see cref="Transaction"/> by this property.
+  /// </remarks>
   public static STMTransaction Current
   {
-    get { return _current; }
-    private set { _current = value; }
+    get
+    {
+      STMTransaction transaction = CurrentUnmanaged;
+      Transaction systemTransaction = Transaction.Current;
+      bool bindSystemTransaction = false;
+      if(transaction == null) // if there's no current STM transaction...
+      {
+        // push a new transaction onto the stack that is bound to and under the control of the system transaction
+        bindSystemTransaction = systemTransaction != null;
+      }
+      // otherwise, if there is an STM transaction, but it's not bound to the current system transaction (which could be null)...
+      else if(transaction.systemTransaction != systemTransaction)
+      {
+        if(systemTransaction != null) // if there is a system transaction...
+        {
+          STMTransaction boundTransaction = transaction; // look for an STM transaction on the stack bound to it...
+          do boundTransaction = boundTransaction.parent;
+          while(boundTransaction != null && boundTransaction.systemTransaction != systemTransaction);
+          // if there is none, push a new transaction onto the stack that's bound to the system transaction
+          bindSystemTransaction = boundTransaction == null;
+        }
+        else // otherwise, the current STM transaction is bound to a system transaction, but there is no current system transaction...
+        {
+          // that probably means that the system transaction is being suppressed. if there happens to be an STM transaction above the
+          // topmost system transaction on the stack, we can return that. otherwise, we'll return null
+          STMTransaction unboundTransaction = null;
+          while(true)
+          {
+            STMTransaction parent = transaction.parent;
+            if(parent == null) break;
+            if(parent.systemTransaction == null && transaction.systemTransaction != null) unboundTransaction = parent;
+            transaction = parent;
+          }
+          transaction = unboundTransaction;
+        }
+      }
+
+      if(bindSystemTransaction) _current = transaction = new STMTransaction(transaction, systemTransaction);
+      return transaction;
+    }
   }
 
   /// <summary>Creates a new <see cref="STMTransaction"/> using the default <see cref="STMOptions"/>, makes it the current
@@ -431,33 +502,8 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   /// </summary>
   public static STMTransaction Create(STMOptions options)
   {
-    STMTransaction transaction = Current;
-
-    // inherit the IgnoreSystemTransaction option from enclosing transactions
-    // TODO: test this
-    if(transaction != null) options |= transaction.options & STMOptions.IgnoreSystemTransaction;
-
-    // if there's a current system transaction, enlist in it if we haven't already done so and aren't ignoring it
-    Transaction systemTransaction = (options & STMOptions.IgnoreSystemTransaction) != 0 ? null : Transaction.Current;
-    if(systemTransaction != null)
-    {
-      // search for an enclosing transaction that is bound to the system transaction
-      bool found = false;
-      for(STMTransaction t = transaction; t != null; t = t.parent)
-      {
-        if(t.systemTransaction == systemTransaction)
-        {
-          found = true;
-          break;
-        }
-      }
-
-      // if there was none found, push a new transaction onto the stack that is bound to and under the control of the
-      // system transaction. the user's transaction will be nested within that one
-      if(!found) transaction = new STMTransaction(transaction, systemTransaction);
-    }
-
-    Current = transaction = new STMTransaction(transaction, options);
+    STMTransaction transaction = new STMTransaction(Current, options);
+    _current = transaction;
     return transaction;
   }
 
@@ -550,6 +596,29 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     if(writeLog != null && writeLog.TryGetValue(variable, out entry)) entry.NewValue = value;
     else CreateWriteEntry(variable, value, true);
   }
+
+  /// <summary>Gets the current <see cref="STMTransaction"/> for this thread, or null if no transaction has been created and there is no
+  /// current <see cref="Transaction"/>. Transactions will not be created automatically and enlisted with System.Transactions.
+  /// </summary>
+  internal static STMTransaction CurrentUnmanaged
+  {
+    get
+    {
+      STMTransaction transaction = _current;
+      // sometimes system transactions get committed or rolled back on other threads, so they can't be successfully removed from the stack.
+      // (this usually happens with distributed transactions.) in that case, they can get left on the stack. so we'll detect that case and
+      // remove those transactions now
+      while(transaction != null && transaction.systemTransaction != null &&
+            (transaction.status == Status.Aborted || transaction.status == Status.Committed))
+      {
+        transaction.Dispose(); // this should remove the transaction from the stack
+        transaction = _current; // get the new transaction on top of the stack
+      }
+      return transaction;
+    }
+  }
+
+  [ThreadStatic] static STMTransaction _current;
 
   #region Status
   /// <summary>Contains constants representing the state of a transaction.</summary>
@@ -905,7 +974,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     {
       // find the current transaction in the stack
       bool found = false;
-      STMTransaction top = STMTransaction.Current;
+      STMTransaction top = STMTransaction._current;
       for(STMTransaction transaction = top; transaction != null; transaction = transaction.parent)
       {
         if(transaction == this)
@@ -926,7 +995,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
           top = top.parent;
         }
 
-        STMTransaction.Current = parent; // remove this transaction and all nested transactions
+        _current = parent; // remove this transaction and all nested transactions
       }
     }
   }
@@ -981,7 +1050,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     }
     finally
     {
-      Dispose(); // dispose the transaction here, since it's not exposed to the user
+      Dispose(); // dispose the transaction here, since it's managed automatically
       enlistment.Done();
     }
   }
@@ -998,7 +1067,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     }
     finally
     {
-      Dispose(); // dispose the transaction here, since it's not exposed to the user
+      Dispose(); // dispose the transaction here, since it's managed automatically
       enlistment.Done();
     }
   }
@@ -1024,7 +1093,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     }
     finally
     {
-      Dispose(); // dispose the transaction here, since it's not exposed to the user
+      Dispose(); // dispose the transaction here, since it's managed automatically
       enlistment.Done();
     }
   }
@@ -1059,8 +1128,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     return currentStatus;
   }
 
-  [ThreadStatic] static STMTransaction _current;
-  // the counter can provide 10 billion IDs/second for 58 years before overflowing, which should be enough to ensure uniqueness
+  // the counter can provide 10 billion IDs per second for 58 years before overflowing, which should be enough to ensure uniqueness
   static long idCounter;
 }
 #endregion
@@ -1080,7 +1148,7 @@ public abstract class TransactionalVariable
   /// <summary>Checks that this variable hasn't been changed by another transaction since it was opened. If it has, a
   /// <see cref="TransactionAbortedException"/> will be thrown.
   /// </summary>
-  /// <include file="documentation.xml" path="TX/STM/ConsistencyCheckRemarks/*" />
+  /// <include file="documentation.xml" path="/TX/STM/ConsistencyCheckRemarks/node()" />
   /// <exception cref="InvalidOperationException">Thrown if there is no current, active transaction.</exception>
   public void CheckConsistency()
   {
@@ -1088,30 +1156,40 @@ public abstract class TransactionalVariable
   }
 
   /// <summary>Checks that this variable hasn't been changed by another transaction since it was opened.</summary>
-  /// <include file="documentation.xml" path="TX/STM/ConsistencyCheckRemarks/*" />
+  /// <include file="documentation.xml" path="/TX/STM/ConsistencyCheckRemarks/node()" />
   /// <exception cref="InvalidOperationException">Thrown if there is no current, active transaction.</exception>
   public bool IsConsistent()
   {
     return GetTransaction().IsConsistent(this);
   }
 
-  /// <include file="documentation.xml" path="TX/STM/OpenForWrite/*" />
+  /// <include file="documentation.xml" path="/TX/STM/OpenForWrite/node()" />
   public object OpenForWrite()
   {
     return GetTransaction().OpenForWrite(this);
   }
 
-  /// <include file="documentation.xml" path="TX/STM/Read/*" />
+  /// <include file="documentation.xml" path="/TX/STM/Read/node()" />
   public object Read()
   {
-    STMTransaction transaction = STMTransaction.Current;
+    STMTransaction transaction = STMTransaction.CurrentUnmanaged;
     return transaction == null ? ReadCommitted() : transaction.OpenForRead(this);
   }
 
-  /// <include file="documentation.xml" path="TX/STM/ReadWithoutOpening/*" />
+  /// <include file="documentation.xml" path="/TX/STM/ReadCommitted/node()" />
+  public object ReadCommitted()
+  {
+    object value = this.value; // get the most recently committed value
+    // if the variable is currently locked by some other transaction, get the old value from its log
+    STMTransaction transaction = value as STMTransaction;
+    if(transaction != null) value = transaction.ReadWithoutOpening(this, false);
+    return value;
+  }
+
+  /// <include file="documentation.xml" path="/TX/STM/ReadWithoutOpening/node()" />
   public object ReadWithoutOpening()
   {
-    STMTransaction transaction = STMTransaction.Current;
+    STMTransaction transaction = STMTransaction.CurrentUnmanaged;
     return transaction == null ? ReadCommitted() : transaction.ReadWithoutOpening(this, true);
   }
 
@@ -1243,7 +1321,7 @@ public abstract class TransactionalVariable
     ICloneable
   }
 
-  /// <include file="documentation.xml" path="TX/STM/Set/*" />
+  /// <include file="documentation.xml" path="/TX/STM/Set/node()" />
   // NOTE: this is not public because it would allow type safety to be broken (i.e. non-T stored in TransactionalVariable<T>)
   protected void Set(object newValue)
   {
@@ -1294,18 +1372,6 @@ public abstract class TransactionalVariable
   /// <summary>The most recently committed value, or a reference to the transaction currently committing this .</summary>
   internal object value;
 
-  /// <summary>Reads the value most recently committed to this variable, without regard for whether it has been opened by the
-  /// current transaction.
-  /// </summary>
-  object ReadCommitted()
-  {
-    object value = this.value; // get the most recently committed value
-    // if the variable is currently locked by some other transaction, get the old value from its log
-    STMTransaction transaction = value as STMTransaction;
-    if(transaction != null) value = transaction.ReadWithoutOpening(this, false);
-    return value;
-  }
-
   /// <summary>Gets the current <see cref="STMTransaction"/> for this thread, or throws an exception if there is no current
   /// transaction.
   /// </summary>
@@ -1316,7 +1382,7 @@ public abstract class TransactionalVariable
     return transaction;
   }
 
-  /// <summary>Determines whether the given type, which is assumed to be a struct type, can be cloned by simply copying its
+  /// <summary>Determines whether the given type, which is assumed to be a value type (i.e. struct), can be cloned by simply copying its
   /// field values.
   /// </summary>
   static bool IsCopyable(Type type)
@@ -1353,7 +1419,7 @@ public abstract class TransactionalVariable
 
   static readonly Dictionary<Type, CloneType> cloneTypes = new Dictionary<Type, CloneType>();
   static readonly ReaderWriterLockSlim typeLock = new ReaderWriterLockSlim();
-  // the counter can provide 10 billion IDs/second for 58 years before overflowing, which should be enough to ensure uniqueness
+  // the counter can provide one billion IDs/second for 580 years before overflowing, which should be enough to ensure uniqueness
   static long idCounter;
 }
 #endregion
@@ -1362,38 +1428,44 @@ public abstract class TransactionalVariable
 /// <summary>Represents a slot within transactional memory. To create a new transactional variable, construct an instance of this
 /// type or call <see cref="STM.Allocate"/>.
 /// </summary>
-/// <include file="documentation.xml" path="TX/STM/TVarRemarks/*" />
+/// <include file="documentation.xml" path="/TX/STM/TVarRemarks/node()" />
 public sealed class TransactionalVariable<T> : TransactionalVariable
 {
   /// <summary>Allocates a new <see cref="TransactionalVariable{T}"/> with a default value.</summary>
-  /// <include file="documentation.xml" path="TX/STM/NewTVar/*" />
+  /// <include file="documentation.xml" path="/TX/STM/NewTVar/node()" />
   public TransactionalVariable() : this(default(T)) { }
   /// <summary>Allocates a new <see cref="TransactionalVariable{T}"/> with the given value.</summary>
-  /// <include file="documentation.xml" path="TX/STM/NewTVar/*" />
+  /// <include file="documentation.xml" path="/TX/STM/NewTVar/node()" />
   public TransactionalVariable(T initialValue) : base(initialValue)
   {
     ValidateCloneType(typeof(T)); // verify that the object can be cloned
   }
 
-  /// <include file="documentation.xml" path="TX/STM/OpenForWrite/*" />
+  /// <include file="documentation.xml" path="/TX/STM/OpenForWrite/node()" />
   public new T OpenForWrite()
   {
     return (T)base.OpenForWrite();
   }
 
-  /// <include file="documentation.xml" path="TX/STM/Read/*" />
+  /// <include file="documentation.xml" path="/TX/STM/Read/node()" />
   public new T Read()
   {
     return (T)base.Read();
   }
 
-  /// <include file="documentation.xml" path="TX/STM/ReadWithoutOpening/*" />
+  /// <include file="documentation.xml" path="/TX/STM/ReadCommitted/node()" />
+  public new T ReadCommitted()
+  {
+    return (T)base.ReadCommitted();
+  }
+
+  /// <include file="documentation.xml" path="/TX/STM/ReadWithoutOpening/node()" />
   public new T ReadWithoutOpening()
   {
     return (T)base.ReadWithoutOpening();
   }
 
-  /// <include file="documentation.xml" path="TX/STM/Set/*" />
+  /// <include file="documentation.xml" path="/TX/STM/Set/node()" />
   public void Set(T newValue)
   {
     base.Set(newValue);

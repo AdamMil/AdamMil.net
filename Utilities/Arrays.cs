@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 // TODO: tune ArrayUtility.SmallCopy() for 64-bit too
+// TODO: see if we can get an even greater speedup in SmallCopy() by using for loops below some small threshold
 
 using System;
 using System.Collections.Generic;
@@ -358,6 +359,13 @@ public class ArrayBuffer<T> : ICollection<T>
 /// <summary>Provides convenient extensions for working with arrays.</summary>
 public static class ArrayExtensions
 {
+  /// <summary>Clears an array.</summary>
+  public static void Clear(this Array array)
+  {
+    if(array == null) throw new ArgumentNullException();
+    Array.Clear(array, 0, array.Length);
+  }
+
   /// <summary>Determines whether a specified item exists within an array.</summary>
   public static bool Contains(this Array array, object item)
   {
@@ -408,6 +416,20 @@ public static class ArrayExtensions
   public static int IndexOf<T>(this T[] array, T item, int startIndex)
   {
     return Array.IndexOf<T>(array, item, startIndex);
+  }
+
+  /// <summary>Shrinks an array to a given length if it's not already of that length, and returns the array.</summary>
+  public static T[] Trim<T>(this T[] array, int length)
+  {
+    if(array == null) throw new ArgumentNullException();
+    if((uint)length > (uint)array.Length) throw new ArgumentOutOfRangeException();
+    if(length != array.Length)
+    {
+      T[] trimmed = new T[length];
+      Array.Copy(array, trimmed, length);
+      array = trimmed;
+    }
+    return array;
   }
 }
 #endregion

@@ -66,7 +66,7 @@ public class SecureTextBox : TextBox
   public new void Clear()
   {
     text.Clear();
-    base.Clear();
+    base.Text = string.Empty;
   }
 
   /// <summary>Throws a <see cref="NotSupportedException"/>. Do not call the method on the base class (<see cref="TextBox"/>).</summary>

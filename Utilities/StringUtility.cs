@@ -28,20 +28,20 @@ namespace AdamMil.Utilities
 /// <summary>Provides useful string utilities and extensions.</summary>
 public static class StringUtility
 {
-  /// <summary>Returns the first string that is not empty, or null if all strings are null or empty.</summary>
-  public static string Coallesce(string str1, string str2)
+  /// <summary>Returns the first string that is not null or empty, or null if all strings are null or empty.</summary>
+  public static string Coalesce(string str1, string str2)
   {
     return !string.IsNullOrEmpty(str1) ? str1 : !string.IsNullOrEmpty(str2) ? str2 : null;
   }
 
   /// <summary>Returns the first string that is not empty, or null if all strings are null or empty.</summary>
-  public static string Coallesce(string str1, string str2, string str3)
+  public static string Coalesce(string str1, string str2, string str3)
   {
-    return Coallesce(Coallesce(str1, str2), str3);
+    return Coalesce(Coalesce(str1, str2), str3);
   }
 
   /// <summary>Returns the first string that is not empty, or null if all strings are null or empty.</summary>
-  public static string Coallesce(params string[] strings)
+  public static string Coalesce(params string[] strings)
   {
     if(strings != null)
     {
@@ -51,6 +51,48 @@ public static class StringUtility
       }
     }
     return null;
+  }
+
+  /// <summary>Returns the concatenation of strings <paramref name="a"/> and <paramref name="b"/>, separated by
+  /// <paramref name="separator"/>, if both strings are not null or empty. Otherwise, returns the first string that is not null or empty.
+  /// </summary>
+  public static string Combine(string separator, string a, string b)
+  {
+    return string.IsNullOrEmpty(a) ? b : string.IsNullOrEmpty(b) ? a : a + separator + b;
+  }
+
+  /// <summary>Returns the concatenation of strings <paramref name="a"/>, <paramref name="b"/>, and <paramref name="c"/>, separated by
+  /// <paramref name="separator"/>, and ignoring strings that are null or empty.
+  /// </summary>
+  public static string Combine(string separator, string a, string b, string c)
+  {
+    return Combine(separator, Combine(separator, a, b), c);
+  }
+
+  /// <summary>Returns the concatenation of the given strings, separated by <paramref name="separator"/>, and ignoring strings that are
+  /// null or empty.
+  /// </summary>
+  public static string Combine(string separator, params string[] strings)
+  {
+    return Combine(separator, (IEnumerable<string>)strings);
+  }
+
+  /// <summary>Returns the concatenation of the given strings, separated by <paramref name="separator"/>, and ignoring strings that are
+  /// null or empty.
+  /// </summary>
+  public static string Combine(string separator, IEnumerable<string> strings)
+  {
+    if(strings == null) throw new ArgumentNullException();
+    StringBuilder sb = new StringBuilder();
+    foreach(string str in strings)
+    {
+      if(!string.IsNullOrEmpty(str))
+      {
+        if(sb.Length != 0) sb.Append(separator);
+        sb.Append(str);
+      }
+    }
+    return sb.ToString();
   }
 
   /// <summary>Determines whether a string contains a given character.</summary>
@@ -242,6 +284,33 @@ public static class StringUtility
     T[] items = new T[bits.Length];
     for(int i=0; i<items.Length; i++) items[i] = converter(bits[i]);
     return items;
+  }
+
+  /// <summary>Finds the region of the string beyond leading and trailing whitespace.</summary>
+  /// <param name="str">The string to trim.</param>
+  /// <param name="start">A variable that receives the start of the trimmed region.</param>
+  /// <param name="length">A variable that receives the length of the trimmed region.</param>
+  /// <returns>True if any whitespace was skipped, and false if <paramref name="start"/> equals 0 and <paramref name="length"/> equals
+  /// the length of the input.
+  /// </returns>
+  public static bool Trim(this string str, out int start, out int length)
+  {
+    if(str == null) throw new ArgumentNullException();
+    int i = 0, j = str.Length - 1;
+    while(i < str.Length && char.IsWhiteSpace(str[i])) i++;
+    while(j > i && char.IsWhiteSpace(str[j])) j--;
+    if(j < i)
+    {
+      start  = 0;
+      length = 0;
+      return str.Length != 0;
+    }
+    else
+    {
+      start  = i;
+      length = j - i + 1;
+      return i != 0 || j != str.Length - 1;
+    }
   }
 }
 

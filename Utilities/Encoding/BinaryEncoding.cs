@@ -56,6 +56,60 @@ public abstract class BinaryEncoder
 }
 #endregion
 
+#region UnsafeBinaryEncoder
+/// <summary>Provides a base class for binary encoders that are primarily implemented using unsafe operations on byte pointers.</summary>
+/// <remarks><see cref="BinaryEncoder"/> implements the unsafe encoding methods in terms of the safe encoding methods, requiring derived
+/// classes to implement the safe encoding methods. <see cref="UnsafeBinaryEncoder"/> is derived from <see cref="BinaryEncoder"/> and
+/// reverses this, implementing the safe encoding methods in terms of the unsafe ones, and requires derived classes to override the
+/// unsafe methods.
+/// </remarks>
+public abstract class UnsafeBinaryEncoder : BinaryEncoder
+{
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Encode/*"/>
+  /// <remarks>The default implementation fixes the arrays and calls <see cref="Encode(byte*,int,byte*,int,bool)"/>.</remarks>
+  public unsafe override int Encode(byte[] source, int sourceIndex, int sourceCount, byte[] destination, int destinationIndex, bool flush)
+  {
+    Utility.ValidateRange(source, sourceIndex, sourceCount);
+    Utility.ValidateRange(destination, destinationIndex, 0);
+    fixed(byte* srcBase=source)
+    fixed(byte* destBase=destination)
+    {
+      byte dummy;
+      return Encode(srcBase == null ? &dummy : srcBase+sourceIndex, sourceCount, // pointers are when arrays are empty
+                    destBase == null ? &dummy : destBase+destinationIndex, destination.Length-destinationIndex, flush);
+    }
+  }
+
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/EncodePtr/*"/>
+  /// <remarks>Derived classes must override this method.</remarks>
+  [CLSCompliant(false)]
+  public override unsafe int Encode(byte* source, int sourceCount, byte* destination, int destinationCapacity, bool flush)
+  {
+    throw new NotImplementedException();
+  }
+
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCount/*"/>
+  /// <remarks>The default implementation fixes the array and calls <see cref="GetByteCount(byte*,int,bool)"/>.</remarks>
+  public unsafe override int GetByteCount(byte[] data, int index, int count, bool simulateFlush)
+  {
+    Utility.ValidateRange(data, index, count);
+    fixed(byte* dataPtr=data)
+    {
+      byte dataByte; // dataPtr is null when source is zero bytes, so provide /some/ pointer
+      return GetByteCount(dataPtr == null ? &dataByte : dataPtr+index, count, simulateFlush);
+    }
+  }
+
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCountPtr/*"/>
+  /// <remarks>Derived classes must override this method.</remarks>
+  [CLSCompliant(false)]
+  public override unsafe int GetByteCount(byte* data, int count, bool simulateFlush)
+  {
+    throw new NotImplementedException();
+  }
+}
+#endregion
+
 #region BinaryEncoding
 /// <summary>Provides a base class for bidirectional encodings that can transform streams from one representation into another,
 /// and back again.
@@ -232,6 +286,104 @@ public abstract class BinaryEncoding
       array = newArray;
     }
     return array;
+  }
+}
+#endregion
+
+#region UnsafeBinaryEncoding
+/// <summary>Provides a base class for binary encodings that are primarily implemented using unsafe operations on byte pointers.</summary>
+/// <remarks><see cref="BinaryEncoding"/> implements the unsafe encoding and decoding methods in terms of the safe methods, requiring
+/// derived classes to implement the safe methods. <see cref="UnsafeBinaryEncoding"/> is derived from <see cref="BinaryEncoding"/> and
+/// reverses this, implementing the safe encoding and decoding methods in terms of the unsafe ones, and requires derived classes to
+/// override the unsafe methods.
+/// </remarks>
+public abstract class UnsafeBinaryEncoding : BinaryEncoding
+{
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/Decode/*"/>
+  /// <remarks>The default implementation fixes the arrays and calls <see cref="Decode(byte*,int,byte*,int)"/>.</remarks>
+  public unsafe override int Decode(byte[] encodedBytes, int encodedByteIndex, int encodedByteCount,
+                                    byte[] decodedBytes, int decodedByteIndex)
+  {
+    Utility.ValidateRange(encodedBytes, encodedByteIndex, encodedByteCount);
+    Utility.ValidateRange(decodedBytes, decodedByteIndex, 0);
+    fixed(byte* encBase=encodedBytes)
+    fixed(byte* decBase=decodedBytes)
+    {
+      byte dummy;
+      return Decode(encBase == null ? &dummy : encBase+encodedByteIndex, encodedByteCount,
+                    decBase == null ? &dummy : decBase+decodedByteIndex, decodedBytes.Length - decodedByteIndex);
+    }
+  }
+
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/DecodePtr/*"/>
+  /// <remarks>Derived classes must override this method.</remarks>
+  [CLSCompliant(false)]
+  public override unsafe int Decode(byte* encodedBytes, int encodedByteCount, byte* decodedBytes, int decodedByteCount)
+  {
+    throw new NotImplementedException();
+  }
+
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/Encode/*"/>
+  /// <remarks>The default implementation fixes the arrays and calls <see cref="Encode(byte*,int,byte*,int)"/>.</remarks>
+  public unsafe override int Encode(byte[] data, int dataIndex, int dataByteCount, byte[] encodedBytes, int encodedByteIndex)
+  {
+    Utility.ValidateRange(data, dataIndex, dataByteCount);
+    Utility.ValidateRange(encodedBytes, encodedByteIndex, 0);
+    fixed(byte* decBase=data)
+    fixed(byte* encBase=encodedBytes)
+    {
+      byte dummy;
+      return Encode(decBase == null ? &dummy : decBase+dataIndex, dataByteCount,
+                    encBase == null ? &dummy : encBase+encodedByteIndex, encodedBytes.Length - encodedByteIndex);
+    }
+  }
+
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/EncodePtr/*"/>
+  /// <remarks>Derived classes must override this method.</remarks>
+  [CLSCompliant(false)]
+  public override unsafe int Encode(byte* decodedBytes, int decodedByteCount, byte* encodedBytes, int encodedByteCount)
+  {
+    throw new NotImplementedException();
+  }
+
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetDecodedByteCount/*"/>
+  /// <remarks>The default implementation fixes the array and calls <see cref="GetDecodedByteCount(byte*,int)"/>.</remarks>
+  public unsafe override int GetDecodedByteCount(byte[] encodedBytes, int index, int count)
+  {
+    Utility.ValidateRange(encodedBytes, index, count);
+    fixed(byte* basePtr=encodedBytes)
+    {
+      byte dummy;
+      return GetDecodedByteCount(basePtr == null ? &dummy : basePtr+index, count);
+    }
+  }
+
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetDecodedByteCountPtr/*"/>
+  /// <remarks>Derived classes must override this method.</remarks>
+  [CLSCompliant(false)]
+  public override unsafe int GetDecodedByteCount(byte* encodedBytes, int count)
+  {
+    throw new NotImplementedException();
+  }
+
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetEncodedByteCount/*"/>
+  /// <remarks>The default implementation fixes the array and calls <see cref="GetEncodedByteCount(byte*,int)"/>.</remarks>
+  public unsafe override int GetEncodedByteCount(byte[] decodedBytes, int index, int count)
+  {
+    Utility.ValidateRange(decodedBytes, index, count);
+    fixed(byte* basePtr=decodedBytes)
+    {
+      byte dummy;
+      return GetEncodedByteCount(basePtr == null ? &dummy : basePtr+index, count);
+    }
+  }
+
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetEncodedByteCountPtr/*"/>
+  /// <remarks>Derived classes must override this method.</remarks>
+  [CLSCompliant(false)]
+  public override unsafe int GetEncodedByteCount(byte* decodedBytes, int count)
+  {
+    throw new NotImplementedException();
   }
 }
 #endregion

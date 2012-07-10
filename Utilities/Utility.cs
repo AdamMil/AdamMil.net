@@ -49,25 +49,22 @@ public static class Utility
     }
   }
 
-  /// <summary>Enlarges the given array if it's too small to accommodate its current size plus the new elements. If resized, the returned
-  /// array may contain additional elements beyond the requested number, to accomodate future growth.
+  /// <summary>Enlarges the given buffer if it's too small to accommodate its current size plus the new elements. The new array is
+  /// returned. It is acceptable if <paramref name="array"/> is null or <paramref name="newElements"/> is negative, indicating that
+  /// elements are being removed from the array.
   /// </summary>
   public static T[] EnlargeArray<T>(T[] array, int currentSize, int newElements)
   {
-    if(currentSize < 0 || newElements < 0 || array != null && currentSize > array.Length)
-    {
-      throw new ArgumentOutOfRangeException();
-    }
+    int capacity = array == null ? 0 : array.Length;
+    if((uint)currentSize > (uint)capacity) throw new ArgumentOutOfRangeException();
 
-    int currentCapacity = array == null ? 0 : array.Length, newSize = currentSize + newElements;
-    if(currentCapacity < newSize)
+    int newSize = currentSize + newElements;
+    if(capacity < newSize)
     {
-      if(newSize < 4) newSize = 4;
-      T[] newArray = new T[Math.Max(currentCapacity*2, newSize)];
-      if(currentSize != 0) Array.Copy(array, newArray, currentSize);
+      T[] newArray = new T[Math.Max(capacity*2, newSize)];
+      if(array != null) Array.Copy(array, newArray, currentSize);
       array = newArray;
     }
-
     return array;
   }
 
@@ -143,28 +140,28 @@ public static class Utility
   /// <summary>Validates that the given range exists within a list of the given size.</summary>
   public static void ValidateRange(int listSize, int index, int count)
   {
-    if(index < 0 || count < 0 || index + count > listSize) throw new ArgumentOutOfRangeException();
+    if(index < 0 || count < 0 || (uint)(index + count) > (uint)listSize) throw new ArgumentOutOfRangeException();
   }
 
   /// <summary>Validates that the given list is not null, and the given range exists within the list.</summary>
   public static void ValidateRange(System.Collections.IList list, int index, int count)
   {
     if(list == null) throw new ArgumentNullException();
-    if(index < 0 || count < 0 || index + count > list.Count) throw new ArgumentOutOfRangeException();
+    if(index < 0 || count < 0 || (uint)(index + count) > (uint)list.Count) throw new ArgumentOutOfRangeException();
   }
 
   /// <summary>Validates that the given array is not null, and the given range exists within the array.</summary>
   public static void ValidateRange(Array array, int index, int count)
   {
     if(array == null) throw new ArgumentNullException();
-    if(index < 0 || count < 0 || index + count > array.Length) throw new ArgumentOutOfRangeException();
+    if(index < 0 || count < 0 || (uint)(index + count) > (uint)array.Length) throw new ArgumentOutOfRangeException();
   }
 
   /// <summary>Validates that the given string is not null, and the given range exists within the string.</summary>
   public static void ValidateRange(string str, int index, int count)
   {
     if(str == null) throw new ArgumentNullException();
-    if(index < 0 || count < 0 || index + count > str.Length) throw new ArgumentOutOfRangeException();
+    if(index < 0 || count < 0 || (uint)(index + count) > (uint)str.Length) throw new ArgumentOutOfRangeException();
   }
 }
 

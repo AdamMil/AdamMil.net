@@ -288,32 +288,6 @@ public class STMTests
     }
     AssertEqual(a, 1, b, 2);
 
-    // test the ability to ignore system transactions
-    using(new TransactionScope())
-    {
-      using(STMTransaction tx = STMTransaction.Create(STMOptions.IgnoreSystemTransaction))
-      {
-        a.Set(10);
-        tx.Commit();
-      }
-    }
-    AssertEqual(a, 10);
-
-    // test that ignoring system transactions is inherited
-    using(STMTransaction otx = STMTransaction.Create(STMOptions.IgnoreSystemTransaction))
-    {
-      using(new TransactionScope())
-      {
-        using(STMTransaction tx = STMTransaction.Create())
-        {
-          a.Set(1);
-          tx.Commit();
-        }
-      }
-      otx.Commit();
-    }
-    AssertEqual(a, 1);
-
     // test post-commit actions
     int ntValue = 0;
 

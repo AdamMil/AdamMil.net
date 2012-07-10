@@ -275,33 +275,46 @@ public class CopyReadStream : DelegateStream
 /// </summary>
 public class DataRecordStream : Stream
 {
-  /// <summary>Initializes a new <see cref="DataRecordStream"/> with an <see cref="IDataRecord"/> and the index of the column to
-  /// read from. The record will be disposed when the stream is closed.
+  /// <summary>Initializes a new, unseekable <see cref="DataRecordStream"/> with an <see cref="IDataRecord"/> and the index of the column
+  /// to read from. The record will be disposed when the stream is closed.
   /// </summary>
-  public DataRecordStream(IDataRecord record, int columnIndex) : this(record, columnIndex, true) { }
+  public DataRecordStream(IDataRecord record, int columnIndex) : this(record, columnIndex, true, false) { }
+
+  /// <summary>Initializes a new, unseekable <see cref="DataRecordStream"/> with an <see cref="IDataRecord"/> and the index of the column
+  /// to read from. If <paramref name="ownRecord"/> is true, the record will be disposed when the stream is closed.
+  /// </summary>
+  public DataRecordStream(IDataRecord record, int columnIndex, bool ownRecord) : this(record, columnIndex, ownRecord, false) { }
 
   /// <summary>Initializes a new <see cref="DataRecordStream"/> with an <see cref="IDataRecord"/> and the index of the column to
   /// read from. If <paramref name="ownRecord"/> is true, the record will be disposed when the stream is closed.
+  /// If <paramref name="seexable"/> is true, the <see cref="IDataRecord"/> must support random access to the field data.
   /// </summary>
-  public DataRecordStream(IDataRecord record, int columnIndex, bool ownRecord)
+  public DataRecordStream(IDataRecord record, int columnIndex, bool ownRecord, bool seekable)
   {
     if(record == null) throw new ArgumentNullException();
-    if((uint)columnIndex >= (uint)record.FieldCount) throw new ArgumentOutOfRangeException();
+    if(columnIndex < 0 || columnIndex >= record.FieldCount) throw new ArgumentOutOfRangeException();
     this.record    = record;
     this.column    = columnIndex;
     this.length    = CalculateLength();
     this.ownRecord = ownRecord;
+    this.seekable  = seekable;
   }
 
-  /// <summary>Initializes a new <see cref="DataRecordStream"/> with an <see cref="IDataRecord"/> and the name of the column to
+  /// <summary>Initializes a new, unseekable <see cref="DataRecordStream"/> with an <see cref="IDataRecord"/> and the name of the column to
   /// read from. The record will be disposed when the stream is closed.
   /// </summary>
-  public DataRecordStream(IDataRecord record, string columnName) : this(record, columnName, true) { }
+  public DataRecordStream(IDataRecord record, string columnName) : this(record, columnName, true, false) { }
+
+  /// <summary>Initializes a new, unseekable <see cref="DataRecordStream"/> with an <see cref="IDataRecord"/> and the name of the column to
+  /// read from. If <paramref name="ownRecord"/> is true, the record will be disposed when the stream is closed.
+  /// </summary>
+  public DataRecordStream(IDataRecord record, string columnName, bool ownRecord) : this(record, columnName, ownRecord, false) { }
 
   /// <summary>Initializes a new <see cref="DataRecordStream"/> with an <see cref="IDataRecord"/> and the name of the column to
   /// read from. If <paramref name="ownRecord"/> is true, the record will be disposed when the stream is closed.
+  /// If <paramref name="seexable"/> is true, the <see cref="IDataRecord"/> must support random access to the field data.
   /// </summary>
-  public DataRecordStream(IDataRecord record, string columnName, bool ownRecord)
+  public DataRecordStream(IDataRecord record, string columnName, bool ownRecord, bool seekable)
   {
     if(record == null) throw new ArgumentNullException();
 
@@ -311,6 +324,7 @@ public class DataRecordStream : Stream
     this.record    = record;
     this.length    = CalculateLength();
     this.ownRecord = ownRecord;
+    this.seekable  = seekable;
   }
 
   public sealed override bool CanRead
@@ -320,7 +334,7 @@ public class DataRecordStream : Stream
 
   public override bool CanSeek
   {
-    get { return true; }
+    get { return seekable; }
   }
 
   public override bool CanWrite
@@ -350,10 +364,11 @@ public class DataRecordStream : Stream
 
   public override long Seek(long offset, SeekOrigin origin)
   {
+    if(!CanSeek) throw new InvalidOperationException();
     if(origin == SeekOrigin.Current) offset += position;
     else if(origin == SeekOrigin.End) offset += length;
 
-    if((ulong)offset > (ulong)length) throw new ArgumentOutOfRangeException();
+    if(offset < 0 || offset > length) throw new ArgumentOutOfRangeException();
     return position = offset;
   }
 
@@ -382,7 +397,7 @@ public class DataRecordStream : Stream
   readonly long length;
   long position;
   readonly int column;
-  readonly bool ownRecord;
+  readonly bool ownRecord, seekable;
 }
 #endregion
 
@@ -1063,9 +1078,9 @@ public class TemporaryFileStream : FileStream
   /// </summary>
   public TemporaryFileStream(Stream initialContent) : this(Path.GetTempFileName(), initialContent, true) { }
 
-  /// <summary>Opens or creates a new temporary file with the given name.</summary>
+  /// <summary>Opens or creates a temporary file with the given name. The file will not be truncated if it already exists.</summary>
   public TemporaryFileStream(string tempFilePath)
-    : base(tempFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None)
+    : base(tempFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.DeleteOnClose)
   {
     this.tempFilePath = tempFilePath;
   }
@@ -1081,21 +1096,16 @@ public class TemporaryFileStream : FileStream
   /// at the end.
   /// </summary>
   public TemporaryFileStream(string tempFilePath, Stream initialContent, bool rewindAfterCopy)
-    : base(tempFilePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None)
+    : base(tempFilePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.DeleteOnClose)
   {
     this.tempFilePath = tempFilePath;
 
     if(initialContent != null)
     {
+      if(initialContent.CanSeek) SetLength(initialContent.Length); // set the correct length if we know it
       initialContent.CopyTo(this);
       if(rewindAfterCopy) Position = 0;
     }
-  }
-
-  protected override void Dispose(bool disposing)
-  {
-    base.Dispose(disposing);
-    File.Delete(tempFilePath);
   }
 
   readonly string tempFilePath;

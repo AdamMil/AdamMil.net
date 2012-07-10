@@ -73,8 +73,8 @@ public static partial class CollectionExtensions
   /// in a set after the set in which their dependencies are contained. A <see cref="CycleException"/> will be thrown if a
   /// dependency cycle exists.
   /// </summary>
-  /// <remarks>The utility of this method is that all items in each set can be processed in parallel, as they have no
-  /// dependencies on each other.
+  /// <remarks>
+  /// The utility of this method is that the items in a set can be processed in parallel, as they have no dependencies on each other.
   /// </remarks>
   public static List<List<T>> GetTopologicalSortSets<T>(this IEnumerable<T> items, Converter<T, IEnumerable<T>> getDependencies)
   {
@@ -140,13 +140,17 @@ public static partial class CollectionExtensions
 
   static IEnumerable<T> Visit<T>(T item, Converter<T, IEnumerable<T>> getDependencies, Dictionary<T, bool> itemsProcessed)
   {
-    // we put IsUnprocessed inside the loop to avoid allocating more generators than we need via additional calls to Visit()
     itemsProcessed[item] = false;
-    foreach(T dependency in getDependencies(item))
+    IEnumerable<T> dependencies = getDependencies(item);
+    if(dependencies != null)
     {
-      if(IsUnprocessed(dependency, itemsProcessed))
+      foreach(T dependency in dependencies)
       {
-        foreach(T orderedItem in Visit(dependency, getDependencies, itemsProcessed)) yield return orderedItem;
+        // we put IsUnprocessed inside the loop to avoid allocating more generators than we need via additional calls to Visit()
+        if(IsUnprocessed(dependency, itemsProcessed))
+        {
+          foreach(T orderedItem in Visit(dependency, getDependencies, itemsProcessed)) yield return orderedItem;
+        }
       }
     }
     itemsProcessed[item] = true;
@@ -160,7 +164,11 @@ public static partial class CollectionExtensions
     if(IsUnprocessed(item, itemsProcessed))
     {
       itemsProcessed[item] = false;
-      foreach(T dependency in getDependencies(item)) Visit(dependency, getDependencies, orderedList, itemsProcessed);
+      IEnumerable<T> dependencies = getDependencies(item);
+      if(dependencies != null)
+      {
+        foreach(T dependency in dependencies) Visit(dependency, getDependencies, orderedList, itemsProcessed);
+      }
       itemsProcessed[item] = true;
       orderedList.Add(item);
     }
@@ -181,9 +189,13 @@ public static partial class CollectionExtensions
     itemHeights[item] = Processing;
     // calculate the height of an item, which is one plus the length of the longest chain of dependencies
     height = 0;
-    foreach(T dependency in getDependencies(item))
+    IEnumerable<T> dependencies = getDependencies(item);
+    if(dependencies != null)
     {
-      height = Math.Max(height, Visit(dependency, getDependencies, sets, itemHeights));
+      foreach(T dependency in dependencies)
+      {
+        height = Math.Max(height, Visit(dependency, getDependencies, sets, itemHeights));
+      }
     }
 
     // since we go depth-first, we should never encounter a height more than one greater than the maximum seen so far

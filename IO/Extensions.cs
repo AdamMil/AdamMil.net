@@ -76,6 +76,90 @@ public unsafe static partial class StreamExtensions
     }
   }
 
+  /// <summary>Reads the specified number of bytes or until the end of the stream.</summary>
+  /// <param name="stream">The <see cref="Stream"/> to read from.</param>
+  /// <param name="buffer">The buffer into which the data read from the stream will be written.</param>
+  /// <param name="index">The index within <paramref name="buffer"/> at which data will be written.</param>
+  /// <param name="length">The maximum number of bytes to read.</param>
+  /// <returns>Returns the number of bytes read.</returns>
+  /// <remarks>This method will always read <paramref name="length"/> bytes unless the end of the stream is reached first.</remarks>
+  public static int FullRead(this Stream stream, byte[] buffer, int index, int length)
+  {
+    if(stream == null) throw new ArgumentNullException();
+    Utility.ValidateRange(buffer, index, length);
+    int bytesRead = 0;
+    while(bytesRead < length)
+    {
+      int read = stream.Read(buffer, index + bytesRead, length - bytesRead);
+      if(read == 0) break;
+      bytesRead += read;
+    }
+    return bytesRead;
+  }
+
+  /// <summary>Reads and returns the given number of bytes from the stream.</summary>
+  public static byte[] LongRead(this Stream stream, long bytes)
+  {
+    if(bytes < 0) throw new ArgumentOutOfRangeException();
+    byte[] data = new byte[bytes];
+    LongReadOrThrow(stream, data, 0, bytes);
+    return data;
+  }
+
+  /// <summary>Reads up to the given number of bytes from the stream.</summary>
+  /// <param name="stream">The <see cref="Stream"/> to read from.</param>
+  /// <param name="buffer">The buffer into which the data read from the stream will be written.</param>
+  /// <param name="index">The index within <paramref name="buffer"/> at which data will be written.</param>
+  /// <param name="length">The maximum number of bytes to read.</param>
+  /// <returns>Returns the number of bytse read.</returns>
+  /// <remarks>This method will always read <paramref name="length"/> bytes unless the end of the stream is reached first.</remarks>
+  public static unsafe long LongRead(this Stream stream, byte[] buffer, long index, long length)
+  {
+    if(stream == null || buffer == null) throw new ArgumentNullException();
+    if(index < 0 || length < 0 || (ulong)(index + length) > (ulong)buffer.LongLength) throw new ArgumentOutOfRangeException();
+
+    if(buffer.LongLength <= int.MaxValue) // if the array actually fits in 2GB-1 bytes, then use the 32-bit function instead
+    {
+      return stream.FullRead(buffer, (int)index, (int)length);
+    }
+    else // otherwise, we actually need to access a portion of the array beyond 2GB-1 bytes
+    {
+      // we assume that the read is safe on 32-bit systems because otherwise it wouldn't have been possible to construct an array >= 2GB
+      long bytesRead = 0;
+      if(length != 0)
+      {
+        // we have to use a temporary buffer because Stream.Read() only supports 32-bit offsets. we also have to use unsafe code
+        // to copy the data because Array.Copy() only supports 32-bit offsets too.
+        // use a fairly large buffer to reduce the number of calls to RtlMoveMemory() in Unsafe.Copy()
+        byte[] block = new byte[(int)Math.Min(length, 64*1024)];
+        fixed(byte* pBuffer=buffer)
+        fixed(byte* pBlock=block)
+        {
+          while(bytesRead < length)
+          {
+            int read = stream.FullRead(buffer, 0, buffer.Length); // read a full buffer to reduce the number of Unsafe.Copy() calls
+            if(read == 0) break;
+            Unsafe.Copy(pBlock, pBuffer + index, read);
+            index     += read;
+            bytesRead += read;
+          }
+        }
+      }
+      return bytesRead;
+    }
+  }
+
+  /// <summary>Reads the given number of bytes from the stream or throws <see cref="EndOfStreamException"/> if the end of the stream is
+  /// encountered.
+  /// </summary>
+  /// <returns>The number of bytes read. This will always be equal to <paramref name="length"/>.</returns>
+  public static long LongReadOrThrow(this Stream stream, byte[] buffer, long index, long length)
+  {
+    long read = LongRead(stream, buffer, index, length);
+    if(read != length) throw new EndOfStreamException();
+    return read;
+  }
+
   /// <summary>Processes a stream in chunks of up to 4096 bytes, using the given <see cref="StreamProcessor"/>.</summary>
   public static void Process(this Stream stream, StreamProcessor processor)
   {
@@ -132,68 +216,46 @@ public unsafe static partial class StreamExtensions
   /// <returns>The number of bytes read. This will always be equal to <paramref name="length"/>.</returns>
   public static int ReadOrThrow(this Stream stream, byte[] buf, int index, int count)
   {
-    return Read(stream, buf, index, count, true);
-  }
-
-  /// <summary>Tries to read the given number of bytes from a stream into a buffer. This will always read the requested amount of
-  /// data if it exists within the stream. If not all the requested bytes could be read, the method will either return the number
-  /// of bytes actually read (if <paramref name="throwOnEOF"/> is false) or throw an <see cref="EndOfStreamException"/> (if
-  /// <paramref name="throwOnEOF"/> is true).
-  /// </summary>
-  /// <returns>The number of bytes read.</returns>
-  public static int Read(this Stream stream, byte[] buf, int index, int count, bool throwOnEOF)
-  {
-    if(stream == null) throw new ArgumentNullException();
-    Utility.ValidateRange(buf, index, count);
-
-    int total=0;
-    while(count != 0)
-    {
-      int read = stream.Read(buf, index, count);
-      total += read;
-
-      if(read == 0)
-      {
-        if(throwOnEOF) throw new EndOfStreamException();
-        else break;
-      }
-
-      index += read;
-      count -= read;
-    }
-
-    return total;
+    int read = FullRead(stream, buf, index, count);
+    if(read != count) throw new EndOfStreamException();
+    return read;
   }
 
   /// <summary>Reads and returns all of the remaining bytes from the stream.</summary>
   public static byte[] ReadAllBytes(this Stream stream)
   {
     if(stream == null) throw new ArgumentNullException();
-    byte[] buffer  = new byte[stream.CanSeek ? (int)(stream.Length-stream.Position) : 4096];
-    int totalBytes = 0;
-
-    while(true)
+    byte[] data;
+    if(stream.CanSeek)
     {
-      if(totalBytes == buffer.Length)
+      long size = stream.Length - stream.Position;
+      if(size > int.MaxValue) throw new NotImplementedException("Support for reading streams larger than 2GB is not implemented.");
+      data = new byte[(int)size];
+      stream.ReadOrThrow(data, 0, data.Length);
+    }
+    else
+    {
+      data = new byte[4096];
+      int length = 0;
+      while(true)
       {
-        byte[] newBuffer = new byte[buffer.Length*2];
-        Array.Copy(buffer, newBuffer, totalBytes);
-        buffer = newBuffer;
+        int read = stream.Read(data, length, data.Length-length);
+        if(read == 0) break;
+        length += read;
+        if(length == data.Length)
+        {
+          int newSize = data.Length * 2;
+          // if the new size is negative, that means it overflowed the int
+          if(newSize < 0) throw new NotImplementedException("Support for reading streams larger than 1GB is not implemented.");
+          byte[] newData = new byte[newSize];
+          Array.Copy(data, newData, length);
+          data = newData;
+        }
       }
 
-      int read = stream.Read(buffer, totalBytes, buffer.Length - totalBytes);
-      if(read == 0 || stream.CanSeek && stream.Position == stream.Length) break;
-      totalBytes += read;
+      data = data.Trim(length);
     }
-
-    if(totalBytes != buffer.Length)
-    {
-      byte[] finalBuffer = new byte[totalBytes];
-      Array.Copy(buffer, finalBuffer, totalBytes);
-      buffer = finalBuffer;
-    }
-
-    return buffer;
+    return data;
   }
 
   /// <summary>Reads the given number of bytes from the stream and converts them into a string using UTF-8 encoding.</summary>

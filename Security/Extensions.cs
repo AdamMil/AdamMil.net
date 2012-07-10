@@ -20,6 +20,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Text;
+using AdamMil.Utilities;
 
 namespace AdamMil.Security
 {
@@ -27,6 +28,27 @@ namespace AdamMil.Security
 /// <summary>A class containing various helpful extensions for using <see cref="SecureString"/> objects.</summary>
 public static class SecureStringExtensions
 {
+  /// <summary>Determines whether two <see cref="SecureString"/> objects are equal.</summary>
+  public unsafe static bool IsEqualTo(this SecureString str1, SecureString str2)
+  {
+    if(str1 == null) return str2 != null;
+    else if(str2 == null || str1.Length != str2.Length) return false;
+
+    // treat the string as securely as we can by ensuring that it doesn't stick around in memory longer than necessary
+    IntPtr bstr1 = IntPtr.Zero, bstr2 = IntPtr.Zero;
+    try
+    {
+      bstr1 = Marshal.SecureStringToBSTR(str1);
+      bstr2 = Marshal.SecureStringToBSTR(str2);
+      return Unsafe.AreEqual(bstr1.ToPointer(), bstr2.ToPointer(), str1.Length*2);
+    }
+    finally
+    {
+      if(bstr1 != IntPtr.Zero) Marshal.ZeroFreeBSTR(bstr1);
+      if(bstr2 != IntPtr.Zero) Marshal.ZeroFreeBSTR(bstr2);
+    }
+  }
+
   /// <summary>Performs the given action on the characters within a <see cref="SecureString"/>.</summary>
   public static void Process(this SecureString secureString, Action<char[]> processor)
   {

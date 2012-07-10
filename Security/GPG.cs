@@ -870,10 +870,7 @@ public class ExeGPG : GPG
 
     Command command = Execute("--gen-random " + qualityArg + " " + count.ToInvariantString(), StatusMessages.Ignore, true, true);
     ProcessCommand(command, null,
-      delegate(Command cmd, CommandState state)
-      {
-        count -= cmd.Process.StandardOutput.BaseStream.Read(buffer, 0, count, false);
-      });
+      delegate(Command cmd, CommandState state) { count -= cmd.Process.StandardOutput.BaseStream.FullRead(buffer, 0, count); });
 
     if(count != 0) throw new PGPException("GPG didn't write enough random bytes.");
     command.CheckExitCode();
@@ -4445,7 +4442,7 @@ public class ExeGPG : GPG
               DummyAttribute dummy = (DummyAttribute)key.Attributes[j];
               byte[] attrData = new byte[dummy.Message.Length];
 
-              if(attrTempStream.Read(attrData, 0, attrData.Length, false) != attrData.Length)
+              if(attrTempStream.FullRead(attrData, 0, attrData.Length) != attrData.Length)
               {
                 LogLine("Ignoring truncated attribute.");
               }
