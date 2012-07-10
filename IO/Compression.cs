@@ -185,7 +185,7 @@ static class CompressionHelpers
 
 #region PKWareDCLCompressor
 /// <summary>Implements a <see cref="BinaryEncoder"/> that compresses data in the format used by the PKWare Data Compression Library.</summary>
-public sealed class PKWareDCLCompressor : BinaryEncoder
+public sealed class PKWareDCLCompressor : UnsafeBinaryEncoder
 {
   public PKWareDCLCompressor() : this(0) { }
 
@@ -195,20 +195,6 @@ public sealed class PKWareDCLCompressor : BinaryEncoder
     if(dictionarySize != 1024 && dictionarySize != 2048 && dictionarySize != 4096) throw new ArgumentOutOfRangeException();
     this.dictionarySize = dictionarySize;
     dictionarySizeSelector = dictionarySize == 4096 ? 6 : dictionarySize == 2048 ? 5 : 4;
-  }
-
-  /// <inheritdoc/>
-  public unsafe override int Encode(byte[] source, int sourceIndex, int sourceCount, byte[] destination, int destinationIndex, bool flush)
-  {
-    Utility.ValidateRange(source, sourceIndex, sourceCount);
-    Utility.ValidateRange(destination, destinationIndex, 0);
-    fixed(byte* srcBase=source)
-    fixed(byte* destBase=destination)
-    {
-      byte sourceByte;
-      return Encode(srcBase == null ? &sourceByte : srcBase+sourceIndex, sourceCount, // srcBase is null when source is zero bytes
-                    destBase+destinationIndex, destination.Length-destinationIndex, flush);
-    }
   }
 
   /// <inheritdoc/>
@@ -257,17 +243,6 @@ public sealed class PKWareDCLCompressor : BinaryEncoder
 
     State s = this.s; // make a copy of the compressor state
     return s.Update(data, count, null, null, dict, dictionarySize, hashStart, hashPrev, simulateFlush);
-  }
-
-  /// <inheritdoc/>
-  public unsafe override int GetByteCount(byte[] data, int index, int count, bool simulateFlush)
-  {
-    Utility.ValidateRange(data, index, count);
-    fixed(byte* dataPtr=data)
-    {
-      byte dataByte; // dataPtr is null when source is zero bytes, so provide /some/ pointer
-      return GetByteCount(dataPtr == null ? &dataByte : dataPtr+index, count, simulateFlush);
-    }
   }
 
   /// <inheritdoc/>
@@ -807,7 +782,7 @@ public sealed class PKWareDCLCompressor : BinaryEncoder
 
 #region PKWareDCLDecompressor
 /// <summary>Implements a <see cref="BinaryEncoder"/> that decompresses data compressed by the PKWare Data Compression Library.</summary>
-public sealed class PKWareDCLDecompressor : BinaryEncoder
+public sealed class PKWareDCLDecompressor : UnsafeBinaryEncoder
 {
   /// <inheritdoc/>
   [CLSCompliant(false)]
@@ -1067,21 +1042,6 @@ public sealed class PKWareDCLDecompressor : BinaryEncoder
   }
 
   /// <inheritdoc/>
-  public unsafe override int Encode(byte[] source, int sourceIndex, int sourceCount, byte[] destination, int destinationIndex,
-                                    bool flush)
-  {
-    Utility.ValidateRange(source, sourceIndex, sourceCount);
-    Utility.ValidateRange(destination, destinationIndex, 0);
-    fixed(byte* srcBase=source)
-    fixed(byte* destBase=destination)
-    {
-      byte sourceByte;
-      return Encode(srcBase == null ? &sourceByte : srcBase+sourceIndex, sourceCount, // srcBase is null when source is zero bytes
-                    destBase+destinationIndex, destination.Length-destinationIndex, flush);
-    }
-  }
-
-  /// <inheritdoc/>
   [CLSCompliant(false)]
   public override unsafe int GetByteCount(byte* data, int count, bool simulateFlush)
   {
@@ -1228,24 +1188,13 @@ public sealed class PKWareDCLDecompressor : BinaryEncoder
   }
 
   /// <inheritdoc/>
-  public unsafe override int GetByteCount(byte[] data, int index, int count, bool simulateFlush)
-  {
-    Utility.ValidateRange(data, index, count);
-    fixed(byte* dataPtr=data)
-    {
-      byte dataByte; // dataPtr is null when source is zero bytes, so provide /some/ pointer
-      return GetByteCount(dataPtr == null ? &dataByte : dataPtr+index, count, simulateFlush);
-    }
-  }
-
-  /// <inheritdoc/>
   public override int GetMaxBytes(int unencodedByteCount)
   {
     if(unencodedByteCount < 0) throw new ArgumentOutOfRangeException();
-    // we can get 518 bytes out of every 17 bits. that's about 244 decoded bytes per input byte. don't assume the data contains the header
+    // we can get 518 bytes out of every 22 bits. that's about 189 decoded bytes per input byte. don't assume the data contains the header
     // or footer, because this method may be called for portions of data in the middle of the stream
     unencodedByteCount += (bitsInBuffer+7) / 8;
-    return unencodedByteCount > 8801162 ? int.MaxValue : unencodedByteCount * 244; // above 8801162 input bytes, it would overflow
+    return unencodedByteCount > 11362347 ? int.MaxValue : unencodedByteCount * 189; // above 11362347 input bytes, it would overflow
   }
 
   /// <inheritdoc/>

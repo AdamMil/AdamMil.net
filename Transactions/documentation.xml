@@ -15,7 +15,7 @@
         Thrown if any variables have changed since they were read by the transaction
         in such a way that restarting the transaction would allow it to see different values.
       </exception>
-      <!--<include file="documentation.xml" path="TX/STM/ConsistencyCheckRemarks/*" />-->
+      <!--<include file="documentation.xml" path="/TX/STM/ConsistencyCheckRemarks/*" />-->
     </CheckConsistency>
     <Commit>
       <summary>
@@ -34,7 +34,7 @@
       </exception>
     </Commit>
     <ConsistencyCheckRemarks>
-      <!--<include file="documentation.xml" path="TX/STM/ConsistencyRemarks/*" />-->
+      <!--<include file="documentation.xml" path="/TX/STM/ConsistencyRemarks/*" />-->
       <remarks>
         <para>
           This method will deliberately fail to detect inconsistency in the case that this is a nested transaction and the
@@ -80,10 +80,10 @@ using(STMTransaction tx = STMTransaction.Create())
         called.
       </summary>
       <seealso cref="CheckConsistency"/>
-      <!--<include file="documentation.xml" path="TX/STM/ConsistencyCheckRemarks/*" />-->
+      <!--<include file="documentation.xml" path="/TX/STM/ConsistencyCheckRemarks/*" />-->
     </IsConsistent>
     <NewTVar>
-      <!--<include file="documentation.xml" path="TX/STM/TVarRemarks/*" />-->
+      <!--<include file="documentation.xml" path="/TX/STM/TVarRemarks/*" />-->
       <exception cref="NotSupportedException"> Thrown if <typeparamref name="T"/> is not cloneable.</exception>
     </NewTVar>
     <OpenForWrite>
@@ -100,8 +100,8 @@ using(STMTransaction tx = STMTransaction.Create())
     <Read>
       <summary>
         Opens the variable for read access and returns the current value. If there is no current transaction, this is
-        equivalent to calling <see cref="ReadWithoutOpening"/>. You must not call any methods or properties on the returned object
-        that would change it, without opening it in read/write mode (by calling <see cref="OpenForWrite"/>) first!
+        equivalent to calling <see cref="ReadCommitted"/>. You must not call any methods or properties on the returned object
+        that would change it unless you open it in read/write mode (by calling <see cref="OpenForWrite"/>) first!
       </summary>
     </Read>
     <ReadWithoutOpening>
@@ -117,7 +117,7 @@ using(STMTransaction tx = STMTransaction.Create())
       <param name="postCommitAction">
         An action that will be executed after the transaction is successfully committed. Using this parameter differs from simply
         running code after the method returns because in the case of a nested transaction, it will be queued and executed only if
-        all enclosing transactions also commit successfully.
+        all enclosing transactions also commit successfully. Note that the action may be executed on a different thread.
       </param>
       <remarks>If <see cref="TransactionAbortedException"/> is thrown from the delegate, it will cause the transaction to be
       restarted. If another type of exception is thrown, a consistency check will be done. If the transaction is consistent,
@@ -133,7 +133,7 @@ using(STMTransaction tx = STMTransaction.Create())
       <param name="postCommitAction">
         An action that will be executed after the transaction is successfully committed. Using this parameter differs from simply
         running code after the method returns because in the case of a nested transaction, it will be queued and executed only if
-        all enclosing transactions also commit successfully.
+        all enclosing transactions also commit successfully. Note that the action may be executed on a different thread.
       </param>
       <remarks>
         If <see cref="TransactionAbortedException"/> is thrown from the delegate, it will cause the transaction to be

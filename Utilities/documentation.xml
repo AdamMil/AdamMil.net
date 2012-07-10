@@ -306,4 +306,27 @@
       </remarks>
     </ParallelismRemarks>
   </Tasks>
+
+  <XmlDuration>
+    <AddSubRemarks>
+      <remarks>
+        Note that due to the format of the <c>xs:duration</c> type, it is not possible to represent a duration with one component
+        having a different sign from another. This restriction is somewhat relaxed by the <see cref="XmlDuration"/> class, in that it is
+        possible to, for instance, add a duration of -10 seconds to a duration of 1 minute. Instead of reporting an error, a duration of
+        50 seconds will be returned. However, it is still not possible to combine durations that would result in the variable-length
+        portion of the duration (i.e. years and months) having a different sign from the fixed-length portion (i.e. days, hours, minutes,
+        etc). For instance, adding a duration of -5 minutes to a duration of 1 month is not allowed, as it is not possible to represent the
+        resulting value as an <c>xs:duration</c>. (Similarly, creating a duration with 1 month and -5 minutes is not allowed.)
+      </remarks>
+      <exception cref="ArgumentOutOfRangeException">
+        Thrown if the result would be outside the range of the <see cref="XmlDuration"/>
+        object. The allowed range is 2147483647 total months (as any combination of years and months) and approximately 10675199.1167
+        total days (as any combination of days, hours, minutes, etc).
+      </exception>
+      <exception cref="ArgumentException">
+        Thrown if the result is not representable as an <see cref="XmlDuration"/> (i.e. if it would have
+        variable-length and fixed-length portions of opposite sign).
+      </exception>
+    </AddSubRemarks>
+  </XmlDuration>
 </Utilities>

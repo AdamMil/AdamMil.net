@@ -81,6 +81,12 @@ public partial class PasswordForm : Form
     }
   }
 
+  /// <summary>Clears the password entered by the user.</summary>
+  public void ClearPassword()
+  {
+    txtPassword.Clear();
+  }
+
   /// <summary>Gets the password entered by the user.</summary>
   public SecureString GetPassword()
   {

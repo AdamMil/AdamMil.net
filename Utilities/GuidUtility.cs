@@ -28,13 +28,17 @@ namespace AdamMil.Utilities
 /// <summary>Provides very general utilities to aid .NET development.</summary>
 public static class GuidUtility
 {
-  /// <summary>Creates a GUID based on the given string. A given string will always produce the same GUID.</summary>
+  /// <summary>Creates a GUID based on the given string. A given string will always produce the same GUID, and the GUID should not be
+  /// expected to be "globally unique", although a collision between two distinct strings is very unlikely.
+  /// </summary>
   public static Guid CreateGuid(string str)
   {
     return CreateGuid(Encoding.UTF8.GetBytes(str));
   }
 
-  /// <summary>Creates a GUID based on the given data. A given set of bytes will always produce the same GUID.</summary>
+  /// <summary>Creates a GUID based on the given data. A given set of bytes will always produce the same GUID, and the GUID should not be
+  /// expected to be "globally unique", although a collision between any two distinct strings is very unlikely.
+  /// </summary>
   public static Guid CreateGuid(byte[] data)
   {
     byte[] hash;

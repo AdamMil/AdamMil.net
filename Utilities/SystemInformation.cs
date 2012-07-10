@@ -75,7 +75,7 @@ public static class SystemInformation
     UIntPtr processMask, systemMask;
     try
     {
-      if(GetProcessAffinityMask(GetCurrentProcess(), out processMask, out systemMask)) return BitCount((ulong)processMask);
+      if(GetProcessAffinityMask(currentProcess, out processMask, out systemMask)) return BitCount((ulong)processMask);
     }
     catch { }
     return CpuThreadCount;
@@ -174,7 +174,7 @@ public static class SystemInformation
       UIntPtr processMask, systemMask;
       try
       {
-        if(GetProcessAffinityMask(GetCurrentProcess(), out processMask, out systemMask))
+        if(GetProcessAffinityMask(currentProcess, out processMask, out systemMask))
         {
           int count = 0;
           foreach(UIntPtr mask in masks)
@@ -198,6 +198,7 @@ public static class SystemInformation
   }
 
   static UIntPtr[] cpuCoreMasks, independentProcessorMasks;
+  static readonly IntPtr currentProcess = GetCurrentProcess(); // it returns a constant pseudo-handle, so we only need to call it once
   #endif
 
   static unsafe void InitializeProcessorInformation()

@@ -196,7 +196,7 @@ public unsafe abstract class PinnedBuffer : IDisposable
 
   void PinBuffer()
   {
-    handle    = GCHandle.Alloc(Buffer, GCHandleType.Pinned);
+    handle    = GCHandle.Alloc(Buffer, GCHandleType.Pinned); // NOTE: GCHandle is slow. it'd be nice to do without it...
     BufferPtr = (byte*)handle.AddrOfPinnedObject().ToPointer();
   }
 
@@ -544,7 +544,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
       value |= (byteValue & 0x7F) << shift;
       shift += 7;
     }
-    return negative && shift < 32 ? value | (-1 << shift) : value; // if it's negative, fill in the bits for the sign-extension
+    return negative && shift < 32 ? value | (-1 << shift) : value; // if it's negative, fill in the bits for the sign extension
   }
 
   /// <summary>Reads a variable-length unsigned integer from the stream.</summary>
@@ -745,6 +745,52 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   {
     Utility.ValidateRange(array, index, count);
     for(int end=index+count; index < end; index++) array[index] = ReadDateTime();
+  }
+
+  /// <summary>Reads a number of integers from the binary reader, each of which is assumed to have been written with
+  /// <see cref="BinaryWriter.WriteEncoded(int)"/>.
+  /// </summary>
+  public int[] ReadEncodedInt32s(int count)
+  {
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    int[] values = new int[count];
+    for(int i=0; i<values.Length; i++) values[i] = ReadEncodedInt32();
+    return values;
+  }
+
+  /// <summary>Reads a number of long integers from the binary reader, each of which is assumed to have been written with
+  /// <see cref="BinaryWriter.WriteEncoded(long)"/>.
+  /// </summary>
+  public long[] ReadEncodedInt64s(int count)
+  {
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    long[] values = new long[count];
+    for(int i=0; i<values.Length; i++) values[i] = ReadEncodedInt64();
+    return values;
+  }
+
+  /// <summary>Reads a number of unsigned integers from the binary reader, each of which is assumed to have been written with
+  /// <see cref="BinaryWriter.WriteEncoded(uint)"/>.
+  /// </summary>
+  [CLSCompliant(false)]
+  public uint[] ReadEncodedUInt32s(int count)
+  {
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    uint[] values = new uint[count];
+    for(int i=0; i<values.Length; i++) values[i] = ReadEncodedUInt32();
+    return values;
+  }
+
+  /// <summary>Reads a number of unsigned long integers from the binary reader, each of which is assumed to have been written with
+  /// <see cref="BinaryWriter.WriteEncoded(ulong)"/>.
+  /// </summary>
+  [CLSCompliant(false)]
+  public ulong[] ReadEncodedUInt64s(int count)
+  {
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    ulong[] values = new ulong[count];
+    for(int i=0; i<values.Length; i++) values[i] = ReadEncodedUInt64();
+    return values;
   }
 
   /// <summary>Reads an array of <see cref="Guid"/> objects from the stream.</summary>
@@ -992,6 +1038,15 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   {
     int nbytes = ReadEncodedInt32();
     return nbytes == -1 ? null : ReadString(nbytes, encoding);
+  }
+
+  /// <summary>Reads a number of strings. The strings are assumed to have been written with <see cref="BinaryWriter.WriteStringWithLength(string)" />.</summary>
+  public string[] ReadStringWithLengths(int count)
+  {
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    string[] values = new string[count];
+    for(int i=0; i<values.Length; i++) values[i] = ReadStringWithLength();
+    return values;
   }
 
   /// <summary>Advances the reader by the given number of bytes.</summary>
@@ -1794,7 +1849,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
 
       while(value > 127 || value < -128)
       {
-        Write((byte)(value & 0x7F | 0x80));
+        Write((byte)(value | 0x80));
         value >>= 7;
       }
       Write((byte)(value & 0x7F));
@@ -1819,10 +1874,10 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
 
       while(value > 127 || value < -128)
       {
-        Write((byte)(value & 0x7F | 0x80));
+        Write((byte)((int)value | 0x80));
         value >>= 7;
       }
-      Write((byte)(value & 0x7F));
+      Write((byte)((int)value & 0x7F));
     }
   }
 
@@ -1833,10 +1888,10 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     // values from 0-127 will be encoded into a single byte, from 128 to 32767 in two bytes, etc
     while(value > 127)
     {
-      Write((byte)(value & 0x7F | 0x80));
+      Write((byte)(value | 0x80));
       value >>= 7;
     }
-    Write((byte)(value & 0x7F));
+    Write((byte)value);
   }
 
   /// <summary>Writes an unsigned long integer with a variable-length format, taking from one to ten bytes.</summary>
@@ -1852,10 +1907,10 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
       // values from 0-127 will be encoded into a single byte, from 128 to 32767 in two bytes, etc
       while(value > 127)
       {
-        Write((byte)(value & 0x7F | 0x80));
+        Write((byte)((int)value | 0x80));
         value >>= 7;
       }
-      Write((byte)(value & 0x7F));
+      Write((byte)value);
     }
   }
 
@@ -1868,7 +1923,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// <summary>Writes a string to the stream, with the given encoding. Null strings are supported.</summary>
   public void WriteStringWithLength(string str, Encoding encoding)
   {
-    if(str == null) WriteEncoded(-1);
+    if(str == null) WriteEncoded(-1); // TODO: use (uint)0 instead of -1 to represent a null string
     else WriteStringWithLength(str, 0, str.Length, encoding);
   }
 

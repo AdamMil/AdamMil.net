@@ -28,12 +28,12 @@ using System;
 namespace AdamMil.Collections
 {
 
-/// <summary>Implements a Bloom filter, which is a space-efficient probabilistic set that supports two operations. You can add
-/// an item to the set using <see cref="Add"/>, and you can query whether an item might have been added to the set using
+/// <summary>Implements a Bloom filter, which is a space-efficient probabilistic set that supports three operations. You can add
+/// an item to the set using <see cref="Add"/> and you can query whether an item might have been added to the set using
 /// <see cref="PossiblyContains"/>. False positives are possible, so that <see cref="PossiblyContains"/> may return true for an
 /// item that was never added, but false negatives are not possible, so if <see cref="PossiblyContains"/> returns false, then the
-/// item definitely was not added. It is not possible to remove items from the set or to count or enumerate the items within the
-/// set.
+/// item definitely was not added. It is not possible to remove individual items from the set or to count or enumerate the items
+/// within the set, but you can clear the set using <see cref="Clear"/>.
 /// </summary>
 /// <remarks>
 /// Bloom filters are most efficient when the set of keys that will be added is very sparse with respect to the set of possible

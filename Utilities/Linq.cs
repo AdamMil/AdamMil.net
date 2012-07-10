@@ -29,6 +29,19 @@ namespace AdamMil.Utilities
 /// <summary>Provides additional LINQ extensions for <see cref="IEnumerable{T}"/>.</summary>
 public static class EnumerableExtensions
 {
+  /// <summary>Concatenates two sequences. If either sequence is null, it is treated as though it was empty.</summary>
+  public static IEnumerable<T> Coalesce<T>(this IEnumerable<T> first, IEnumerable<T> second)
+  {
+    return first == null ? (second != null ? second : Enumerable.Empty<T>()) :
+           second == null ? first : first.Concat(second);
+  }
+
+  /// <summary>Returns the given sequence if it is not null, and an empty sequence otherwise.</summary>
+  public static IEnumerable<T> EmptyIfNull<T>(this IEnumerable<T> sequence)
+  {
+    return sequence == null ? Enumerable.Empty<T>() : sequence;
+  }
+
   /// <summary>Returns the maximum <see cref="DateTime"/> value from a sequence.</summary>
   /// <exception cref="InvalidOperationException">Thrown if <paramref name="items"/> is empty.</exception>
   public static DateTime Max<T>(this IEnumerable<T> items, Func<T, DateTime> dateSelector)
@@ -176,6 +189,15 @@ public static class EnumerableExtensions
     return items.TakeLeast(count, new ReversedComparer<T>(comparer));
   }
 
+  /// <summary>Returns up to the specified number of items, all of which are greater than or equal to the rest of the items (using
+  /// the given key selector function to compare them). The items may not be returned in sorted order.
+  /// </summary>
+  /// <include file="documentation.xml" path="/HiA/Linq/TakeGreatest/node()"/>
+  public static IEnumerable<T> TakeGreatest<T, K>(this IEnumerable<T> items, int count, Func<T, K> keySelector)
+  {
+    return items.TakeGreatest(count, MakeKeyComparer(keySelector));
+  }
+
   /// <summary>Returns up to the specified number of items, all of which are less than or equal to the rest of the items. The
   /// items may not be returned in sorted order.
   /// </summary>
@@ -195,6 +217,15 @@ public static class EnumerableExtensions
   }
 
   /// <summary>Returns up to the specified number of items, all of which are less than or equal to the rest of the items (using
+  /// the given key selector function to compare them). The items may not be returned in sorted order.
+  /// </summary>
+  /// <include file="documentation.xml" path="/HiA/Linq/TakeLeast/node()"/>
+  public static IEnumerable<T> TakeLeast<T, K>(this IEnumerable<T> items, int count, Func<T, K> keySelector)
+  {
+    return items.TakeLeast(count, MakeKeyComparer(keySelector));
+  }
+
+  /// <summary>Returns up to the specified number of items, all of which are less than or equal to the rest of the items (using
   /// the given <see cref="IComparer{T}"/> to compare them). The items may not be returned in sorted order.
   /// </summary>
   /// <include file="documentation.xml" path="/Utilities/Linq/TakeLeast/*"/>
@@ -202,7 +233,7 @@ public static class EnumerableExtensions
   {
     if(items == null) throw new ArgumentNullException();
     if(count < 0) throw new ArgumentOutOfRangeException();
-    else if(count == 0) return new EmptyEnumerable<T>();
+    else if(count == 0) return Enumerable.Empty<T>();
 
     // if all of the items are desired, just return them as-is
     ICollection<T> collection = items as ICollection<T>;
@@ -273,6 +304,25 @@ public static class EnumerableExtensions
         }
       }
     }
+  }
+
+  /// <summary>Returns a <see cref="HashSet{T}"/> containing the items from the given sequence.</summary>
+  public static HashSet<T> ToSet<T>(this IEnumerable<T> items)
+  {
+    if(items == null) throw new ArgumentNullException();
+    return new HashSet<T>(items);
+  }
+ 
+  /// <summary>Filters the given sequence to remove null values.</summary>
+  public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T> items) where T : class
+  {
+    return items.Where(item => item != null);
+  }
+
+  static IComparer<T> MakeKeyComparer<T, K>(Func<T, K> keySelector)
+  {
+    if(keySelector == null) throw new ArgumentNullException();
+    return new DelegateComparer<T>((a, b) => Comparer<K>.Default.Compare(keySelector(a), keySelector(b)));
   }
 }
 

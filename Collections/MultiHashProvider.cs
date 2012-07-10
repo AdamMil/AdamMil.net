@@ -26,7 +26,7 @@ using System.Runtime.InteropServices;
 namespace AdamMil.Collections
 {
 
-// TODO: it would be good to implement hash providers optimized for 64-bit platforms (e.g. by using 64-bit block ciphers)
+// TODO: it would be good to implement hash providers optimized for 64-bit platforms (e.g. by using 64-bit block ciphers). XXTEA would work
 
 #region IMultiHashProvider
 /// <summary>An interface for hashing an item in multiple ways.</summary>
@@ -48,20 +48,16 @@ public interface IMultiHashProvider<T>
 // rather than inside MultiHashProvider, where they really belong
 static class HashHelper
 {
-
-  // this is a weak block cipher with a 32-bit key and a 32-bit output. it should be clear from the small key size that it's
-  // insecure, but if that's not enough, it's a weakened form of an already weak algorithm, xxtea. but it should serve its
-  // purpose of giving us a pseudorandom permutation of the output space (i.e. of the 32-bit integers) with the key as the seed
+  // this is a weak block cipher with a 32-bit key and a 32-bit output based on a 16:16 balanced Feistel network. it should be clear from
+  // the small key size and poor design that it's insecure, but it should serve its purpose of giving us a pseudorandom permutation of the
+  // output space (i.e. of the 32-bit integers) with the key as the seed. the function is near impossible to read, but it works!
   internal static uint Cipher(uint key, uint data)
   {
-    data += (((data>>5)^(data<<2)) + ((data>>3)^(data<<4))) ^ ((0x9e3779b9^data) + (key^data));
-    key = (key>>8) | ((key&0xFF)<<24); // rotate the bytes in the key
-    data += (((data>>5)^(data<<2)) + ((data>>3)^(data<<4))) ^ ((0x3c6ef372^data) + (key^data));
-    key = (key>>8) | ((key&0xFF)<<24);
-    data += (((data>>5)^(data<<2)) + ((data>>3)^(data<<4))) ^ ((0xdaa66d2b^data) + (key^data));
-    key = (key>>8) | ((key&0xFF)<<24);
-    data += (((data>>5)^(data<<2)) + ((data>>3)^(data<<4))) ^ ((0x78dde6e4^data) + (key^data));
-    return data;
+    // TODO: run this through the NIST suite to make sure it's producing sufficiently random output
+    uint R = (data^key) & 0xFFFF, L = (data>>16) ^ (((((R>>5)^(R<<2)) + ((R>>3)^(R<<4))) ^ ((R^0x79b9) + R)) & 0xFFFF);
+    key = (key>>3) | (key<<29);
+    R ^= ((((L>>5)^(L<<2)) + ((L>>3)^(L<<4))) ^ ((L^0xf372) + (L^key))) & 0xFFFF;
+    return ((L ^ ((((R>>5)^(R<<2)) + ((R>>3)^(R<<4))) ^ ((R^0x6d2b) + (R^((key>>3)|(key<<29)))))) << 16) | R;
   }
 
   internal static unsafe int Hash8(int hashFunction, void* data)
@@ -72,9 +68,10 @@ static class HashHelper
 
   internal static unsafe int Hash16(int hashFunction, void* data)
   {
-    // we use two different hash functions to prevent the output from always being zero when the input bytes are all zero
-    return (int)(Cipher((uint)hashFunction, *(uint*)data)     ^ Cipher((uint)hashFunction, ((uint*)data)[1]) ^
-                 Cipher((uint)hashFunction, ((uint*)data)[2]) ^ Cipher((uint)hashFunction+1, ((uint*)data)[3]));
+    // we use multiple hash functions to prevent the output from always being zero when the input bytes are all zero (two would suffice,
+    // but we might as well use more to increase the quality of the hash)
+    return (int)(Cipher((uint)hashFunction,   *(uint*)data)     ^ Cipher((uint)hashFunction+1, ((uint*)data)[1]) ^
+                 Cipher((uint)hashFunction+2, ((uint*)data)[2]) ^ Cipher((uint)hashFunction+3, ((uint*)data)[3]));
   }
 
   internal static unsafe int HashBytes(int hashFunction, void* data, int length)
@@ -319,6 +316,7 @@ sealed class NullableHashProvider<T> : MultiHashProvider<Nullable<T>> where T : 
   {
     // since nulls and zeros are both common, we'll hash them to different values. (in particular, for null we'll use 0xe7a03d9a
     // or a hash of that, where 0xe7a03d9a is a randomly-chosen negative int)
+    // TODO: why negative?
     return item.HasValue ?
       hashFunction == 0 ? item.Value.GetHashCode() : MultiHashProvider<T>.Default.GetHashCode(hashFunction, item.Value) :
       (int)(hashFunction == 0 ? 0xe7a03d9a : HashHelper.Cipher((uint)hashFunction, 0xe7a03d9a));
@@ -337,7 +335,7 @@ sealed class StringHashProvider : MultiHashProvider<string>
     }
     else if(string.IsNullOrEmpty(item))
     {
-      // use an arbitrary number for empty strings to differentiate them from null strings
+      // use an arbitrary number for empty strings to differentiate them from null strings, as both are common cases
       return (int)HashHelper.Cipher((uint)hashFunction, item == null ? 0 : 0x8E5211CC);
     }
     else

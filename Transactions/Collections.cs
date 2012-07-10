@@ -312,7 +312,7 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
 
     if(initialCapacity != 0)
     {
-      using(STMTransaction transaction = STMTransaction.Create(STMOptions.IgnoreSystemTransaction))
+      using(STMTransaction transaction = STMTransaction.Create())
       {
         Allocate(initialCapacity);
         transaction.Commit();
@@ -331,7 +331,7 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
   {
     if(initialItems == null) throw new ArgumentNullException();
 
-    using(STMTransaction transaction = STMTransaction.Create(STMOptions.IgnoreSystemTransaction))
+    using(STMTransaction transaction = STMTransaction.Create())
     {
       Allocate(initialItems.Count);
       foreach(KeyValuePair<K, V> pair in initialItems) Add(pair.Key, pair.Value, false);
@@ -553,7 +553,7 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
     {
       return STM.Retry(delegate
       {
-        int addressableSize = GetAddressableSize(), hash = comparer.GetHashCode(key) % addressableSize, index;
+        int addressableSize = GetAddressableSize(), hash = (int)((uint)comparer.GetHashCode(key) % (uint)addressableSize), index;
         Bucket bucket = array[hash].Read();
         index = bucket.First;
         if(index != Empty)
@@ -831,7 +831,7 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
     int count = _count.OpenForWrite();
     if(count == _capacity.Read()) Allocate(GetAddressableSize()*2+1);
 
-    int addressSize = GetAddressableSize(), hash = comparer.GetHashCode(key) % addressSize, index = hash;
+    int addressSize = GetAddressableSize(), hash = (int)((uint)comparer.GetHashCode(key) % (uint)addressSize), index = hash;
     Bucket bucket = array[hash].Read();
     if(bucket.First != Empty) // if data for this hash code already exists...
     {
@@ -922,7 +922,7 @@ public class TransactionalDictionary<K, V> : IDictionary<K, V>
   {
     if(array != null)
     {
-      int hash = comparer.GetHashCode(key) % GetAddressableSize();
+      int hash = (int)((uint)comparer.GetHashCode(key) % (uint)GetAddressableSize());
       Bucket bucket = array[hash].Read();
       int index = bucket.First;
       if(index != Empty)

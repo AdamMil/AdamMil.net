@@ -15,7 +15,7 @@ public class LinqTests
     int[] array = new int[1000];
     for(int i=0; i<array.Length; i++) array[i] = i/2;
 
-    Random rand = new Random();
+    Random rand = new Random(); // shuffle the array
     for(int i=0; i<array.Length-1; i++) Utility.Swap(ref array[i], ref array[i+rand.Next(array.Length-i)]);
 
     TestHelpers.AssertArrayEquals(array.TakeLeast(10).Order().ToArray(), 0, 0, 1, 1, 2, 2, 3, 3, 4, 4);

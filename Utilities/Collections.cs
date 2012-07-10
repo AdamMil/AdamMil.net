@@ -24,49 +24,34 @@ using System.Collections.Generic;
 namespace AdamMil.Collections
 {
 
-#region EmptyEnumerable
-/// <summary>Represents an empty sequence of items. This read-only class can be used wherever an
-/// <see cref="IEnumerable{T}"/> or <see cref="IEnumerator{T}"/> is expected.
-/// </summary>
-public sealed class EmptyEnumerable<T> : IEnumerable<T>, IEnumerator<T>
-{
-  /// <inheritdoc/>
-  public IEnumerator<T> GetEnumerator()
-  {
-    return this;
-  }
-
-  T IEnumerator<T>.Current
-  {
-    get { throw new InvalidOperationException(); }
-  }
-
-  object System.Collections.IEnumerator.Current
-  {
-    get { throw new InvalidOperationException(); }
-  }
-
-  void IDisposable.Dispose() { }
-
-  bool System.Collections.IEnumerator.MoveNext()
-  {
-    return false;
-  }
-
-  void System.Collections.IEnumerator.Reset()
-  {
-  }
-
-  System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-  {
-    return this;
-  }
-}
-#endregion
-
 /// <summary>Implements useful extensions for .NET built-in collections.</summary>
 public static partial class CollectionExtensions
 {
+  /// <summary>Adds a list of items to an <see cref="ICollection{T}"/>.</summary>
+  public static void AddRange<T>(this ICollection<T> collection, params T[] items)
+  {
+    AddRange(collection, (IEnumerable<T>)items);
+  }
+
+  /// <summary>Adds a list of items to an <see cref="ICollection{T}"/>.</summary>
+  public static void AddRange<T>(this ICollection<T> collection, IEnumerable<T> items)
+  {
+    if(collection == null) throw new ArgumentNullException();
+
+    if(items != null)
+    {
+      List<T> builtInList = collection as List<T>;
+      if(builtInList != null)
+      {
+        builtInList.AddRange(items);
+      }
+      else
+      {
+        foreach(T item in items) collection.Add(item);
+      }
+    }
+  }
+
   /// <summary>Adds a set of key/value pairs to a dictionary. An exception will be thrown if a key already exists in the
   /// dictionary.
   /// </summary>
@@ -84,13 +69,50 @@ public static partial class CollectionExtensions
   }
 
   /// <summary>Adds a list of items to an <see cref="IList{T}"/>.</summary>
-  public static void AddRange<T>(this IList<T> list, params T[] items)
+  public static void AddRange<T>(this IList<T> list, IList<T> items)
   {
     if(list == null) throw new ArgumentNullException();
+
     if(items != null)
     {
-      foreach(T item in items) list.Add(item);
+      List<T> builtInList = list as List<T>;
+      if(builtInList != null)
+      {
+        builtInList.AddRange(items);
+      }
+      else
+      {
+        foreach(T item in items) list.Add(item);
+      }
     }
+  }
+
+  /// <summary>Returns a new <see cref="HashSet{T}"/> containing the members of <paramref name="set"/> that don't exist in
+  /// <paramref name="excluded"/>.
+  /// </summary>
+  public static HashSet<T> Except<T>(this HashSet<T> set, HashSet<T> excluded)
+  {
+    if(set == null || excluded == null) throw new ArgumentNullException();
+    HashSet<T> result = new HashSet<T>();
+    foreach(T item in set)
+    {
+      if(!excluded.Contains(item)) result.Add(item);
+    }
+    return result;
+  }
+
+  /// <summary>Returns a new <see cref="HashSet{T}"/> containing the members of <paramref name="set1"/> that also exist in
+  /// <paramref name="set2"/>.
+  /// </summary>
+  public static HashSet<T> Intersection<T>(this HashSet<T> set1, HashSet<T> set2)
+  {
+    if(set1 == null || set2 == null) throw new ArgumentNullException();
+    HashSet<T> result = new HashSet<T>();
+    foreach(T item in set1)
+    {
+      if(set2.Contains(item)) result.Add(item);
+    }
+    return result;
   }
 
   /// <summary>Returns the last item in the array.</summary>
@@ -153,6 +175,13 @@ public static partial class CollectionExtensions
     }
   }
 
+  /// <summary>Removes a set of keys from a dictionary.</summary>
+  public static void RemoveRange<K, V>(this IDictionary<K, V> dictionary, IEnumerable<K> keysToRemove)
+  {
+    if(dictionary == null || keysToRemove == null) throw new ArgumentNullException();
+    foreach(K key in keysToRemove) dictionary.Remove(key);
+  }
+
   /// <summary>Adds a set of key/value pairs to a dictionary. If a key already exists in the dictionary, the value will be
   /// overwritten.
   /// </summary>
@@ -168,6 +197,28 @@ public static partial class CollectionExtensions
     if(list == null || random == null) throw new ArgumentNullException();
     if(list.Count == 0) throw new ArgumentException("The collection is empty.");
     return list[random.Next(list.Count)];
+  }
+
+  /// <summary>Returns the value associated with the given key, or null if the given value does not exist in the dictionary. Note that null
+  /// will also be returned if the value does exist in the dictionary, but the value is null.
+  /// </summary>
+  public static V TryGetValue<K, V>(this IDictionary<K, V> dictionary, K key) where V : class
+  {
+    if(dictionary == null) throw new ArgumentNullException();
+    V value;
+    dictionary.TryGetValue(key, out value);
+    return value;
+  }
+
+  /// <summary>Returns a new <see cref="HashSet{T}"/> containing the members that exist in <paramref name="set1"/> or
+  /// <paramref name="set2"/>.
+  /// </summary>
+  public static HashSet<T> Union<T>(this HashSet<T> set1, HashSet<T> set2)
+  {
+    if(set1 == null || set2 == null) throw new ArgumentNullException();
+    HashSet<T> result = new HashSet<T>(set1);
+    result.UnionWith(set2);
+    return result;
   }
 }
 

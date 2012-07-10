@@ -57,9 +57,10 @@ public enum LoginType
 
 #region Impersonation
 /// <summary>Provides various methods of running code as a specific user. The typical usage of this class is to either call a
-/// static <see cref="RunWithImpersonation"/> method, or to instantiate the class with the user's credentials (which will begin
-/// impersonating the user), and end the impersonation by disposing the class.
+/// static <see cref="RunWithImpersonation(string,string,LoginType,bool,Action)"/> method, or to instantiate the class with the user's
+/// credentials (which will begin impersonating the user), and end the impersonation by disposing the class.
 /// </summary>
+[SuppressUnmanagedCodeSecurity]
 public sealed class Impersonation : IDisposable
 {
   /// <summary>A logon token that can be used to run code as the user who started the process.</summary>
@@ -237,10 +238,8 @@ public sealed class Impersonation : IDisposable
   WindowsImpersonationContext context;
   IntPtr ownedToken;
 
-  delegate Impersonation ImpersonationMaker();
-
   /// <summary>Retrieves the domain name from a user name in either user@domain or DOMAIN\user format, suitable for passing to
-  /// the <see cref="LogOnUser"/> method.
+  /// the <see cref="LogOnUser(string,string,string,LoginType)"/> method.
   /// </summary>
   static string GetDomain(string userName)
   {
@@ -255,7 +254,7 @@ public sealed class Impersonation : IDisposable
     throw new ArgumentException("Unable to determine the domain from the user name " + userName);
   }
 
-  /// <summary>Converts a <see cref="LoginType"/> value into a value suitable for passing to <see cref="LogOnUser"/>.</summary>
+  /// <summary>Converts a <see cref="LoginType"/> value into a value suitable for passing to <see cref="LogOnUser(string,string,LoginType)"/>.</summary>
   static int GetNTLogonType(LoginType type)
   {
     switch(type)
@@ -269,7 +268,7 @@ public sealed class Impersonation : IDisposable
   }
 
   /// <summary>Retrieves the user name from a user name in either user@domain or DOMAIN\user format, suitable for passing to
-  /// the <see cref="LogOnUser"/> method.
+  /// the <see cref="LogOnUser(string,string,LoginType)"/> method.
   /// </summary>
   static string GetUserName(string userName)
   {
@@ -297,7 +296,7 @@ public sealed class Impersonation : IDisposable
     Run(delegate { return new Impersonation(token, ownToken); }, code, runInANewThread);
   }
 
-  static void Run(ImpersonationMaker impersonationMaker, Action code, bool runInANewThread)
+  static void Run(Func<Impersonation> impersonationMaker, Action code, bool runInANewThread)
   {
     if(!runInANewThread)
     {

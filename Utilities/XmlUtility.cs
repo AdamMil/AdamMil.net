@@ -27,10 +27,599 @@ using System.Xml;
 namespace AdamMil.Utilities
 {
 
+#region XmlDuration
+/// <summary>Represents an <c>xs:duration</c> value.</summary>
+/// <remarks>An <see cref="XmlDuration"/> works like a <see cref="TimeSpan"/> value, except that it maintains a distinction between the
+/// number of years and months in the duration, which may vary in actual length, and the days, hours, minutes, and seconds, which do not.
+/// For example, January is longer than February and leap years are longer than regular years, so an <c>xs:duration</c> of <c>P1Y2M</c>
+/// (1 year and 2 months) adds a variable amount of real time depending on the date to which it's added. The <see cref="TimeSpan"/>
+/// structure does not capture this distinction, and is therefore inappropriate to represent an <c>xs:duration</c> value.
+/// <para>The <c>xs:duration</c> format does have some limitations to be aware of, however. An <c>xs:duration</c> can represent a positive
+/// or negative span of time, but it cannot represent a span of time where the variable portion is positive and the fixed portion is
+/// negative, or vice versa. For instance, you can have a period of one month and one day, or negative one month and negative one day, but
+/// you cannot have a period of one month and negative one day or vice versa. This also prevents durations from being added together when
+/// the result would not be entirely positive or negative (or zero).
+/// </para>
+/// <para>The XML Schema specification says "Time durations are added by simply adding each of their fields, respectively, without
+/// overflow", where "fields" refers to the components such as month, day, hour, etc.  Since adding without overflow is not really
+/// possible in a fixed amount of space, and we desire to keep the structure as small as possible without placing tight restrictions on the
+/// range of each component, and we want to relax the restrictions on having components with differing signs, adding two
+/// <see cref="XmlDuration"/> values will allow overflow between fields. For instance, adding two durations of 40 seconds will yield a
+/// duration of 1 minute and 20 seconds rather than a duration of 80 seconds. (The two are equivalent in all ways except for their string
+/// representation.) Similarly, adding a duration of -10 seconds to a duration of 1 minute will not be an error but will instead yield a
+/// duration of 50 seconds.
+/// </para>
+/// <para>The <see cref="XmlDuration"/> type is limited to maximums of 2147483647 total months (as any combination of years and months)
+/// and approximately 10675199.1167 total days (as any combination of days, hours, minutes, etc). This is not a limitation inherent to the
+/// <c>xs:duration</c> format, but one imposed by the fixed amount of space available in the <see cref="XmlDuration"/> structure.
+/// </para>
+/// </remarks>
+[Serializable]
+public struct XmlDuration
+{
+  /// <summary>Represents the number of ticks in one millisecond.</summary>
+  public const long TicksPerMillisecond = 10*1000L; // one tick is 100 nanoseconds, the same as that used by DateTime, Timespan, etc.
+  /// <summary>Represents the number of ticks in one second.</summary>
+  public const long TicksPerSecond = TicksPerMillisecond * 1000;
+  /// <summary>Represents the number of ticks in one minute.</summary>
+  public const long TicksPerMinute = TicksPerSecond * 60;
+  /// <summary>Represents the number of ticks in one hour.</summary>
+  public const long TicksPerHour = TicksPerMinute * 60;
+  /// <summary>Represents the number of ticks in one day.</summary>
+  public const long TicksPerDay = TicksPerHour * 24;
+
+  /// <summary>Initializes a new <see cref="XmlDuration"/> from the given <see cref="TimeSpan"/> value.</summary>
+  /// <remarks>All <see cref="TimeSpan"/> values except <see cref="TimeSpan.MinValue"/> can be represented as an <see cref="XmlDuration"/>.</remarks>
+  /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="timeSpan"/> equals <see cref="TimeSpan.MinValue"/>.</exception>
+  public XmlDuration(TimeSpan timeSpan)
+  {
+    if(timeSpan.Ticks < 0)
+    {
+      _ticks = -timeSpan.Ticks; // TODO: it would be nice to remove this limitation
+      if(_ticks < 0) throw new ArgumentOutOfRangeException("TimeSpan.MinValue cannot be represented as an XmlDuration.");
+      _months = 0x80000000;
+    }
+    else
+    {
+      _months = 0;
+      _ticks  = timeSpan.Ticks;
+    }
+  }
+
+  /// <summary>Initializes a new <see cref="XmlDuration"/> from the given number of years, months, and days.</summary>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  public XmlDuration(int years, int months, int days)
+  {
+    if(days < -10675199 || days > 10675199) throw OverflowError();
+    _ticks  = days * TicksPerDay;
+    _months = GetTotalMonths(years, months);
+    FixSign();
+  }
+
+  /// <summary>Initializes a new <see cref="XmlDuration"/> from the given components.</summary>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  public XmlDuration(int years, int months, int days, int hours, int minutes, int seconds)
+  {
+    if(days < -10675199 || days > 10675199 || hours < -256204778 || hours > 256204778) throw OverflowError();
+    _ticks  = Add(days * TicksPerDay, Add(hours * TicksPerHour, minutes*TicksPerMinute + seconds*TicksPerSecond));
+    _months = GetTotalMonths(years, months);
+    FixSign();
+  }
+
+  /// <summary>Initializes a new <see cref="XmlDuration"/> from the given components.</summary>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  public XmlDuration(int years, int months, int days, int hours, int minutes, int seconds, int milliseconds)
+  {
+    if(days < -10675199 || days > 10675199 || hours < -256204778 || hours > 256204778) throw OverflowError();
+    _ticks = Add(days * TicksPerDay,
+                 Add(hours * TicksPerHour, minutes*TicksPerMinute + seconds*TicksPerSecond + milliseconds*TicksPerMillisecond));
+    _months = GetTotalMonths(years, months);
+    FixSign();
+  }
+
+  /// <summary>Initializes a new <see cref="XmlDuration"/> from a number of years and months to add, and a number of 100-nanosecond ticks
+  /// to add.
+  /// </summary>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  public XmlDuration(int years, int months, long ticks)
+  {
+    _ticks  = ticks;
+    _months = GetTotalMonths(years, months);
+    FixSign();
+  }
+
+  /// <summary>Initializes a new <see cref="XmlDuration"/> from a number months to add or subtract, and a number of 100-nanosecond ticks to
+  /// add or subtract, and a boolean that indicates whether the duration should be negative (i.e. whether we should subtract instead of
+  /// add). The numbers of months and ticks must be non-negative.
+  /// </summary>
+  /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="totalMonths"/> or <paramref name="ticks"/> is negative.</exception>
+  public XmlDuration(int totalMonths, long ticks, bool isNegative)
+  {
+    if(totalMonths < 0 || ticks < 0) throw new ArgumentOutOfRangeException("An argument was negative.");
+    if(isNegative && totalMonths == 0 && ticks == 0) isNegative = false;
+    _ticks  = ticks;
+    _months = (uint)totalMonths | (isNegative ? 0x80000000 : 0u);
+  }
+
+  XmlDuration(uint encodedMonths, long ticks)
+  {
+    _ticks  = ticks;
+    _months = encodedMonths;
+  }
+
+  /// <summary>Gets the non-negative days component of this duration value.</summary>
+  public int Days
+  {
+    get { return (int)(_ticks / TicksPerDay); }
+  }
+
+  /// <summary>Gets the non-negative hours component of this duration value.</summary>
+  public int Hours
+  {
+    get { return (int)(_ticks % TicksPerDay / TicksPerHour); }
+  }
+
+  /// <summary>Gets the non-negative milliseconds component of this duration value, excluding the fractional part.</summary>
+  public int Milliseconds
+  {
+    get { return (int)(_ticks % TicksPerSecond) / (int)TicksPerMillisecond; }
+  }
+
+  /// <summary>Gets the non-negative minutes component of this duration value.</summary>
+  public int Minutes
+  {
+    get { return (int)(_ticks % TicksPerHour / TicksPerMinute); }
+  }
+
+  /// <summary>Gets the non-negative months component of this duration value.</summary>
+  public int Months
+  {
+    get { return TotalMonths % 12; }
+  }
+
+  /// <summary>Gets whether the </summary>
+  public bool IsNegative
+  {
+    get { return (int)_months < 0; }
+  }
+
+  /// <summary>Gets the non-negative seconds component of this duration value, including the fractional part.</summary>
+  public double Seconds
+  {
+    get { return (int)(_ticks % TicksPerMinute) / (double)TicksPerSecond; }
+  }
+
+  /// <summary>Gets the non-negative number of ticks encapsulating the day and time components of this duration value.</summary>
+  public long Ticks
+  {
+    get { return _ticks; }
+  }
+
+  /// <summary>Gets the non-negative seconds component of this duration value, excluding the fractional part.</summary>
+  public int WholeSeconds
+  {
+    get { return (int)(_ticks % TicksPerMinute) / (int)TicksPerSecond; }
+  }
+
+  /// <summary>Gets the non-negative years component of this duration value.</summary>
+  public int Years
+  {
+    get { return TotalMonths / 12; }
+  }
+
+  /// <summary>Gets the non-negative total number of months in this duration value.</summary>
+  public int TotalMonths
+  {
+    get { return (int)(_months & 0x7FFFFFFF); }
+  }
+
+  /// <summary>Returns the absolute value of this duration, which will be an <see cref="XmlDuration"/> of the same length but with
+  /// <see cref="IsNegative"/> equal to false.
+  /// </summary>
+  public XmlDuration Abs()
+  {
+    return new XmlDuration((uint)TotalMonths, _ticks);
+  }
+
+  /// <summary>Adds the given duration to this duration and returns the result.</summary>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  public XmlDuration Add(XmlDuration duration)
+  {
+    if(((uint)(_months ^ duration._months) & 0x80000000) == 0) // if the two durations have the same sign...
+    {
+      return new XmlDuration(Add(TotalMonths, duration.TotalMonths), Add(_ticks, duration._ticks), IsNegative);
+    }
+    else // if the durations have opposite signs...
+    {
+      long ticks = _ticks - duration._ticks;
+      int months = TotalMonths - duration.TotalMonths;
+
+      // if the resulting components have opposite signs, the value cannot be represented as an xs:duration
+      if(months < 0 ? ticks > 0 : months > 0 && ticks < 0) throw UnrepresentableError();
+
+      return months < 0 ? new XmlDuration(-months, -ticks, !IsNegative) : new XmlDuration(months, ticks, IsNegative);
+    }
+  }
+
+  /// <summary>Adds the given number of days (which can be negative) to this duration and returns the result.</summary>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  public XmlDuration AddDays(double days)
+  {
+    return AddTicks((long)(days * TicksPerDay + 0.5));
+  }
+
+  /// <summary>Adds the given number of hours (which can be negative) to this duration and returns the result.</summary>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  public XmlDuration AddHours(double hours)
+  {
+    return AddTicks((long)(hours * TicksPerHour + 0.5));
+  }
+
+  /// <summary>Adds the given number of milliseconds (which can be negative) to this duration and returns the result.</summary>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  public XmlDuration AddMilliseconds(double seconds)
+  {
+    return AddTicks((long)(seconds * TicksPerMillisecond + 0.5));
+  }
+
+  /// <summary>Adds the given number of minutes (which can be negative) to this duration and returns the result.</summary>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  public XmlDuration AddMinutes(double minutes)
+  {
+    return AddTicks((long)(minutes * TicksPerMinute + 0.5));
+  }
+
+  /// <summary>Adds the given number of months (which can be negative) to this duration and returns the result.</summary>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  public XmlDuration AddMonths(int months)
+  {
+    if(IsNegative == (months < 0))
+    {
+      months = Add(TotalMonths, months);
+    }
+    else
+    {
+      months = TotalMonths - months;
+      if(months < 0) throw UnrepresentableError(); // if the result changed sign, it can't be represented as an xs:duration
+    }
+    return new XmlDuration(months, _ticks, IsNegative);
+  }
+
+  /// <summary>Adds the given number of seconds (which can be negative) to this duration and returns the result.</summary>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  public XmlDuration AddSeconds(double seconds)
+  {
+    return AddTicks((long)(seconds * TicksPerSecond + 0.5));
+  }
+
+  /// <summary>Adds the given number of ticks (which can be negative) to this duration and returns the result.</summary>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  public XmlDuration AddTicks(long ticks)
+  {
+    if(IsNegative == (ticks < 0))
+    {
+      ticks = Add(_ticks, ticks);
+    }
+    else
+    {
+      ticks = _ticks - ticks;
+      if(ticks < 0) throw UnrepresentableError(); // if the result changed sign, it can't be represented as an xs:duration
+    }
+    return new XmlDuration(TotalMonths, ticks, IsNegative);
+  }
+
+  /// <summary>Adds the given number of years (which can be negative) to this duration and returns the result.</summary>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  public XmlDuration AddYears(int years)
+  {
+    if(years < -178956970 || years > 178956970) throw OverflowError();
+    return AddMonths(years*12);
+  }
+
+  /// <inheritdoc/>
+  public override bool Equals(object obj)
+  {
+    return obj is XmlDuration && Equals((XmlDuration)obj);
+  }
+
+  /// <summary>Determines whether the given duration equals this one.</summary>
+  public bool Equals(XmlDuration other)
+  {
+    return _ticks == other._ticks && _months == other._months;
+  }
+
+  /// <inheritdoc/>
+  public override int GetHashCode()
+  {
+    return (int)((uint)(ulong)_ticks ^ (uint)((ulong)_ticks >> 32) ^ (uint)_months);
+  }
+
+  /// <summary>Returns an <see cref="XmlDuration"/> with the same length as this one, but the opposite sign.</summary>
+  public XmlDuration Negate()
+  {
+    return new XmlDuration(TotalMonths, _ticks, !IsNegative);
+  }
+
+  /// <summary>Subtractions the given duration from this one and returns the result.</summary>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  public XmlDuration Subtract(XmlDuration duration)
+  {
+    return Add(duration.Negate());
+  }
+
+  /// <summary>Returns the duration as an <c>xs:duration</c> value, which is an ISO 8601 duration as extended by the XML Schema
+  /// specification.
+  /// </summary>
+  /// <remarks>For example, <c>P1Y2MT2H</c> represents a duration of one year, two months, and two hours.</remarks>
+  public override string ToString()
+  {
+    StringBuilder sb = new StringBuilder(40);
+    if(IsNegative) sb.Append('-');
+    sb.Append('P');
+    if(TotalMonths != 0)
+    {
+      RenderComponent(sb, Years, 'Y');
+      RenderComponent(sb, Months, 'M');
+    }
+    if(_ticks != 0)
+    {
+      RenderComponent(sb, Days, 'D');
+      int hours = Hours, minutes = Minutes, secondTicks = (int)(_ticks % TicksPerMinute);
+      if((hours|minutes|secondTicks) != 0)
+      {
+        sb.Append('T');
+        RenderComponent(sb, hours, 'H');
+        RenderComponent(sb, minutes, 'M');
+        if(secondTicks != 0)
+        {
+          int component = secondTicks / (int)TicksPerSecond; // whole seconds
+          sb.Append(component.ToInvariantString());
+          component = secondTicks % (int)TicksPerSecond; // fractional seconds in 100 ns units
+          if(component != 0) sb.Append('.').Append(component.ToInvariantString().PadLeft(7, '0').TrimEnd('0'));
+          sb.Append('S');
+        }
+      }
+    }
+
+    if(sb.Length <= 2) sb.Append("0D"); // there has to be at least one component, so add 0 days if we haven't added any components so far
+    return sb.ToString();
+  }
+
+  /// <summary>Returns a <see cref="TimeSpan"/> that represents the same duration as this <see cref="XmlDuration"/>. Note that not all
+  /// <see cref="XmlDuration"/> values can be represented as <see cref="TimeSpan"/> values.
+  /// </summary>
+  /// <remarks><see cref="TimeSpan"/> values can only represent fixed lengths of time. Month and years are not fixed lengths of time
+  /// and so durations having non-zero months or years cannot be represented as time spans.
+  /// </remarks>
+  /// <exception cref="InvalidOperationException">Thrown if the <see cref="XmlDuration"/> cannot be represented as a
+  /// <see cref="TimeSpan"/>.
+  /// </exception>
+  public TimeSpan ToTimeSpan()
+  {
+    if(TotalMonths != 0)
+    {
+      throw new InvalidOperationException("This duration cannot be represented by a TimeSpan because it has a variable-length component.");
+    }
+    return new TimeSpan(IsNegative ? -Ticks : Ticks);
+  }
+
+  /// <summary>Adds two durations together and returns the result.</summary>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  public static XmlDuration operator+(XmlDuration a, XmlDuration b)
+  {
+    return a.Add(b);
+  }
+
+  /// <summary>Subtracts <paramref name="b"/> from <paramref name="a"/> and returns the result.</summary>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  public static XmlDuration operator-(XmlDuration a, XmlDuration b)
+  {
+    return a.Add(b.Negate());
+  }
+
+  /// <summary>Negates an <see cref="XmlDuration"/> and returns the result.</summary>
+  public static XmlDuration operator-(XmlDuration duration)
+  {
+    return duration.Negate();
+  }
+
+  /// <summary>Determines if two durations are equal.</summary>
+  public static bool operator==(XmlDuration a, XmlDuration b)
+  {
+    return a._ticks == b._ticks && a._months == b._months;
+  }
+
+  /// <summary>Determines if two durations are unequal.</summary>
+  public static bool operator!=(XmlDuration a, XmlDuration b)
+  {
+    return a._ticks != b._ticks || a._months != b._months;
+  }
+
+  /// <summary>Adds a duration to a <see cref="DateTime"/> and returns the resulting <see cref="DateTime"/>.</summary>
+  public static DateTime Add(DateTime dateTime, XmlDuration duration)
+  {
+    if(duration._months != 0) dateTime = dateTime.AddMonths(duration.IsNegative ? -duration.TotalMonths : (int)duration._months);
+    if(duration._ticks != 0) dateTime = dateTime.AddTicks(duration.IsNegative ? -duration._ticks : duration._ticks);
+    return dateTime;
+  }
+
+  /// <summary>Adds a duration to a <see cref="DateTimeOffset"/> and returns the resulting <see cref="DateTimeOffset"/>.</summary>
+  public static DateTimeOffset Add(DateTimeOffset dateTime, XmlDuration duration)
+  {
+    if(duration._months != 0) dateTime = dateTime.AddMonths(duration.IsNegative ? -duration.TotalMonths : (int)duration._months);
+    if(duration._ticks != 0) dateTime = dateTime.AddTicks(duration.IsNegative ? -duration._ticks : duration._ticks);
+    return dateTime;
+  }
+
+  /// <summary>Parses an <see cref="XmlDuration"/> from an ISO 8601 duration string as extended by the XML Schema specification.</summary>
+  /// <remarks>For example, <c>P1Y2MT2H</c> represents a duration of one year, two months, and two hours.</remarks>
+  public static XmlDuration Parse(string str)
+  {
+    if(str == null) throw new ArgumentNullException();
+    XmlDuration duration;
+    if(!TryParse(str, out duration)) throw new FormatException();
+    return duration;
+  }
+
+  /// <summary>Subtracts a duration from a <see cref="DateTime"/> and returns the resulting <see cref="DateTime"/>.</summary>
+  public static DateTime Subtract(DateTime dateTime, XmlDuration duration)
+  {
+    if(duration._months != 0) dateTime = dateTime.AddMonths(duration.IsNegative ? (int)duration._months : -duration.TotalMonths);
+    if(duration._ticks != 0) dateTime = dateTime.AddTicks(duration.IsNegative ? duration._ticks : -duration._ticks);
+    return dateTime;
+  }
+
+  /// <summary>Subtracts a duration from a <see cref="DateTimeOffset"/> and returns the resulting <see cref="DateTimeOffset"/>.</summary>
+  public static DateTimeOffset Subtract(DateTimeOffset dateTime, XmlDuration duration)
+  {
+    if(duration._months != 0) dateTime = dateTime.AddMonths(duration.IsNegative ? (int)duration._months : -duration.TotalMonths);
+    if(duration._ticks != 0) dateTime = dateTime.AddTicks(duration.IsNegative ? duration._ticks : -duration._ticks);
+    return dateTime;
+  }
+
+  /// <summary>Attempts to parses an <see cref="XmlDuration"/> from an ISO 8601 duration string as extended by the XML Schema
+  /// specification.
+  /// </summary>
+  /// <remarks>For example, <c>P1Y2MT2H</c> represents a duration of one year, two months, and two hours.</remarks>
+  public static bool TryParse(string str, out XmlDuration duration)
+  {
+    if(!string.IsNullOrEmpty(str))
+    {
+      Match m = reDuration.Match(str);
+      if(m.Success)
+      {
+        // parse all of the components
+        int years, months, days, hours, totalMonths;
+        long mins;
+        double seconds;
+
+        if(!ParseGroup(m.Groups["y"], 178956970, out years) || !ParseGroup(m.Groups["mo"], int.MaxValue, out months) ||
+           !ParseGroup(m.Groups["d"], 10675199, out days) || !ParseGroup(m.Groups["h"], 256204778, out hours))
+        {
+          goto failed;
+        }
+
+        Group g = m.Groups["min"];
+        if(!g.Success) mins = 0;
+        else if(!long.TryParse(g.Value, NumberStyles.None, CultureInfo.InvariantCulture, out mins) || mins > 15372286728) goto failed;
+
+        g = m.Groups["s"];
+        if(!g.Success)
+        {
+          seconds = 0;
+        }
+        else if(!double.TryParse(g.Value, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out seconds) ||
+                seconds > 922337203685.47747)
+        {
+          goto failed;
+        }
+
+        long longMonths = years*12 + months;
+        totalMonths = (int)longMonths;
+        if(totalMonths != longMonths) goto failed; // fail if the total months overflow
+
+        long ticks = days * TicksPerDay;
+        if((ticks += hours*TicksPerHour) < 0 || (ticks += mins*TicksPerMinute) < 0 || (ticks += (long)(seconds*TicksPerSecond + 0.5)) < 0)
+        {
+          goto failed; // fail if the ticks overflow
+        }
+
+        // fail if no components were specified (at least one component is required)
+        if(ticks == 0 && totalMonths == 0) goto failed;
+
+        duration = new XmlDuration(totalMonths, ticks, m.Groups["n"].Success);
+        return true;
+      }
+    }
+
+    failed:
+    duration = default(XmlDuration);
+    return false;
+  }
+
+  /// <summary>The largest possible negative <see cref="XmlDuration"/>.</summary>
+  public static readonly XmlDuration MinValue = new XmlDuration((uint)int.MaxValue | 0x80000000, long.MaxValue);
+
+  /// <summary>The largest possible positive <see cref="XmlDuration"/>.</summary>
+  public static readonly XmlDuration MaxValue = new XmlDuration((uint)int.MaxValue, long.MaxValue);
+
+  /// <summary>A zero <see cref="XmlDuration"/>.</summary>
+  public static readonly XmlDuration Zero = new XmlDuration();
+
+  void FixSign()
+  {
+    // if the two parts have different signs, the value can't be represented as an xs:duration
+    if((int)_months < 0 ? _ticks > 0 : (int)_months > 0 && _ticks < 0) throw UnrepresentableError();
+    // otherwise, if a value was negative and it's not possible to negate both values (because a value is at the minimum)...
+    if(((int)_months < 0 || _ticks < 0) && ((_months = (uint)-(int)_months ^ 0x80000000) == 0 || (_ticks = -_ticks) < 0))
+    {
+      throw OverflowError(); // then it's out of range
+    }
+  }
+
+  long _ticks;
+  uint _months;
+
+  static int Add(int a, int b)
+  {
+    try { return checked(a + b); }
+    catch(OverflowException) { throw OverflowError(); }
+  }
+
+  static long Add(long a, long b)
+  {
+    try { return checked(a + b); }
+    catch(OverflowException) { throw OverflowError(); }
+  }
+
+  static uint GetTotalMonths(int years, int months)
+  {
+    long totalMonths = years*12L + months;
+    int intValue = (int)totalMonths;
+    if(totalMonths != intValue || intValue == int.MinValue) throw OverflowError();
+    return (uint)intValue;
+  }
+
+  static ArgumentOutOfRangeException OverflowError()
+  {
+    return new ArgumentOutOfRangeException("The result would be outside the range of XmlDuration.");
+  }
+
+  static bool ParseGroup(Group group, int maxValue, out int value)
+  {
+    if(!group.Success) value = 0; // missing components are implicitly equal to zero
+    else if(!int.TryParse(group.Value, NumberStyles.None, CultureInfo.InvariantCulture, out value) || value > maxValue) return false;
+    return true;
+  }
+
+  static void RenderComponent(StringBuilder sb, int component, char c)
+  {
+    if(component != 0) sb.Append(component.ToInvariantString()).Append(c);
+  }
+
+  static ArgumentException UnrepresentableError()
+  {
+    return new ArgumentException("The result is not representable as an xs:duration because the fixed and variable portions of the " +
+                                 "duration have opposite signs.");
+  }
+
+  static readonly Regex reDuration =
+    new Regex(@"^\s*(?<n>-)?P(?:(?<y>[0-9]+)Y)?(?:(?<mo>[0-9]+)M)?(?:(?<d>[0-9]+)D)?(T(?:(?<h>[0-9]+)H)?(?:(?<min>[0-9]+)M)?(?:(?<s>[0-9]+(?:\.[0-9]+))S)?)?\s*$",
+              RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Singleline);
+}
+#endregion
+
 #region XmlElementExtensions
 /// <summary>Provides useful extensions to the <see cref="XmlElement"/> class.</summary>
 public static class XmlElementExtensions
 {
+  /// <summary>Returns the named attribute value.</summary>
+  public static string GetAttribute(this XmlElement element, XmlQualifiedName attributeName)
+  {
+    if(element == null || attributeName == null) throw new ArgumentNullException();
+    return element.GetAttribute(attributeName.Name, attributeName.Namespace);
+  }
+
   /// <summary>Sets the named attribute with a value based on a boolean.</summary>
   public static void SetAttribute(this XmlElement element, string attributeName, bool value)
   {
@@ -154,6 +743,13 @@ public static class XmlElementExtensions
   {
     if(element == null) throw new ArgumentNullException();
     element.SetAttribute(attributeName, XmlConvert.ToString(value));
+  }
+
+  /// <summary>Sets the named attribute with a value based on an <see cref="XmlDuration"/>.</summary>
+  public static void SetAttribute(this XmlElement element, string attributeName, XmlDuration value)
+  {
+    if(element == null) throw new ArgumentNullException();
+    element.SetAttribute(attributeName, value.ToString());
   }
 
   /// <summary>Sets the named attribute with a value based on the date portion of a <see cref="DateTime"/>.</summary>
@@ -304,6 +900,23 @@ public static class XmlNodeExtensions
     return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToDouble(attrValue);
   }
 
+  /// <summary>Returns the value of the named attribute as an <see cref="XmlDuration"/>, or
+  /// an empty duration if the attribute was unspecified or empty.
+  /// </summary>
+  public static XmlDuration GetDurationAttribute(this XmlNode node, string attrName)
+  {
+    return GetDurationAttribute(node, attrName, XmlDuration.Zero);
+  }
+
+  /// <summary>Returns the value of the named attribute as a <see cref="XmlDuration"/>, or
+  /// the given default value if the attribute was unspecified or empty.
+  /// </summary>
+  public static XmlDuration GetDurationAttribute(this XmlNode node, string attrName, XmlDuration defaultValue)
+  {
+    string attrValue = GetAttributeValue(node, attrName);
+    return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlDuration.Parse(attrValue);
+  }
+
   /// <summary>Returns the value of the named attribute as a <see cref="Guid"/>, or <see cref="Guid.Empty" />
   /// if the attribute was unspecified or empty.
   /// </summary>
@@ -319,6 +932,38 @@ public static class XmlNodeExtensions
   {
     string attrValue = GetAttributeValue(node, attrName);
     return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToGuid(attrValue);
+  }
+
+  /// <summary>Searches the node and its ancestors for the given attribute and returns the first one found, or null if the attribute was
+  /// not defined on the node or any ancestor.
+  /// </summary>
+  public static XmlAttribute GetInheritedAttributeNode(this XmlNode node, string qualifiedName)
+  {
+    if(node == null) throw new ArgumentNullException();
+    while(node.NodeType != XmlNodeType.Document)
+    {
+      XmlAttribute attr = node.Attributes[qualifiedName];
+      if(attr != null) return attr;
+      node = node.ParentNode;
+    }
+    return null;
+  }
+
+  /// <summary>Searches the node and its ancestors for the given attribute and returns the value of the first one found, or null if the
+  /// attribute was not defined on the node or any ancestor.
+  /// </summary>
+  public static string GetInheritedAttributeValue(this XmlNode node, string qualifiedName)
+  {
+    return GetInheritedAttributeValue(node, qualifiedName, null);
+  }
+
+  /// <summary>Searches the node and its ancestors for the given attribute and returns the value of the first one found, or the given
+  /// default value if the attribute was not defined on the node or any ancestor.
+  /// </summary>
+  public static string GetInheritedAttributeValue(this XmlNode node, string qualifiedName, string defaultValue)
+  {
+    XmlAttribute attr = node.GetInheritedAttributeNode(qualifiedName);
+    return attr == null ? defaultValue : attr.Value;
   }
 
   /// <summary>Returns the value of the named attribute as a 16-bit signed integer, or 0 if the attribute was unspecified or empty.</summary>
@@ -513,6 +1158,33 @@ public static class XmlNodeExtensions
     return string.IsNullOrEmpty(innerText) ? defaultValue : innerText;
   }
 
+  /// <summary>Returns the <see cref="XmlQualifiedName"/> for the node.</summary>
+  public static XmlQualifiedName GetQualifiedName(this XmlNode node)
+  {
+    if(node == null) throw new ArgumentNullException();
+    return new XmlQualifiedName(node.LocalName, node.NamespaceURI);
+  }
+
+  /// <summary>Determines whether the qualified name of the node equals the given qualified name.</summary>
+  public static bool HasName(this XmlNode node, XmlQualifiedName qname)
+  {
+    if(qname == null) throw new ArgumentNullException();
+    return node.HasName(qname.Name, qname.Namespace);
+  }
+
+  /// <summary>Determines whether the qualified name of the node equals the given qualified name.</summary>
+  public static bool HasName(this XmlNode node, string localName, string namespaceUri)
+  {
+    if(node == null) throw new ArgumentNullException();
+    if(string.IsNullOrEmpty(localName) || namespaceUri == null)
+    {
+      throw new ArgumentException("Local name must not be empty and namespace URI must not be null.");
+    }
+
+    return string.Equals(node.LocalName, localName, StringComparison.Ordinal) &&
+           string.Equals(node.NamespaceURI, namespaceUri, StringComparison.Ordinal);
+  }
+
   /// <summary>Returns true if the attribute was unspecified or empty.</summary>
   public static bool IsAttributeEmpty(XmlAttribute attr)
   {
@@ -539,6 +1211,19 @@ public static class XmlNodeExtensions
   public static T[] ParseListAttribute<T>(this XmlNode node, string attrName, Converter<string, T> converter)
   {
     return XmlUtility.ParseList(GetAttributeValue(node, attrName), converter);
+  }
+
+  /// <summary>Parses a qualified name (i.e. a name of the form <c>prefix:localName</c>) into an <see cref="XmlQualifiedName"/> in the
+  /// context of the current node.
+  /// </summary>
+  public static XmlQualifiedName ParseQualifiedName(this XmlNode node, string qualifiedName)
+  {
+    if(node == null) throw new ArgumentNullException();
+    if(string.IsNullOrEmpty(qualifiedName)) return XmlQualifiedName.Empty;
+
+    int colon = qualifiedName.IndexOf(':');
+    return new XmlQualifiedName(colon == -1 ? qualifiedName : qualifiedName.Substring(colon+1),
+                                node.GetNamespaceOfPrefix(colon == -1 ? "" : qualifiedName.Substring(0, colon)));
   }
 
   /// <summary>Removes all the child nodes of the given node.</summary>
@@ -649,6 +1334,23 @@ public static class XmlNodeExtensions
   {
     string stringValue = SelectValue(node, xpath);
     return string.IsNullOrEmpty(stringValue) ? defaultValue : XmlConvert.ToDouble(stringValue);
+  }
+
+  /// <summary>Returns the inner text of the node selected by the given XPath query as an <see cref="XmlDuration"/>,
+  /// or an empty duration if the node could not be found or was empty.
+  /// </summary>
+  public static XmlDuration SelectDuration(this XmlNode node, string xpath)
+  {
+    return SelectDuration(node, xpath, XmlDuration.Zero);
+  }
+
+  /// <summary>Returns the inner text of the node selected by the given XPath query as an <see cref="XmlDuration"/>,
+  /// or the given default value if the node could not be found or was empty.
+  /// </summary>
+  public static XmlDuration SelectDuration(this XmlNode node, string xpath, XmlDuration defaultValue)
+  {
+    string stringValue = SelectValue(node, xpath);
+    return string.IsNullOrEmpty(stringValue) ? defaultValue : XmlDuration.Parse(stringValue);
   }
 
   /// <summary>Returns the inner text of the node selected by the given XPath query as a <see cref="Guid"/>,
@@ -1159,6 +1861,38 @@ public static class XmlReaderExtensions
     return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToUInt64(attrValue);
   }
 
+  /// <summary>Determines whether the qualified name of the current element equals the given qualified name.</summary>
+  public static bool HasName(this XmlReader reader, XmlQualifiedName qname)
+  {
+    if(qname == null) throw new ArgumentNullException();
+    return reader.HasName(qname.Name, qname.Namespace);
+  }
+
+  /// <summary>Determines whether the qualified name of the current element equals the given qualified name.</summary>
+  public static bool HasName(this XmlReader reader, string localName, string namespaceUri)
+  {
+    if(reader == null) throw new ArgumentNullException();
+    if(string.IsNullOrEmpty(localName) || namespaceUri == null)
+    {
+      throw new ArgumentException("Local name must not be empty and namespace URI must not be null.");
+    }
+
+    return string.Equals(reader.LocalName, localName, StringComparison.Ordinal) &&
+           string.Equals(reader.NamespaceURI, namespaceUri, StringComparison.Ordinal);
+  }
+
+  /// <summary>Calls <see cref="XmlReader.Read"/> until <see cref="XmlReader.NodeType"/> is no longer equal to
+  /// <see cref="XmlNodeType.Whitespace"/>, and returns the value of the last call to <see cref="XmlReader.Read"/>.
+  /// </summary>
+  public static bool ReadPastWhitespace(this XmlReader reader)
+  {
+    while(reader.Read())
+    {
+      if(reader.NodeType != XmlNodeType.Whitespace) return true;
+    }
+    return false;
+  }
+
   /// <summary>Skips the children of the current element, without skipping the end element.</summary>
   public static void SkipChildren(this XmlReader reader)
   {
@@ -1169,6 +1903,13 @@ public static class XmlReaderExtensions
       reader.Read();
       while(reader.NodeType != XmlNodeType.EndElement) reader.Skip();
     }
+  }
+
+  /// <summary>Skips <see cref="XmlNodeType.Whitespace"/> nodes (but not <see cref="XmlNodeType.SignificantWhitespace"/> nodes).</summary>
+  public static void SkipWhitespace(this XmlReader reader)
+  {
+    if(reader == null) throw new ArgumentNullException();
+    while(reader.NodeType == XmlNodeType.Whitespace) reader.Read();
   }
 
   /// <summary>Returns the value of the named attribute, or null if the attribute was unspecified.</summary>
@@ -1308,6 +2049,27 @@ public static class XmlWriterExtensions
     writer.WriteAttributeString(localName, XmlConvert.ToString(value));
   }
 
+  /// <summary>Writes an element with content based on an <see cref="XmlDuration"/> value.</summary>
+  public static void WriteAttribute(this XmlWriter writer, string localName, XmlDuration value)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteAttributeString(localName, value.ToString());
+  }
+
+  /// <summary>Writes an attribute with the given qualified name and value.</summary>
+  public static void WriteAttributeString(this XmlWriter writer, XmlQualifiedName qname, string value)
+  {
+    if(writer == null || qname == null) throw new ArgumentNullException();
+    writer.WriteAttributeString(qname.Name, qname.Namespace, value);
+  }
+
+  /// <summary>Writes an element with content based on the date portion of a <see cref="DateTime"/> value.</summary>
+  public static void WriteDate(this XmlWriter writer, DateTime date)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteString(date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+  }
+
   /// <summary>Writes an element with content based on the date portion of a <see cref="DateTime"/> value.</summary>
   public static void WriteDateElement(this XmlWriter writer, string localName, DateTime date)
   {
@@ -1439,12 +2201,57 @@ public static class XmlWriterExtensions
     writer.WriteElementString(localName, XmlConvert.ToString(value));
   }
 
-  /// <summary>Writes an empty element with the given name.</summary>
+  /// <summary>Writes an element with content based on an <see cref="XmlDuration"/> value.</summary>
+  public static void WriteElement(this XmlWriter writer, string localName, XmlDuration value)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteElementString(localName, value.ToString());
+  }
+
+  /// <summary>Writes an element with the given name and value.</summary>
+  public static void WriteElementString(this XmlWriter writer, XmlQualifiedName qname, string value)
+  {
+    if(writer == null || qname == null) throw new ArgumentNullException();
+    writer.WriteElementString(qname.Name, qname.Namespace, value);
+  }
+
+  /// <summary>Writes an empty element with the given qualified name. Attributes cannot be added to the element.</summary>
   public static void WriteEmptyElement(this XmlWriter writer, string localName)
   {
     if(writer == null) throw new ArgumentNullException();
     writer.WriteStartElement(localName);
     writer.WriteEndElement();
+  }
+
+  /// <summary>Writes an empty element with the given qualified name. Attributes cannot be added to the element.</summary>
+  public static void WriteEmptyElement(this XmlWriter writer, string localName, string ns)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteStartElement(localName, ns);
+    writer.WriteEndElement();
+  }
+
+  /// <summary>Writes an empty element with the given qualified name. Attributes cannot be added to the element.</summary>
+  public static void WriteEmptyElement(this XmlWriter writer, string prefix, string localName, string ns)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.WriteStartElement(prefix, localName, ns);
+    writer.WriteEndElement();
+  }
+
+  /// <summary>Writes an empty element with the given qualified name. Attributes cannot be added to the element.</summary>
+  public static void WriteEmptyElement(this XmlWriter writer, XmlQualifiedName qname)
+  {
+    if(writer == null || qname == null) throw new ArgumentNullException();
+    writer.WriteStartElement(qname.Name, qname.Namespace);
+    writer.WriteEndElement();
+  }
+
+  /// <summary>Writes a start tag with the specified qualified name.</summary>
+  public static void WriteStartElement(this XmlWriter writer, XmlQualifiedName qname)
+  {
+    if(writer == null || qname == null) throw new ArgumentNullException();
+    writer.WriteStartElement(qname.Name, qname.Namespace);
   }
 
   /// <summary>Writes an element with content based on the time portion of a <see cref="DateTime"/> value. The
@@ -1476,7 +2283,7 @@ public static class XmlUtility
   public static string[] ParseList(string listValue)
   {
     if(listValue != null) listValue = listValue.Trim();
-    return string.IsNullOrEmpty(listValue) ? new string[0] : split.Split(listValue);
+    return string.IsNullOrEmpty(listValue) ? new string[0] : reListSplit.Split(listValue);
   }
 
   /// <summary>Parses a string containing a whitespace-separated list of items into an array containing the corresponding items,
@@ -1492,11 +2299,119 @@ public static class XmlUtility
     }
     else
     {
-      string[] bits = split.Split(listValue);
+      string[] bits = reListSplit.Split(listValue);
       T[] values = new T[bits.Length];
       for(int i=0; i<values.Length; i++) values[i] = converter(bits[i]);
       return values;
     }
+  }
+
+  /// <summary>Parses an <c>xs:date</c>, <c>xs:dateTime</c> value, preserving the time zone information it contains.</summary>
+  /// <param name="dateStr">The value, in <c>xs:date</c> or <c>xs:dateTime</c> format.</param>
+  /// <returns>Returns either a <see cref="DateTime"/> or <see cref="DateTimeOffset"/> value. If no time zone information is given, the
+  /// value will be a <see cref="DateTime"/> with a <see cref="DateTime.Kind"/> of <see cref="DateTimeKind.Unspecified"/>. If the UTC time
+  /// zone (<c>Z</c>) is given, the value will be a <see cref="DateTime"/> with a <see cref="DateTime.Kind"/> of
+  /// <see cref="DateTimeKind.Utc"/>. If any other time zone is given (including if the time zone is <c>+00:00</c> or <c>-00:00</c>), the
+  /// value will be a <see cref="DateTimeOffset"/> representing a local time in the given time zone.
+  /// </returns>
+  /// <exception cref="ArgumentNullException">Thrown if <paramref name="dateStr"/> is null.</exception>
+  /// <exception cref="FormatException">Thrown if <paramref name="dateStr"/> is not in the form required by the XML Schema specification.</exception>
+  public static object ParseDateTime(string dateStr)
+  {
+    if(dateStr == null) throw new ArgumentNullException();
+    object value;
+    if(!TryParseDateTime(dateStr, out value)) throw new FormatException();
+    return value;
+  }
+
+  /// <summary>Tries to parse an <c>xs:boolean</c> value. Returns true if a boolean value was successfully parsed and false otherwise.</summary>
+  public static bool TryParseBoolean(string boolStr, out bool value)
+  {
+    if(!string.IsNullOrEmpty(boolStr))
+    {
+      int start, length;
+      char c = boolStr[0];
+      if(boolStr.Trim(out start, out length)) c = boolStr[start];
+      if(length == 1)
+      {
+        value = c == '1';
+        return value || c == '0';
+      }
+      else if(length == 4 && string.Compare(boolStr, start, "true", 0, 4, StringComparison.Ordinal) == 0)
+      {
+        value = true;
+        return true;
+      }
+      else if(length == 5 && string.Compare(boolStr, start, "false", 0, 5, StringComparison.Ordinal) == 0)
+      {
+        value = false;
+        return true;
+      }
+    }
+
+    value = false;
+    return false;
+  }
+
+  /// <summary>Tries to parse an <c>xs:date</c>, <c>xs:dateTime</c> value, preserving the time zone information it contains.</summary>
+  /// <param name="dateStr">The value, in <c>xs:date</c> or <c>xs:dateTime</c> format.</param>
+  /// <param name="value">A variable that receives either a <see cref="DateTime"/> or <see cref="DateTimeOffset"/> value. If no time zone
+  /// information is given, the value will be a <see cref="DateTime"/> with a <see cref="DateTime.Kind"/> of
+  /// <see cref="DateTimeKind.Unspecified"/>. If the UTC time zone (<c>Z</c>) is given, the value will be a <see cref="DateTime"/> with a
+  /// <see cref="DateTime.Kind"/> of <see cref="DateTimeKind.Utc"/>. If any other time zone is given (including if the time zone is
+  /// <c>+00:00</c> or <c>-00:00</c>), the value will be a <see cref="DateTimeOffset"/> representing a local time in the given time zone.
+  /// </param>
+  /// <returns>Returns true if the value was successfully parsed and false if not.</returns>
+  public static bool TryParseDateTime(string dateStr, out object value)
+  {
+    if(!string.IsNullOrEmpty(dateStr))
+    {
+      Match m = reDateTime.Match(dateStr);
+      if(m.Success)
+      {
+        int year, month, day, hour, minute;
+        double secs;
+        month = int.Parse(m.Groups["mo"].Value, CultureInfo.InvariantCulture);
+        day = int.Parse(m.Groups["d"].Value, CultureInfo.InvariantCulture);
+        if(m.Groups["h"].Success)
+        {
+          hour = int.Parse(m.Groups["h"].Value, CultureInfo.InvariantCulture);
+          minute = int.Parse(m.Groups["min"].Value, CultureInfo.InvariantCulture);
+          secs = double.Parse(m.Groups["s"].Value, CultureInfo.InvariantCulture);
+        }
+        else
+        {
+          hour = minute = 0;
+          secs = 0;
+        }
+        if(int.TryParse(m.Groups["y"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out year) && year > 0 && year <= 9999 &&
+           month > 0 && month <= 12 && day > 0 && day <= DateUtility.GetDaysInMonth(month, year) &&
+           (hour < 24 && minute < 60 && secs < 60 || hour == 24 && minute == 0 && secs == 0))
+        {
+          string tz = m.Groups["tz"].Value;
+          DateTimeKind kind = string.IsNullOrEmpty(tz) ? DateTimeKind.Unspecified :
+                              tz.OrdinalEquals("Z")    ? DateTimeKind.Utc : DateTimeKind.Local;
+          DateTime dateTime = new DateTime(year, month, day, hour == 24 ? 0 : hour, minute, 0, kind);
+          if(hour == 24) dateTime = dateTime.AddDays(1);
+          if(secs != 0) dateTime = dateTime.AddSeconds(secs);
+
+          if(kind != DateTimeKind.Local)
+          {
+            value = dateTime;
+          }
+          else
+          {
+            TimeSpan offset = new TimeSpan(int.Parse(tz.Substring(1, 2), CultureInfo.InvariantCulture),
+                                           int.Parse(tz.Substring(4, 2), CultureInfo.InvariantCulture), 0);
+            value = new DateTimeOffset(dateTime.Ticks, tz[0] == '-' ? offset.Negate() : offset);
+          }
+          return true;
+        }
+      }
+    }
+
+    value = null;
+    return false;
   }
 
   /// <summary>Encodes the given text for safe insertion into XML elements and attributes. This
@@ -1585,7 +2500,10 @@ public static class XmlUtility
     return "&#x" + ((int)c).ToString("X", CultureInfo.InvariantCulture) + ";";
   }
 
-  static readonly Regex split = new Regex(@"\s+", RegexOptions.Singleline);
+  static readonly Regex reDateTime =
+    new Regex(@"^\s*(?<y>-?[0-9]{4,})-(?<mo>[0-9]{2})-(?<d>[0-9]{2})(?:T(?<h>[0-9]{2}):(?<min>[0-9]{2}):(?<s>[0-9]{2}(?:\.[0-9]+)?)(?<tz>Z|[+\-][0-9]{2}:[0-9]{2})?)?\s*$",
+              RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Singleline);
+  static readonly Regex reListSplit = new Regex(@"\s+", RegexOptions.Singleline);
 }
 #endregion
 
