@@ -3,7 +3,7 @@ AdamMil.IO is a library that provides high performance and high level IO
 tools for the .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2007-2011 Adam Milazzo
+Copyright (C) 2007-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -222,21 +222,21 @@ public unsafe static partial class StreamExtensions
   }
 
   /// <summary>Reads and returns all of the remaining bytes from the stream.</summary>
-  public static byte[] ReadAllBytes(this Stream stream)
+  public static unsafe byte[] ReadToEnd(this Stream stream)
   {
     if(stream == null) throw new ArgumentNullException();
     byte[] data;
     if(stream.CanSeek)
     {
       long size = stream.Length - stream.Position;
-      if(size > int.MaxValue) throw new NotImplementedException("Support for reading streams larger than 2GB is not implemented.");
-      data = new byte[(int)size];
-      stream.ReadOrThrow(data, 0, data.Length);
+      data = new byte[size];
+      stream.LongReadOrThrow(data, 0, size);
     }
     else
     {
       data = new byte[4096];
       int length = 0;
+      bool longRead = false;
       while(true)
       {
         int read = stream.Read(data, length, data.Length-length);
@@ -245,15 +245,44 @@ public unsafe static partial class StreamExtensions
         if(length == data.Length)
         {
           int newSize = data.Length * 2;
-          // if the new size is negative, that means it overflowed the int
-          if(newSize < 0) throw new NotImplementedException("Support for reading streams larger than 1GB is not implemented.");
+          if(newSize < 0) // if the new size is negative, then it overflowed the int, and we have to use other code to continue reading
+          {
+            longRead = true;
+            break;
+          }
+
           byte[] newData = new byte[newSize];
           Array.Copy(data, newData, length);
           data = newData;
         }
       }
 
-      data = data.Trim(length);
+      if(!longRead) // if it fit in 1GB and we're done reading...
+      {
+        data = data.Trim(length);
+      }
+      else // otherwise, if we need to keep reading beyond 1GB...
+      {
+        long longLength = length;
+        byte[] buffer = new byte[16*1024];
+        while(true)
+        {
+          int read = stream.FullRead(buffer, 0, buffer.Length);
+          if(read == 0) break;
+
+          if(longLength+read > data.LongLength)
+          {
+            byte[] newData = new byte[data.LongLength + 512*1024*1024]; // "only" grow by 512MB at a time
+            Array.Copy(data, newData, longLength);
+            newData = data;
+          }
+
+          Array.Copy(buffer, 0, data, longLength, read);
+          longLength += read;
+        }
+
+        data = data.Trim(longLength);
+      }
     }
     return data;
   }

@@ -3,7 +3,7 @@ AdamMil.IO is a library that provides high performance and high level IO
 tools for the .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2007-2011 Adam Milazzo
+Copyright (C) 2007-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -33,7 +33,7 @@ namespace AdamMil.IO
 /// end of the pipe controlled by the current process is called the server end, and is accessed via the
 /// <see cref="ServerHandle"/>, while the end of the pipe controlled by a child process is called the client end, and
 /// is accessed via the <see cref="ClientHandle"/>. The client handle value is typically passed to the child process
-/// on its command line. To convert a handle into a
+/// on its command line.
 /// </para>
 /// <para>To convert a handle into a <see cref="Stream"/>, use a <see cref="FileStream"/>. First create a
 /// <see cref="SafeFileHandle"/>, passing false so that the pipe handle is not owned by the
@@ -60,7 +60,7 @@ public class InheritablePipe : IDisposable
 
   ~InheritablePipe()
   {
-    Dispose(true);
+    Dispose(false);
   }
 
   /// <summary>Gets the handle of the server side of the pipe.</summary>
@@ -102,7 +102,7 @@ public class InheritablePipe : IDisposable
   public void Dispose()
   {
     GC.SuppressFinalize(this);
-    Dispose(false);
+    Dispose(true);
   }
 
   /// <summary>Called to create the pipe and return the operating system handles for both ends of it.</summary>
@@ -151,7 +151,7 @@ public class InheritablePipe : IDisposable
   }
 
   /// <summary>Closes both sides of the pipe.</summary>
-  void Dispose(bool finalizing)
+  void Dispose(bool manualDispose)
   {
     CloseClient();
     CloseServer();

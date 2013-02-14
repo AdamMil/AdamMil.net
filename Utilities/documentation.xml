@@ -129,7 +129,7 @@
     </Encode>
     <EncodePtr>
       <summary>Encodes the given data.</summary>
-      <param name="data">A pointer to the source data.</param>
+      <param name="dataBytes">A pointer to the source data.</param>
       <param name="dataByteCount">The number of bytes to encode.</param>
       <param name="encodedBytes">A pointer to the destination buffer where the encoded bytes will be written.</param>
       <param name="encodedByteCapacity">The number of bytes available in the destination buffer.</param>
@@ -306,6 +306,82 @@
       </remarks>
     </ParallelismRemarks>
   </Tasks>
+
+  <UpgradableReadWriteLock>
+    <DowngradeExample>
+      This example shows how you can downgrade a write lock to a read lock.
+      <code>
+      using(var releaser = rwLock.EnterWrite())
+      {
+        // write some data
+        releaser.Downgrade(); // downgrade to a read lock
+        // read some data
+      }
+      </code>
+      You can also downgrade a lock that you previously upgraded.
+      <code>
+      using(var releaser = rwLock.EnterRead())
+      {
+        // read some data
+        releaser.Upgrade();
+        // write some data
+        releaser.Downgrade(); // downgrade back to a read lock
+        // read some more data
+      }
+      </code>
+    </DowngradeExample>
+    <ReadExample>
+      This example shows how to use the lock for read access.
+      <code>
+      using(rwLock.EnterRead())
+      {
+        // read data here
+      }
+      </code>
+    </ReadExample>
+    <UpgradeExample>
+      This example shows how to upgrade a lock from read mode to write mode. Because multiple threads can attempt to upgrade to write locks
+      simultaneously, a thread is not guaranteed to be the first upgrader. If another thread upgrades first, you may want to recheck
+      whether you still need to perform the write. This is demonstrated in the code below.
+      <code>
+      using(var releaser = rwLock.EnterRead())
+      {
+        recheck:
+        // read data here and determine if we need to change it
+        if(needToChangeData)
+        {
+          // prepare new data (we do this before upgrading to avoid blocking readers)
+          if(!releaser.WriteMode &amp;&amp; !releaser.Upgrade()) goto recheck;
+          // update data
+        }
+      }
+      </code>
+      If you want to upgrade from read to write mode and don't need to recheck your data in case another thread upgraded first, the code
+      can be simplified slightly. This may be the case when the data that would be written by different threads is identical and is not
+      too costly to compute.
+      <code>
+      using(var releaser = rwLock.EnterRead())
+      {
+        // read data here and determine if we need to change it
+        if(needToChangeData)
+        {
+          // prepare new data (we do this before upgrading to avoid blocking readers unnecessarily)
+          releaser.Upgrade();
+          // update data
+        }
+      }
+      </code>
+    </UpgradeExample>
+    <WriteExample>
+      This example shows how to use the lock for write access.
+      <code>
+      using(rwLock.EnterWrite())
+      {
+        // write data here
+      }
+      </code>
+    </WriteExample>
+  </UpgradableReadWriteLock>
 
   <XmlDuration>
     <AddSubRemarks>

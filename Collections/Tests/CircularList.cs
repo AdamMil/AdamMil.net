@@ -342,7 +342,6 @@ public class CircularListTest
     Assert.AreEqual(5, circ.Count);
 
     TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.Insert(0, array, 0, -1); }); // test bounds check inside Insert()
-    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.Insert(2, array, 0, 2); }); // test that insertion except from the beginning or end is disallowed
     TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.RemoveFirst(-1); }); // test simple bounds check inside RemoveFirst(int)
     TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.RemoveLast(-1); }); // test simple bounds check inside RemoveLast(int)
     TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { circ.RemoveRange(-1, 6); }); // test the bounds check inside RemoveRange() for the "remove from end" case
@@ -434,6 +433,95 @@ public class CircularListTest
     circ.AddRange(list);
     circ.VerifyCleared();
     Compare<object>(circ, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+  }
+  #endregion
+
+  #region InsertionTest
+  [Test]
+  public void InsertionTest()
+  {
+    CircularList<int> list = new CircularList<int>(10, false);
+    list.AddRange(1, 2, 3);
+
+    // test insertion at the beginning and end
+    list.Insert(0, 0);
+    list.Insert(0, -1);
+    list.Insert(list.Count, 4);
+    Compare(list, -1, 0, 1, 2, 3, 4);
+
+    // now we should have this non-contiguous structure, so test inserting into it
+    // 1 2 3 4|_ _ _ _|-1 0
+    int[] toInsert = { 21, 22 };
+    list.Insert(4, toInsert, 0, toInsert.Length);
+    Compare(list, -1, 0, 1, 2, 21, 22, 3, 4);
+
+    // 1 2 21 22 3 4|_ _|-1 0
+    toInsert = new[] { -11, -12 };
+    list.Insert(1, toInsert, 0, toInsert.Length);
+    Compare(list, -1, -11, -12, 0, 1, 2, 21, 22, 3, 4);
+
+    // now test insertions into contiguous data
+    list.Clear();
+    list.AddRange(0, 0, 0);
+    list.AddRange(1, 2, 3, 4);
+    list.RemoveFirst(3);
+
+    // now we should have the structure:
+    // _ _ _ |1 2 3 4| _ _ _
+    // test inserting into the left part of the data
+    toInsert = new[] { 11, 12 };
+    list.Insert(1, toInsert, 0, toInsert.Length);
+    Compare(list, 1, 11, 12, 2, 3, 4);
+
+    // _ |1 11 12 2 3 4| _ _ _
+    // now test an insertion on the left side that splits the data into 2 pieces. we should end up with 110 111 112 12 2 3 4| _ |1 11
+    toInsert = new[] { 110, 111, 112 };
+    list.Insert(2, toInsert, 0, toInsert.Length);
+    Compare(list, 1, 11, 110, 111, 112, 12, 2, 3, 4);
+
+    list.Clear();
+    list.AddRange(0, 0, 0);
+    list.AddRange(1, 2, 3, 4);
+    list.RemoveFirst(3);
+    toInsert = new[] { 11, 12 };
+    list.Insert(1, toInsert, 0, toInsert.Length);
+    // _ |1 11 12 2 3 4| _ _ _
+    // try again but this time split the data into 3 pieces (the part to the right of the IP, the part to the left that gets moved to the
+    // end of the array, and the part to the left that gets moved to the front of the array). we should get 11 110 111 12 2 3 4| _ _ |1
+    toInsert = new[] { 110, 111 };
+    list.Insert(2, toInsert, 0, toInsert.Length);
+    Compare(list, 1, 11, 110, 111, 12, 2, 3, 4);
+
+    // now try insertions into the right side
+    list.Clear();
+    list.AddRange(0, 0, 0);
+    list.AddRange(1, 2, 3, 4);
+    list.RemoveFirst(3);
+
+    // _ _ _ |1 2 3 4| _ _ _
+    // test an insertion on the right that doesn't split the data
+    toInsert = new[] { 31, 32 };
+    list.Insert(3, toInsert, 0, toInsert.Length);
+    Compare(list, 1, 2, 3, 31, 32, 4);
+
+    // _ _ _ |1 2 3 31 32 4| _
+    // now test an insertion that splits the data into 2 pieces. we should end up with 314 32 4| |1 2 3 31 311 312 313
+    toInsert = new[] { 311, 312, 313, 314 };
+    list.Insert(4, toInsert, 0, toInsert.Length);
+    Compare(list, 1, 2, 3, 31, 311, 312, 313, 314, 32, 4);
+
+    list.Clear();
+    list.AddRange(0, 0, 0);
+    list.AddRange(1, 2, 3, 4);
+    list.RemoveFirst(3);
+    toInsert = new[] { 31, 32 };
+    list.Insert(3, toInsert, 0, toInsert.Length);
+    // _ _ _ |1 2 3 31 32 4| _
+    // try again but this time split the data into 3 pieces (the part to the left of the IP, the part to the right that gets moved to the
+    // front of the array, and the part to the right that gets moved to the end of the array). we should get 4| _ _ |1 2 3 31 311 312 32
+    toInsert = new[] { 311, 312 };
+    list.Insert(4, toInsert, 0, toInsert.Length);
+    Compare(list, 1, 2, 3, 31, 311, 312, 32, 4);
   }
   #endregion
 

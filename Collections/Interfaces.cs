@@ -3,7 +3,7 @@ AdamMil.Collections is a library that provides useful collection classes for
 the .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2007-2011 Adam Milazzo
+Copyright (C) 2007-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -78,21 +78,21 @@ public interface IReadOnlyList<T> : IReadOnlyCollection<T>
 
 #region IReadOnlyDictionary
 /// <summary>An interface representing a dictionary that does not support being changed.</summary>
-public interface IReadOnlyDictionary<K, V> : IReadOnlyCollection<KeyValuePair<K, V>>
+public interface IReadOnlyDictionary<TKey, TValue> : IReadOnlyCollection<KeyValuePair<TKey, TValue>>
 {
   /// <summary>Gets the value corresponding to the given key.</summary>
-  V this[K key] { get; }
+  TValue this[TKey key] { get; }
   /// <summary>Gets a collection containing the keys in this dictionary.</summary>
-  IReadOnlyCollection<K> Keys { get; }
+  IReadOnlyCollection<TKey> Keys { get; }
   /// <summary>Gets a collection containing the values in this dictionary.</summary>
-  IReadOnlyCollection<V> Values { get; }
+  IReadOnlyCollection<TValue> Values { get; }
   /// <summary>Determines whether the dictionary contains the given key.</summary>
-  bool ContainsKey(K key);
+  bool ContainsKey(TKey key);
   /// <summary>Attempts to retrieve the value for the given key. If the value could be retrieved, it is placed in
   /// <paramref name="value"/> and true is return. Otherwise, <paramref name="value"/> is set to the default value for
   /// its type and false is returned.
   /// </summary>
-  bool TryGetValue(K key, out V value);
+  bool TryGetValue(TKey key, out TValue value);
 }
 #endregion
 

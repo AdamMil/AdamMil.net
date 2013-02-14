@@ -85,7 +85,7 @@ public abstract class Task : IDisposable
   /// <include file="documentation.xml" path="//Utilities/Task/Dispose/*"/>
   ~Task()
   {
-    Dispose(true);
+    Dispose(false);
   }
 
   /// <summary>Raised when the task is complete. This includes cancellation and abortion.</summary>
@@ -147,7 +147,7 @@ public abstract class Task : IDisposable
   public void Dispose()
   {
     GC.SuppressFinalize(this);
-    Dispose(false);
+    Dispose(true);
   }
 
   /// <summary>Waits for the task to finish. An exception will be thrown if the task has not been started.</summary>
@@ -250,7 +250,7 @@ public abstract class Task : IDisposable
   }
 
   /// <include file="documentation.xml" path="//Utilities/Task/Dispose/*"/>
-  protected virtual void Dispose(bool finalizing)
+  protected virtual void Dispose(bool manualDispose)
   {
     if(completionEvent != null)
     {
@@ -356,9 +356,9 @@ public class CompositeTask : Task
   }
 
   /// <include file="documentation.xml" path="//Utilities/Task/Dispose/*"/>
-  protected override void Dispose(bool finalizing)
+  protected override void Dispose(bool manualDispose)
   {
-    base.Dispose(finalizing);
+    base.Dispose(manualDispose);
     foreach(Task task in tasks) task.Completed -= task_Completed;
   }
 

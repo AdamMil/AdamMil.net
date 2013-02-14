@@ -1,7 +1,7 @@
 /*
 AdamMil.Security.UI is a .NET library providing common user interface widgets
 for OpenPGP-based software.
-Copyright (C) 2008-2011 Adam Milazzo (http://www.adammil.net/)
+Copyright (C) 2008-2013 Adam Milazzo (http://www.adammil.net/)
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License

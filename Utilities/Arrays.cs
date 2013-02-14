@@ -3,7 +3,7 @@ AdamMil.Utilities is a library providing generally useful utilities for
 .NET development.
 
 http://www.adammil.net/
-Copyright (C) 2010-2011 Adam Milazzo
+Copyright (C) 2010-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -86,7 +86,8 @@ public class ArrayBuffer<T> : ICollection<T>
         T[] newBuffer = new T[value];
         Array.Copy(Buffer, Offset, newBuffer, 0, Count);
         _buffer = newBuffer;
-        Offset = 0;
+        Offset  = 0;
+        PinData = false;
       }
     }
   }
@@ -97,8 +98,8 @@ public class ArrayBuffer<T> : ICollection<T>
     get; private set;
   }
 
-  /// <summary>Gets the end of the value range of items within the underlying array. This is equal to <see cref="Offset"/> +
-  /// <see cref="Count"/>.
+  /// <summary>Gets the end of the value range of items within the underlying array. This is the index at which data should be written, and
+  /// is equal to <see cref="Offset"/> + <see cref="Count"/>.
   /// </summary>
   public int End
   {
@@ -111,10 +112,26 @@ public class ArrayBuffer<T> : ICollection<T>
     get { return Count == Capacity; }
   }
 
-  /// <summary>Gets the offset into the underlying array where the data is stored.</summary>
+  /// <summary>Gets the offset into the underlying array where the data is stored. This is the index from which data should be read.</summary>
   public int Offset
   {
     get; private set;
+  }
+
+  /// <summary>If true, data within the buffer will not be moved, and a new buffer array will be allocated if the current array fills up.
+  /// If false, data within the buffer may be moved to make space for new data rather than allocating a new array. This property will be
+  /// automatically reset to false whenever the buffer is reallocated. It may be useful to set this to true when data is being sent
+  /// asynchronously. The default is false.
+  /// </summary>
+  public bool PinData { get; set; }
+
+  /// <summary>Gets the amount of free space between the end of the data and the end of the array. This is equal to <see cref="Capacity"/>
+  /// - <see cref="End"/>. This is the amount of contiguous free space available for writing, which may be less than the total amount of
+  /// free space.
+  /// </summary>
+  public int SpaceAtEnd
+  {
+    get { return Buffer.Length - End; }
   }
 
   /// <summary>Adds the given item to the buffer. This method may expand the array or shift the data within it.</summary>
@@ -208,28 +225,38 @@ public class ArrayBuffer<T> : ICollection<T>
   /// <summary>Returns a reference to the buffer after ensuring that there is enough space at the end to hold the given number of
   /// additional items. This method may enlarge the buffer or shift data within it to ensure that there is sufficient space
   /// starting from <see cref="End"/> (which the method may also change) to hold the given number of new items. This method does
-  /// not assume the items will be added and so does not update <see cref="Count"/>. You must call <see cref="AddCount"/> later
-  /// if you add items to the array.
+  /// not assume the items will be added and so does not update <see cref="Count"/>. You must call <see cref="AddCount"/> later if
+  /// you add items to the array. Data should be added to the array beginning at <see cref="Offset"/> (which may be changed by this
+  /// method).
   /// </summary>
   /// <param name="elementsToAdd">The number of items that are expected to be added to the array.</param>
   public T[] GetArrayForWriting(int elementsToAdd)
   {
-    int spaceAtEnd = Capacity - End;
+    int spaceAtEnd = SpaceAtEnd;
     if(elementsToAdd > spaceAtEnd)
     {
-      spaceAtEnd += Offset;
-      MakeContiguous();
-      if(elementsToAdd > spaceAtEnd) _buffer = Utility.EnlargeArray(_buffer, Count, elementsToAdd);
+      if(elementsToAdd <= spaceAtEnd + Offset && !PinData) // if we can gain the needed space by shifting data over, do that
+      {
+        ShiftToFront();
+      }
+      else // otherwise, we need to enlarge the buffer
+      {
+        T[] newBuffer = new T[Math.Max(Capacity*2, Count + elementsToAdd)];
+        if(Count != 0) Array.Copy(_buffer, Offset, newBuffer, 0, Count);
+        _buffer = newBuffer;
+        Offset  = 0;
+        PinData = false;
+      }
     }
     return Buffer;
   }
 
   /// <summary>Ensures that all data is shifted to the beginning of the underlying array, so that <see cref="End"/> equals
-  /// <see cref="Count"/> and <see cref="Offset"/> equals zero. A reference to <see cref="Buffer"/> is returned.
+  /// <see cref="Count"/> and <see cref="Offset"/> equals zero, and then returns a reference to <see cref="Buffer"/>.
   /// </summary>
   public T[] GetContiguousArray()
   {
-    MakeContiguous();
+    ShiftToFront();
     return Buffer;
   }
 
@@ -327,7 +354,7 @@ public class ArrayBuffer<T> : ICollection<T>
 
   const int DefaultCapacity = 32;
 
-  void MakeContiguous()
+  void ShiftToFront()
   {
     if(Offset != 0)
     {
@@ -424,6 +451,20 @@ public static class ArrayExtensions
     if(array == null) throw new ArgumentNullException();
     if((uint)length > (uint)array.Length) throw new ArgumentOutOfRangeException();
     if(length != array.Length)
+    {
+      T[] trimmed = new T[length];
+      Array.Copy(array, trimmed, length);
+      array = trimmed;
+    }
+    return array;
+  }
+
+  /// <summary>Shrinks an array to a given length if it's not already of that length, and returns the array.</summary>
+  public static T[] Trim<T>(this T[] array, long length)
+  {
+    if(array == null) throw new ArgumentNullException();
+    if((ulong)length > (ulong)array.LongLength) throw new ArgumentOutOfRangeException();
+    if(length != array.LongLength)
     {
       T[] trimmed = new T[length];
       Array.Copy(array, trimmed, length);

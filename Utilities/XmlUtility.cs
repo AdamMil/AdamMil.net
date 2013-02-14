@@ -3,7 +3,7 @@ AdamMil.Utilities is a library providing generally useful utilities for
 .NET development.
 
 http://www.adammil.net/
-Copyright (C) 2010-2011 Adam Milazzo
+Copyright (C) 2010-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -373,9 +373,9 @@ public struct XmlDuration
         if(secondTicks != 0)
         {
           int component = secondTicks / (int)TicksPerSecond; // whole seconds
-          sb.Append(component.ToInvariantString());
+          sb.Append(component.ToStringInvariant());
           component = secondTicks % (int)TicksPerSecond; // fractional seconds in 100 ns units
-          if(component != 0) sb.Append('.').Append(component.ToInvariantString().PadLeft(7, '0').TrimEnd('0'));
+          if(component != 0) sb.Append('.').Append(component.ToStringInvariant().PadLeft(7, '0').TrimEnd('0'));
           sb.Append('S');
         }
       }
@@ -501,7 +501,7 @@ public struct XmlDuration
 
         Group g = m.Groups["min"];
         if(!g.Success) mins = 0;
-        else if(!long.TryParse(g.Value, NumberStyles.None, CultureInfo.InvariantCulture, out mins) || mins > 15372286728) goto failed;
+        else if(!InvariantCultureUtility.TryParseExact(g.Value, out mins) || mins > 15372286728) goto failed;
 
         g = m.Groups["s"];
         if(!g.Success)
@@ -588,13 +588,13 @@ public struct XmlDuration
   static bool ParseGroup(Group group, int maxValue, out int value)
   {
     if(!group.Success) value = 0; // missing components are implicitly equal to zero
-    else if(!int.TryParse(group.Value, NumberStyles.None, CultureInfo.InvariantCulture, out value) || value > maxValue) return false;
+    else if(!InvariantCultureUtility.TryParseExact(group.Value, out value) || value > maxValue) return false;
     return true;
   }
 
   static void RenderComponent(StringBuilder sb, int component, char c)
   {
-    if(component != 0) sb.Append(component.ToInvariantString()).Append(c);
+    if(component != 0) sb.Append(component.ToStringInvariant()).Append(c);
   }
 
   static ArgumentException UnrepresentableError()
@@ -613,6 +613,14 @@ public struct XmlDuration
 /// <summary>Provides useful extensions to the <see cref="XmlElement"/> class.</summary>
 public static class XmlElementExtensions
 {
+  /// <summary>Appends the given <see cref="XmlElement"/> to the end of the list of child nodes, and returns the element.</summary>
+  public static XmlElement AppendElement(this XmlElement element, XmlElement newChild)
+  {
+    if(element == null) throw new ArgumentNullException();
+    element.AppendChild(newChild);
+    return newChild;
+  }
+
   /// <summary>Returns the named attribute value.</summary>
   public static string GetAttribute(this XmlElement element, XmlQualifiedName attributeName)
   {
@@ -750,6 +758,26 @@ public static class XmlElementExtensions
   {
     if(element == null) throw new ArgumentNullException();
     element.SetAttribute(attributeName, value.ToString());
+  }
+
+  /// <summary>Sets the named attribute.</summary>
+  public static void SetAttribute(this XmlElement element, XmlQualifiedName attributeName, string value)
+  {
+    if(element == null || attributeName == null) throw new ArgumentNullException();
+    element.SetAttribute(attributeName.Name, attributeName.Namespace, value);
+  }
+
+  /// <summary>Sets the named attribute, using the specified prefix.</summary>
+  public static void SetAttribute(this XmlElement element, string prefix, string localName, string namespaceUri, string value)
+  {
+    if(element == null) throw new ArgumentNullException();
+    XmlAttribute attr = element.GetAttributeNode(localName, namespaceUri);
+    if(attr == null || !attr.Prefix.OrdinalEquals(prefix))
+    {
+      attr = element.OwnerDocument.CreateAttribute(prefix, localName, namespaceUri);
+      element.SetAttributeNode(attr);
+    }
+    attr.Value = value;
   }
 
   /// <summary>Sets the named attribute with a value based on the date portion of a <see cref="DateTime"/>.</summary>
@@ -949,6 +977,21 @@ public static class XmlNodeExtensions
     return null;
   }
 
+  /// <summary>Searches the node and its ancestors for the given attribute and returns the first one found, or null if the attribute was
+  /// not defined on the node or any ancestor.
+  /// </summary>
+  public static XmlAttribute GetInheritedAttributeNode(this XmlNode node, XmlQualifiedName qualifiedName)
+  {
+    if(node == null || qualifiedName == null) throw new ArgumentNullException();
+    while(node.NodeType != XmlNodeType.Document)
+    {
+      XmlAttribute attr = node.Attributes[qualifiedName.Name, qualifiedName.Namespace];
+      if(attr != null) return attr;
+      node = node.ParentNode;
+    }
+    return null;
+  }
+
   /// <summary>Searches the node and its ancestors for the given attribute and returns the value of the first one found, or null if the
   /// attribute was not defined on the node or any ancestor.
   /// </summary>
@@ -961,6 +1004,23 @@ public static class XmlNodeExtensions
   /// default value if the attribute was not defined on the node or any ancestor.
   /// </summary>
   public static string GetInheritedAttributeValue(this XmlNode node, string qualifiedName, string defaultValue)
+  {
+    XmlAttribute attr = node.GetInheritedAttributeNode(qualifiedName);
+    return attr == null ? defaultValue : attr.Value;
+  }
+
+  /// <summary>Searches the node and its ancestors for the given attribute and returns the value of the first one found, or null if the
+  /// attribute was not defined on the node or any ancestor.
+  /// </summary>
+  public static string GetInheritedAttributeValue(this XmlNode node, XmlQualifiedName qualifiedName)
+  {
+    return GetInheritedAttributeValue(node, qualifiedName, null);
+  }
+
+  /// <summary>Searches the node and its ancestors for the given attribute and returns the value of the first one found, or the given
+  /// default value if the attribute was not defined on the node or any ancestor.
+  /// </summary>
+  public static string GetInheritedAttributeValue(this XmlNode node, XmlQualifiedName qualifiedName, string defaultValue)
   {
     XmlAttribute attr = node.GetInheritedAttributeNode(qualifiedName);
     return attr == null ? defaultValue : attr.Value;
@@ -1009,6 +1069,20 @@ public static class XmlNodeExtensions
   {
     string attrValue = GetAttributeValue(node, attrName);
     return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToInt64(attrValue);
+  }
+
+  /// <summary>Returns the value of the named attribute, or null if the attribute was unspecified.</summary>
+  public static string GetQualifiedAttributeValue(this XmlNode node, string localName, string namespaceUri)
+  {
+    XmlAttribute an = GetAttributeNode(node, localName, namespaceUri);
+    return an == null ? null : an.Value;
+  }
+
+  /// <summary>Returns the value of the named attribute, or the given default value if the attribute was unspecified.</summary>
+  public static string GetQualifiedAttributeValue(this XmlNode node, string localName, string namespaceUri, string defaultValue)
+  {
+    XmlAttribute an = GetAttributeNode(node, localName, namespaceUri);
+    return an == null ? defaultValue : an.Value;
   }
 
   /// <summary>Returns the value of the named attribute as an 8-bit signed integer, or 0 if the attribute was unspecified or empty.</summary>
@@ -1168,7 +1242,7 @@ public static class XmlNodeExtensions
   /// <summary>Determines whether the qualified name of the node equals the given qualified name.</summary>
   public static bool HasName(this XmlNode node, XmlQualifiedName qname)
   {
-    if(qname == null) throw new ArgumentNullException();
+    if(node == null || qname == null) throw new ArgumentNullException();
     return node.HasName(qname.Name, qname.Namespace);
   }
 
@@ -1181,8 +1255,7 @@ public static class XmlNodeExtensions
       throw new ArgumentException("Local name must not be empty and namespace URI must not be null.");
     }
 
-    return string.Equals(node.LocalName, localName, StringComparison.Ordinal) &&
-           string.Equals(node.NamespaceURI, namespaceUri, StringComparison.Ordinal);
+    return localName.OrdinalEquals(node.LocalName) && namespaceUri.OrdinalEquals(node.NamespaceURI);
   }
 
   /// <summary>Returns true if the attribute was unspecified or empty.</summary>
@@ -1232,6 +1305,14 @@ public static class XmlNodeExtensions
     if(node == null) throw new ArgumentNullException();
     while(node.FirstChild != null) node.RemoveChild(node.FirstChild);
   }
+
+  /// <summary>Removes the node from its parent and therefore from the document.</summary>
+  public static void RemoveFromParent(this XmlNode node)
+  {
+    if(node == null) throw new ArgumentNullException();
+    if(node.ParentNode != null) node.ParentNode.RemoveChild(node);
+  }
+
 
   /// <summary>Returns the inner text of the node selected by the given XPath query as a boolean,
   /// or false if the node could not be found or was empty.
@@ -1571,6 +1652,12 @@ public static class XmlNodeExtensions
   {
     return node == null || node.Attributes == null ? null : node.Attributes[attrName];
   }
+
+  /// <summary>Gets the named <see cref="XmlAttribute"/> from the given node, or null if the node is null.</summary>
+  static XmlAttribute GetAttributeNode(this XmlNode node, string localName, string namespaceUri)
+  {
+    return node == null || node.Attributes == null ? null : node.Attributes[localName, namespaceUri];
+  }
 }
 #endregion
 
@@ -1877,8 +1964,7 @@ public static class XmlReaderExtensions
       throw new ArgumentException("Local name must not be empty and namespace URI must not be null.");
     }
 
-    return string.Equals(reader.LocalName, localName, StringComparison.Ordinal) &&
-           string.Equals(reader.NamespaceURI, namespaceUri, StringComparison.Ordinal);
+    return localName.OrdinalEquals(reader.LocalName) && namespaceUri.OrdinalEquals(reader.NamespaceURI);
   }
 
   /// <summary>Calls <see cref="XmlReader.Read"/> until <see cref="XmlReader.NodeType"/> is no longer equal to
@@ -1886,6 +1972,7 @@ public static class XmlReaderExtensions
   /// </summary>
   public static bool ReadPastWhitespace(this XmlReader reader)
   {
+    if(reader == null) throw new ArgumentNullException();
     while(reader.Read())
     {
       if(reader.NodeType != XmlNodeType.Whitespace) return true;
@@ -1905,8 +1992,15 @@ public static class XmlReaderExtensions
     }
   }
 
+  /// <summary>Skips nodes that are not <see cref="XmlNodeType.EndElement"/> nodes or empty elements.</summary>
+  public static void SkipToEnd(this XmlReader reader)
+  {
+    if(reader == null) throw new ArgumentNullException();
+    while(reader.NodeType != XmlNodeType.EndElement && !reader.IsEmptyElement) reader.Skip();
+  }
+
   /// <summary>Skips <see cref="XmlNodeType.Whitespace"/> nodes (but not <see cref="XmlNodeType.SignificantWhitespace"/> nodes).</summary>
-  public static void SkipWhitespace(this XmlReader reader)
+  public static void SkipWhiteSpace(this XmlReader reader)
   {
     if(reader == null) throw new ArgumentNullException();
     while(reader.NodeType == XmlNodeType.Whitespace) reader.Read();
@@ -2277,6 +2371,18 @@ public static class XmlWriterExtensions
 /// <summary>Provides utilities for reading and writing XML.</summary>
 public static class XmlUtility
 {
+  /// <summary>Converts a string into an <c>xs:normalizedString</c> value.</summary>
+  public static string NormalizeString(string value)
+  {
+    return NormalizeString(value, false);
+  }
+
+  /// <summary>Converts a string into an <c>xs:TOKEN</c> value.</summary>
+  public static string NormalizeToken(string value)
+  {
+    return NormalizeString(value, true);
+  }
+
   /// <summary>Parses a string containing a whitespace-separated list of items into an array of strings containing the substrings
   /// corresponding to the individual items.
   /// </summary>
@@ -2325,7 +2431,7 @@ public static class XmlUtility
   }
 
   /// <summary>Tries to parse an <c>xs:boolean</c> value. Returns true if a boolean value was successfully parsed and false otherwise.</summary>
-  public static bool TryParseBoolean(string boolStr, out bool value)
+  public static bool TryParse(string boolStr, out bool value)
   {
     if(!string.IsNullOrEmpty(boolStr))
     {
@@ -2353,7 +2459,98 @@ public static class XmlUtility
     return false;
   }
 
-  /// <summary>Tries to parse an <c>xs:date</c>, <c>xs:dateTime</c> value, preserving the time zone information it contains.</summary>
+  /// <summary>Tries to parse an <c>xs:date</c>, <c>xs:dateTime</c>, or <c>xs:datetimeoffset</c> value. <c>xs:datetimeoffset</c> values
+  /// will be converted returned in local time if the offset matches the local time offset, and will be converted into UTC otherwise.
+  /// </summary>
+  /// <returns>Returns true if the value was successfully parsed and false if not.</returns>
+  public static bool TryParse(string dateStr, out DateTime dateTime)
+  {
+    object value;
+    if(TryParseDateTime(dateStr, out value))
+    {
+      if(value is DateTime)
+      {
+        dateTime = (DateTime)value;
+      }
+      else
+      {
+        DateTimeOffset offset = (DateTimeOffset)value;
+        dateTime = offset.DateTime == offset.LocalDateTime ? offset.LocalDateTime : offset.UtcDateTime;
+      }
+      return true;
+    }
+    else
+    {
+      dateTime = new DateTime();
+      return false;
+    }
+  }
+
+  /// <summary>Tries to parse an <c>xsi:double</c> value.</summary>
+  public static bool TryParse(string floatStr, out double value)
+  {
+    if(!string.IsNullOrEmpty(floatStr))
+    {
+      if(InvariantCultureUtility.TryParse(floatStr, out value)) return true;
+
+      if(floatStr.Length == 3)
+      {
+        if(floatStr.OrdinalEquals("NaN"))
+        {
+          value = double.NaN;
+          return true;
+        }
+        else if(floatStr.OrdinalEquals("INF"))
+        {
+          value = double.PositiveInfinity;
+          return true;
+        }
+      }
+      else if(floatStr.Length == 4 && floatStr.OrdinalEquals("-INF"))
+      {
+        value = double.NegativeInfinity;
+        return true;
+      }
+    }
+
+    value = 0;
+    return false;
+  }
+
+  /// <summary>Tries to parse an <c>xsi:float</c> value.</summary>
+  public static bool TryParse(string floatStr, out float value)
+  {
+    if(!string.IsNullOrEmpty(floatStr))
+    {
+      if(InvariantCultureUtility.TryParse(floatStr, out value)) return true;
+
+      if(floatStr.Length == 3)
+      {
+        if(floatStr.OrdinalEquals("NaN"))
+        {
+          value = float.NaN;
+          return true;
+        }
+        else if(floatStr.OrdinalEquals("INF"))
+        {
+          value = float.PositiveInfinity;
+          return true;
+        }
+      }
+      else if(floatStr.Length == 4 && floatStr.OrdinalEquals("-INF"))
+      {
+        value = float.NegativeInfinity;
+        return true;
+      }
+    }
+
+    value = 0;
+    return false;
+  }
+
+  /// <summary>Tries to parse an <c>xs:date</c>, <c>xs:dateTime</c>, or <c>xs:datetimeoffset</c> value, preserving the time zone
+  /// information it contains.
+  /// </summary>
   /// <param name="dateStr">The value, in <c>xs:date</c> or <c>xs:dateTime</c> format.</param>
   /// <param name="value">A variable that receives either a <see cref="DateTime"/> or <see cref="DateTimeOffset"/> value. If no time zone
   /// information is given, the value will be a <see cref="DateTime"/> with a <see cref="DateTime.Kind"/> of
@@ -2384,7 +2581,7 @@ public static class XmlUtility
           hour = minute = 0;
           secs = 0;
         }
-        if(int.TryParse(m.Groups["y"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out year) && year > 0 && year <= 9999 &&
+        if(InvariantCultureUtility.TryParseExact(m.Groups["y"].Value, out year) && year > 0 && year <= 9999 &&
            month > 0 && month <= 12 && day > 0 && day <= DateUtility.GetDaysInMonth(month, year) &&
            (hour < 24 && minute < 60 && secs < 60 || hour == 24 && minute == 0 && secs == 0))
         {
@@ -2393,7 +2590,7 @@ public static class XmlUtility
                               tz.OrdinalEquals("Z")    ? DateTimeKind.Utc : DateTimeKind.Local;
           DateTime dateTime = new DateTime(year, month, day, hour == 24 ? 0 : hour, minute, 0, kind);
           if(hour == 24) dateTime = dateTime.AddDays(1);
-          if(secs != 0) dateTime = dateTime.AddSeconds(secs);
+          if(secs != 0) dateTime = dateTime.AddTicks((long)Math.Round(secs * TimeSpan.TicksPerSecond)); // .AddSeconds() has low precision
 
           if(kind != DateTimeKind.Local)
           {
@@ -2494,10 +2691,95 @@ public static class XmlUtility
     return sb != null ? sb.ToString() : text;
   }
 
+  static bool IsWhitespace(char c)
+  {
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+  }
+
   /// <summary>Creates and returns an XML entity containing the character's hex code.</summary>
   static string MakeHexEntity(char c)
   {
     return "&#x" + ((int)c).ToString("X", CultureInfo.InvariantCulture) + ";";
+  }
+
+  /// <summary>Converts a string to a <c>xs:normalizedString</c> or <c>xs:TOKEN</c> value.</summary>
+  static string NormalizeString(string value, bool trim)
+  {
+    if(value != null)
+    {
+      bool previouslySpace = false;
+      int start = 0, end = value.Length;
+      if(trim && Trim(value, out start, out end)) end += start;
+
+      for(int i=start; i<end; i++)
+      {
+        char c = value[i];
+        bool encode = false;
+        if(c == ' ')
+        {
+          if(previouslySpace) encode = true;
+          else previouslySpace = true;
+        }
+        else if(c == '\t' || c == '\n' || c == '\r')
+        {
+          encode = true;
+        }
+        else
+        {
+          previouslySpace = false;
+        }
+
+        if(encode)
+        {
+          StringBuilder sb = new StringBuilder(value.Length);
+          sb.Append(value, start, i-start);
+          while(true)
+          {
+            if(c == '\t' || c == '\n' || c == '\r') c = ' ';
+            if(c == ' ')
+            {
+              if(!previouslySpace)
+              {
+                sb.Append(' ');
+                previouslySpace = true;
+              }
+            }
+            else
+            {
+              sb.Append(c);
+              previouslySpace = false;
+            }
+
+            if(++i == end) break;
+            c = value[i];
+          }
+          return sb.ToString();
+        }
+      }
+
+      if(start != 0 || end != value.Length) value = value.Substring(start, end-start);
+    }
+
+    return value;
+  }
+
+  static bool Trim(string str, out int start, out int length)
+  {
+    int i = 0, j = str.Length - 1;
+    while(i < str.Length && IsWhitespace(str[i])) i++;
+    while(j > i && IsWhitespace(str[j])) j--;
+    if(j < i)
+    {
+      start  = 0;
+      length = 0;
+      return str.Length != 0;
+    }
+    else
+    {
+      start  = i;
+      length = j - i + 1;
+      return i != 0 || j != str.Length - 1;
+    }
   }
 
   static readonly Regex reDateTime =

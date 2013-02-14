@@ -3,7 +3,7 @@ AdamMil.Mathematics is a library that provides some useful mathematics classes
 for the .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2007-2011 Adam Milazzo
+Copyright (C) 2007-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -27,9 +27,9 @@ namespace AdamMil.Mathematics.Random
 /// useful for creating procedural textures, generating landscapes and clouds, drawing "natural" shapes that exhibit
 /// slight wobbles, and many other things. Specifically, Perlin and Simplex noise in 1, 2, and 3 dimensions are implemented.
 /// </summary>
-  /// <include file="documentation.xml" path="/Math/CoherentNoise/AboutPerlin/*" />
-  /// <include file="documentation.xml" path="/Math/CoherentNoise/AboutSimplex/*" />
-  public sealed class CoherentNoise
+/// <include file="documentation.xml" path="/Math/CoherentNoise/AboutPerlin/*" />
+/// <include file="documentation.xml" path="/Math/CoherentNoise/AboutSimplex/*" />
+public sealed class CoherentNoise
 {
   /// <summary>Initializes a new <see cref="CoherentNoise"/> object using the default seed.</summary>
   public CoherentNoise()

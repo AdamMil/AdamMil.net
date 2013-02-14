@@ -3,7 +3,7 @@ AdamMil.Collections is a library that provides useful collection classes for
 the .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2007-2011 Adam Milazzo
+Copyright (C) 2007-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -193,9 +193,6 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
   /// <param name="items">An array containing the data to insert.</param>
   /// <param name="sourceIndex">The index into <paramref name="items"/> from which data will be read.</param>
   /// <param name="count">The number of items to copy.</param>
-  /// <remarks>With the current implementation, you can only insert items at the start or end of the list, so
-  /// <paramref name="destIndex"/> must be equal to zero or <see cref="Count"/>.
-  /// </remarks>
   public void Insert(int destIndex, T[] items, int sourceIndex, int count)
   {
     if(items == null) throw new ArgumentNullException();
@@ -420,9 +417,6 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
   /// <summary>Inserts an item into the list.</summary>
   /// <param name="index">The index at which the item should be inserted.</param>
   /// <param name="item">The item to insert.</param>
-  /// <remarks>With the current implementation, you can only insert items at the start or end of the list, so
-  /// <paramref name="index"/> must be equal to zero or <see cref="Count"/>.
-  /// </remarks>
   public void Insert(int index, T item)
   {
     InsertSpace(index, 1);
@@ -688,34 +682,95 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
     return logicalIndex;
   }
 
-  /// <summary>Inserts a chunk of free space. The space must be completely filled by the caller, as it is not set to
-  /// a valid state by this function.
+  /// <summary>Inserts a chunk of free space. The space must be completely filled by the caller, as its contents are left undefined by this
+  /// method.
   /// </summary>
   /// <param name="logicalIndex">The index at which to insert the space.</param>
-  /// <param name="count">The number of empty items to reserve at that index.</param>
-  protected void InsertSpace(int logicalIndex, int count)
+  /// <param name="additionalItems">The number of items to reserve at that index.</param>
+  protected void InsertSpace(int logicalIndex, int additionalItems)
   {
-    if(count < 0) throw new ArgumentOutOfRangeException("count");
-    if(logicalIndex != 0 && logicalIndex != this.count)
-    {
-      throw new ArgumentOutOfRangeException("Items can only be inserted at the beginning or end of the list.");
-    }
+    if((uint)logicalIndex > (uint)count || additionalItems < 0) throw new ArgumentOutOfRangeException();
 
-    if(count != 0)
+    if(additionalItems != 0)
     {
-      EnsureCapacity(this.count+count);
+      EnsureCapacity(count + additionalItems);
 
-      if(logicalIndex == this.count) // if the insertion is at the beginning or end, we can just move a pointer
+      if(logicalIndex == count) // if the insertion is at the beginning or end, we can just move a pointer
       {
-        MoveHead(count);
+        MoveHead(additionalItems);
       }
-      else // logicalIndex == 0
+      else if(logicalIndex == 0)
       {
-        tail -= count;
+        tail -= additionalItems;
         if(tail < 0) tail += array.Length;
       }
+      else if(!IsContiguous) // otherwise, we have to shift data. if the data isn't contiguous, we have the data at the sides and a gap in
+      {                      // the middle, so just find which side the index is on and move the data into the gap
+        int tailLength = array.Length - tail, cmp = logicalIndex - tailLength;
+        if(cmp > 0 || cmp == 0 && tailLength < head) // if we're shifting data from the left side into the gap...
+        {
+          Array.Copy(array, cmp, array, cmp+additionalItems, head-cmp);
+          MoveHead(additionalItems);
+        }
+        else // otherwise, we're shifting data from the right side into the gap
+        {
+          Array.Copy(array, tail, array, tail-additionalItems, logicalIndex);
+          tail -= additionalItems;
+        }
+      }
+      else if(logicalIndex <= count/2) // the data is contiguous, so we need to shift either the data at/before or after the index.
+      {                                // if it's in the left half...
+        if(tail >= additionalItems) // we'll shift that data left. if we don't need to split the data...
+        {
+          Array.Copy(array, tail, array, tail-additionalItems, logicalIndex);
+          tail -= additionalItems;
+        }
+        else
+        {
+          // _ |a b +2 c d e f| _ _ _ -> b _ _ c d e f| _ _ |a
+          // _ |a b +3 c d e f| _ _ _ -> _ _ c d e f| _ _ |a b
+          // _ |a b +4 c d e f| _ _ _ -> _ _ c d e f| _ |a b _
+          int rightSize = additionalItems - tail, newTail = array.Length - rightSize;
+          if(logicalIndex <= rightSize)
+          {
+            Array.Copy(array, tail, array, newTail, logicalIndex);
+          }
+          else
+          {
+            Array.Copy(array, tail, array, newTail, rightSize);
+            Array.Copy(array, additionalItems, array, 0, logicalIndex-rightSize);
+          }
+          tail = newTail;
+        }
+      }
+      else // shift the data after the index to the right
+      {
+        int rawIndex = tail + logicalIndex, rightSpace = array.Length - head;
+        if(rightSpace >= additionalItems) // if we don't need to split the data...
+        {
+          Array.Copy(array, rawIndex, array, rawIndex+additionalItems, head-rawIndex);
+          MoveHead(additionalItems);
+        }
+        else
+        {
+          // _ _ _ |a b c d +4 e f| _ -> _ e f| |a b c d _ _ _  (leftSize=3, leftBehind=1)
+          // _ _ _ |a b c d +3 e f| _ -> e f| _ |a b c d _ _ _  (leftSize=2, leftBehind=0)
+          // _ _ _ |a b c d +2 e f| _ -> f| _ _ |a b c d _ _ e  (leftSize=1, leftBehind=-1)
+          int leftBehind = array.Length - rawIndex - additionalItems;
+          if(leftBehind <= 0)
+          {
+            Array.Copy(array, rawIndex, array, -leftBehind, count-logicalIndex);
+          }
+          else
+          {
+            Array.Copy(array, rawIndex+leftBehind, array, 0, count-logicalIndex-leftBehind);
+            Array.Copy(array, rawIndex, array, array.Length-leftBehind, leftBehind);
+          }
+          head = additionalItems - rightSpace;
+        }
+      }
 
-      this.count += count;
+      count += additionalItems;
       OnModified();
     }
   }

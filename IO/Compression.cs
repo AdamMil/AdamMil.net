@@ -3,7 +3,7 @@ AdamMil.IO is a library that provides high performance and high level IO
 tools for the .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2007-2011 Adam Milazzo
+Copyright (C) 2007-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -797,14 +797,14 @@ public sealed class PKWareDCLDecompressor : UnsafeBinaryEncoder
 
     byte* srcEnd = src + sourceCount;
 
-    while(bits <= 24 && src != srcEnd) // copy as much into the bit buffer as we can
-    {
-      buffer |= (uint)*src++ << bits;
-      bits += 8;
-    }
-
     if(state == State.Start)
     {
+      while(bits <= 24 && src != srcEnd) // copy as much into the bit buffer as we can
+      {
+        buffer |= (uint)*src++ << bits;
+        bits += 8;
+      }
+
       if(bits < 16) return 0; // if there isn't enough data to read the header, we can't do anything
       byte literalHandling = (byte)buffer, dictionarySizeSelector = (byte)(buffer>>8);
 
@@ -1051,21 +1051,20 @@ public sealed class PKWareDCLDecompressor : UnsafeBinaryEncoder
     int byteCount = 0;
     // copy all the state into variables so we can simulate the operation without actually changing the decoder state
     uint buffer = bitBuffer;
-    int bits = bitsInBuffer, bytesInDictionary = this.bytesInDictionary, bytesToCopy = 0;
+    int bits = bitsInBuffer, bytesInDictionary = this.bytesInDictionary, bytesToCopy = this.bytesToCopy;
     int dictionarySize = dictionary == null ? 0 : dictionary.Length, lowerBitCount = this.lowerBitCount;
     State state = this.state;
     bool fixedLengthLiterals = this.fixedLengthLiterals;
-
     byte* dataEnd = data + count;
-
-    while(bits <= 24 && data != dataEnd) // copy as much into the bit buffer as we can
-    {
-      buffer |= (uint)*data++ << bits;
-      bits += 8;
-    }
 
     if(state == State.Start)
     {
+      while(bits <= 24 && data != dataEnd) // copy as much into the bit buffer as we can
+      {
+        buffer |= (uint)*data++ << bits;
+        bits += 8;
+      }
+
       if(bits < 16) return 0;
       byte literalHandling = (byte)buffer, dictionarySizeSelector = (byte)(buffer>>8);
 

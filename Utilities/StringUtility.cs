@@ -3,7 +3,7 @@ AdamMil.Utilities is a library providing generally useful utilities for
 .NET development.
 
 http://www.adammil.net/
-Copyright (C) 2010-2011 Adam Milazzo
+Copyright (C) 2010-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -178,6 +178,13 @@ public static class StringUtility
     return sb.ToString();
   }
 
+  /// <summary>Removes all instances of the given character from the string.</summary>
+  public static string Remove(this string str, char charToRemove)
+  {
+    if(str == null) throw new ArgumentNullException();
+    return str.Replace(new string(charToRemove, 1), null); // TODO: this could be optimized
+  }
+
   /// <summary>Removes all instances of the given characters from the string.</summary>
   public static string Remove(this string str, params char[] charsToRemove)
   {
@@ -286,7 +293,7 @@ public static class StringUtility
     return items;
   }
 
-  /// <summary>Finds the region of the string beyond leading and trailing whitespace.</summary>
+  /// <summary>Finds the region of the string within leading and trailing whitespace.</summary>
   /// <param name="str">The string to trim.</param>
   /// <param name="start">A variable that receives the start of the trimmed region.</param>
   /// <param name="length">A variable that receives the length of the trimmed region.</param>

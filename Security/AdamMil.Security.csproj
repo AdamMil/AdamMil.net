@@ -66,6 +66,7 @@
     <Compile Include="GPG.cs" />
     <Compile Include="GPGMessages.cs" />
     <Compile Include="Impersonation.cs" />
+    <Compile Include="Interop.cs" />
     <Compile Include="Options.cs" />
     <Compile Include="PGPSystem.cs" />
     <Compile Include="Keys.cs" />

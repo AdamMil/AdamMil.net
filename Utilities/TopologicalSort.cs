@@ -1,9 +1,9 @@
 ﻿/*
-AdamMil.Collections is a library that provides useful collection classes for
-the .NET framework.
+AdamMil.Utilities is a library providing generally useful utilities for
+.NET development.
 
 http://www.adammil.net/
-Copyright (C) 2007-2011 Adam Milazzo
+Copyright (C) 2010-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -21,8 +21,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
+using System.Security.Permissions;
 
-namespace AdamMil.Collections
+namespace AdamMil.Utilities
 {
 
 #region CycleException
@@ -43,10 +44,25 @@ public class CycleException : ArgumentException
     ObjectInvolved = item;
   }
   /// <summary>Initializes a new <see cref="CycleException"/>.</summary>
-  public CycleException(SerializationInfo info, StreamingContext context) : base(info, context) { }
+  public CycleException(string message, Exception innerException) : base(message, innerException) { }
+  /// <summary>Initializes a new <see cref="CycleException"/>.</summary>
+  public CycleException(SerializationInfo info, StreamingContext context) : base(info, context)
+  {
+    if(info == null) throw new ArgumentNullException();
+    ObjectInvolved = info.GetValue("ObjectInvolved", typeof(object));
+  }
 
   /// <summary>Gets an object involved in the cycle.</summary>
   public object ObjectInvolved { get; private set; }
+
+  /// <inheritdoc/>
+  [SecurityPermission(SecurityAction.LinkDemand, Flags = SecurityPermissionFlag.SerializationFormatter)]
+  public override void GetObjectData(SerializationInfo info, StreamingContext context)
+  {
+    if(info == null) throw new ArgumentNullException();
+    base.GetObjectData(info, context);
+    info.AddValue("ObjectInvolved", ObjectInvolved);
+  }
 }
 #endregion
 
@@ -115,6 +131,8 @@ public static partial class CollectionExtensions
   /// </summary>
   public static void TopologicalSort<T>(this IList<T> items, Converter<T, IEnumerable<T>> getDependencies)
   {
+    if(items == null) throw new ArgumentNullException();
+
     // get the items in the right order
     List<T> newList = items.GetTopologicalSort(getDependencies);
 
@@ -208,4 +226,4 @@ public static partial class CollectionExtensions
   }
 }
 
-} // namespace AdamMil.Collections
+} // namespace AdamMil.Utilities

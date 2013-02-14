@@ -188,5 +188,21 @@ using(STMTransaction tx = STMTransaction.Create())
         </list>
       </remarks>
     </TVarRemarks>
+    <WaitForDistributedTransaction>
+      <summary>Waits for the STM system to become usable again after executing a distributed transaction.</summary>
+      <remarks>
+        This method exists to help work around a bug in the .NET Transactions library, in which a distributed transaction will
+        report itself as committed and complete before it actually is, with no way to detect when the transaction is truly complete. The
+        method cannot actually detect when the entire transaction is complete, because the bug prevents that. It merely detects when the
+        STM system itself has become usable again. (Attempting to use the STM system before the distributed transaction completes can
+        result in an exception, but transactional variables will not be corrupted.)
+        <para>
+          It is safe to call this method at any time, even inside of a distributed transaction or when there is no transaction. The
+          method will return immediately unless there is a .NET system transaction pending completion. If the .NET system transaction
+          manager has hung, the method will block.
+        </para>
+      </remarks>
+      <exception cref="TransactionException">Thrown if a .NET system transaction is still pending when the timeout expires.</exception>
+    </WaitForDistributedTransaction>
   </STM>
 </TX>

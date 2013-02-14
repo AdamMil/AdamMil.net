@@ -3,7 +3,7 @@ AdamMil.Collections is a library that provides useful collection classes for
 the .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2007-2011 Adam Milazzo
+Copyright (C) 2007-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -127,87 +127,88 @@ public sealed class ReadOnlyCollectionWrapper<T> : ReadOnlyCollectionWrapperBase
 
 #region ReadOnlyDictionaryWrapper
 /// <summary>Represents a read-only wrapper around a dictionary.</summary>
-public sealed class ReadOnlyDictionaryWrapper<K, V> : ReadOnlyCollectionWrapperBase, IReadOnlyDictionary<K, V>, IDictionary<K, V>
+public sealed class ReadOnlyDictionaryWrapper<TKey, TValue>
+  : ReadOnlyCollectionWrapperBase, IReadOnlyDictionary<TKey, TValue>, IDictionary<TKey, TValue>
 {
-  /// <summary>Initializes this <see cref="ReadOnlyDictionaryWrapper{K,V}"/> with the given dictionary.</summary>
-  public ReadOnlyDictionaryWrapper(IDictionary<K, V> dictionary)
+  /// <summary>Initializes this <see cref="ReadOnlyDictionaryWrapper{TKey,TValue}"/> with the given dictionary.</summary>
+  public ReadOnlyDictionaryWrapper(IDictionary<TKey, TValue> dictionary)
   {
     if(dictionary == null) throw new ArgumentNullException();
     this.dictionary = dictionary;
-    Keys   = new ReadOnlyCollectionWrapper<K>(dictionary.Keys);
-    Values = new ReadOnlyCollectionWrapper<V>(dictionary.Values);
+    Keys   = new ReadOnlyCollectionWrapper<TKey>(dictionary.Keys);
+    Values = new ReadOnlyCollectionWrapper<TValue>(dictionary.Values);
   }
 
   #region ICollection<KeyValuePair<K,V>> Members
-  int ICollection<KeyValuePair<K, V>>.Count
+  int ICollection<KeyValuePair<TKey, TValue>>.Count
   {
     get { return dictionary.Count; }
   }
 
-  bool ICollection<KeyValuePair<K, V>>.IsReadOnly
+  bool ICollection<KeyValuePair<TKey, TValue>>.IsReadOnly
   {
     get { return true; }
   }
 
-  void ICollection<KeyValuePair<K, V>>.Add(KeyValuePair<K, V> item)
+  void ICollection<KeyValuePair<TKey, TValue>>.Add(KeyValuePair<TKey, TValue> item)
   {
     throw ReadOnlyException();
   }
 
-  void ICollection<KeyValuePair<K, V>>.Clear()
+  void ICollection<KeyValuePair<TKey, TValue>>.Clear()
   {
     throw ReadOnlyException();
   }
 
-  bool ICollection<KeyValuePair<K, V>>.Contains(KeyValuePair<K, V> item)
+  bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> item)
   {
     return dictionary.Contains(item);
   }
 
-  void ICollection<KeyValuePair<K, V>>.CopyTo(KeyValuePair<K, V>[] array, int arrayIndex)
+  void ICollection<KeyValuePair<TKey, TValue>>.CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
   {
     dictionary.CopyTo(array, arrayIndex);
   }
 
-  bool ICollection<KeyValuePair<K, V>>.Remove(KeyValuePair<K, V> item)
+  bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> item)
   {
     throw ReadOnlyException();
   }
   #endregion
 
   #region IDictionary<K,V> Members
-  V IDictionary<K, V>.this[K key]
+  TValue IDictionary<TKey, TValue>.this[TKey key]
   {
     get { return dictionary[key]; }
     set { throw ReadOnlyException(); }
   }
 
-  ICollection<K> IDictionary<K, V>.Keys
+  ICollection<TKey> IDictionary<TKey, TValue>.Keys
   {
     get { return dictionary.Keys; }
   }
 
-  ICollection<V> IDictionary<K, V>.Values
+  ICollection<TValue> IDictionary<TKey, TValue>.Values
   {
     get { return dictionary.Values; }
   }
 
-  void IDictionary<K, V>.Add(K key, V value)
+  void IDictionary<TKey, TValue>.Add(TKey key, TValue value)
   {
     throw ReadOnlyException();
   }
 
-  bool IDictionary<K, V>.ContainsKey(K key)
+  bool IDictionary<TKey, TValue>.ContainsKey(TKey key)
   {
     return dictionary.ContainsKey(key);
   }
 
-  bool IDictionary<K, V>.Remove(K key)
+  bool IDictionary<TKey, TValue>.Remove(TKey key)
   {
     throw ReadOnlyException();
   }
 
-  bool IDictionary<K, V>.TryGetValue(K key, out V value)
+  bool IDictionary<TKey, TValue>.TryGetValue(TKey key, out TValue value)
   {
     return dictionary.TryGetValue(key, out value);
   }
@@ -222,7 +223,7 @@ public sealed class ReadOnlyDictionaryWrapper<K, V> : ReadOnlyCollectionWrapperB
 
   #region IEnumerable<KeyValuePair<K,V>> Members
   /// <include file="documentation.xml" path="//Dictionary/GetEnumerator/*"/>
-  public IEnumerator<KeyValuePair<K, V>> GetEnumerator()
+  public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
   {
     return dictionary.GetEnumerator();
   }
@@ -236,21 +237,21 @@ public sealed class ReadOnlyDictionaryWrapper<K, V> : ReadOnlyCollectionWrapperB
   }
 
   /// <include file="documentation.xml" path="//Dictionary/Contains/*"/>
-  public bool Contains(KeyValuePair<K, V> item)
+  public bool Contains(KeyValuePair<TKey, TValue> item)
   {
     return dictionary.Contains(item);
   }
 
   /// <include file="documentation.xml" path="//Dictionary/CopyTo/*"/>
-  public void CopyTo(KeyValuePair<K, V>[] array, int arrayIndex)
+  public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
   {
     dictionary.CopyTo(array, arrayIndex);
   }
 
   /// <include file="documentation.xml" path="//Dictionary/ToArray/*"/>
-  public KeyValuePair<K, V>[] ToArray()
+  public KeyValuePair<TKey, TValue>[] ToArray()
   {
-    KeyValuePair<K, V>[] array = new KeyValuePair<K, V>[dictionary.Count];
+    KeyValuePair<TKey, TValue>[] array = new KeyValuePair<TKey, TValue>[dictionary.Count];
     dictionary.CopyTo(array, 0);
     return array;
   }
@@ -258,37 +259,37 @@ public sealed class ReadOnlyDictionaryWrapper<K, V> : ReadOnlyCollectionWrapperB
 
   #region IReadOnlyDictionary<K,V> Members
   /// <include file="documentation.xml" path="//Dictionary/Indexer/*"/>
-  public V this[K key]
+  public TValue this[TKey key]
   {
     get { return dictionary[key]; }
   }
 
   /// <include file="documentation.xml" path="//Dictionary/Keys/*"/>
-  public IReadOnlyCollection<K> Keys
+  public IReadOnlyCollection<TKey> Keys
   {
     get; private set;
   }
 
   /// <include file="documentation.xml" path="//Dictionary/Values/*"/>
-  public IReadOnlyCollection<V> Values
+  public IReadOnlyCollection<TValue> Values
   {
     get; private set;
   }
 
   /// <include file="documentation.xml" path="//Dictionary/ContainsKey/*"/>
-  public bool ContainsKey(K key)
+  public bool ContainsKey(TKey key)
   {
     return dictionary.ContainsKey(key);
   }
 
   /// <include file="documentation.xml" path="//Dictionary/TryGetValue/*"/>
-  public bool TryGetValue(K key, out V value)
+  public bool TryGetValue(TKey key, out TValue value)
   {
     return dictionary.TryGetValue(key, out value);
   }
   #endregion
 
-  readonly IDictionary<K, V> dictionary;
+  readonly IDictionary<TKey, TValue> dictionary;
 }
 #endregion
 

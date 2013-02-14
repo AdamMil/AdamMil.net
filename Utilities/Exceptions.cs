@@ -3,7 +3,7 @@ AdamMil.Utilities is a library providing generally useful utilities for
 .NET development.
 
 http://www.adammil.net/
-Copyright (C) 2010-2011 Adam Milazzo
+Copyright (C) 2010-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -34,7 +34,7 @@ static class Exceptions
   public static ArgumentException InsufficientBufferSpace(int elementsNeeded)
   {
     return new ArgumentException("Insufficient space in the output buffer. " +
-                                 elementsNeeded.ToInvariantString() + " elements needed.");
+                                 elementsNeeded.ToStringInvariant() + " elements needed.");
   }
 }
 

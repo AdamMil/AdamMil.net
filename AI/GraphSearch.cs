@@ -3,7 +3,7 @@ AdamMil.AI is a library providing a set of flexible artificial intelligence
 classes for the .NET Framework.
 
 http://www.adammil.net/
-Copyright (C) 2008-2011 Adam Milazzo
+Copyright (C) 2008-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -55,7 +55,7 @@ public interface IGraphSearchable<StateType, ActionType> : ISearchable<StateType
   float GetActionCost(StateType from, StateType to, ActionType action);
 
   /// <summary>Gets the heuristic of a state, representing an estimate of the path cost from that state to the goal.</summary>
-  /// <remarks>The heuristic must be nonnegative, and if <paramref name="state"/> is a goal state, the heuristic must
+  /// <remarks>The heuristic must be nonnegative, and if <paramref name="from"/> is a goal state, the heuristic must
   /// be zero. To guarantee optimality of the search, a heuristic must be admissible, meaning that it never
   /// overestimates the true cost to reach the goal. Furthermore, if the problem space is not a tree, the heuristic
   /// must be consistent to guarantee optimality, which means that for every state s and every successor s' of s, the

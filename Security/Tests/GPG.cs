@@ -18,16 +18,16 @@ public abstract class GPGTestBase : IDisposable
     this.gpgPath = gpgPath;
   }
 
-  ~GPGTestBase() { Dispose(true); }
+  ~GPGTestBase() { Dispose(false); }
 
   [TestFixtureTearDown]
   public void Dispose()
   {
     GC.SuppressFinalize(this);
-    Dispose(false);
+    Dispose(true);
   }
 
-  void Dispose(bool finalizing)
+  void Dispose(bool manualDispose)
   {
     if(keyring != null)
     {
