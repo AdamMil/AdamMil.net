@@ -3,7 +3,7 @@ AdamMil.Utilities is a library providing generally useful utilities for
 .NET development.
 
 http://www.adammil.net/
-Copyright (C) 2010-2011 Adam Milazzo
+Copyright (C) 2010-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -68,6 +68,5 @@ public sealed class ReversedComparer<T> : IComparer<T>
   readonly IComparer<T> cmp;
 }
 #endregion
-
 
 } // namespace AdamMil.Utilities

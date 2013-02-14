@@ -3,7 +3,7 @@ AdamMil.Collections is a library that provides useful collection classes for
 the .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2007-2011 Adam Milazzo
+Copyright (C) 2007-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -27,6 +27,7 @@ namespace AdamMil.Collections
 {
 
 // TODO: it would be good to implement hash providers optimized for 64-bit platforms (e.g. by using 64-bit block ciphers). XXTEA would work
+// TODO: run HashHelper.Cipher through the NIST suite to make sure it's producing sufficiently random output
 
 #region IMultiHashProvider
 /// <summary>An interface for hashing an item in multiple ways.</summary>
@@ -53,7 +54,6 @@ static class HashHelper
   // output space (i.e. of the 32-bit integers) with the key as the seed. the function is near impossible to read, but it works!
   internal static uint Cipher(uint key, uint data)
   {
-    // TODO: run this through the NIST suite to make sure it's producing sufficiently random output
     uint R = (data^key) & 0xFFFF, L = (data>>16) ^ (((((R>>5)^(R<<2)) + ((R>>3)^(R<<4))) ^ ((R^0x79b9) + R)) & 0xFFFF);
     key = (key>>3) | (key<<29);
     R ^= ((((L>>5)^(L<<2)) + ((L>>3)^(L<<4))) ^ ((L^0xf372) + (L^key))) & 0xFFFF;

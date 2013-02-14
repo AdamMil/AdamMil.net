@@ -3,7 +3,7 @@ AdamMil.Utilities is a library providing generally useful utilities for
 .NET development.
 
 http://www.adammil.net/
-Copyright (C) 2010-2011 Adam Milazzo
+Copyright (C) 2010-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -24,6 +24,7 @@ using System.Runtime.InteropServices;
 namespace AdamMil.Utilities
 {
 
+#region Unsafe
 /// <summary>This class provides methods to help when working with unsafe code.</summary>
 [CLSCompliant(false)]
 [System.Security.SuppressUnmanagedCodeSecurity]
@@ -186,7 +187,7 @@ public static class Unsafe
       #if WINDOWS
       if(byteCount > 132) // RtlMoveMemory is measured to be faster than the loop below for overlapping blocks larger than ~132 bytes
       {
-        RtlMoveMemory(dest, src, new IntPtr(byteCount));
+        UnsafeNativeMethods.RtlMoveMemory(dest, src, new IntPtr(byteCount));
       }
       else
       #endif
@@ -227,8 +228,8 @@ public static class Unsafe
 
           #if WINDOWS
           if(byteCount > 512) // RtlMoveMemory is measured to be faster than the below code after about 512 bytes (although it sucks
-          {               // with unaligned pointers, so we use it after alignment)
-            RtlMoveMemory(dest, src, new IntPtr(byteCount));
+          {                   // with unaligned pointers, so we use it after alignment)
+            UnsafeNativeMethods.RtlMoveMemory(dest, src, new IntPtr(byteCount));
             return;
           }
           #endif
@@ -278,7 +279,7 @@ public static class Unsafe
           #if WINDOWS
           if(byteCount > 512) // RtlMoveMemory is measured to be faster than the below code after about 512 bytes (although it sucks
           {               // with unaligned pointers, so we use it after alignment)
-            RtlMoveMemory(dest, src, new IntPtr(byteCount));
+            UnsafeNativeMethods.RtlMoveMemory(dest, src, new IntPtr(byteCount));
             return;
           }
           #endif
@@ -383,12 +384,12 @@ public static class Unsafe
         {
           if(value == 0)
           {
-            RtlZeroMemory(dest, new IntPtr(byteCount)); // RtlZeroMemory is faster after about 640 bytes (if the pointer is aligned)
+            UnsafeNativeMethods.RtlZeroMemory(dest, new IntPtr(byteCount)); // RtlZeroMemory is faster after about 640 bytes (if the pointer is aligned)
             return;
           }
           else if(byteCount > 768) // RtlFillMemory is faster after about 768 bytes (if the pointer is aligned)
           {
-            RtlFillMemory(dest, new IntPtr(byteCount), (byte)value);
+            UnsafeNativeMethods.RtlFillMemory(dest, new IntPtr(byteCount), (byte)value);
             return;
           }
         }
@@ -468,12 +469,12 @@ public static class Unsafe
         {
           if(value == 0)
           {
-            RtlZeroMemory(dest, new IntPtr(byteCount)); // RtlZeroMemory is faster after about 640 bytes (if the pointer is aligned)
+            UnsafeNativeMethods.RtlZeroMemory(dest, new IntPtr(byteCount)); // RtlZeroMemory is faster after about 640 bytes (if aligned)
             return;
           }
           else if(byteCount > 768) // RtlFillMemory is faster after about 768 bytes (if the pointer is aligned)
           {
-            RtlFillMemory(dest, new IntPtr(byteCount), (byte)value);
+            UnsafeNativeMethods.RtlFillMemory(dest, new IntPtr(byteCount), (byte)value);
             return;
           }
         }
@@ -528,16 +529,39 @@ public static class Unsafe
       }
     }
   }
+}
+#endregion
 
-  #if WINDOWS
+#region SafeNativeMethods
+[System.Security.SuppressUnmanagedCodeSecurity]
+static class SafeNativeMethods
+{
+  [DllImport("kernel32.dll", ExactSpelling=true)]
+  public static extern long GetTickCount64(); // NOTE: this only exists in Windows Vista and later
+
+  [DllImport("kernel32.dll", ExactSpelling=true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  public static extern bool SwitchToThread();
+
+  public static readonly bool IsWindowsVistaOrLater =
+    Environment.OSVersion.Platform == PlatformID.Win32NT && Environment.OSVersion.Version.Major >= 6;
+}
+#endregion
+
+#region UnsafeNativeMethods
+[System.Security.SuppressUnmanagedCodeSecurity]
+static class UnsafeNativeMethods
+{
   // we use IntPtr for the length because the API uses size_t, which is 64-bit on 64-bit machines
   [DllImport("ntdll.dll", ExactSpelling=true)]
-  unsafe static extern void RtlFillMemory(void* dest, IntPtr length, byte value);
+  public unsafe static extern void RtlFillMemory(void* dest, IntPtr length, byte value);
+
   [DllImport("ntdll.dll", ExactSpelling=true)]
-  unsafe static extern void RtlMoveMemory(void* dest, void* src, IntPtr length);
+  public unsafe static extern void RtlMoveMemory(void* dest, void* src, IntPtr length);
+
   [DllImport("ntdll.dll", ExactSpelling=true)]
-  unsafe static extern void RtlZeroMemory(void* dest, IntPtr length);
-  #endif
+  public unsafe static extern void RtlZeroMemory(void* dest, IntPtr length);
 }
+#endregion
 
 } // namespace AdamMil.Utilities

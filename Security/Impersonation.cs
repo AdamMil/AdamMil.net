@@ -1,7 +1,7 @@
 ﻿/*
 AdamMil.Security is a .NET library providing OpenPGP-based security.
 http://www.adammil.net/
-Copyright (C) 2008-2011 Adam Milazzo
+Copyright (C) 2008-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -109,20 +109,20 @@ public sealed class Impersonation : IDisposable
   /// <summary>Releases all unmanaged resources used by this object.</summary>
   ~Impersonation()
   {
-    Dispose(true);
+    Dispose(false);
   }
 
   /// <summary>Releases all unmanaged resources used by this object.</summary>
   public void Dispose()
   {
-    Dispose(false);
+    Dispose(true);
     GC.SuppressFinalize(this);
   }
 
   /// <summary>Logs off the user represented by the given logon token.</summary>
   public static void LogOffUser(IntPtr logonToken)
   {
-    CloseHandle(logonToken);
+    UnsafeNativeMethods.CloseHandle(logonToken);
   }
 
   /// <summary>Logs on the given user, returning the corresponding logon token.</summary>
@@ -137,7 +137,7 @@ public sealed class Impersonation : IDisposable
     ValidateLogonArguments(domain, userName, password);
     IntPtr handle;
     int logonType = GetNTLogonType(loginType);
-    if(!LogOnUser(userName, domain, password, logonType, LOGON32_PROVIDER_DEFAULT, out handle))
+    if(!UnsafeNativeMethods.LogonUser(userName, domain, password, logonType, LOGON32_PROVIDER_DEFAULT, out handle))
     {
       throw new Win32Exception();
     }
@@ -159,7 +159,10 @@ public sealed class Impersonation : IDisposable
     try
     {
       passwordStr = Marshal.SecureStringToGlobalAllocUnicode(password);
-      if(!LogOnUser(userName, domain, passwordStr, logonType, LOGON32_PROVIDER_DEFAULT, out handle)) throw new Win32Exception();
+      if(!UnsafeNativeMethods.LogonUser(userName, domain, passwordStr, logonType, LOGON32_PROVIDER_DEFAULT, out handle))
+      {
+        throw new Win32Exception();
+      }
     }
     finally
     {
@@ -220,7 +223,7 @@ public sealed class Impersonation : IDisposable
     Run(LogOnUser(domain, userName, password, loginType), true, code, runInANewThread);
   }
 
-  void Dispose(bool finalizing)
+  void Dispose(bool manualDispose)
   {
     if(context != null)
     {
@@ -230,7 +233,7 @@ public sealed class Impersonation : IDisposable
 
     if(ownedToken != IntPtr.Zero)
     {
-      CloseHandle(ownedToken);
+      UnsafeNativeMethods.CloseHandle(ownedToken);
       ownedToken = IntPtr.Zero;
     }
   }
@@ -339,20 +342,6 @@ public sealed class Impersonation : IDisposable
 
   const int LOGON32_LOGON_INTERACTIVE = 2, LOGON32_LOGON_NETWORK = 3, LOGON32_LOGON_BATCH = 4, LOGON32_LOGON_SERVICE = 5;
   const int LOGON32_PROVIDER_DEFAULT = 0;
-
-  [DllImport("kernel32.dll", ExactSpelling=true)]
-  [return: MarshalAs(UnmanagedType.Bool)]
-  static extern bool CloseHandle(IntPtr handle);
-
-  [DllImport("advapi32.dll", SetLastError=true)]
-  [return: MarshalAs(UnmanagedType.Bool)]
-  static extern bool LogOnUser(string userName, string domain, string password, int logonType, int logonProvider,
-                               out IntPtr userToken);
-
-  [DllImport("advapi32.dll", SetLastError=true)]
-  [return: MarshalAs(UnmanagedType.Bool)]
-  static extern bool LogOnUser(string userName, string domain, IntPtr password, int logonType, int logonProvider,
-                               out IntPtr userToken);
 }
 #endregion
 

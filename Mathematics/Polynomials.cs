@@ -3,7 +3,7 @@ AdamMil.Mathematics is a library that provides some useful mathematics classes
 for the .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2007-2011 Adam Milazzo
+Copyright (C) 2007-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -543,7 +543,7 @@ namespace AdamMil.Mathematics
           if(i != 0)
           {
             sb.Append('x');
-            if(i != 1) sb.Append('^').Append(i.ToInvariantString());
+            if(i != 1) sb.Append('^').Append(i.ToStringInvariant());
           }
         }
       }

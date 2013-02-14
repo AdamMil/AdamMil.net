@@ -1,7 +1,7 @@
 /*
 AdamMil.Security is a .NET library providing OpenPGP-based security.
 http://www.adammil.net/
-Copyright (C) 2008-2011 Adam Milazzo
+Copyright (C) 2008-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -358,7 +358,7 @@ public class UserImage : UserAttributeWithData
       if(headerVersion != 1)
       {
         throw new PGPException("Unsupported image header version " +
-                               headerVersion.ToInvariantString());
+                               headerVersion.ToStringInvariant());
       }
 
       // the Bitmap(Stream) constructor wants to own the entire stream, so we can't pass it a stream that's seeked

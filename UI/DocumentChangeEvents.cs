@@ -3,7 +3,7 @@ AdamMil.UI is a library that provides useful user interface controls for the
 .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2008-2011 Adam Milazzo
+Copyright (C) 2008-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -53,7 +53,7 @@ public abstract class ChangeEvent : IDisposable
   /// <summary>Disposes of the current change event.</summary>
   ~ChangeEvent()
   {
-    Dispose(true);
+    Dispose(false);
   }
 
   /// <summary>Error text to be used when <see cref="Do"/> is called after the change has already been applied.</summary>
@@ -71,7 +71,7 @@ public abstract class ChangeEvent : IDisposable
   public void Dispose()
   {
     GC.SuppressFinalize(this);
-    Dispose(false);
+    Dispose(true);
   }
 
   /// <summary>Returns a short, human-readable string describing the change that this event represents.</summary>
@@ -92,7 +92,7 @@ public abstract class ChangeEvent : IDisposable
   /// <summary>Called when the change event is no longer needed by the undo/redo system. This method should release
   /// any locks held on document nodes.
   /// </summary>
-  protected virtual void Dispose(bool finalizing) { }
+  protected virtual void Dispose(bool manualDispose) { }
 
   /// <summary>Ensures that the document and document version match so that the <see cref="Do"/> operation can be
   /// performed.
@@ -171,10 +171,10 @@ public class CompositeChange : ChangeEvent
   }
 
   /// <include file="documentation.xml" path="/UI/Common/Dispose1/*"/>
-  protected override void Dispose(bool finalizing)
+  protected override void Dispose(bool manualDispose)
   {
     foreach(ChangeEvent change in changes) change.Dispose();
-    base.Dispose(finalizing);
+    base.Dispose(manualDispose);
   }
 
   /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/*"/>
@@ -242,7 +242,7 @@ public class ClearNodeChange : ChangeEvent
   }
 
   /// <include file="documentation.xml" path="/UI/Common/Dispose1/*"/>
-  protected override void Dispose(bool finalizing)
+  protected override void Dispose(bool manualDispose)
   {
     if(children != null)
     {
@@ -252,7 +252,7 @@ public class ClearNodeChange : ChangeEvent
       }
     }
 
-    base.Dispose(finalizing);
+    base.Dispose(manualDispose);
   }
 
   /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/*"/>
@@ -326,10 +326,10 @@ public class InsertNodeChange : ChangeEvent
   }
 
   /// <include file="documentation.xml" path="/UI/Common/Dispose1/*"/>
-  protected override void Dispose(bool finalizing)
+  protected override void Dispose(bool manualDispose)
   {
     if(!inserted && newItem.Locked) newItem.Unlock();
-    base.Dispose(finalizing);
+    base.Dispose(manualDispose);
   }
 
   /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/*"/>
@@ -400,7 +400,7 @@ public class ReplaceNodeChange : ChangeEvent
   }
 
   /// <include file="documentation.xml" path="/UI/Common/Dispose1/*"/>
-  protected override void Dispose(bool finalizing)
+  protected override void Dispose(bool manualDispose)
   {
     if(replaced)
     {
@@ -408,7 +408,7 @@ public class ReplaceNodeChange : ChangeEvent
     }
     else if(newItem.Locked) newItem.Unlock();
 
-    base.Dispose(finalizing);
+    base.Dispose(manualDispose);
   }
 
   /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/*"/>
@@ -477,10 +477,10 @@ public class RemoveNodeChange : ChangeEvent
   }
 
   /// <include file="documentation.xml" path="/UI/Common/Dispose1/*"/>
-  protected override void Dispose(bool finalizing)
+  protected override void Dispose(bool manualDispose)
   {
     if(removed && item.Locked) item.Unlock();
-    base.Dispose(finalizing);
+    base.Dispose(manualDispose);
   }
 
   /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/*"/>
@@ -535,10 +535,10 @@ public class ClearDocumentChange : ChangeEvent
   }
 
   /// <include file="documentation.xml" path="/UI/Common/Dispose1/*"/>
-  protected override void Dispose(bool finalizing)
+  protected override void Dispose(bool manualDispose)
   {
     if(cleared && originalRoot.Locked) originalRoot.Unlock();
-    base.Dispose(finalizing);
+    base.Dispose(manualDispose);
   }
 
   /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/*"/>

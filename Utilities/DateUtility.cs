@@ -3,7 +3,7 @@ AdamMil.Utilities is a library providing generally useful utilities for
 .NET development.
 
 http://www.adammil.net/
-Copyright (C) 2010-2011 Adam Milazzo
+Copyright (C) 2010-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -81,7 +81,7 @@ public static class DateUtility
   public static string ToShortString(this DateTime dateTime, IFormatProvider provider)
   {
     TimeSpan timeOfDay = dateTime.TimeOfDay;
-    return dateTime.ToString(timeOfDay.Ticks == 0 ? "d" : timeOfDay.Seconds == 0 ? "g" : "G", provider);
+    return dateTime.ToString(timeOfDay.Ticks == 0 ? "d" : timeOfDay.Ticks % TimeSpan.TicksPerMinute == 0 ? "g" : "G", provider);
   }
 
   /// <summary>Converts the date to a string that contains all the information needed to reconstruct the date (with the exception of the
@@ -119,7 +119,7 @@ public static class DateUtility
 
   static void PadLeft(StringBuilder sb, int value, int length)
   {
-    string str = value.ToInvariantString();
+    string str = value.ToStringInvariant();
     if(str.Length < length) sb.Append('0', length - str.Length);
     sb.Append(str);
   }

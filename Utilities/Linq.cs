@@ -3,7 +3,7 @@ AdamMil.Utilities is a library providing generally useful utilities for
 .NET development.
 
 http://www.adammil.net/
-Copyright (C) 2010-2011 Adam Milazzo
+Copyright (C) 2010-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -192,8 +192,8 @@ public static class EnumerableExtensions
   /// <summary>Returns up to the specified number of items, all of which are greater than or equal to the rest of the items (using
   /// the given key selector function to compare them). The items may not be returned in sorted order.
   /// </summary>
-  /// <include file="documentation.xml" path="/HiA/Linq/TakeGreatest/node()"/>
-  public static IEnumerable<T> TakeGreatest<T, K>(this IEnumerable<T> items, int count, Func<T, K> keySelector)
+  /// <include file="documentation.xml" path="/Utilities/Linq/TakeGreatest/node()"/>
+  public static IEnumerable<T> TakeGreatest<T, TKey>(this IEnumerable<T> items, int count, Func<T, TKey> keySelector)
   {
     return items.TakeGreatest(count, MakeKeyComparer(keySelector));
   }
@@ -219,8 +219,8 @@ public static class EnumerableExtensions
   /// <summary>Returns up to the specified number of items, all of which are less than or equal to the rest of the items (using
   /// the given key selector function to compare them). The items may not be returned in sorted order.
   /// </summary>
-  /// <include file="documentation.xml" path="/HiA/Linq/TakeLeast/node()"/>
-  public static IEnumerable<T> TakeLeast<T, K>(this IEnumerable<T> items, int count, Func<T, K> keySelector)
+  /// <include file="documentation.xml" path="/Utilities/Linq/TakeLeast/node()"/>
+  public static IEnumerable<T> TakeLeast<T, TKey>(this IEnumerable<T> items, int count, Func<T, TKey> keySelector)
   {
     return items.TakeLeast(count, MakeKeyComparer(keySelector));
   }
@@ -319,10 +319,10 @@ public static class EnumerableExtensions
     return items.Where(item => item != null);
   }
 
-  static IComparer<T> MakeKeyComparer<T, K>(Func<T, K> keySelector)
+  static IComparer<T> MakeKeyComparer<T, TKey>(Func<T, TKey> keySelector)
   {
     if(keySelector == null) throw new ArgumentNullException();
-    return new DelegateComparer<T>((a, b) => Comparer<K>.Default.Compare(keySelector(a), keySelector(b)));
+    return new DelegateComparer<T>((a, b) => Comparer<TKey>.Default.Compare(keySelector(a), keySelector(b)));
   }
 }
 

@@ -3,7 +3,7 @@ AdamMil.IO is a library that provides high performance and high level IO
 tools for the .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2007-2011 Adam Milazzo
+Copyright (C) 2007-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -744,6 +744,126 @@ public sealed class ReferenceCountedStream : DelegateStream
 }
 #endregion
 
+#region SeekableStreamWrapper
+/// <summary>Wraps an unseekable <see cref="Stream"/> and ensures that it is seekable by copying the contents into a temporary location if
+/// necessary. In general, the wrapper will not be writable because writing to the temporary location would not update the inner stream.
+/// However, if the inner stream was already seekable or you specifically request write support, then the wrapper will also be writable.
+/// If you aren't sure whether a stream is seekable (i.e. if there's a possibility that it is seekable), you should use the
+/// <see cref="EnsureSeekable(Stream)"/> method or one of its overrides.
+/// </summary>
+public class SeekableStreamWrapper : DelegateStream
+{
+  /// <summary>Creates a new <see cref="SeekableStreamWrapper"/> based on the given stream. The given stream will be closed by the wrapper
+  /// when it is no longer needed.
+  /// </summary>
+  /// <remarks>The stream will be copied into a temporary file on disk if it's unseekable and larger than about 78 kilobytes.</remarks>
+  public SeekableStreamWrapper(Stream baseStream) : this(baseStream, DefaultThreshold, true) { }
+
+  /// <summary>Creates a new <see cref="SeekableStreamWrapper"/> based on the given stream. If <paramref name="ownStream"/> is true, the
+  /// given stream will be closed by the wrapper when it is no longer needed.
+  /// </summary>
+  /// <remarks>The stream will be copied into a temporary file on disk if it's unseekable and larger than about 78 kilobytes.</remarks>
+  public SeekableStreamWrapper(Stream baseStream, bool ownStream) : this(baseStream, DefaultThreshold, ownStream) { }
+
+  /// <summary>Creates a new <see cref="SeekableStreamWrapper"/> based on the given stream. If the stream contains more than the given
+  /// number of bytes, it will be copied into a temporary file on disk. Otherwise, its contents will be held in memory. (However, if the
+  /// stream is already seekable, its contents will not be copied at all.) The given stream will be closed by the wrapper when it is no
+  /// longer needed.
+  /// </summary>
+  public SeekableStreamWrapper(Stream baseStream, int tempFileThreshold) : this(baseStream, tempFileThreshold, true) { }
+
+  /// <summary>Creates a new <see cref="SeekableStreamWrapper"/> based on the given stream. If the stream contains more than the given
+  /// number of bytes, it will be copied into a temporary file on disk. Otherwise, its contents will be held in memory. (However, if the
+  /// stream is already seekable, its contents will not be copied at all.) If <paramref name="ownStream"/> is true, the given stream will
+  /// be closed by the wrapper when it is no longer needed.
+  /// </summary>
+  public SeekableStreamWrapper(Stream baseStream, int tempFileThreshold, bool ownStream)
+    : base(TemporaryStream.WrapBaseStream(baseStream, tempFileThreshold, ref ownStream, false, false), ownStream)
+  {
+    writeAllowed = baseStream == InnerStream;
+  }
+
+  /// <inheritdoc/>
+  public override bool CanWrite
+  {
+    get { return writeAllowed && base.CanWrite; }
+  }
+
+  /// <inheritdoc/>
+  public override void SetLength(long length)
+  {
+    AssertWriteAllowed();
+    base.SetLength(length);
+  }
+
+  /// <inheritdoc/>
+  public override void Write(byte[] buffer, int offset, int count)
+  {
+    if(!writeAllowed) throw new InvalidOperationException();
+    base.Write(buffer, offset, count);
+  }
+
+  /// <inheritdoc/>
+  public override void WriteByte(byte value)
+  {
+    if(!writeAllowed) throw new InvalidOperationException();
+    base.WriteByte(value);
+  }
+
+  /// <summary>Returns the given stream if it's seekable or a <see cref="SeekableStreamWrapper"/> if it's not. If a wrapper is used, the
+  /// given stream will be closed by the wrapper when it is no longer needed.
+  /// </summary>
+  /// <remarks>The stream will be copied into a temporary file on disk if it's unseekable and larger than about 78 kilobytes.</remarks>
+  public static Stream EnsureSeekable(Stream baseStream)
+  {
+    return EnsureSeekable(baseStream, DefaultThreshold, true);
+  }
+
+  /// <summary>Returns the given stream if it's seekable (and <see cref="ownStream"/> is true) or a seekable wrapper otherwise. If
+  /// <paramref name="ownStream"/> is true, the given stream will be closed by the wrapper when it's no longer needed. If
+  /// <paramref name="ownStream"/> is false, the given stream will be wrapped even if it is seekable to ensure that it's not disposed
+  /// when the returned stream is disposed.
+  /// </summary>
+  /// <remarks>The stream will be copied into a temporary file on disk if it's unseekable and larger than about 78 kilobytes.</remarks>
+  public static Stream EnsureSeekable(Stream baseStream, bool ownStream)
+  {
+    return EnsureSeekable(baseStream, DefaultThreshold, ownStream);
+  }
+
+  /// <summary>Returns the given stream if it's seekable or a <see cref="SeekableStreamWrapper"/> if it's not. If the stream contains more
+  /// than the given number of bytes, it will be copied into a temporary file on disk. Otherwise, its contents will be held in memory.
+  /// (However, if no wrapper is used, the stream's contents will not be copied at all.) The given stream will be closed by the wrapper
+  /// when it is no longer needed.
+  /// </summary>
+  public static Stream EnsureSeekable(Stream baseStream, int tempFileThreshold)
+  {
+    return EnsureSeekable(baseStream, tempFileThreshold, true);
+  }
+
+  /// <summary>Returns the given stream if it's seekable (and <see cref="ownStream"/> is true) or a seekable wrapper otherwise. If the
+  /// stream contains more than the given number of bytes, it will be copied into a temporary file on disk. Otherwise, its contents will be
+  /// held in memory. (However, if no wrapper is used, the stream's contents will not be copied at all.) If <paramref name="ownStream"/> is
+  /// true, the given stream will be closed by the wrapper when it's no longer needed. If <paramref name="ownStream"/> is false, the given
+  /// stream will be wrapped even if it is seekable to ensure that it's not disposed when the returned stream is disposed.
+  /// </summary>
+  public static Stream EnsureSeekable(Stream baseStream, int tempFileThreshold, bool ownStream)
+  {
+    if(baseStream == null) throw new ArgumentNullException();
+    return !baseStream.CanSeek ? new SeekableStreamWrapper(baseStream, tempFileThreshold, ownStream) :
+           ownStream ? baseStream : new DelegateStream(baseStream, false);
+  }
+
+  const int DefaultThreshold = 80000-64; // objects >= 80000 bytes go on the large object heap. we don't want that
+
+  void AssertWriteAllowed()
+  {
+    if(!writeAllowed) throw new InvalidOperationException();
+  }
+
+  readonly bool writeAllowed;
+}
+#endregion
+
 #region StreamStream
 /// <summary>This class provides a stream based on a portion of an existing stream.</summary>
 /// <remarks>Many methods taking stream arguments expect the entire range of the stream to be devoted to the data
@@ -1064,9 +1184,127 @@ public class TeeStream : Stream
 }
 #endregion
 
+#region TemporaryStream
+/// <summary>Copies the contents of a stream into a temporary stream that is writable and seekable.</summary>
+public class TemporaryStream : DelegateStream
+{
+  /// <summary>Creates a new <see cref="TemporaryStream"/> based on the given stream. The given stream will be closed by the wrapper
+  /// when it is no longer needed.
+  /// </summary>
+  /// <remarks>The stream will be copied into a temporary file on disk if it's larger than about 78 kilobytes and unseekable or unwritable.
+  /// Note that the decision to use memory-based or file-based storage is made when the stream is first created. If the stream is later
+  /// enlarged, it will not switch automatically from memory-based storage to file-based storage, so if the content may grow from being
+  /// quite small to quite large, it may be better to use a <see cref="TemporaryFileStream"/>.
+  /// </remarks>
+  public TemporaryStream(Stream baseStream) : this(baseStream, DefaultThreshold, true) { }
+
+  /// <summary>Creates a new <see cref="TemporaryStream"/> based on the given stream. If <paramref name="ownStream"/> is true, the
+  /// given stream will be closed by the wrapper when it is no longer needed.
+  /// </summary>
+  /// <remarks>The stream will be copied into a temporary file on disk if it's larger than about 78 kilobytes and unseekable or unwritable.
+  /// Note that the decision to use memory-based or file-based storage is made when the stream is first created. If the stream is later
+  /// enlarged, it will not switch automatically from memory-based storage to file-based storage, so if the content may grow from being
+  /// quite small to quite large, it may be better to use a <see cref="TemporaryFileStream"/>.
+  /// </remarks>
+  public TemporaryStream(Stream baseStream, bool ownStream) : this(baseStream, DefaultThreshold, ownStream) { }
+
+  /// <summary>Creates a new <see cref="TemporaryStream"/> based on the given stream. If the stream contains more than the given
+  /// number of bytes, it will be copied into a temporary file on disk. Otherwise, its contents will be held in memory. The given stream
+  /// will be closed by the wrapper when it is no longer needed.
+  /// </summary>
+  /// <remarks>Note that the decision to use memory-based or file-based storage is made when the stream is first created. If the stream is
+  /// later enlarged, it will not switch automatically from memory-based storage to file-based storage, so if the content may grow from
+  /// being quite small to quite large, it may be better to use a <see cref="TemporaryFileStream"/>.
+  /// </remarks>
+  public TemporaryStream(Stream baseStream, int tempFileThreshold) : this(baseStream, tempFileThreshold, true) { }
+
+  /// <summary>Creates a new <see cref="TemporaryStream"/> based on the given stream. If the stream contains more than the given
+  /// number of bytes, it will be copied into a temporary file on disk. Otherwise, its contents will be held in memory. If
+  /// <paramref name="ownStream"/> is true, the given stream will be closed by the wrapper when it is no longer needed.
+  /// </summary>
+  /// <remarks>Note that the decision to use memory-based or file-based storage is made when the stream is first created. If the stream is
+  /// later enlarged, it will not switch automatically from memory-based storage to file-based storage, so if the content may grow from
+  /// being quite small to quite large, it may be better to use a <see cref="TemporaryFileStream"/>.
+  /// </remarks>
+  public TemporaryStream(Stream baseStream, int tempFileThreshold, bool ownStream)
+    : base(WrapBaseStream(baseStream, tempFileThreshold, ref ownStream, true, true), ownStream) { }
+
+  const int DefaultThreshold = 80000-64; // objects >= 80000 bytes go on the large object heap. we don't want that
+
+  internal static Stream WrapBaseStream(Stream baseStream, int tempFileThreshold, ref bool ownStream, bool requireWriting, bool forceClone)
+  {
+    if(baseStream == null) throw new ArgumentNullException();
+    if(tempFileThreshold < 0) throw new ArgumentOutOfRangeException();
+
+    Stream newStream = null;
+    try
+    {
+      if(!forceClone && baseStream.CanSeek && (!requireWriting || baseStream.CanWrite)) // if we can reuse the base stream, do it
+      {
+        newStream = baseStream;
+      }
+      else // otherwise, we need to create a copy
+      {
+        if(baseStream.CanSeek) // if we know how large the base stream is...
+        {
+          long length = baseStream.Length - baseStream.Position;
+          if(length > tempFileThreshold) // if it's larger than the threshold, copy it into a file on disk
+          {
+            newStream = new TemporaryFileStream(baseStream);
+          }
+          else if(!requireWriting) // otherwise, if it doesn't need to be writable, read it into a memory stream
+          {
+            newStream = new MemoryStream(baseStream.ReadToEnd(), false);
+          }
+          else // otherwise, we need the memory stream to be expandable
+          {
+            int intLength = (int)length;
+            MemoryStream ms = new MemoryStream(intLength); // so we need to construct it with a particular capacity
+            ms.SetLength(length); // then expand it to the right length
+            baseStream.FullRead(ms.GetBuffer(), 0, intLength); // and read the data into its internal buffer
+            newStream = ms;
+          }
+        }
+        else // we need to create a copy but don't know how large it is...
+        {
+          // try to read one byte more than the threshold
+          int bytesToCopy = tempFileThreshold+1;
+          MemoryStream ms = new MemoryStream(bytesToCopy);
+          ms.SetLength(bytesToCopy);
+          int length = baseStream.FullRead(ms.GetBuffer(), 0, bytesToCopy);
+
+          if(length == bytesToCopy) // if we could read that many bytes, the stream is larger than the threshold
+          {
+            newStream = new TemporaryFileStream(new AggregateStream(false, ms, baseStream)); // so read the whole thing into a file
+          }
+          else // otherwise, the stream fits into a memory stream
+          {
+            ms.SetLength(length);
+            if(length <= tempFileThreshold/2) ms.Capacity = length; // if we're wasting at least half the memory, free some up
+            newStream = ms;
+          }
+        }
+
+        if(ownStream) baseStream.Dispose();
+        ownStream = true;
+      }
+    }
+    catch
+    {
+      if(ownStream) baseStream.Dispose();
+      if(newStream != null && newStream != baseStream) newStream.Dispose();
+      throw;
+    }
+
+    return newStream;
+  }
+}
+#endregion
+
 #region TemporaryFileStream
-/// <summary>Represents a stream whose content is contained within a temporary file. The temporary file will be deleted when the
-/// stream is disposed.
+/// <summary>Represents a stream whose content is contained within a temporary file (which might not be stored on disk). The temporary file
+/// will be deleted when the stream is disposed. If the file content is small, it is usually faster to use a <see cref="TemporaryStream"/>,
+/// which can hold the content in memory.
 /// </summary>
 public class TemporaryFileStream : FileStream
 {
@@ -1080,10 +1318,7 @@ public class TemporaryFileStream : FileStream
 
   /// <summary>Opens or creates a temporary file with the given name. The file will not be truncated if it already exists.</summary>
   public TemporaryFileStream(string tempFilePath)
-    : base(tempFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.DeleteOnClose)
-  {
-    this.tempFilePath = tempFilePath;
-  }
+    : base(tempFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.DeleteOnClose) { }
 
   /// <summary>Initializes a new temporary file with the given name, copies the content from
   /// <paramref name="initialContent"/> (if it's not null), and then rewinds the temporary file stream back to the beginning.
@@ -1098,8 +1333,6 @@ public class TemporaryFileStream : FileStream
   public TemporaryFileStream(string tempFilePath, Stream initialContent, bool rewindAfterCopy)
     : base(tempFilePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.DeleteOnClose)
   {
-    this.tempFilePath = tempFilePath;
-
     if(initialContent != null)
     {
       if(initialContent.CanSeek) SetLength(initialContent.Length); // set the correct length if we know it
@@ -1107,8 +1340,6 @@ public class TemporaryFileStream : FileStream
       if(rewindAfterCopy) Position = 0;
     }
   }
-
-  readonly string tempFilePath;
 }
 #endregion
 

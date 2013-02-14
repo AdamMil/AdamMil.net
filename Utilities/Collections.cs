@@ -3,7 +3,7 @@ AdamMil.Collections is a library that provides useful collection classes for
 the .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2007-2011 Adam Milazzo
+Copyright (C) 2007-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -176,19 +176,19 @@ public static partial class CollectionExtensions
   }
 
   /// <summary>Removes a set of keys from a dictionary.</summary>
-  public static void RemoveRange<K, V>(this IDictionary<K, V> dictionary, IEnumerable<K> keysToRemove)
+  public static void RemoveRange<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, IEnumerable<TKey> keysToRemove)
   {
     if(dictionary == null || keysToRemove == null) throw new ArgumentNullException();
-    foreach(K key in keysToRemove) dictionary.Remove(key);
+    foreach(TKey key in keysToRemove) dictionary.Remove(key);
   }
 
   /// <summary>Adds a set of key/value pairs to a dictionary. If a key already exists in the dictionary, the value will be
   /// overwritten.
   /// </summary>
-  public static void SetRange<K, V>(this IDictionary<K, V> dictionary, IEnumerable<KeyValuePair<K, V>> pairs)
+  public static void SetRange<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, IEnumerable<KeyValuePair<TKey, TValue>> pairs)
   {
     if(dictionary == null || pairs == null) throw new ArgumentNullException();
-    foreach(KeyValuePair<K, V> pair in pairs) dictionary[pair.Key] = pair.Value;
+    foreach(KeyValuePair<TKey, TValue> pair in pairs) dictionary[pair.Key] = pair.Value;
   }
 
   /// <summary>Returns a random item from the list.</summary>

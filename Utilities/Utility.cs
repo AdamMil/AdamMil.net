@@ -3,7 +3,7 @@ AdamMil.Utilities is a library providing generally useful utilities for
 .NET development.
 
 http://www.adammil.net/
-Copyright (C) 2010-2011 Adam Milazzo
+Copyright (C) 2010-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using System.Collections.Generic;
 
 namespace AdamMil.Utilities
 {
@@ -46,6 +47,35 @@ public static class Utility
     {
       obj.Dispose();
       obj = default(T);
+    }
+  }
+
+  /// <summary>Disposes each object in the given array of objects if the array is not null, and sets each element to null.</summary>
+  public static void DisposeAll<T>(T[] array) where T : class, IDisposable
+  {
+    if(array != null)
+    {
+      for(int i=0; i<array.Length; i++)
+      {
+        T value = array[i];
+        if(value != null)
+        {
+          value.Dispose();
+          array[i] = null;
+        }
+      }
+    }
+  }
+
+  /// <summary>Disposes each object in the given collection of objects, if the collection is not null.</summary>
+  public static void DisposeAll<T>(IEnumerable<T> items) where T : class, IDisposable
+  {
+    if(items != null)
+    {
+      foreach(T value in items)
+      {
+        if(value != null) value.Dispose();
+      }
     }
   }
 

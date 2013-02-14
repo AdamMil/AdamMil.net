@@ -196,11 +196,11 @@ public abstract class BinaryEncoding
   /// The default implementation copies the data into an array and calls <see cref="Encode(byte[],int,int,byte[],int)"/>.
   /// </remarks>
   [CLSCompliant(false)]
-  public unsafe virtual int Encode(byte* data, int dataByteCount, byte* encodedBytes, int encodedByteCapacity)
+  public unsafe virtual int Encode(byte* dataBytes, int dataByteCount, byte* encodedBytes, int encodedByteCapacity)
   {
-    if(encodedByteCapacity < 0 || dataByteCount < 0) throw new ArgumentOutOfRangeException();
+    if(dataByteCount < 0 || encodedByteCapacity < 0) throw new ArgumentOutOfRangeException();
     byte[] decodedByteArray = new byte[dataByteCount], encodedByteArray = new byte[encodedByteCapacity];
-    fixed(byte* dbPtr=decodedByteArray) Unsafe.Copy(data, dbPtr, dataByteCount);
+    fixed(byte* dbPtr=decodedByteArray) Unsafe.Copy(dataBytes, dbPtr, dataByteCount);
     return Encode(decodedByteArray, 0, dataByteCount, encodedByteArray, 0);
   }
 
@@ -318,7 +318,7 @@ public abstract class UnsafeBinaryEncoding : BinaryEncoding
   /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/DecodePtr/*"/>
   /// <remarks>Derived classes must override this method.</remarks>
   [CLSCompliant(false)]
-  public override unsafe int Decode(byte* encodedBytes, int encodedByteCount, byte* decodedBytes, int decodedByteCount)
+  public override unsafe int Decode(byte* encodedBytes, int encodedByteCount, byte* decodedBytes, int decodedByteCapacity)
   {
     throw new NotImplementedException();
   }
@@ -341,7 +341,7 @@ public abstract class UnsafeBinaryEncoding : BinaryEncoding
   /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/EncodePtr/*"/>
   /// <remarks>Derived classes must override this method.</remarks>
   [CLSCompliant(false)]
-  public override unsafe int Encode(byte* decodedBytes, int decodedByteCount, byte* encodedBytes, int encodedByteCount)
+  public override unsafe int Encode(byte* dataBytes, int dataByteCount, byte* encodedBytes, int encodedByteCapacity)
   {
     throw new NotImplementedException();
   }
@@ -501,10 +501,10 @@ public class EncoderDecoderBinaryEncoding : BinaryEncoding
 
   /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/EncodePtr/*"/>
   [CLSCompliant(false)]
-  public override unsafe int Encode(byte* data, int dataByteCount, byte* encodedBytes, int encodedByteCapacity)
+  public override unsafe int Encode(byte* dataBytes, int dataByteCount, byte* encodedBytes, int encodedByteCapacity)
   {
     encoder.Reset();
-    return encoder.Encode(data, dataByteCount, encodedBytes, encodedByteCapacity, true);
+    return encoder.Encode(dataBytes, dataByteCount, encodedBytes, encodedByteCapacity, true);
   }
 
   /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/Encode/*"/>

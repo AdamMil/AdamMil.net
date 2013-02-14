@@ -3,7 +3,7 @@ AdamMil.AI is a library providing a set of flexible artificial intelligence
 classes for the .NET Framework.
 
 http://www.adammil.net/
-Copyright (C) 2008-2011 Adam Milazzo
+Copyright (C) 2008-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -20,10 +20,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using AdamMil.Mathematics.Combinatorics;
 using AdamMil.Mathematics.Random;
 using AdamMil.Utilities;
-using System.Threading;
 
 namespace AdamMil.AI.Search.Local
 {
@@ -831,7 +831,7 @@ public static class SimulatedAnnealingSearch
 /// <para>
 /// Simulated annealing is a search method that works by analogy with the annealing process in metallurgy, where metal
 /// is heated to a high temperature to break bonds between atoms (which are at local minima of energy), and slowly
-/// cooled in hopes that the atoms will settle into a local minima lower than before.
+/// cooled in hopes that the atoms will settle into local minima lower than before.
 /// </para>
 /// <para>
 /// Like other local searches, simulated annealing attempts to find an optimal state within a state space by maximizing

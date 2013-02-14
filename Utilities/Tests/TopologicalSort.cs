@@ -2,7 +2,7 @@
 using AdamMil.Tests;
 using NUnit.Framework;
 
-namespace AdamMil.Collections.Tests
+namespace AdamMil.Utilities.Tests
 {
 
 [TestFixture]
@@ -101,4 +101,4 @@ public class TopologicalSortTest
   }
 }
 
-} // namespace AdamMil.Collections.Tests
+} // namespace AdamMil.Utilities.Tests

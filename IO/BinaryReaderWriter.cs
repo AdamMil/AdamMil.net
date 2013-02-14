@@ -3,7 +3,7 @@ AdamMil.IO is a library that provides high performance and high level IO
 tools for the .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2007-2011 Adam Milazzo
+Copyright (C) 2007-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -28,6 +28,8 @@ using AdamMil.Utilities;
 namespace AdamMil.IO
 {
 
+// TODO: make sure BinaryReader has a way to avoid reading more data than requested (like the .NET
+// BinaryReader does)
 // TODO: make sure these work with non-seekable streams
 // TODO: remove support for shared streams? (what would that impact? jappy?)
 
@@ -60,14 +62,14 @@ public unsafe abstract class PinnedBuffer : IDisposable
 
   ~PinnedBuffer()
   {
-    Dispose(true);
+    Dispose(false);
   }
 
   /// <summary>Unpins and frees the buffer.</summary>
   public void Dispose()
   {
     GC.SuppressFinalize(this);
-    Dispose(false);
+    Dispose(true);
   }
 
   /// <summary>Returns a safe reference to the underlying buffer.</summary>
@@ -101,7 +103,7 @@ public unsafe abstract class PinnedBuffer : IDisposable
   }
 
   /// <summary>Unpins and frees the buffer.</summary>
-  protected virtual void Dispose(bool finalizing)
+  protected virtual void Dispose(bool manualDispose)
   {
     FreeBuffer();
   }
@@ -1089,14 +1091,14 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     return newBuffer;
   }
 
-  protected override void Dispose(bool finalizing)
+  protected override void Dispose(bool manualDispose)
   {
     if(!ExternalBuffer && BaseStream.CanSeek)
     {
       BaseStream.Position = Position; // set the stream position to the end of the data read from the reader.
                                       // this way, the stream is not positioned at some seemingly random place.
     }
-    base.Dispose(finalizing);
+    base.Dispose(manualDispose);
   }
 
   /// <summary>Gets the amount of data available in the buffer.</summary>
@@ -2018,10 +2020,10 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Overrides <see cref="PinnedBuffer.Dispose"/> to flush the buffer before freeing it.</summary>
-  protected override void Dispose(bool finalizing)
+  protected override void Dispose(bool manualDispose)
   {
     FlushBuffer();
-    base.Dispose(finalizing);
+    base.Dispose(manualDispose);
   }
 
   /// <summary>Ensures that there is enough space in the buffer to copy the given number of bytes to it.</summary>

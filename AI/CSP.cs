@@ -3,7 +3,7 @@ AdamMil.AI is a library providing a set of flexible artificial intelligence
 classes for the .NET Framework.
 
 http://www.adammil.net/
-Copyright (C) 2008-2011 Adam Milazzo
+Copyright (C) 2008-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License

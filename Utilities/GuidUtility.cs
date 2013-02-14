@@ -3,7 +3,7 @@ AdamMil.Utilities is a library providing generally useful utilities for
 .NET development.
 
 http://www.adammil.net/
-Copyright (C) 2010-2011 Adam Milazzo
+Copyright (C) 2010-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -54,6 +54,92 @@ public static class GuidUtility
     c = (ushort)(c & ~0xC000 | (5<<12)); // set the top four bits of the third portion to 5, indicating a version 5 GUID
     // set the top two bits of the second byte of the last portion to 10, to indicate that we're creating a standard GUID
     return new Guid(a, b, c, hash[8], (byte)(hash[9] & ~0xC0 | 0x80), hash[10], hash[11], hash[12], hash[13], hash[14], hash[15]);
+  }
+
+  /// <summary>Attempts to parse a <see cref="Guid"/> from a string. Returns true if successful and false if not.</summary>
+  public static bool TryParse(string str, out Guid guid)
+  {
+    if(str != null && str.Length >= 32)
+    {
+      int start = 0, end = str.Length;
+      char s = str[0];
+      if(s == '{' || s == '(')
+      {
+        char e = str[end-1];
+        if(e == (s == '{' ? '}' : ')'))
+        {
+          start++;
+          end--;
+        }
+        else
+        {
+          start = -1;
+        }
+      }
+
+      if(start >= 0)
+      {
+        uint a, f, h;
+        ushort b, c, d;
+
+        if(TryParse(str, ref start, end, out a) && TryParse(str, ref start, end, out b) && TryParse(str, ref start, end, out c) &&
+           TryParse(str, ref start, end, out d) && TryParse(str, start, end, 4, out f) && TryParse(str, start+4, end, 8, out h))
+        {
+          guid = new Guid(a, b, c, (byte)(d>>8), (byte)d, (byte)(f>>8), (byte)f,
+                          (byte)(h>>24), (byte)(h>>16), (byte)(h>>8), (byte)h);
+          return true;
+        }
+      }
+    }
+
+    guid = new Guid();
+    return false;
+  }
+
+  static int HexValue(char c)
+  {
+    if(c >= '0' && c <= '9') return c - '0';
+    else if(c >= 'A' && c <= 'F') return c - ('A' - 10);
+    else if(c >= 'a' && c <= 'f') return c - ('a' - 10);
+    else return -1;
+  }
+
+  static bool TryParse(string str, ref int start, int end, out uint value)
+  {
+    if(!TryParse(str, start, end, 8, out value)) return false;
+    start += 8;
+    if(start < end && str[start] == '-') start++;
+    return true;
+  }
+
+  static bool TryParse(string str, ref int start, int end, out ushort value)
+  {
+    uint uintValue;
+    bool success = TryParse(str, start, end, 4, out uintValue);
+    value = (ushort)uintValue;
+    if(success)
+    {
+      start += 4;
+      if(start < end && str[start] == '-') start++;
+    }
+    return success;
+  }
+
+  static bool TryParse(string str, int start, int end, int length, out uint value)
+  {
+    value = 0;
+    if(end - start < length) return false;
+
+    uint v = 0;
+    for(int e=start+length; start<e; start++)
+    {
+      int nibble = HexValue(str[start]);
+      if(nibble == -1) return false;
+      v = (v << 4) | (uint)nibble;
+    }
+
+    value = v;
+    return true;
   }
 }
 

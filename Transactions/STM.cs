@@ -40,7 +40,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // * made STM.Retry() use a consistency check to see if an exception thrown from the transaction may have been caused by
 //   inconsistency. if so, the transaction is retried, and if not, the exception is propagated
 
-// TODO: add spin waits to various loops when we upgrade to .NET 4
+// TODO: add spin waits to various loops when we upgrade to .NET 4 (e.g. TryUpdateStatus)?
+// TODO: consider using GCHandles (i.e. weak references) in the transaction log so that we don't hold onto things that aren't used anymore
+// (but check the performance first)
+// TODO: consider using CallContext instead of (or in addition to) thread-local storage so that the transaction will flow across
+// asynchronous calls, etc
 
 using System;
 using System.Collections.Generic;
@@ -222,7 +226,7 @@ public static class STM
   public static T Retry<T>(int timeoutMs, STMOptions options, Func<T> function, Action postCommitAction)
   {
     if(function == null) throw new ArgumentNullException();
-    Stopwatch timer = timeoutMs == Timeout.Infinite ? null : Stopwatch.StartNew();
+    TimeoutTimer timer = new TimeoutTimer(timeoutMs);
     int delay = 1;
     do
     {
@@ -240,9 +244,13 @@ public static class STM
         if(tx.IsConsistent()) throw;
       }
       finally { tx.Dispose(); }
-      Thread.Sleep(delay); // if it failed, wait a little bit before trying again
-      if(delay < 250) delay *= 2;
-    } while(timer == null || timer.ElapsedMilliseconds < timeoutMs);
+
+      if(timeoutMs != 0) // if it failed, wait a little bit before trying again
+      {
+        Thread.Sleep(Math.Min(delay, timer.RemainingTime));
+        if(delay < 250) delay *= 2;
+      }
+    } while(!timer.HasExpired);
 
     throw new TransactionAbortedException();
   }
@@ -274,6 +282,22 @@ public static class STM
     {
       if(ownTransaction && tx != null) tx.Dispose();
     }
+  }
+
+  /// <include file="documentation.xml" path="/TX/STM/WaitForDistributedTransaction/node()" />
+  /// <remarks>The method will wait for up to 30 seconds before throwing an exception.</remarks>
+  public static void WaitForDistributedTransaction()
+  {
+    STMTransaction.WaitForDistributedTransaction(30 * 1000);
+  }
+
+  /// <include file="documentation.xml" path="/TX/STM/WaitForDistributedTransaction/node()" />
+  /// <param name="timeoutMs">The number of milliseconds that the method should wait for any pending .NET system transaction to complete,
+  /// or <see cref="Timeout.Infinite"/> if the method should wait indefinitely.
+  /// </param>
+  public static void WaitForDistributedTransaction(int timeoutMs)
+  {
+    STMTransaction.WaitForDistributedTransaction(timeoutMs);
   }
 
   static STMTransaction GetTransaction()
@@ -336,7 +360,7 @@ public enum STMOptions
 /// </para>
 /// </remarks>
 /// <include file="documentation.xml" path="/TX/STM/ConsistencyRemarks/node()" />
-public sealed class STMTransaction : IDisposable, IEnlistmentNotification
+public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
 {
   internal STMTransaction(STMTransaction parent, STMOptions options)
   {
@@ -417,7 +441,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     // decouple the transaction from System.Transactions to prevent it from holding up other transactions, but only do it if the
     // transaction has been removed from the stack. that should be the case most of the time, but sometimes a system transaction will be
     // committed on a separate thread and we won't be able to remove it. (i've only seen this happen with distributed transactions.) in
-    // that case, we have little choice but to leave it on the stack until it gets removed by UnmanagedCurrent
+    // that case, we have little choice but to leave it on the stack until it gets removed by CurrentUnmanaged
     if(removedFromStack) systemTransaction = null;
   }
 
@@ -436,7 +460,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   /// <inheritdoc/>
   public override string ToString()
   {
-    return "STM Transaction #" + id.ToInvariantString();
+    return "STM Transaction #" + id.ToStringInvariant();
   }
 
   /// <summary>Gets the current <see cref="STMTransaction"/> for this thread, or null if no transaction has been created and there is no
@@ -487,6 +511,15 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
       if(bindSystemTransaction) _current = transaction = new STMTransaction(transaction, systemTransaction);
       return transaction;
     }
+  }
+
+  /// <summary>Gets whether there is an <see cref="STMTransaction"/> currently associated with this thread. This is not quite the same as
+  /// checking whether <see cref="Current"/> is not null, since the <see cref="Current"/> property will create a new
+  /// <see cref="STMTransaction"/> if there is a system <see cref="Transaction"/> to bind to, while this property will not.
+  /// </summary>
+  public static bool HasCurrent
+  {
+    get { return CurrentUnmanaged != null; }
   }
 
   /// <summary>Creates a new <see cref="STMTransaction"/> using the default <see cref="STMOptions"/>, makes it the current
@@ -550,8 +583,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     // if the variable has been opened for writing by this transaction, return the current value from the write log. otherwise,
     // create a new entry using the most recently committed value
     WriteEntry entry;
-    return (writeLog != null && writeLog.TryGetValue(variable, out entry) ? entry : CreateWriteEntry(variable, null, false))
-           .NewValue;
+    return (writeLog != null && writeLog.TryGetValue(variable, out entry) ? entry : CreateWriteEntry(variable, null, false)).NewValue;
   }
 
   internal object ReadWithoutOpening(TransactionalVariable variable, bool useNewValue)
@@ -609,13 +641,36 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
       // (this usually happens with distributed transactions.) in that case, they can get left on the stack. so we'll detect that case and
       // remove those transactions now
       while(transaction != null && transaction.systemTransaction != null &&
-            (transaction.status == Status.Aborted || transaction.status == Status.Committed))
+            (transaction.status == Status.Committed || transaction.status == Status.Aborted))
       {
         transaction.Dispose(); // this should remove the transaction from the stack
         transaction = _current; // get the new transaction on top of the stack
       }
       return transaction;
     }
+  }
+
+  /// <summary>Waits for the transaction to become usable after the close of a transaction scope that may have involved a distributed
+  /// transaction.
+  /// </summary>
+  internal static void WaitForDistributedTransaction(int timeoutMs)
+  {
+    TimeoutTimer timer = new TimeoutTimer(timeoutMs);
+    int delay = 0;
+    do
+    {
+      STMTransaction transaction = STMTransaction.CurrentUnmanaged;
+      if(transaction == null || transaction.systemTransaction == null || transaction.status != Status.Prepared) return;
+
+      if(timeoutMs != 0)
+      {
+        Thread.Sleep(Math.Min(delay, timer.RemainingTime));
+        if(delay == 0) delay = 1;
+        else if(delay < 250) delay *= 2;
+      }
+    } while(!timer.HasExpired);
+
+    throw new TransactionException("Transaction is still not ready.");
   }
 
   [ThreadStatic] static STMTransaction _current;
@@ -705,7 +760,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     // set the new value. if we don't have one, clone the old value into a private copy to create the new value
     entry.NewValue = useNewValue ? newValue : variable.Clone(entry.OldValue);
     // and add the entry to the write log
-    if(writeLog == null) writeLog = new SortedDictionary<TransactionalVariable, WriteEntry>(VariableComparer.Instance);
+    if(writeLog == null) writeLog = new Dictionary<TransactionalVariable, WriteEntry>();
     writeLog.Add(variable, entry);
     return entry;
   }
@@ -757,10 +812,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
       // which might be top-level, can't have started committing yet
       if(writeLog != null)
       {
-        if(parent.writeLog == null)
-        {
-          parent.writeLog = new SortedDictionary<TransactionalVariable, WriteEntry>(VariableComparer.Instance);
-        }
+        if(parent.writeLog == null) parent.writeLog = new Dictionary<TransactionalVariable, WriteEntry>();
         foreach(KeyValuePair<TransactionalVariable, WriteEntry> pair in writeLog)
         {
           WriteEntry entry;
@@ -894,21 +946,33 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   {
     int newStatus = Status.Aborted; // assume that the transaction will abort
 
-    // acquire "locks" on all of the changed variables by replacing their values with a pointer to the current transaction. the
-    // variables are locked in order by ID. but we only need to do it if this isn't a nested transaction. in fact, locking may
-    // fail in a nested transaction if it and an enclosing transaction both change the same variable, because it will think the
-    // variable has been committed by another transaction, due to the old value (taken from the enclosing transaction) not
-    // matching the currently committed value
+    // acquire "locks" on all of the changed variables by replacing their values with a pointer to the current transaction. the variables
+    // are locked in order by ID to ensure global progress. we only need to do this if this isn't a nested transaction. in fact, locking
+    // may fail in a nested transaction if it and an enclosing transaction both change the same variable, because it will think the
+    // variable has been committed by another transaction, due to the old value (taken from the enclosing transaction) not matching the
+    // currently committed value
     if(parent == null && writeLog != null) // if we need to commit changes directly to the variables...
     {
+      TransactionalVariable[] sortedVars = new TransactionalVariable[writeLog.Count];
+      WriteEntry[] writeEntries = new WriteEntry[writeLog.Count];
+      int index = 0;
       foreach(KeyValuePair<TransactionalVariable, WriteEntry> pair in writeLog)
       {
+        sortedVars[index]   = pair.Key;
+        writeEntries[index] = pair.Value;
+        index++;
+      }
+      Array.Sort(sortedVars, writeEntries, VariableComparer.Instance);
+
+      for(index=0; index<sortedVars.Length; index++)
+      {
+        WriteEntry writeEntry = writeEntries[index];
         while(true)
         {
           // replace the variable's value with a pointer to the transaction if another transaction hasn't committed a change
-          object value = Interlocked.CompareExchange(ref pair.Key.value, this, pair.Value.OldValue);
+          object value = Interlocked.CompareExchange(ref sortedVars[index].value, this, writeEntry.OldValue);
           // if we just locked it, or it was already locked, then we're done with it. otherwise, it couldn't be locked
-          if(value == pair.Value.OldValue) break; // if we just locked it, then finish processing it
+          if(value == writeEntry.OldValue) break; // if we just locked it, then finish processing it
           else if(value == this) goto alreadyLocked; // otherwise, if it was already locked, skip to the next entry
 
           // at this point, we couldn't lock it because it was locked or changed by another transaction
@@ -921,7 +985,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
           // because we could get stuck in an infinite loop if it never gets around to undoing its changes)
           int otherStatus = owningTransaction.status;
           if(owningTransaction.systemTransaction == null ||
-             (otherStatus == Status.Aborted || otherStatus == Status.Committed))
+             (otherStatus == Status.Committed || otherStatus == Status.Aborted))
           {
             owningTransaction.TryCommit();
           }
@@ -942,7 +1006,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
           }
         }
 
-        ISTMTransactionalValue transactional = pair.Value.NewValue as ISTMTransactionalValue;
+        ISTMTransactionalValue transactional = writeEntry.NewValue as ISTMTransactionalValue;
         if(transactional != null) transactional.PrepareForWrite();
 
         alreadyLocked:;
@@ -1037,9 +1101,10 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     return false;
   }
 
-  #region IEnlistmentNotification Members
+  #region ISinglePhaseNotification Members
   void IEnlistmentNotification.Commit(Enlistment enlistment)
   {
+    if(enlistment == null) throw new ArgumentNullException();
     try
     {
       if(TryCommit() && postCommitActions != null)
@@ -1061,6 +1126,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     // rest of the transaction might have completed successfully, we'll never find out. if we take no action, our changes won't
     // get committed -- the variables may be left temporarily in a locked state -- so we might as well roll them back to return
     // them to an unlocked state sooner
+    if(enlistment == null) throw new ArgumentNullException();
     try
     {
       RollBack();
@@ -1074,6 +1140,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
 
   void IEnlistmentNotification.Prepare(PreparingEnlistment preparingEnlistment)
   {
+    if(preparingEnlistment == null) throw new ArgumentNullException();
     try
     {
       PrepareToCommit();
@@ -1087,6 +1154,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
 
   void IEnlistmentNotification.Rollback(Enlistment enlistment)
   {
+    if(enlistment == null) throw new ArgumentNullException();
     try
     {
       RollBack();
@@ -1095,6 +1163,36 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
     {
       Dispose(); // dispose the transaction here, since it's managed automatically
       enlistment.Done();
+    }
+  }
+
+  void ISinglePhaseNotification.SinglePhaseCommit(SinglePhaseEnlistment enlistment)
+  {
+    if(enlistment == null) throw new ArgumentNullException();
+    bool committed = false;
+    try
+    {
+      committed = TryCommit();
+      if(committed && postCommitActions != null)
+      {
+        if(parent == null) ExecutePostCommitActions();
+        else MergePostCommitActions();
+      }
+    }
+    finally
+    {
+      Dispose(); // dispose the transaction here, since it's managed automatically
+      if(committed)
+      {
+        // if we have no changes to commit, call Done() to tell the transaction coordinator that we have read-only semantics.
+        // otherwise, call Committed() to tell it that we committed some changes
+        if(writeLog == null) enlistment.Done();
+        else enlistment.Committed();
+      }
+      else
+      {
+        enlistment.Aborted();
+      }
     }
   }
   #endregion
@@ -1108,7 +1206,7 @@ public sealed class STMTransaction : IDisposable, IEnlistmentNotification
   /// <summary>The read log, containing variables opened in read-only mode by this transaction, or null if none have been.</summary>
   Dictionary<TransactionalVariable, object> readLog;
   /// <summary>The write log, containing variables open in write mode by this transaction, or null if none have been.</summary>
-  SortedDictionary<TransactionalVariable, WriteEntry> writeLog;
+  Dictionary<TransactionalVariable, WriteEntry> writeLog;
   /// <summary>A queue holding actions to be executed after a successful top-level commit, or null if none have been enqueued.</summary>
   Queue<Action> postCommitActions;
   int preparedStatus, status;
@@ -1298,7 +1396,8 @@ public abstract class TransactionalVariable
   /// </remarks>
   public void Release()
   {
-    GetTransaction().Release(this);
+    STMTransaction transaction = STMTransaction.CurrentUnmanaged;
+    if(transaction != null) transaction.Release(this);
   }
 
   /// <summary>Gets the string representation of the <see cref="TransactionalVariable"/>'s value for the current thread. This is
@@ -1311,7 +1410,7 @@ public abstract class TransactionalVariable
   }
 
   /// <summary>Indicates how a value will be cloned when a variable is opened in write mode.</summary>
-  protected enum CloneType : byte
+  protected enum CloneType
   {
     /// <summary>The value will not be cloned at all. This is only suitable for immutable types.</summary>
     NoClone,
@@ -1334,12 +1433,7 @@ public abstract class TransactionalVariable
   protected static CloneType GetCloneType(Type type)
   {
     if(Type.GetTypeCode(type) != TypeCode.Object) return CloneType.NoClone;
-    try
-    {
-      typeLock.EnterReadLock();
-      return cloneTypes[type];
-    }
-    finally { typeLock.ExitReadLock(); }
+    lock(cloneTypes) return cloneTypes[type];
   }
 
   /// <summary>Ensures that the type is cloneable, and stores information about how to clone.</summary>
@@ -1348,9 +1442,9 @@ public abstract class TransactionalVariable
     // primitives, strings, and DBNull values are immutable and don't need to be cloned
     if(Type.GetTypeCode(type) != TypeCode.Object) return;
 
-    typeLock.ReadWrite(
-      delegate { return cloneTypes.ContainsKey(type); },
-      delegate
+    lock(cloneTypes)
+    {
+      if(!cloneTypes.ContainsKey(type))
       {
         CloneType cloneType;
         if(type.GetCustomAttributes(typeof(STMImmutableAttribute), false).Length != 0) cloneType = CloneType.NoClone;
@@ -1358,7 +1452,8 @@ public abstract class TransactionalVariable
         else if(type.IsValueType && IsCopyable(type)) cloneType = CloneType.Rebox;
         else throw new NotSupportedException(type.FullName + " is not cloneable.");
         cloneTypes[type] = cloneType;
-      });
+      }
+    }
   }
 
   /// <summary>Called to clone a value from this variable. The clone should be as deep as necessary to ensure that the given
@@ -1418,7 +1513,6 @@ public abstract class TransactionalVariable
   }
 
   static readonly Dictionary<Type, CloneType> cloneTypes = new Dictionary<Type, CloneType>();
-  static readonly ReaderWriterLockSlim typeLock = new ReaderWriterLockSlim();
   // the counter can provide one billion IDs/second for 580 years before overflowing, which should be enough to ensure uniqueness
   static long idCounter;
 }

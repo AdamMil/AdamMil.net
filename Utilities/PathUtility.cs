@@ -3,7 +3,7 @@ AdamMil.Utilities is a library providing generally useful utilities for
 .NET development.
 
 http://www.adammil.net/
-Copyright (C) 2010-2011 Adam Milazzo
+Copyright (C) 2010-2013 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -31,18 +31,18 @@ public static class PathUtility
   /// <summary>Appends a suffix to the portion of a filename before the extension. For instance, if the
   /// filename is "C:\foo.txt" and the suffix is "-2", the return value will be "C:\foo-2.txt".
   /// </summary>
-  public static string AppendToFileName(string filename, string suffix)
+  public static string AppendToFileName(string fileName, string suffix)
   {
-    if(string.IsNullOrEmpty(filename)) throw new ArgumentException("File name cannot be empty.");
+    if(string.IsNullOrEmpty(fileName)) throw new ArgumentException("File name cannot be empty.");
     // we use this code rather than Path.GetDirectoryName() and Path.Combine() to avoid changing the path separator character
     string directory = null;
-    int dirSlash = filename.LastIndexOfAny(DirectorySeparatorChars);
+    int dirSlash = fileName.LastIndexOfAny(DirectorySeparatorChars);
     if(dirSlash != -1)
     {
-      directory = filename.Substring(0, dirSlash+1); // include the slash in the directory name
-      filename  = filename.Substring(dirSlash+1);
+      directory = fileName.Substring(0, dirSlash+1); // include the slash in the directory name
+      fileName  = fileName.Substring(dirSlash+1);
     }
-    return directory + Path.GetFileNameWithoutExtension(filename) + suffix + Path.GetExtension(filename);
+    return directory + Path.GetFileNameWithoutExtension(fileName) + suffix + Path.GetExtension(fileName);
   }
 
   /// <summary>Determines whether two path strings reference the same file or directory.</summary>
@@ -133,7 +133,7 @@ public static class PathUtility
       }
 
       ++suffix;
-      testPath = Path.Combine(directory, AppendToFileName(fileName, suffix.ToInvariantString()));
+      testPath = Path.Combine(directory, AppendToFileName(fileName, suffix.ToStringInvariant()));
     } while(suffix <= int.MaxValue);
 
     return GetTempFileNameWithExtension(directory, Path.GetExtension(fileName));
