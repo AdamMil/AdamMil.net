@@ -328,7 +328,7 @@ public sealed class STMImmutableAttribute : Attribute
 public enum STMOptions
 {
   /// <summary>Checks consistency only when <see cref="STMTransaction.Commit"/> is called, and attempts to integrate with
-  /// System.Transactions.
+  /// System.Transactions (assuming no containing transaction has disabled it).
   /// </summary>
   Default=0,
   /// <summary>Checks consistency after each variable is opened, as well as during <see cref="STMTransaction.Commit"/>, in order
@@ -338,6 +338,8 @@ public enum STMOptions
   /// <see cref="STMTransaction.CheckConsistency"/> for details.
   /// </summary>
   EnsureConsistency=1,
+  /// <summary>Disables integration with System.Transactions for the current <see cref="STMTransaction"/> and all nested transactions.</summary>
+  DisableSystemTransactions=2,
 }
 #endregion
 
@@ -364,6 +366,7 @@ public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
 {
   internal STMTransaction(STMTransaction parent, STMOptions options)
   {
+    if(parent != null) options |= parent.options & STMOptions.DisableSystemTransactions; // inherit DisableSystemTransactions from parent
     this.parent  = parent;
     this.id      = (ulong)Interlocked.Increment(ref idCounter);
     this.options = options;
@@ -371,6 +374,7 @@ public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
 
   internal STMTransaction(STMTransaction parent, Transaction systemTransaction) : this(parent, STMOptions.Default)
   {
+    Debug.Assert((options & STMOptions.DisableSystemTransactions) == 0); // make sure the parent isn't disabling integration
     this.systemTransaction = systemTransaction;
     systemTransaction.EnlistVolatile(this, EnlistmentOptions.None);
   }
@@ -473,38 +477,32 @@ public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
   {
     get
     {
-      STMTransaction transaction = CurrentUnmanaged;
-      Transaction systemTransaction = Transaction.Current;
+      Transaction systemTransaction = null;
       bool bindSystemTransaction = false;
+      STMTransaction transaction = CurrentUnmanaged;
       if(transaction == null) // if there's no current STM transaction...
       {
-        // push a new transaction onto the stack that is bound to and under the control of the system transaction
+        // push a new transaction onto the stack that is bound to and under the control of the system transaction if there is one
+        systemTransaction     = Transaction.Current;
         bindSystemTransaction = systemTransaction != null;
       }
-      // otherwise, if there is an STM transaction, but it's not bound to the current system transaction (which could be null)...
-      else if(transaction.systemTransaction != systemTransaction)
+      else if((transaction.options & STMOptions.DisableSystemTransactions) == 0) // otherwise, if System.Transaction integration is enabled
       {
-        if(systemTransaction != null) // if there is a system transaction...
-        {
-          STMTransaction boundTransaction = transaction; // look for an STM transaction on the stack bound to it...
-          do boundTransaction = boundTransaction.parent;
-          while(boundTransaction != null && boundTransaction.systemTransaction != systemTransaction);
-          // if there is none, push a new transaction onto the stack that's bound to the system transaction
-          bindSystemTransaction = boundTransaction == null;
-        }
-        else // otherwise, the current STM transaction is bound to a system transaction, but there is no current system transaction...
-        {
-          // that probably means that the system transaction is being suppressed. if there happens to be an STM transaction above the
-          // topmost system transaction on the stack, we can return that. otherwise, we'll return null
-          STMTransaction unboundTransaction = null;
-          while(true)
+        systemTransaction = Transaction.Current;
+        if(transaction.systemTransaction != systemTransaction) // if there is an STM transaction, but it's not bound to the current system
+        {                                                      // transaction (which could be null)...
+          if(systemTransaction != null) // if there is a system transaction...
           {
-            STMTransaction parent = transaction.parent;
-            if(parent == null) break;
-            if(parent.systemTransaction == null && transaction.systemTransaction != null) unboundTransaction = parent;
-            transaction = parent;
+            STMTransaction boundTransaction = transaction; // look for an STM transaction on the stack bound to it...
+            do boundTransaction = boundTransaction.parent;
+            while(boundTransaction != null && boundTransaction.systemTransaction != systemTransaction);
+            // if there is none, push a new transaction onto the stack that's bound to the system transaction
+            bindSystemTransaction = boundTransaction == null;
           }
-          transaction = unboundTransaction;
+          else // otherwise, the current STM transaction is bound to a system transaction, but there is no current system transaction.
+          {    // that probably means that the system transaction is being suppressed
+            return GetUnsuppressedTransaction(transaction);
+          }
         }
       }
 
@@ -519,7 +517,7 @@ public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
   /// </summary>
   public static bool HasCurrent
   {
-    get { return CurrentUnmanaged != null; }
+    get { return CurrentUnsuppressed != null; }
   }
 
   /// <summary>Creates a new <see cref="STMTransaction"/> using the default <see cref="STMOptions"/>, makes it the current
@@ -535,9 +533,18 @@ public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
   /// </summary>
   public static STMTransaction Create(STMOptions options)
   {
-    STMTransaction transaction = new STMTransaction(Current, options);
-    _current = transaction;
-    return transaction;
+    STMTransaction tx = new STMTransaction((options & STMOptions.DisableSystemTransactions) == 0 ? Current : CurrentUnmanaged, options);
+    _current = tx;
+    return tx;
+  }
+
+  /// <summary>If this <see cref="STMTransaction"/> is bound to an system transaction that has been suppressed, this method returns
+  /// the nearest unsuppressed transaction or null if there is no unsuppressed transaction. Otherwise, the method returns this
+  /// <see cref="STMTransaction"/>.
+  /// </summary>
+  internal STMTransaction GetUnsuppressed()
+  {
+    return systemTransaction != null && Transaction.Current == null ? GetUnsuppressedTransaction(this) : this;
   }
 
   internal bool IsConsistent(TransactionalVariable variable)
@@ -629,8 +636,9 @@ public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
     else CreateWriteEntry(variable, value, true);
   }
 
-  /// <summary>Gets the current <see cref="STMTransaction"/> for this thread, or null if no transaction has been created and there is no
-  /// current <see cref="Transaction"/>. Transactions will not be created automatically and enlisted with System.Transactions.
+  /// <summary>Gets the current <see cref="STMTransaction"/> for this thread, or null if no transaction has been created. Transactions will
+  /// not be created automatically and enlisted with System.Transactions, and the property makes no attempt to handle system transactions
+  /// that have been suppressed.
   /// </summary>
   internal static STMTransaction CurrentUnmanaged
   {
@@ -645,6 +653,23 @@ public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
       {
         transaction.Dispose(); // this should remove the transaction from the stack
         transaction = _current; // get the new transaction on top of the stack
+      }
+      return transaction;
+    }
+  }
+
+  /// <summary>Gets the nearest unsuppressed <see cref="STMTransaction"/> for this thread, or null if no transaction has been created or
+  /// the current transaction has been suppressed and there is no unsuppressed ancestor. The property will not create a new transaction in
+  /// any case.
+  /// </summary>
+  internal static STMTransaction CurrentUnsuppressed
+  {
+    get
+    {
+      STMTransaction transaction = CurrentUnmanaged;
+      if(transaction != null && transaction.systemTransaction != null && Transaction.Current == null)
+      {
+        transaction = GetUnsuppressedTransaction(transaction);
       }
       return transaction;
     }
@@ -1213,6 +1238,20 @@ public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
   STMOptions options;
   bool removedFromStack;
 
+  static STMTransaction GetUnsuppressedTransaction(STMTransaction transaction)
+  {
+    // if there happens to be an STM transaction above the suppressed system transaction, we can return that. otherwise, we'll return null
+    STMTransaction unboundTransaction = null;
+    while(true)
+    {
+      STMTransaction parent = transaction.parent;
+      if(parent == null) break;
+      if(parent.systemTransaction == null && transaction.systemTransaction != null) unboundTransaction = parent;
+      transaction = parent;
+    }
+    return unboundTransaction;
+  }
+
   static int TryUpdateStatus(ref int status, int newStatus)
   {
     int currentStatus;
@@ -1270,7 +1309,7 @@ public abstract class TransactionalVariable
   /// <include file="documentation.xml" path="/TX/STM/Read/node()" />
   public object Read()
   {
-    STMTransaction transaction = STMTransaction.CurrentUnmanaged;
+    STMTransaction transaction = STMTransaction.CurrentUnsuppressed;
     return transaction == null ? ReadCommitted() : transaction.OpenForRead(this);
   }
 
@@ -1280,14 +1319,18 @@ public abstract class TransactionalVariable
     object value = this.value; // get the most recently committed value
     // if the variable is currently locked by some other transaction, get the old value from its log
     STMTransaction transaction = value as STMTransaction;
-    if(transaction != null) value = transaction.ReadWithoutOpening(this, false);
+    if(transaction != null)
+    {
+      transaction = transaction.GetUnsuppressed();
+      if(transaction != null) value = transaction.ReadWithoutOpening(this, false);
+    }
     return value;
   }
 
   /// <include file="documentation.xml" path="/TX/STM/ReadWithoutOpening/node()" />
   public object ReadWithoutOpening()
   {
-    STMTransaction transaction = STMTransaction.CurrentUnmanaged;
+    STMTransaction transaction = STMTransaction.CurrentUnsuppressed;
     return transaction == null ? ReadCommitted() : transaction.ReadWithoutOpening(this, true);
   }
 
@@ -1396,7 +1439,7 @@ public abstract class TransactionalVariable
   /// </remarks>
   public void Release()
   {
-    STMTransaction transaction = STMTransaction.CurrentUnmanaged;
+    STMTransaction transaction = STMTransaction.CurrentUnsuppressed;
     if(transaction != null) transaction.Release(this);
   }
 
