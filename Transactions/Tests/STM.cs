@@ -174,6 +174,105 @@ public class STMTests
     TransactionalVariable<int> a = STM.Allocate(1), b = STM.Allocate(2), c = STM.Allocate(3);
     AssertEqual(a, 1, b, 2, c, 3);
 
+    // there are four scenarios considered important:
+    // 1. fully automatic integration with System.Transactions, without any STMTransaction.Create calls
+    // 2. disabling integration with System.Transactions
+    // 3. creating an STM transaction manually inside a transaction implicitly bound to System.Transactions, in order that the inner
+    //    STM transaction can roll back without rolling back the system transaction
+    // 4. using an implicitly bound STM transaction inside a manually created STM transaction (i.e. when code that uses STM.Create
+    //    calls code that uses System.Transactions)
+    // additionally, suppressing a system transaction (using TransactionScopeOptions.Suppress) should suppress STM transactions bound to it
+
+    // test automatic integration (implicit binding) with system transactions, where the system transaction doesn't commit
+    Assert.IsFalse(STMTransaction.HasCurrent);
+    using(new TransactionScope())
+    {
+      Assert.IsFalse(STMTransaction.HasCurrent); // no STM transaction has been accessed yet
+      a.Set(10);
+      b.Set(20);
+      AssertEqual(a, 10, b, 20, c, 3);
+      Assert.IsTrue(STMTransaction.HasCurrent);
+    }
+    AssertEqual(a, 1, b, 2, c, 3);
+    Assert.IsFalse(STMTransaction.HasCurrent);
+
+    // test automatic integration where the system transaction does commit
+    using(TransactionScope stx = new TransactionScope())
+    {
+      Assert.IsFalse(STMTransaction.HasCurrent); // no STM transaction has been accessed yet
+      Assert.IsNotNull(STMTransaction.Current); // now the STM transaction gets created
+      Assert.IsTrue(STMTransaction.HasCurrent);
+
+      AssertEqual(a, 1, b, 2);
+      a.Set(10);
+      b.Set(20);
+      AssertEqual(a, 10, b, 20);
+      stx.Complete();
+    }
+    AssertEqual(a, 10, b, 20);
+    Assert.IsFalse(STMTransaction.HasCurrent);
+
+    // test suppressed system transactions. first test where there's no STM transaction containing the suppressed system transaction
+    using(new TransactionScope())
+    {
+      AssertEqual(a, 10, b, 20);
+      a.Set(1);
+      b.Set(2);
+      AssertEqual(a, 1, b, 2);
+      using(new TransactionScope(TransactionScopeOption.Suppress)) AssertEqual(a, 10, b, 20);
+    }
+    AssertEqual(a, 10, b, 20);
+
+    // now test where there is an STM transaction containing it
+    using(STMTransaction tx = STMTransaction.Create())
+    {
+      a.Set(1);
+      b.Set(2);
+      using(TransactionScope stx = new TransactionScope())
+      {
+        AssertEqual(a, 1, b, 2);
+        a.Set(3);
+        b.Set(4);
+        AssertEqual(a, 3, b, 4);
+        using(new TransactionScope(TransactionScopeOption.Suppress)) AssertEqual(a, 1, b, 2);
+        AssertEqual(a, 3, b, 4);
+        stx.Complete();
+      }
+      AssertEqual(a, 3, b, 4);
+      tx.Commit();
+    }
+    AssertEqual(a, 3, b, 4);
+
+    // now test disabling integration with system transactions
+    using(STMTransaction tx = STMTransaction.Create(STMOptions.DisableSystemTransactions))
+    {
+      // first see that there is no implicit binding by letting the system transaction roll back and seeing that variables are unaffected
+      using(new TransactionScope())
+      {
+        a.Set(10);
+        b.Set(20);
+      }
+      AssertEqual(a, 10, b, 20);
+
+      // do the same thing while creating a nested STM transaction
+      using(new TransactionScope())
+      using(STMTransaction nested = STMTransaction.Create())
+      {
+        a.Set(1);
+        b.Set(2);
+        nested.Commit();
+      }
+
+      AssertEqual(a, 1, b, 2);
+      tx.Commit();
+    }
+    AssertEqual(a, 1, b, 2);
+
+    // most of the tests below were written before implicit binding was fully developed, so they call Create manually. this is not the
+    // preferred or most efficient usage anymore, but we'll leave the tests in here because they should still work, and because they serve
+    // to effectively test scenarios 3 and 4.
+    AssertEqual(a, 1, b, 2, c, 3);
+
     // test where neither commit
     using(TransactionScope stx = new TransactionScope())
     using(STMTransaction tx = STMTransaction.Create())
@@ -243,8 +342,8 @@ public class STMTests
           tx.Commit();
           AssertEqual(a, 1, b, 2);
         }
-        stx.Complete();
         AssertEqual(a, 1, b, 2);
+        stx.Complete();
       }
       AssertEqual(a, 1, b, 2);
     }
@@ -280,8 +379,8 @@ public class STMTests
           tx.Commit();
           AssertEqual(a, 1, b, 2);
         }
-        stx.Complete();
         AssertEqual(a, 1, b, 2);
+        stx.Complete();
       }
       AssertEqual(a, 1, b, 2);
       otx.Commit();
