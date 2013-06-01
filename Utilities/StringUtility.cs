@@ -122,6 +122,12 @@ public static class StringUtility
                          ignoreCase ? StringComparison.CurrentCultureIgnoreCase : StringComparison.CurrentCulture);
   }
 
+  /// <summary>Returns true if the given string is not null but has a length of zero.</summary>
+  public static bool IsEmpty(this string str)
+  {
+    return str != null && str.Length == 0;
+  }
+
   /// <summary>Returns null if the given string is null or empty. Otherwise, returns the given string.</summary>
   public static string MakeNullIfEmpty(string str)
   {

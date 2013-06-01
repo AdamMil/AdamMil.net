@@ -1,6 +1,17 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <TX>
   <STM>
+    <AddPostCommitAction>
+      <summary>Adds a post-commit action to the current transaction.</summary>
+      <remarks>
+        Post-commit actions will be called after the current transaction stack successfully commits. When a nested transaction
+        successfully commits, it adds its post-commit actions to its parent transaction, and when a top-level transaction successfully
+        commits, it executes the post-commit actions. Post-commit actions should not throw exceptions; any exception thrown will be
+        ignored.
+      </remarks>
+      <exception cref="ArgumentNullException">Thrown if <paramref name="postCommitAction"/> is null.</exception>
+      <exception cref="InvalidOperationException">Thrown if the current transaction is no longer active.</exception>
+    </AddPostCommitAction>
     <Allocate>
       <exception cref="NotSupportedException">Thrown if <typeparamref name="T"/> is not cloneable. See
         <see cref="TransactionalVariable{T}"/> for more details.

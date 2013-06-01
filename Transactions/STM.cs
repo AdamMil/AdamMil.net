@@ -72,6 +72,14 @@ public interface ISTMTransactionalValue
 /// <summary>Provides convenience methods for working with software transactional memory.</summary>
 public static class STM
 {
+  /// <include file="documentation.xml" path="/HiA/TX/STM/AddPostCommitAction/node()" />
+  /// <exception cref="InvalidOperationException">Thrown if there is no current transaction.</exception>
+  public static void AddPostCommitAction(Action postCommitAction)
+  {
+    if(postCommitAction == null) throw new ArgumentNullException();
+    GetTransaction().AddPostCommitAction(postCommitAction);
+  }
+
   /// <summary>Allocates and returns a new <see cref="TransactionalVariable{T}"/> with a default value. This is equivalent to
   /// constructing a <see cref="TransactionalVariable{T}"/> using its constructor.
   /// </summary>
@@ -396,6 +404,14 @@ public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
     }
   }
 
+  /// <include file="documentation.xml" path="/HiA/TX/STM/AddPostCommitAction/node()" />
+  public void AddPostCommitAction(Action postCommitAction)
+  {
+    if(postCommitAction == null) throw new ArgumentNullException();
+    AssertActive();
+    AddPostCommitActionCore(postCommitAction);
+  }
+
   /// <exception cref="InvalidOperationException">Thrown if the transaction is no longer active.</exception>
   /// <remarks>If you are using <see cref="STM.Retry"/>, you can check the consistency of the current transaction using
   /// <see cref="STM.CheckConsistency"/>.
@@ -417,21 +433,15 @@ public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
   /// there is nothing additional to execute. This is intended to be used for non-transactional side effects that should not
   /// execute if a transaction is restarted. Using this parameter differs from simply running code after <see cref="Commit"/>
   /// returns because in the case of a nested transaction, it will be queued and executed only if all enclosing transactions also
-  /// commit successfully. If the action throws an exception, it will not be caught by the <see cref="Commit"/> method, and will
-  /// prevent post-commit actions from enclosing transactions from running.
+  /// commit successfully. If the action throws an exception, it will be ignored.
   /// </param>
   /// <include file="documentation.xml" path="/TX/STM/Commit/node()"/>
   public void Commit(Action postCommitAction)
   {
     if(this != CurrentUnmanaged) throw new InvalidOperationException();
-    else if(!TryCommit()) throw new TransactionAbortedException();
+    if(!TryCommit()) throw new TransactionAbortedException();
 
-    if(postCommitAction != null)
-    {
-      if(postCommitActions == null) postCommitActions = new Queue<Action>();
-      postCommitActions.Enqueue(postCommitAction);
-    }
-
+    if(postCommitAction != null) AddPostCommitActionCore(postCommitAction);
     if(parent == null) ExecutePostCommitActions();
     else MergePostCommitActions();
   }
@@ -538,7 +548,7 @@ public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
     return tx;
   }
 
-  /// <summary>If this <see cref="STMTransaction"/> is bound to an system transaction that has been suppressed, this method returns
+  /// <summary>If this <see cref="STMTransaction"/> is bound to a system transaction that has been suppressed, this method returns
   /// the nearest unsuppressed transaction or null if there is no unsuppressed transaction. Otherwise, the method returns this
   /// <see cref="STMTransaction"/>.
   /// </summary>
@@ -751,6 +761,12 @@ public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
   }
   #endregion
 
+  void AddPostCommitActionCore(Action postCommitAction)
+  {
+    if(postCommitActions == null) postCommitActions = new List<Action>();
+    postCommitActions.Add(postCommitAction);
+  }
+
   void AssertActive()
   {
     if(status != Status.Undetermined)
@@ -797,7 +813,11 @@ public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
     {
       try
       {
-        foreach(Action action in postCommitActions) action();
+        foreach(Action action in postCommitActions)
+        {
+          try { action(); }
+          catch { }
+        }
       }
       finally
       {
@@ -1232,8 +1252,8 @@ public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
   Dictionary<TransactionalVariable, object> readLog;
   /// <summary>The write log, containing variables open in write mode by this transaction, or null if none have been.</summary>
   Dictionary<TransactionalVariable, WriteEntry> writeLog;
-  /// <summary>A queue holding actions to be executed after a successful top-level commit, or null if none have been enqueued.</summary>
-  Queue<Action> postCommitActions;
+  /// <summary>A list holding actions to be executed after a successful top-level commit, or null if none have been enqueued.</summary>
+  List<Action> postCommitActions;
   int preparedStatus, status;
   STMOptions options;
   bool removedFromStack;
@@ -1319,11 +1339,7 @@ public abstract class TransactionalVariable
     object value = this.value; // get the most recently committed value
     // if the variable is currently locked by some other transaction, get the old value from its log
     STMTransaction transaction = value as STMTransaction;
-    if(transaction != null)
-    {
-      transaction = transaction.GetUnsuppressed();
-      if(transaction != null) value = transaction.ReadWithoutOpening(this, false);
-    }
+    if(transaction != null) value = (transaction.GetUnsuppressed() ?? transaction).ReadWithoutOpening(this, false);
     return value;
   }
 

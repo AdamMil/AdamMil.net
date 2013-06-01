@@ -43,7 +43,7 @@ public class BloomFilterTest
             i++;
           } while(i < end);
         }, itemCount <= 100000 ? 1 : SystemInformation.GetAvailableCpuThreads());
-        float actualRate = (float)collisions / (itemCount*4);
+        double actualRate = (double)collisions / (itemCount*4);
 
         // now we'll apply a statistical significance test to see if the number of failures was more than we could expect
         // by chance. first we'll calculate some parameters about the Bloom filter using the same logic as the filter

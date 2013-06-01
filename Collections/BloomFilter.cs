@@ -42,10 +42,10 @@ namespace AdamMil.Collections
 /// With an optimal number of hash functions, the number of bits per expected item equals <c>-ln(p) / ln(2)^2</c> where p is the
 /// probabity of false positives. This means that Bloom filters only save space when the density of keys is less than
 /// <c>-ln(2)^2 / ln(p)</c> (about 7% -- 1/14.4 -- for a 0.1% false positive rate).
-/// So if the filter will be used with 1000 randomly selected nonnegative integers (a density of about 0.00005%), then it is an
+/// <para>So if the filter will be used with 1000 randomly selected nonnegative integers (a density of about 0.00005%), then it is an
 /// efficient data structure. But if it will be used with 1000 integers from the restricted range of 0 to 4999 (a density of
 /// 20%), then a Bloom filter is a very poor choice.
-/// <para>A better choice would simply be a bit array containing 5000 bits, with a single bit representing each integer from 0 to
+/// A better choice would simply be a bit array containing 5000 bits, with a bit for each integer from 0 to
 /// 4999. This uses only 1 bit per item (5 bits per expected item), has no false positives, allows more items to be stored,
 /// allows the items in the set to be enumerated and counted, and is much faster. In particular, note that all non-negative
 /// integers (approximately 2.15 billion of them) can be stored in a bit array 256MB in size, which has all the benefits
@@ -61,9 +61,11 @@ namespace AdamMil.Collections
 /// <see cref="MultiHashProvider{T}"/>, which works well for all integer types, <see cref="string"/>, <see cref="Decimal"/>,
 /// <see cref="Single"/>, <see cref="Double"/>, <see cref="Char"/>, <see cref="DateTime"/>, and <see cref="Guid"/> as well as
 /// nullable versions of those. For other types, it uses a generic hash algorithm that is only suitable up to a certain number of
-/// items that depends on the false positive rate. For 0.025% false positives, it is usually suitable up to about 1 million
-/// items, depending on the quality of the .NET <see cref="object.GetHashCode"/> implementation. At 0.25% false positives, it is
-/// usually suitable up to about 10 million items. Beyond that, you may need to create your own hash provider.
+/// items that depends on the false positive rate. The generic algorithm hashes the hash code returned from
+/// <see cref="object.GetHashCode"/>, which is a poor idea but which works for relatively small filters.) For 0.025% false positives, it is
+/// usually suitable up to about 1 million items, assuming a high-quality <see cref="object.GetHashCode"/> implementation.
+/// At 0.25% false positives, it may be suitable up to about 10 million items. Beyond that, you will need to create your own hash provider,
+/// but it is a good idea to create one in any case to avoid the generic implementation.
 /// </para>
 /// </remarks>
 public class BloomFilter<T>

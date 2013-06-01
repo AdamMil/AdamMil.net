@@ -399,10 +399,11 @@ public class STMTests
     using(TransactionScope stx = new TransactionScope())
     {
       using(STMTransaction tx = STMTransaction.Create()) tx.Commit(delegate { ntValue=1; });
+      STM.AddPostCommitAction(delegate { ntValue++; });
       Assert.AreEqual(0, ntValue);
       stx.Complete();
     }
-    Assert.AreEqual(1, ntValue);
+    Assert.AreEqual(2, ntValue);
   }
   #endregion
 
