@@ -305,9 +305,17 @@ public abstract class MultiValuedDictionaryBase<TKey, TValue, TValueCollection>
   /// <summary>Adds a series of values to the collection associated with the given key.</summary>
   public void AddRange(TKey key, IEnumerable<TValue> values)
   {
+    if(values == null) throw new ArgumentNullException();
     TValueCollection list;
     if(!TryGetValue(key, out list)) this[key] = list = CreateCollection();
     AddRange(list, values);
+  }
+
+  /// <summary>Adds a value to a set of keys.</summary>
+  public void AddRange(IEnumerable<TKey> keys, TValue value)
+  {
+    if(keys == null) throw new ArgumentNullException();
+    foreach(TKey key in keys) Add(key, value);
   }
 
   /// <summary>Determines whether the collection associated with the given key contains the given item.</summary>
@@ -361,7 +369,7 @@ public class MultiValuedDictionary<TKey, TValue> : MultiValuedDictionaryBase<TKe
   /// <summary>Deserializes a new <see cref="MultiValuedDictionary{K,V}"/>.</summary>
   protected MultiValuedDictionary(SerializationInfo info, StreamingContext context) : base(info, context) { }
 
-  /// <summary>Adds a series of values to the given collection.</summary>
+  /// <inheritdoc/>
   protected override void AddRange(List<TValue> collection, IEnumerable<TValue> items)
   {
     if(collection == null) throw new ArgumentNullException();
@@ -407,6 +415,13 @@ public class HashSetDictionary<TKey, TValue> : MultiValuedDictionaryBase<TKey, T
     if(info == null) throw new ArgumentNullException();
     base.GetObjectData(info, context);
     info.AddValue("valueComparer", valueComparer);
+  }
+
+  /// <inheritdoc/>
+  protected override void AddRange(HashSet<TValue> collection, IEnumerable<TValue> items)
+  {
+    if(collection == null) throw new ArgumentNullException();
+    collection.UnionWith(items);
   }
 
   /// <inheritdoc/>

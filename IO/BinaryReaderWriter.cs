@@ -444,6 +444,23 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     }
   }
 
+  /// <summary>Reads a number of bytes from the stream into the given memory region.</summary>
+  /// <param name="dest">A pointer to the location in memory where the data will be written.</param>
+  /// <param name="nbytes">The number of bytes to read from the stream.</param>
+  [CLSCompliant(false)]
+  public void Read(void* dest, long nbytes)
+  {
+    if(nbytes < 0) throw new ArgumentOutOfRangeException();
+    const int BigChunkSize = int.MaxValue & ~7; // trim off the last few bits to avoid misaligning the reads
+    while(nbytes >= BigChunkSize)
+    {
+      Read(dest, BigChunkSize);
+      dest    = (byte*)dest + BigChunkSize;
+      nbytes -= BigChunkSize;
+    }
+    Read(dest, (int)nbytes);
+  }
+
   /// <summary>Reads a number of items from the stream into the given memory region, optionally swapping the bytes in
   /// each item.
   /// </summary>
@@ -536,10 +553,8 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// <summary>Reads a variable-length signed integer from the stream.</summary>
   public int ReadEncodedInt32()
   {
-    int byteValue = ReadByte(), value = byteValue & 0x3F;
+    int byteValue = ReadByte(), value = byteValue & 0x3F, shift = 6;
     bool negative = (byteValue & 0x40) != 0;
-
-    int shift = 6;
     while((byteValue & 0x80) != 0)
     {
       byteValue = ReadByte();
@@ -567,12 +582,9 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// <summary>Reads a variable-length signed long integer from the stream.</summary>
   public long ReadEncodedInt64()
   {
-    long value;
-    int byteValue = ReadByte();
+    int byteValue = ReadByte(), shift = 6;
     bool negative = (byteValue & 0x40) != 0;
-
-    value = byteValue & 0x3F;
-    int shift = 6;
+    long value = byteValue & 0x3F;
     while((byteValue & 0x80) != 0)
     {
       byteValue = ReadByte();
@@ -599,10 +611,10 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads a <see cref="Guid"/> from the stream.</summary>
-  /// <returns></returns>
-  public Guid ReadGuid()
+  public unsafe Guid ReadGuid()
   {
-    return new Guid(ReadBytes(16));
+    // this assumes that Guid is laid out the right way in memory. it is in Microsoft's implementation
+    return *(Guid*)ReadContiguousData(16);
   }
 
   /// <summary>Reads a signed two-byte integer from the stream.</summary>
@@ -804,10 +816,10 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads an array of <see cref="Guid"/> objects from the stream.</summary>
-  public void ReadGuids(Guid[] array, int index, int count)
+  public unsafe void ReadGuids(Guid[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
-    for(int end=index+count; index < end; index++) array[index] = ReadGuid();
+    fixed(Guid* ptr=array) Read((void*)(ptr+index), count*16L);
   }
 
   /// <summary>Reads an array of signed two-byte integers from the stream.</summary>
@@ -1587,9 +1599,10 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// <summary>Writes a <see cref="Guid"/> to the stream as an sequence of 16 bytes. The <see cref="Guid"/> may later be read
   /// with <see cref="BinaryReader.ReadGuid"/>.
   /// </summary>
-  public void Write(Guid guid)
+  public unsafe void Write(Guid guid)
   {
-    Write(guid.ToByteArray());
+    // this assumes that Guid is laid out the right way in memory. it is in Microsoft's implementation
+    WriteCore((byte*)&guid, 16);
   }
 
   /// <summary>Writes an array of <see cref="Guid"/> objects to the stream.</summary>
@@ -1600,10 +1613,10 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes an array of <see cref="Guid"/> objects to the stream.</summary>
-  public void Write(Guid[] guids, int index, int count)
+  public unsafe void Write(Guid[] guids, int index, int count)
   {
     Utility.ValidateRange(guids, index, count);
-    for(int end = index+count; index < end; index++) Write(guids[index]);
+    fixed(Guid* ptr=guids) WriteCore((byte*)(ptr+index), count*16L);
   }
 
   /// <summary>Writes an array of signed two-byte integers to the stream.</summary>
@@ -1963,19 +1976,20 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void WriteZeros(int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
-    else if(count == 0) return; // return so we don't throw an exception if we're at the end of an external buffer
-
-    EnsureSpace(1);
-    while(count != 0)
+    if(count != 0) // avoid throwing an exception if we're at the end of an external buffer
     {
-      int toWrite = Math.Min(count, AvailableSpace);
-      if(toWrite == 0) RaiseFullError();
+      EnsureSpace(1);
+      do
+      {
+        int toWrite = Math.Min(count, AvailableSpace);
+        if(toWrite == 0) RaiseFullError();
 
-      Array.Clear(Buffer, writeIndex, toWrite);
-      writeIndex += toWrite;
-      count      -= toWrite;
+        Array.Clear(Buffer, writeIndex, toWrite);
+        writeIndex += toWrite;
+        count      -= toWrite;
 
-      if(AvailableSpace == 0) FlushBuffer();
+        if(AvailableSpace == 0) FlushBuffer();
+      } while(count != 0);
     }
   }
 
@@ -2099,13 +2113,27 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     }
   }
 
+  void WriteCore(byte* data, long count)
+  {
+    const int BigChunkSize = int.MaxValue & ~7; // trim off the last few bits to avoid misaligning the writes
+    while(count >= BigChunkSize)
+    {
+      WriteCore(data, BigChunkSize);
+      data  += BigChunkSize;
+      count -= BigChunkSize;
+    }
+    WriteCore(data, (int)count);
+  }
+
   void WriteCore(byte* data, int count, int wordSize)
   {
-    if(wordSize == 1) WriteCore(data, count);
-
-    if(count != 0)
+    if(wordSize == 1)
     {
-      int shift = wordSize == 4 ? 2 : wordSize == 8 ? 3 : wordSize-1; // the shift to divide or mulitply by the word size
+      WriteCore(data, count);
+    }
+    else if(count != 0)
+    {
+      int shift = wordSize == 4 ? 2 : wordSize == 8 ? 3 : 1; // the shift to divide or multiply by the word size
       do
       {
         int chunks = AvailableSpace>>shift;

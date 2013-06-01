@@ -72,7 +72,7 @@ public static partial class CollectionExtensions
   /// <summary>Returns a new list containing the items in topologically sorted order, where each item comes after its
   /// dependencies. A <see cref="CycleException"/> will be thrown if a dependency cycle exists.
   /// </summary>
-  public static List<T> GetTopologicalSort<T>(this IEnumerable<T> items, Converter<T, IEnumerable<T>> getDependencies)
+  public static List<T> GetTopologicalSort<T>(this IEnumerable<T> items, Func<T, IEnumerable<T>> getDependencies)
   {
     if(items == null || getDependencies == null) throw new ArgumentNullException();
 
@@ -92,7 +92,7 @@ public static partial class CollectionExtensions
   /// <remarks>
   /// The utility of this method is that the items in a set can be processed in parallel, as they have no dependencies on each other.
   /// </remarks>
-  public static List<List<T>> GetTopologicalSortSets<T>(this IEnumerable<T> items, Converter<T, IEnumerable<T>> getDependencies)
+  public static List<List<T>> GetTopologicalSortSets<T>(this IEnumerable<T> items, Func<T, IEnumerable<T>> getDependencies)
   {
     if(items == null || getDependencies == null) throw new ArgumentNullException();
 
@@ -109,27 +109,16 @@ public static partial class CollectionExtensions
   /// <see cref="CycleException"/> will be thrown if a dependency cycle exists.
   /// </summary>
   /// <remarks>This method enumerates items lazily, but has reduced performance.</remarks>
-  public static IEnumerable<T> OrderTopologically<T>(this IEnumerable<T> items, Converter<T,IEnumerable<T>> getDependencies)
+  public static IEnumerable<T> OrderTopologically<T>(this IEnumerable<T> items, Func<T,IEnumerable<T>> getDependencies)
   {
     if(items == null || getDependencies == null) throw new ArgumentNullException();
-
-    ICollection<T> collection = items as ICollection<T>;
-    int capacity = collection == null ? 16 : collection.Count;
-
-    Dictionary<T, bool> itemsProcessed = new Dictionary<T, bool>(capacity);
-    foreach(T item in items)
-    {
-      if(IsUnprocessed(item, itemsProcessed))
-      {
-        foreach(T orderedItem in Visit(item, getDependencies, itemsProcessed)) yield return orderedItem;
-      }
-    }
+    return OrderTopologicallyCore(items, getDependencies);
   }
 
   /// <summary>Sorts the list items topologically, so that each item comes after its dependencies. A <see cref="CycleException"/>
   /// will be thrown if a dependency cycle exists.
   /// </summary>
-  public static void TopologicalSort<T>(this IList<T> items, Converter<T, IEnumerable<T>> getDependencies)
+  public static void TopologicalSort<T>(this IList<T> items, Func<T, IEnumerable<T>> getDependencies)
   {
     if(items == null) throw new ArgumentNullException();
 
@@ -156,7 +145,22 @@ public static partial class CollectionExtensions
     return !isProcessed;
   }
 
-  static IEnumerable<T> Visit<T>(T item, Converter<T, IEnumerable<T>> getDependencies, Dictionary<T, bool> itemsProcessed)
+  static IEnumerable<T> OrderTopologicallyCore<T>(IEnumerable<T> items, Func<T, IEnumerable<T>> getDependencies)
+  {
+    ICollection<T> collection = items as ICollection<T>;
+    int capacity = collection == null ? 16 : collection.Count;
+
+    Dictionary<T, bool> itemsProcessed = new Dictionary<T, bool>(capacity);
+    foreach(T item in items)
+    {
+      if(IsUnprocessed(item, itemsProcessed))
+      {
+        foreach(T orderedItem in Visit(item, getDependencies, itemsProcessed)) yield return orderedItem;
+      }
+    }
+  }
+
+  static IEnumerable<T> Visit<T>(T item, Func<T, IEnumerable<T>> getDependencies, Dictionary<T, bool> itemsProcessed)
   {
     itemsProcessed[item] = false;
     IEnumerable<T> dependencies = getDependencies(item);
@@ -176,8 +180,7 @@ public static partial class CollectionExtensions
     yield return item;
   }
 
-  static void Visit<T>(T item, Converter<T, IEnumerable<T>> getDependencies, List<T> orderedList,
-                       Dictionary<T, bool> itemsProcessed)
+  static void Visit<T>(T item, Func<T, IEnumerable<T>> getDependencies, List<T> orderedList, Dictionary<T, bool> itemsProcessed)
   {
     if(IsUnprocessed(item, itemsProcessed))
     {
@@ -192,8 +195,7 @@ public static partial class CollectionExtensions
     }
   }
 
-  static int Visit<T>(T item, Converter<T, IEnumerable<T>> getDependencies, List<List<T>> sets,
-                      Dictionary<T, int> itemHeights)
+  static int Visit<T>(T item, Func<T, IEnumerable<T>> getDependencies, List<List<T>> sets, Dictionary<T, int> itemHeights)
   {
     const int Processing = 0;
 

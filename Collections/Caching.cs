@@ -192,8 +192,44 @@ public sealed class DictionaryCache<TKey, TValue>
     try
     {
       Lock();
-      TryCheckCacheExpiration(currentTime, false);
-      return dict.ContainsKey(key);
+      CacheEntry<TValue> entry;
+      if(dict.TryGetValue(key, out entry))
+      {
+        bool expired = IsExpired(entry, currentTime);
+        if(expired) dict.Remove(key);
+        return !expired;
+      }
+      return false;
+    }
+    finally
+    {
+      Unlock();
+    }
+  }
+
+  /// <summary>Retrieves all unexpired items from the cache without resetting their expiration times.</summary>
+  public Dictionary<TKey, TValue> GetAllEntries()
+  {
+    uint currentTime = GetCurrentTime();
+    try
+    {
+      Lock();
+      Dictionary<TKey, TValue> entries = new Dictionary<TKey, TValue>(dict.Count);
+      List<TKey> deadKeys = null;
+      foreach(KeyValuePair<TKey, CacheEntry<TValue>> pair in dict)
+      {
+        if(!IsExpired(pair.Value, currentTime))
+        {
+          entries.Add(pair.Key, pair.Value.Value);
+        }
+        else
+        {
+          if(deadKeys == null) deadKeys = new List<TKey>();
+          deadKeys.Add(pair.Key);
+        }
+      }
+      if(deadKeys != null) dict.RemoveRange(deadKeys);
+      return entries;
     }
     finally
     {

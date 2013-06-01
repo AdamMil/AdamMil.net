@@ -36,6 +36,26 @@ public static class EnumerableExtensions
            second == null ? first : first.Concat(second);
   }
 
+  /// <summary>Concatenates three sequences. If any sequence is null, it is treated as though it was empty.</summary>
+  public static IEnumerable<T> Coalesce<T>(IEnumerable<T> first, IEnumerable<T> second, IEnumerable<T> third)
+  {
+    return first.Coalesce(second).Coalesce(third);
+  }
+
+  /// <summary>Concatenates an arbitrary number of sequences. If any sequence is null, it is treated as though it was empty.</summary>
+  public static IEnumerable<T> Coalesce<T>(params IEnumerable<T>[] sequences)
+  {
+    if(sequences == null) throw new ArgumentNullException();
+    return CoalesceCore(sequences); // put the generator in its own function so we can do argument validation immediately
+  }
+
+  /// <summary>Appends a single item to a sequence.</summary>
+  public static IEnumerable<T> Concat<T>(this IEnumerable<T> sequence, T value)
+  {
+    if(sequence == null) throw new ArgumentNullException();
+    return ConcatCore(sequence, value);
+  }
+
   /// <summary>Returns the given sequence if it is not null, and an empty sequence otherwise.</summary>
   public static IEnumerable<T> EmptyIfNull<T>(this IEnumerable<T> sequence)
   {
@@ -77,6 +97,87 @@ public static class EnumerableExtensions
     return max;
   }
 
+  /// <summary>Walks through two sequences that are sorted in the same order and executes an action for each element that belongs to both
+  /// sequences, using the default <see cref="IComparer{T}"/> to compare them.
+  /// </summary>
+  public static void MergeJoin<T>(this IEnumerable<T> sortedLeft, IEnumerable<T> sortedRight, Action<T> onInnerMatch)
+  {
+    MergeJoin(sortedLeft, sortedRight, onInnerMatch, null, null, null);
+  }
+
+  /// <summary>Walks through two sequences that are sorted in the same order and executes an action for each element that belongs to both
+  /// sequences, using the given <see cref="IComparer{T}"/> to compare them.
+  /// </summary>
+  public static void MergeJoin<T>(this IEnumerable<T> sortedLeft, IEnumerable<T> sortedRight, Action<T> onInnerMatch, IComparer<T> comparer)
+  {
+    MergeJoin(sortedLeft, sortedRight, onInnerMatch, null, null, comparer);
+  }
+
+  /// <summary>Walks through two sequences that are sorted in the same order and executes one of three actions for each element, depending
+  /// on whether it belongs to both sequences, or only the left or right sequence, using the default <see cref="IComparer{T}"/> to compare
+  /// them.
+  /// </summary>
+  public static void MergeJoin<T>(this IEnumerable<T> sortedLeft, IEnumerable<T> sortedRight, Action<T> onInnerMatch,
+                                  Action<T> onOuterLeft, Action<T> onOuterRight)
+  {
+    MergeJoin(sortedLeft, sortedRight, onInnerMatch, onOuterLeft, onOuterRight, null);
+  }
+
+  /// <summary>Walks through two sequences that are sorted in the same order and executes one of three actions for each element, depending
+  /// on whether it belongs to both sequences, or only the left or right sequence, using the given <see cref="IComparer{T}"/> to compare
+  /// them.
+  /// </summary>
+  public static void MergeJoin<T>(this IEnumerable<T> sortedLeft, IEnumerable<T> sortedRight, Action<T> onInnerMatch,
+                                  Action<T> onOuterLeft, Action<T> onOuterRight, IComparer<T> comparer)
+  {
+    if(sortedLeft == null || sortedRight == null) throw new ArgumentNullException();
+    if(onInnerMatch == null && onOuterLeft == null && onOuterRight == null) return;
+    if(comparer == null) comparer = Comparer<T>.Default;
+
+    IEnumerator<T> left = null, right = null;
+    try
+    {
+      left = sortedLeft.GetEnumerator();
+      right = sortedRight.GetEnumerator();
+      bool leftHasValue = left.MoveNext(), rightHasValue = right.MoveNext();
+      while(leftHasValue & rightHasValue) // if neither sequence is at the end...
+      {
+        int cmp = comparer.Compare(left.Current, right.Current);
+        if(cmp < 0) // if the left value is less than the right value, the left is an outer value
+        {
+          if(onOuterLeft != null) onOuterLeft(left.Current);
+          leftHasValue = left.MoveNext();
+        }
+        else if(cmp > 0) // if the right value is less, the right is an outer value
+        {
+          if(onOuterRight != null) onOuterRight(right.Current);
+          rightHasValue = right.MoveNext();
+        }
+        else // otherwise, the values are equal, so it's an inner match
+        {
+          if(onInnerMatch != null) onInnerMatch(left.Current);
+          leftHasValue  = left.MoveNext();
+          rightHasValue = right.MoveNext();
+        }
+      }
+
+      // now go through the remaining values from the remaining sequence, if any
+      if(leftHasValue && onOuterLeft != null)
+      {
+        do onOuterLeft(left.Current); while(left.MoveNext());
+      }
+      else if(rightHasValue && onOuterRight != null)
+      {
+        do onOuterRight(right.Current); while(right.MoveNext());
+      }
+    }
+    finally
+    {
+      Utility.Dispose(left);
+      Utility.Dispose(right);
+    }
+  }
+
   /// <summary>Returns the minimum <see cref="DateTime"/> value from a sequence.</summary>
   /// <exception cref="InvalidOperationException">Thrown if <paramref name="items"/> is empty.</exception>
   public static DateTime Min<T>(this IEnumerable<T> items, Func<T,DateTime> dateSelector)
@@ -115,19 +216,19 @@ public static class EnumerableExtensions
   /// <summary>Returns the items in ascending order.</summary>
   public static IOrderedEnumerable<T> Order<T>(this IEnumerable<T> items)
   {
-    return items.OrderBy(i => i);
+    return items.OrderBy(Identity);
   }
 
   /// <summary>Returns the items in ascending order, compared using the given <see cref="IComparer{T}"/>.</summary>
   public static IOrderedEnumerable<T> Order<T>(this IEnumerable<T> items, IComparer<T> comparer)
   {
-    return items.OrderBy(i => i, comparer);
+    return items.OrderBy(Identity, comparer);
   }
 
   /// <summary>Returns the items in ascending order, compared using the given <see cref="Comparison{T}"/>.</summary>
   public static IOrderedEnumerable<T> Order<T>(this IEnumerable<T> items, Comparison<T> comparison)
   {
-    return items.OrderBy(i => i, new DelegateComparer<T>(comparison));
+    return items.OrderBy(Identity, new DelegateComparer<T>(comparison));
   }
 
   /// <summary>Returns the items in ascending order, with their keys compared using the given <see cref="Comparison{T}"/>.</summary>
@@ -147,19 +248,19 @@ public static class EnumerableExtensions
   /// <summary>Returns the items in descending order.</summary>
   public static IOrderedEnumerable<T> OrderDescending<T>(this IEnumerable<T> items)
   {
-    return items.OrderByDescending(i => i);
+    return items.OrderByDescending(Identity);
   }
 
   /// <summary>Returns the items in descending order, compared using the given <see cref="IComparer{T}"/>.</summary>
   public static IOrderedEnumerable<T> OrderDescending<T>(this IEnumerable<T> items, IComparer<T> comparer)
   {
-    return items.OrderByDescending(i => i, comparer);
+    return items.OrderByDescending(Identity, comparer);
   }
 
   /// <summary>Returns the items in descending order, compared using the given <see cref="Comparison{T}"/>.</summary>
   public static IOrderedEnumerable<T> OrderDescending<T>(this IEnumerable<T> items, Comparison<T> comparison)
   {
-    return items.OrderByDescending(i => i, new DelegateComparer<T>(comparison));
+    return items.OrderByDescending(Identity, new DelegateComparer<T>(comparison));
   }
 
   /// <summary>Returns up to the specified number of items, all of which are greater than or equal to the rest of the items. The
@@ -247,6 +348,34 @@ public static class EnumerableExtensions
     return new ArraySegmentEnumerable<T>(array, 0, count);
   }
 
+  static IEnumerable<T> CoalesceCore<T>(IEnumerable<T>[] sequences)
+  {
+    foreach(IEnumerable<T> sequence in sequences)
+    {
+      if(sequence != null)
+      {
+        foreach(T value in sequence) yield return value;
+      }
+    }
+  }
+
+  static IEnumerable<T> ConcatCore<T>(IEnumerable<T> sequence, T value)
+  {
+    foreach(T item in sequence) yield return item;
+    yield return value;
+  }
+
+  static T Identity<T>(T value)
+  {
+    return value;
+  }
+
+  static IComparer<T> MakeKeyComparer<T, TKey>(Func<T, TKey> keySelector)
+  {
+    if(keySelector == null) throw new ArgumentNullException();
+    return new DelegateComparer<T>((a, b) => Comparer<TKey>.Default.Compare(keySelector(a), keySelector(b)));
+  }
+
   /// <summary>Partially sorts the array such that the least <paramref name="desiredCount"/> items are moved to the front,
   /// but not necessarily in sorted order.
   /// </summary>
@@ -259,7 +388,7 @@ public static class EnumerableExtensions
       // at this point, it is assumed that desiredCount < count
 
       // if the segment is very small, then use selection sort to find the smallest N items (where N = desiredCount)
-      if(count < 7)
+      if(count < 7) // TODO: it would be wise to tune this value based on experimental evidence
       {
         for(int i=start, iend=start+desiredCount, jend=start+count; i<iend; i++) // for the first N elements...
         {
@@ -318,11 +447,11 @@ public static class EnumerableExtensions
   {
     return items.Where(item => item != null);
   }
-
-  static IComparer<T> MakeKeyComparer<T, TKey>(Func<T, TKey> keySelector)
+   
+  /// <summary>Filters the given sequence to remove null values.</summary>
+  public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> items) where T : struct
   {
-    if(keySelector == null) throw new ArgumentNullException();
-    return new DelegateComparer<T>((a, b) => Comparer<TKey>.Default.Compare(keySelector(a), keySelector(b)));
+    return items.Where(item => item.HasValue).Select(item => item.GetValueOrDefault()); // .GetValueOrDefault() is faster than .Value
   }
 }
 
