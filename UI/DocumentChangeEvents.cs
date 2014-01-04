@@ -70,8 +70,8 @@ public abstract class ChangeEvent : IDisposable
   /// <summary>Called when the change event is no longer needed by the undo/redo system.</summary>
   public void Dispose()
   {
-    GC.SuppressFinalize(this);
     Dispose(true);
+    GC.SuppressFinalize(this);
   }
 
   /// <summary>Returns a short, human-readable string describing the change that this event represents.</summary>

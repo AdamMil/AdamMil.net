@@ -68,8 +68,8 @@ public unsafe abstract class PinnedBuffer : IDisposable
   /// <summary>Unpins and frees the buffer.</summary>
   public void Dispose()
   {
-    GC.SuppressFinalize(this);
     Dispose(true);
+    GC.SuppressFinalize(this);
   }
 
   /// <summary>Returns a safe reference to the underlying buffer.</summary>
@@ -501,7 +501,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   }
 
   /// <summary>Reads a one-byte boolean value from the stream.</summary>
-  public bool ReadBool()
+  public bool ReadBoolean()
   {
     return ReadByte() != 0;
   }

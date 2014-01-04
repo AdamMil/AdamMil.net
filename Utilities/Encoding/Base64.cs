@@ -72,8 +72,7 @@ public sealed class Base64Decoder : BinaryEncoder
     if(destination == null) throw new ArgumentNullException();
     if((uint)destinationIndex > (uint)destination.Length) throw new ArgumentOutOfRangeException();
 
-    fixed(byte* srcPtr=source)
-    fixed(byte* destPtr=destination)
+    fixed(byte* srcPtr=source, destPtr=destination)
     {
       return Encode(srcPtr+sourceIndex, sourceCount, destPtr+destinationIndex, destination.Length-destinationIndex, flush);
     }
@@ -230,8 +229,7 @@ public sealed class Base64Encoder : BinaryEncoder
     Utility.ValidateRange(source, sourceIndex, sourceCount);
     if(destination == null) throw new ArgumentNullException();
     if((uint)destinationIndex > (uint)destination.Length) throw new ArgumentOutOfRangeException();
-    fixed(byte* srcPtr=source)
-    fixed(byte* destPtr=destination)
+    fixed(byte* srcPtr=source, destPtr=destination)
     {
       return Encode(srcPtr+sourceIndex, sourceCount, destPtr+destinationIndex, destination.Length-destinationIndex, flush);
     }

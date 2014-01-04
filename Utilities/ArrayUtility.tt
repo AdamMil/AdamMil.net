@@ -64,8 +64,7 @@ public static partial class ArrayUtility
         {
           throw new ArgumentOutOfRangeException();
         }
-        fixed(<#=type#>* psrc=source)
-        fixed(<#=type#>* pdest=dest)
+        fixed(<#=type#>* psrc=source, pdest=dest)
         {
           Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(<#=type#>));
         }

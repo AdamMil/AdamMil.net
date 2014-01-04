@@ -146,8 +146,8 @@ public abstract class Task : IDisposable
   /// <include file="documentation.xml" path="//Utilities/Task/Dispose/*"/>
   public void Dispose()
   {
-    GC.SuppressFinalize(this);
     Dispose(true);
+    GC.SuppressFinalize(this);
   }
 
   /// <summary>Waits for the task to finish. An exception will be thrown if the task has not been started.</summary>

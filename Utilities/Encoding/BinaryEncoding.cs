@@ -71,8 +71,7 @@ public abstract class UnsafeBinaryEncoder : BinaryEncoder
   {
     Utility.ValidateRange(source, sourceIndex, sourceCount);
     Utility.ValidateRange(destination, destinationIndex, 0);
-    fixed(byte* srcBase=source)
-    fixed(byte* destBase=destination)
+    fixed(byte* srcBase=source, destBase=destination)
     {
       byte dummy;
       return Encode(srcBase == null ? &dummy : srcBase+sourceIndex, sourceCount, // pointers are when arrays are empty
@@ -306,8 +305,7 @@ public abstract class UnsafeBinaryEncoding : BinaryEncoding
   {
     Utility.ValidateRange(encodedBytes, encodedByteIndex, encodedByteCount);
     Utility.ValidateRange(decodedBytes, decodedByteIndex, 0);
-    fixed(byte* encBase=encodedBytes)
-    fixed(byte* decBase=decodedBytes)
+    fixed(byte* encBase=encodedBytes, decBase=decodedBytes)
     {
       byte dummy;
       return Decode(encBase == null ? &dummy : encBase+encodedByteIndex, encodedByteCount,
@@ -329,8 +327,7 @@ public abstract class UnsafeBinaryEncoding : BinaryEncoding
   {
     Utility.ValidateRange(data, dataIndex, dataByteCount);
     Utility.ValidateRange(encodedBytes, encodedByteIndex, 0);
-    fixed(byte* decBase=data)
-    fixed(byte* encBase=encodedBytes)
+    fixed(byte* decBase=data, encBase=encodedBytes)
     {
       byte dummy;
       return Encode(decBase == null ? &dummy : decBase+dataIndex, dataByteCount,

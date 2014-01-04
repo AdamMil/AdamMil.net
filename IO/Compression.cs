@@ -214,8 +214,7 @@ public sealed class PKWareDCLCompressor : UnsafeBinaryEncoder
     }
 
     fixed(byte* dict=dictionary)
-    fixed(ushort* hashStart=_hashStart)
-    fixed(ushort* hashPrev=_hashPrev)
+    fixed(ushort* hashStart=_hashStart, hashPrev=_hashPrev)
     {
       int bytesWritten = s.Update(source, sourceCount, destPtr, destEnd, dict, dictionarySize, hashStart, hashPrev, flush);
       if(flush) Reset();
@@ -831,8 +830,7 @@ public sealed class PKWareDCLDecompressor : UnsafeBinaryEncoder
     if(state != State.End)
     {
       // at this point, we're in the GotHeader or GotLength state, which means we should read code words and write them to the output
-      fixed(byte* dict=dictionary)
-      fixed(byte* tableBase=tables)
+      fixed(byte* dict=dictionary, tableBase=tables)
       {
         byte* dest = destination, destEnd = dest + destinationCapacity;
 

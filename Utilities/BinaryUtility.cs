@@ -28,30 +28,103 @@ namespace AdamMil.Utilities
 /// <summary>Provides utilities for working with bytes and arrays of bytes.</summary>
 public static class BinaryUtility
 {
-  /// <summary>Returns a 32-bit hash of the given byte array, which can be null.</summary>
-  public static unsafe int Hash(byte[] data)
+  /// <summary>Determines whether the contents of the given arrays are equal. Either array can be null.</summary>
+  public unsafe static bool AreEqual(byte[] a, byte[] b)
   {
-    if(data == null) return 0;
+    if(a == b) return true;
+    else if(a == null || b == null || a.Length != b.Length) return false;
+    fixed(byte* pA=a, pB=b) return Unsafe.AreEqual(pA, pB, a.Length);
+  }
 
-    int length = data.Length;
-    // this method essentially encrypts the data in CBC mode with a crapass block cipher using a constant zero key
-    uint hash = (uint)length ^ 0x9e3eff0b; // incorporate the length into the initialization vector
-    fixed(byte* dataBase=data)
+  /// <summary>Determines whether the contents of the given arrays are equal.</summary>
+  public unsafe static bool AreEqual(byte[] a, int aIndex, byte[] b, int bIndex, int length)
+  {
+    Utility.ValidateRange(a, aIndex, length);
+    Utility.ValidateRange(b, bIndex, length);
+    fixed(byte* pA=a, pB=b) return Unsafe.AreEqual(pA+aIndex, pB+bIndex, length);
+  }
+
+  /// <summary>Returns a 32-bit hash of the given array, which can be null.</summary>
+  public static int Hash(byte[] data)
+  {
+    return Hash(0, data);
+  }
+
+  /// <summary>Returns a 32-bit hash of the given array, which can be null.</summary>
+  public unsafe static int Hash(int hashFunction, byte[] data)
+  {
+    if(data == null)
     {
-      byte* pData = dataBase;
-      for(; length >= 4; pData += 4, length -= 4) hash = syfer(*(uint*)pData ^ hash);
-      if(length != 0)
-      {
-        uint lastChunk = *pData++;
-        if(length > 1)
-        {
-          lastChunk = (lastChunk<<8) | *pData++;
-          if(length > 2) lastChunk = (lastChunk<<8) | *pData;
-        }
-        hash = syfer(lastChunk ^ hash);
-      }
+      return unchecked((int)0x9e3eff0b) + hashFunction;
     }
-    return (int)hash;
+    else
+    {
+      fixed(byte* pData=data) return Hash(hashFunction, pData, data.Length);
+    }
+  }
+
+  /// <summary>Returns a 32-bit hash of the given data. <paramname name="hashFunction"/> can be specified to select the hash function.</summary>
+  public unsafe static int Hash(int hashFunction, byte[] data, int index, int length)
+  {
+    Utility.ValidateRange(data, index, length);
+    fixed(byte* pData=data) return Hash(hashFunction, pData+index, length);
+  }
+
+  /// <summary>Returns a 32-bit hash of the given data.</summary>
+  public static int Hash(byte[] data, int index, int length)
+  {
+    return Hash(0, data, index, length);
+  }
+
+  /// <summary>Returns a 32-bit hash of the given data. <paramname name="hashFunction"/> can be specified to select the hash function.</summary>
+  // this method is based off the hashing code in http://burtleburtle.net/bob/c/lookup3.c. the result is slightly less uniform than the
+  // previous block cipher method i was using, but is substantially faster for large inputs
+  // TODO: it would be good to implement a hash method optimized for 64-bit platforms
+  [CLSCompliant(false)]
+  public unsafe static int Hash(int hashFunction, void* data, int length)
+  {
+    if(data == null) throw new ArgumentNullException();
+    if(length < 0) throw new ArgumentOutOfRangeException();
+
+    uint a, b, c;
+    a = b = c = 0x9e3eff0b + (uint)hashFunction;
+    for(; length > 12; data = (byte*)data+12, length -= 12)
+    {
+      a += *(uint*)data;
+      b += *((uint*)data+1);
+      c += *((uint*)data+2);
+      a -= c; a ^= (c<<4)  | (c>>28); c += b;
+      b -= a; b ^= (a<<6)  | (a>>26); a += c;
+      c -= b; c ^= (b<<8)  | (b>>24); b += a;
+      a -= c; a ^= (c<<16) | (c>>16); c += b;
+      b -= a; b ^= (a<<19) | (a>>13); a += c;
+      c -= b; c ^= (b<<4)  | (b>>28); b += a;
+    }
+
+    if(length >= 8)
+    {
+      a += *(uint*)data;
+      b += *((uint*)data+1);
+      c += Read((byte*)data+8, (uint)length-8);
+    }
+    else if(length >= 4)
+    {
+      a += *(uint*)data;
+      b += Read((byte*)data+4, (uint)length-4);
+    }
+    else
+    {
+      if(length == 0) return (int)c; // skip the final mixing step if there's no data left
+      a += Read((byte*)data, (uint)length);
+    }
+
+    c = (c^b) - ((b<<14) | (b>>18));
+    a = (a^c) - ((c<<11) | (c>>21));
+    b = (b^a) - ((a<<25) | (a>>7));
+    c = (c^b) - ((b<<16) | (b>>16));
+    a = (a^c) - ((c<<4)  | (c>>28));
+    b = (b^a) - ((a<<14) | (a>>18));
+    return (int)((c^b) - ((b<<24) | (b>>8)));
   }
 
   /// <summary>Returns a hash of the given stream. The stream is not rewound before or after computing the hash.</summary>
@@ -80,7 +153,14 @@ public static class BinaryUtility
   public static byte[] HashSHA1(byte[] data)
   {
     if(data == null) throw new ArgumentNullException();
-    using(SHA1 sha1 = SHA1.Create()) return sha1.ComputeHash(data);
+    return HashSHA1(data, 0, data.Length);
+  }
+
+  /// <summary>Returns the 20-byte SHA1 hash of the given data.</summary>
+  public static byte[] HashSHA1(byte[] data, int index, int length)
+  {
+    Utility.ValidateRange(data, index, length);
+    using(SHA1 sha1 = SHA1.Create()) return sha1.ComputeHash(data, index, length);
   }
 
   /// <summary>Returns the 20-byte SHA1 hash of the given stream. The stream is not rewound before or after computing the hash.</summary>
@@ -209,14 +289,15 @@ public static class BinaryUtility
     else throw new FormatException("'" + c.ToString() + "' is not a valid hex digit.");
   }
 
-  // they say you're not supposed to write encryption algorithms yourself, but that's what you have to do when nobody wants to create a
-  // fast 32-bit block cipher for you. so here it is in all its heavily inlined, nigh-unreadable glory. (it's really just a 3-round
-  // 16:16 Feistel network with a key of zero and a poorly designed round function)
-  static uint syfer(uint data)
+  static unsafe uint Read(byte* data, uint length)
   {
-    uint R = data & 0xFFFF, L = (data>>16) ^ (((((R>>5)^(R<<2)) + ((R>>3)^(R<<4))) ^ ((R^0x79b9) + R)) & 0xFFFF);
-    R ^= ((((L>>5)^(L<<2)) + ((L>>3)^(L<<4))) ^ ((L^0xf372) + L)) & 0xFFFF;
-    return ((L ^ ((((R>>5)^(R<<2)) + ((R>>3)^(R<<4))) ^ ((R^0x6d2b) + R))) << 16) | R;
+    switch(length)
+    {
+      case 1: return *data;
+      case 2: return *(ushort*)data;
+      case 3: return *(ushort*)data | (uint)(data[2]<<16);
+      default: return *(uint*)data;
+    }
   }
 
   const string HexChars = "0123456789ABCDEF";

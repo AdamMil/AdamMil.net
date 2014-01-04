@@ -282,7 +282,7 @@ namespace AdamMil.Utilities
     /// <example><include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/DowngradeExample/node()" /></example>
     public void Downgrade()
     {
-      if((lockState & OwnedByWriter) == 0) throw new SynchronizationLockException();
+      if(lockState >= 0) throw new SynchronizationLockException(); // (lockState & OwnedByWriter) == 0
       int state;
       do state = lockState;
       while(Interlocked.CompareExchange(ref lockState, state + unchecked(OneReader-OwnedByWriter), state) != state);
@@ -377,7 +377,7 @@ namespace AdamMil.Utilities
     /// </summary>
     public void ExitWrite()
     {
-      if((lockState & OwnedByWriter) == 0) throw new SynchronizationLockException();
+      if(lockState >= 0) throw new SynchronizationLockException(); // (lockState & OwnedByWriter) == 0
 
       // if no writers are waiting, mark the lock as free. otherwise, subtract one waiter and reserve the lock for it
       int state;

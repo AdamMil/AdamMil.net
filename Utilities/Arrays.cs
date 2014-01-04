@@ -226,8 +226,7 @@ public class ArrayBuffer<T> : ICollection<T>
   /// additional items. This method may enlarge the buffer or shift data within it to ensure that there is sufficient space
   /// starting from <see cref="End"/> (which the method may also change) to hold the given number of new items. This method does
   /// not assume the items will be added and so does not update <see cref="Count"/>. You must call <see cref="AddCount"/> later if
-  /// you add items to the array. Data should be added to the array beginning at <see cref="Offset"/> (which may be changed by this
-  /// method).
+  /// you add items to the array.
   /// </summary>
   /// <param name="elementsToAdd">The number of items that are expected to be added to the array.</param>
   public T[] GetArrayForWriting(int elementsToAdd)

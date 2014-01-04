@@ -116,15 +116,15 @@ public static class Utility
     return (T)Enum.Parse(typeof(T), value, ignoreCase);
   }
 
-  /// <summary>Rounds the given value up to a power of two. If it is already a power of two, it is returned unchanged. If it is negative,
-  /// zero is returned.
+  /// <summary>Rounds the given value up to a power of two. If it is already a power of two, it is returned unchanged. If it is negative
+  /// or zero, zero is returned.
   /// </summary>
   public static int RoundUpToPowerOfTwo(int value)
   {
     return value <= 0 ? 0 : (int)RoundUpToPowerOfTwo((uint)value);
   }
 
-  /// <summary>Rounds the given value up to a power of two. If it is already a power of two, it is returned unchanged.</summary>
+  /// <summary>Rounds the given value up to a power of two. If it is already a power of two, or zero, it is returned unchanged.</summary>
   [CLSCompliant(false)]
   public static uint RoundUpToPowerOfTwo(uint value)
   {
@@ -137,15 +137,15 @@ public static class Utility
     return value+1;
   }
 
-  /// <summary>Rounds the given value up to a power of two. If it is already a power of two, it is returned unchanged. If it is negative,
-  /// zero is returned.
+  /// <summary>Rounds the given value up to a power of two. If it is already a power of two, it is returned unchanged. If it is negative
+  /// or zero, zero is returned.
   /// </summary>
   public static long RoundUpToPowerOfTwo(long value)
   {
     return value <= 0 ? 0 : (long)RoundUpToPowerOfTwo((ulong)value);
   }
 
-  /// <summary>Rounds the given value up to a power of two. If it is already a power of two, it is returned unchanged.</summary>
+  /// <summary>Rounds the given value up to a power of two. If it is already a power of two, or zero, it is returned unchanged.</summary>
   [CLSCompliant(false)]
   public static ulong RoundUpToPowerOfTwo(ulong value)
   {
@@ -170,28 +170,28 @@ public static class Utility
   /// <summary>Validates that the given range exists within a list of the given size.</summary>
   public static void ValidateRange(int listSize, int index, int count)
   {
-    if(index < 0 || count < 0 || (uint)(index + count) > (uint)listSize) throw new ArgumentOutOfRangeException();
+    if((index|count) < 0 || (uint)(index + count) > (uint)listSize) throw new ArgumentOutOfRangeException();
   }
 
   /// <summary>Validates that the given list is not null, and the given range exists within the list.</summary>
   public static void ValidateRange(System.Collections.IList list, int index, int count)
   {
     if(list == null) throw new ArgumentNullException();
-    if(index < 0 || count < 0 || (uint)(index + count) > (uint)list.Count) throw new ArgumentOutOfRangeException();
+    if((index|count) < 0 || (uint)(index + count) > (uint)list.Count) throw new ArgumentOutOfRangeException();
   }
 
   /// <summary>Validates that the given array is not null, and the given range exists within the array.</summary>
   public static void ValidateRange(Array array, int index, int count)
   {
     if(array == null) throw new ArgumentNullException();
-    if(index < 0 || count < 0 || (uint)(index + count) > (uint)array.Length) throw new ArgumentOutOfRangeException();
+    if((index|count) < 0 || (uint)(index + count) > (uint)array.Length) throw new ArgumentOutOfRangeException();
   }
 
   /// <summary>Validates that the given string is not null, and the given range exists within the string.</summary>
   public static void ValidateRange(string str, int index, int count)
   {
     if(str == null) throw new ArgumentNullException();
-    if(index < 0 || count < 0 || (uint)(index + count) > (uint)str.Length) throw new ArgumentOutOfRangeException();
+    if((index|count) < 0 || (uint)(index + count) > (uint)str.Length) throw new ArgumentOutOfRangeException();
   }
 }
 

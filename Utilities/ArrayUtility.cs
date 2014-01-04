@@ -3,7 +3,7 @@ AdamMil.Utilities is a library providing generally useful utilities for
 .NET development.
 
 http://www.adammil.net/
-Copyright (C) 2010-2013 Adam Milazzo
+Copyright (C) 2010-2011 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -48,8 +48,7 @@ public static partial class ArrayUtility
         {
           throw new ArgumentOutOfRangeException();
         }
-        fixed(byte* psrc=source)
-        fixed(byte* pdest=dest)
+        fixed(byte* psrc=source, pdest=dest)
         {
           Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(byte));
         }
@@ -75,8 +74,7 @@ public static partial class ArrayUtility
         {
           throw new ArgumentOutOfRangeException();
         }
-        fixed(char* psrc=source)
-        fixed(char* pdest=dest)
+        fixed(char* psrc=source, pdest=dest)
         {
           Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(char));
         }
@@ -102,8 +100,7 @@ public static partial class ArrayUtility
         {
           throw new ArgumentOutOfRangeException();
         }
-        fixed(double* psrc=source)
-        fixed(double* pdest=dest)
+        fixed(double* psrc=source, pdest=dest)
         {
           Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(double));
         }
@@ -129,8 +126,7 @@ public static partial class ArrayUtility
         {
           throw new ArgumentOutOfRangeException();
         }
-        fixed(float* psrc=source)
-        fixed(float* pdest=dest)
+        fixed(float* psrc=source, pdest=dest)
         {
           Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(float));
         }
@@ -156,8 +152,7 @@ public static partial class ArrayUtility
         {
           throw new ArgumentOutOfRangeException();
         }
-        fixed(int* psrc=source)
-        fixed(int* pdest=dest)
+        fixed(int* psrc=source, pdest=dest)
         {
           Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(int));
         }
@@ -183,8 +178,7 @@ public static partial class ArrayUtility
         {
           throw new ArgumentOutOfRangeException();
         }
-        fixed(long* psrc=source)
-        fixed(long* pdest=dest)
+        fixed(long* psrc=source, pdest=dest)
         {
           Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(long));
         }
@@ -212,8 +206,7 @@ public static partial class ArrayUtility
         {
           throw new ArgumentOutOfRangeException();
         }
-        fixed(sbyte* psrc=source)
-        fixed(sbyte* pdest=dest)
+        fixed(sbyte* psrc=source, pdest=dest)
         {
           Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(sbyte));
         }
@@ -239,8 +232,7 @@ public static partial class ArrayUtility
         {
           throw new ArgumentOutOfRangeException();
         }
-        fixed(short* psrc=source)
-        fixed(short* pdest=dest)
+        fixed(short* psrc=source, pdest=dest)
         {
           Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(short));
         }
@@ -268,8 +260,7 @@ public static partial class ArrayUtility
         {
           throw new ArgumentOutOfRangeException();
         }
-        fixed(uint* psrc=source)
-        fixed(uint* pdest=dest)
+        fixed(uint* psrc=source, pdest=dest)
         {
           Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(uint));
         }
@@ -297,8 +288,7 @@ public static partial class ArrayUtility
         {
           throw new ArgumentOutOfRangeException();
         }
-        fixed(ulong* psrc=source)
-        fixed(ulong* pdest=dest)
+        fixed(ulong* psrc=source, pdest=dest)
         {
           Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(ulong));
         }
@@ -326,8 +316,7 @@ public static partial class ArrayUtility
         {
           throw new ArgumentOutOfRangeException();
         }
-        fixed(ushort* psrc=source)
-        fixed(ushort* pdest=dest)
+        fixed(ushort* psrc=source, pdest=dest)
         {
           Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(ushort));
         }

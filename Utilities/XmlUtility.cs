@@ -609,6 +609,20 @@ public struct XmlDuration
 }
 #endregion
 
+#region XmlDocumentExtensions
+/// <summary>Provides useful extensinos to the <see cref="XmlDocument"/> class.</summary>
+public static class XmlDocumentExtensions
+{
+  /// <summary>Creates a new <see cref="XmlElement"/> having the given text content.</summary>
+  public static XmlElement CreateElementWithContent(this XmlDocument document, string qualifiedName, string textValue)
+  {
+    XmlElement element = document.CreateElement(qualifiedName);
+    if(textValue != null) element.AppendChild(document.CreateTextNode(textValue));
+    return element;
+  }
+}
+#endregion
+
 #region XmlElementExtensions
 /// <summary>Provides useful extensions to the <see cref="XmlElement"/> class.</summary>
 public static class XmlElementExtensions
