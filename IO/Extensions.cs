@@ -132,8 +132,7 @@ public unsafe static partial class StreamExtensions
         // to copy the data because Array.Copy() only supports 32-bit offsets too.
         // use a fairly large buffer to reduce the number of calls to RtlMoveMemory() in Unsafe.Copy()
         byte[] block = new byte[(int)Math.Min(length, 64*1024)];
-        fixed(byte* pBuffer=buffer)
-        fixed(byte* pBlock=block)
+        fixed(byte* pBuffer=buffer, pBlock=block)
         {
           while(bytesRead < length)
           {

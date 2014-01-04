@@ -22,6 +22,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using AdamMil.Utilities;
 
 namespace AdamMil.Collections
 {
@@ -48,9 +49,9 @@ public interface IMultiHashProvider<T>
 // rather than inside MultiHashProvider, where they really belong
 static class HashHelper
 {
-  // these methods are based off the hashing code in http://burtleburtle.net/bob/c/lookup3.c. the resulting hashes are slightly less
-  // uniform than the previous block cipher method i was using, but faster -- slightly faster for 4-byte inputs and much faster for large
-  // byte strings. the block cipher also did poorly with certain contiguous input values
+  // these methods are based off the hashing code in http://burtleburtle.net/bob/c/lookup3.c. the result is slightly less uniform than the
+  // previous block cipher method i was using, but faster -- slightly faster for 4-byte inputs and much faster for large byte strings.
+  // the block cipher also did poorly with certain input values, and hopefully this exhibits better worst-case behavior
   internal static int Hash4(int hashFunction, uint data)
   {
     uint a, b, c;
@@ -98,51 +99,6 @@ static class HashHelper
     return (int)((a^c) - ((c<<24) | (c>>8)));
   }
 
-  internal static unsafe int HashBytes(int hashFunction, void* data, int length)
-  {
-    System.Diagnostics.Debug.Assert(length >= 0);
-
-    uint a, b, c;
-    a = b = c = 0x9e3eff0b + (uint)hashFunction;
-    for(; length > 12; data = (byte*)data+12, length -= 12)
-    {
-      a += *(uint*)data;
-      b += *((uint*)data+1);
-      c += *((uint*)data+2);
-      a -= c; a ^= (c<<4)  | (c>>28); c += b;
-      b -= a; b ^= (a<<6)  | (a>>26); a += c;
-      c -= b; c ^= (b<<8)  | (b>>24); b += a;
-      a -= c; a ^= (c<<16) | (c>>16); c += b;
-      b -= a; b ^= (a<<19) | (a>>13); a += c;
-      c -= b; c ^= (b<<4)  | (b>>28); b += a;
-    }
-
-    if(length >= 8)
-    {
-      a += *(uint*)data;
-      b += *((uint*)data+1);
-      c += Read((byte*)data+8, (uint)length-8);
-    }
-    else if(length >= 4)
-    {
-      a += *(uint*)data;
-      b += Read((byte*)data+4, (uint)length-4);
-    }
-    else
-    {
-      if(length == 0) return (int)c; // skip the final mixing step if there's no data left
-      a += Read((byte*)data, (uint)length);
-    }
-
-    c = (c^b) - ((b<<14) | (b>>18));
-    a = (a^c) - ((c<<11) | (c>>21));
-    b = (b^a) - ((a<<25) | (a>>7));
-    c = (c^b) - ((b<<16) | (b>>16));
-    a = (a^c) - ((c<<4)  | (c>>28));
-    b = (b^a) - ((a<<14) | (a>>18));
-    return (int)((c^b) - ((b<<24) | (b>>8)));
-  }
-
   /// <summary>Gets whether the type is a simple value type with no reference types anywhere in its object graph.</summary>
   internal static bool IsBlittable(Type type)
   {
@@ -172,17 +128,6 @@ static class HashHelper
     }
 
     return true;
-  }
-
-  static unsafe uint Read(byte* data, uint length)
-  {
-    switch(length)
-    {
-      case 1: return *data;
-      case 2: return *(ushort*)data;
-      case 3: return *(ushort*)data | (uint)(data[2]<<16);
-      default: return *(uint*)data;
-    }
   }
 }
 #endregion
@@ -279,7 +224,7 @@ sealed class ByteArrayHashProvider : MultiHashProvider<byte[]>
     }
     else
     {
-      fixed(byte* pArray=array) hash = HashHelper.HashBytes(hashFunction, pArray, array.Length);
+      fixed(byte* pArray=array) hash = BinaryUtility.Hash(hashFunction, pArray, array.Length);
     }
     return hash;
   }
@@ -415,7 +360,7 @@ sealed class StringHashProvider : MultiHashProvider<string>
     }
     else
     {
-      fixed(char* chars = item) return HashHelper.HashBytes(hashFunction, chars, item.Length*sizeof(char));
+      fixed(char* chars = item) return BinaryUtility.Hash(hashFunction, chars, item.Length*sizeof(char));
     }
   }
 }
@@ -479,8 +424,8 @@ public sealed class ArrayHashProvider : MultiHashProvider<Array>
       GCHandle handle = GCHandle.Alloc(array, GCHandleType.Pinned); // pin the array so we can get a pointer to the raw bytes
       try                                                           // NOTE: GCHandle is relatively slow...
       {
-        hash = HashHelper.HashBytes(hashFunction, Marshal.UnsafeAddrOfPinnedArrayElement(array, 0).ToPointer(),
-                                    array.Length * elementSize);
+        hash = BinaryUtility.Hash(hashFunction, Marshal.UnsafeAddrOfPinnedArrayElement(array, 0).ToPointer(),
+                                  array.Length * elementSize);
       }
       finally { handle.Free(); }
     }

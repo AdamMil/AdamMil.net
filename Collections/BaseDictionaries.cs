@@ -29,6 +29,142 @@ using AdamMil.Utilities;
 namespace AdamMil.Collections
 {
 
+#region AccessLimitedDictionaryBase
+/// <summary>Provides a base class that can be used to implement dictionaries that have restricted editing capabilities. For instance, you
+/// may only want to allow items to be added in a certain way, or you may not want items to be able to be removed once they are added.
+/// </summary>
+[Serializable]
+public abstract class AccessLimitedDictionaryBase<TKey,TValue> : IDictionary<TKey,TValue>
+{
+  /// <summary>Initializes an empty <see cref="AccessLimitedDictionaryBase{K,V}"/>.</summary>
+  protected AccessLimitedDictionaryBase()
+  {
+    Items = new Dictionary<TKey, TValue>();
+  }
+
+  /// <summary>Initializes an empty <see cref="AccessLimitedDictionaryBase{K,V}"/>.</summary>
+  protected AccessLimitedDictionaryBase(IEqualityComparer<TKey> comparer)
+  {
+    Items = new Dictionary<TKey, TValue>(comparer);
+  }
+
+  /// <summary>Initializes an <see cref="AccessLimitedDictionaryBase{K,V}"/> with the given items.</summary>
+  protected AccessLimitedDictionaryBase(IDictionary<TKey, TValue> items)
+  {
+    Items = new Dictionary<TKey, TValue>(items);
+  }
+
+  /// <summary>Initializes an <see cref="AccessLimitedDictionaryBase{K,V}"/> with the given items.</summary>
+  protected AccessLimitedDictionaryBase(IDictionary<TKey, TValue> items, IEqualityComparer<TKey> comparer)
+  {
+    Items = new Dictionary<TKey, TValue>(items, comparer);
+  }
+
+  /// <inheritdoc/>
+  public TValue this[TKey key]
+  {
+    get { return Items[key]; }
+    set { throw new NotSupportedException(); }
+  }
+
+  /// <inheritdoc/>
+  public int Count
+  {
+    get { return Items.Count; }
+  }
+
+  /// <inheritdoc/>
+  /// <remarks>The default implementation returns false. If your derived collection is completely read-only, you should override this
+  /// property and return true.
+  /// </remarks>
+  public virtual bool IsReadOnly
+  {
+    get { return false; }
+  }
+
+  /// <inheritdoc/>
+  public ICollection<TKey> Keys
+  {
+    get { return Items.Keys; }
+  }
+
+  /// <inheritdoc/>
+  public ICollection<TValue> Values
+  {
+    get { return Items.Values; }
+  }
+
+  /// <inheritdoc/>
+  public bool ContainsKey(TKey key)
+  {
+    return Items.ContainsKey(key);
+  }
+
+  /// <inheritdoc/>
+  public bool TryGetValue(TKey key, out TValue value)
+  {
+    return Items.TryGetValue(key, out value);
+  }
+
+  /// <summary>Gets the underlying, writable dictionary that contains the items.</summary>
+  protected Dictionary<TKey, TValue> Items { get; private set; }
+
+  #region ICollection<KeyValuePair<TKey,TValue>> Members
+  void ICollection<KeyValuePair<TKey,TValue>>.Add(KeyValuePair<TKey, TValue> item)
+  {
+    throw new NotSupportedException();
+  }
+
+  void ICollection<KeyValuePair<TKey, TValue>>.Clear()
+  {
+    throw new NotSupportedException();
+  }
+
+  bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> item)
+  {
+    return ((ICollection<KeyValuePair<TKey, TValue>>)Items).Contains(item);
+  }
+
+  void ICollection<KeyValuePair<TKey, TValue>>.CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
+  {
+    ((ICollection<KeyValuePair<TKey, TValue>>)Items).CopyTo(array, arrayIndex);
+  }
+
+  bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> item)
+  {
+    throw new NotSupportedException();
+  }
+  #endregion
+
+  #region IDictionary<TKey,TValue> Members
+  void IDictionary<TKey, TValue>.Add(TKey key, TValue value)
+  {
+    throw new NotSupportedException();
+  }
+
+  bool IDictionary<TKey,TValue>.Remove(TKey key)
+  {
+    throw new NotSupportedException();
+  }
+  #endregion
+
+  #region IEnumerable<KeyValuePair<TKey,TValue>> Members
+  /// <inheritdoc/>
+  public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
+  {
+    return Items.GetEnumerator();
+  }
+  #endregion
+
+  #region IEnumerable Members
+  IEnumerator IEnumerable.GetEnumerator()
+  {
+    return Items.GetEnumerator();
+  }
+  #endregion
+}
+#endregion
+
 #region DictionaryBase
 /// <summary>Provides a flexible base class for new dictionary-like collections.</summary>
 [Serializable]

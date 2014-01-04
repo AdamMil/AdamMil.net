@@ -40,10 +40,9 @@ public abstract class AccessLimitedCollectionBase<T> : IList<T>
   }
 
   /// <summary>Initializes an <see cref="AccessLimitedCollectionBase{T}"/> with the given items.</summary>
-  protected AccessLimitedCollectionBase(IEnumerable<T> items) : this()
+  protected AccessLimitedCollectionBase(IEnumerable<T> items)
   {
-    if(items == null) throw new ArgumentNullException();
-    Items.AddRange(items);
+    Items = new List<T>(items);
   }
 
   /// <inheritdoc/>
@@ -59,6 +58,9 @@ public abstract class AccessLimitedCollectionBase<T> : IList<T>
   }
 
   /// <inheritdoc/>
+  /// <remarks>The default implementation returns false. If your derived collection is completely read-only, you should override this
+  /// property and return true.
+  /// </remarks>
   public virtual bool IsReadOnly
   {
     get { return false; }

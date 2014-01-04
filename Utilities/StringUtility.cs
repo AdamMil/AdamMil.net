@@ -128,6 +128,19 @@ public static class StringUtility
     return str != null && str.Length == 0;
   }
 
+  /// <summary>Returns true if the given string is null, empty, or contains only whitespace characters.</summary>
+  public static bool IsNullOrSpace(string str)
+  {
+    if(str != null)
+    {
+      for(int i=0; i<str.Length; i++)
+      {
+        if(!char.IsWhiteSpace(str[i])) return false;
+      }
+    }
+    return true;
+  }
+
   /// <summary>Returns null if the given string is null or empty. Otherwise, returns the given string.</summary>
   public static string MakeNullIfEmpty(string str)
   {
@@ -185,8 +198,8 @@ public static class StringUtility
   }
 
   /// <summary>Removes all instances of the given character from the string.</summary>
-  public static string Remove(this string str, char charToRemove)
-  {
+  public static string Remove(string str, char charToRemove) // it would be nice if this was an extension, but it conflicts with the
+  {                                                          // string.Remove(int) method, annoyingly enough
     if(str == null) throw new ArgumentNullException();
     return str.Replace(new string(charToRemove, 1), null); // TODO: this could be optimized
   }

@@ -1495,8 +1495,8 @@ public class ExeGPG : GPG
     /// <summary>Exits the process if it's running and frees system resources used by the <see cref="Command"/> object.</summary>
     public void Dispose()
     {
-      GC.SuppressFinalize(this);
       Dispose(true);
+      GC.SuppressFinalize(this);
     }
 
     /// <summary>Kills the process if it's running.</summary>

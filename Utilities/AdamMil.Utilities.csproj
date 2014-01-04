@@ -84,6 +84,7 @@
     <Compile Include="Exceptions.cs" />
     <Compile Include="Collections.cs" />
     <Compile Include="GuidUtility.cs" />
+    <Compile Include="Impersonation.cs" />
     <Compile Include="Interop.cs" />
     <Compile Include="Linq.cs" />
     <Compile Include="InvariantCulture.cs" />

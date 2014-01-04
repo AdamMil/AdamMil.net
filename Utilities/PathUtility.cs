@@ -51,6 +51,33 @@ public static class PathUtility
     return string.Equals(NormalizePath(a), NormalizePath(b), StringComparison.Ordinal);
   }
 
+  /// <summary>Returns true if the location referred to by one path contains the location referred to by another or if the locations are
+  /// identical, and false otherwise.
+  /// </summary>
+  /// <param name="containerPath">The location that may contain <paramref name="path"/>.</param>
+  /// <param name="path">The location that may be contained within <paramref name="containerPath"/>.</param>
+  public static bool Contains(string containerPath, string path)
+  {
+    return Contains(containerPath, path, true);
+  }
+
+  /// <summary>Returns true if the location referred to by one path contains the location referred to by another, and optionally if the
+  /// locations are identical. Otherwise, the method returns false.
+  /// </summary>
+  /// <param name="containerPath">The location that may contain <paramref name="path"/>.</param>
+  /// <param name="path">The location that may be contained within <paramref name="containerPath"/>.</param>
+  /// <param name="checkEquality">If true, the method will return true if <paramref name="containerPath"/> and <paramref name="path"/>
+  /// refer to the same location. Otherwise, it will return false in that case.
+  /// </param>
+  public static bool Contains(string containerPath, string path, bool checkEquality)
+  {
+    containerPath = NormalizePath(containerPath);
+    path          = NormalizePath(path);
+    return checkEquality && string.Equals(containerPath, path, StringComparison.Ordinal) ||
+           path.Length > containerPath.Length+1 && path.StartsWith(containerPath, StringComparison.Ordinal) &&
+           path[containerPath.Length] == Path.DirectorySeparatorChar;
+  }
+
   /// <summary>Works like <see cref="Directory.GetFiles(string,string)"/>, but without the unintuitive behavior regarding
   /// wildcards with 3-character extensions.
   /// </summary>

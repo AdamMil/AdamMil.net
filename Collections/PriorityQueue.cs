@@ -38,7 +38,7 @@ namespace AdamMil.Collections
 /// </para>
 /// </remarks>
 [Serializable]
-public sealed class PriorityQueue<T> : IQueue<T>, IReadOnlyCollection<T>
+public sealed class PriorityQueue<T> : ICloneable, IQueue<T>, IReadOnlyCollection<T>
 {
   /// <summary>Initializes a new, empty instance of the <see cref="PriorityQueue{T}"/> class, with a default capacity
   /// and using <see cref="Comparer{T}.Default"/> to compare elements.
@@ -67,6 +67,14 @@ public sealed class PriorityQueue<T> : IQueue<T>, IReadOnlyCollection<T>
     this.array     = new T[capacity == 0 ? 16 : capacity];
   }
 
+  /// <summary>Initializes this priority queue as a copy of the given queue.</summary>
+  PriorityQueue(PriorityQueue<T> queue)
+  {
+    this.array = (T[])queue.array.Clone();
+    this.cmp   = queue.cmp;
+    this.count = queue.count;
+  }
+
   /// <summary>Gets or sets the number of elements that the internal array can contain.</summary>
   public int Capacity
   {
@@ -81,6 +89,12 @@ public sealed class PriorityQueue<T> : IQueue<T>, IReadOnlyCollection<T>
         array = newArray;
       }
     }
+  }
+
+  /// <summary>Creates a copy of this priority queue.</summary>
+  public PriorityQueue<T> Clone()
+  {
+    return new PriorityQueue<T>(this);
   }
 
   /// <summary>Removes and returns the element in the queue with the highest priority.</summary>
@@ -151,6 +165,13 @@ public sealed class PriorityQueue<T> : IQueue<T>, IReadOnlyCollection<T>
     }
   }
 
+  #region ICloneable Members
+  object ICloneable.Clone()
+  {
+    return Clone();
+  }
+  #endregion
+
   #region ICollection<>
   /// <summary>Gets the number of elements contained in the priority queue.</summary>
   public int Count { get { return count; } }
@@ -190,7 +211,7 @@ public sealed class PriorityQueue<T> : IQueue<T>, IReadOnlyCollection<T>
   {
     int index = IndexOf(item);
     if(index == -1) return false;
-    for(count--; index<count; index++) array[index] = array[index+1];
+    array[index] = array[--count]; // overwrite the given item with the last item
     array[count] = default(T); // remove the duplicated reference to the last item
     Heapify();
     version++;

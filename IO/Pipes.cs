@@ -101,8 +101,8 @@ public class InheritablePipe : IDisposable
   /// <summary>Closes both sides of the pipe.</summary>
   public void Dispose()
   {
-    GC.SuppressFinalize(this);
     Dispose(true);
+    GC.SuppressFinalize(this);
   }
 
   /// <summary>Called to create the pipe and return the operating system handles for both ends of it.</summary>

@@ -69,19 +69,19 @@ public static class Unsafe
       }
 
       lastBytes:
-      if((byteCount & 8) != 0)
+      if((byteCount & 8) != 0) // if there are between 8 and 15 bytes remaining, compare the first 8 of them, leaving at most 7
       {
         if(*(uint*)a != *(uint*)b || *(uint*)((byte*)a+4) != *(uint*)((byte*)b+4)) goto notEqual;
         a = ((byte*)a + 8);
         b = ((byte*)b + 8);
       }
     }
-    else // the architecture is at least 64-bit, so do 64-bit copies
+    else // the architecture is at least 64-bit, so do 64-bit comparisons
     {
       if(byteCount >= 32)
       {
         // align the memory if possible. it may only be possible to align one pointer, but that's better than nothing
-        int offset = (int)a & 7;
+        int offset = (int)a & 7; // we can cast 'a' to an int even though it's larger because we're only interested in the lower 3 bits
         if(offset != 0)
         {
           offset = 8 - offset;
@@ -110,13 +110,13 @@ public static class Unsafe
       }
 
       lastBytes:
-      if((byteCount & 16) != 0)
+      if((byteCount & 16) != 0) // if there are between 16 and 31 bytes remaining, compare the first 16 of them, leaving at most 15
       {
         if(*(ulong*)a != *(ulong*)b || *(ulong*)((byte*)a+8) != *(ulong*)((byte*)b+8)) goto notEqual;
         a = ((byte*)a + 16);
         b = ((byte*)b + 16);
       }
-      if((byteCount & 8) != 0)
+      if((byteCount & 8) != 0) // if there are between 8 and 15 bytes remaining, compare the first 8 of them, leaving at most 7
       {
         if(*(ulong*)a != *(ulong*)b) goto notEqual;
         a = ((byte*)a + 8);
@@ -124,6 +124,8 @@ public static class Unsafe
       }
     }
 
+    // it would be possible to avoid some branching here and below by comparing uints after masking off the unwanted bits, but i don't want
+    // to read past the end of the user's buffer for fear it just happens to lie at the end of a segment
     switch(byteCount & 7)
     {
       case 1:
@@ -133,8 +135,6 @@ public static class Unsafe
         if(*(ushort*)a != *(ushort*)b) goto notEqual;
         break;
       case 3:
-        // it would be possible to avoid branching here and below by comparing uints after masking off the unwanted bits, but i don't want
-        //to read past the end of the user's buffer for fear it just happens to lie at the end of a segment
         if(*(ushort*)a != *(ushort*)b || *((byte*)a+2) != *((byte*)b+2)) goto notEqual;
         break;
       case 4:
@@ -552,6 +552,20 @@ static class SafeNativeMethods
 [System.Security.SuppressUnmanagedCodeSecurity]
 static class UnsafeNativeMethods
 {
+  [DllImport("kernel32.dll", ExactSpelling=true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  public static extern bool CloseHandle(IntPtr handle);
+
+  [DllImport("advapi32.dll", SetLastError=true, CharSet=CharSet.Unicode)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  public static extern bool LogonUser(string userName, string domain, string password, int logonType, int logonProvider,
+                                      out IntPtr logonToken);
+
+  [DllImport("advapi32.dll", SetLastError=true, CharSet=CharSet.Unicode)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  public static extern bool LogonUser(string userName, string domain, IntPtr password, int logonType, int logonProvider,
+                                      out IntPtr logonToken);
+
   // we use IntPtr for the length because the API uses size_t, which is 64-bit on 64-bit machines
   [DllImport("ntdll.dll", ExactSpelling=true)]
   public unsafe static extern void RtlFillMemory(void* dest, IntPtr length, byte value);
