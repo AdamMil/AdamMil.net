@@ -40,8 +40,7 @@ namespace AdamMil.Mathematics
     {
       if(data == null) throw new ArgumentNullException();
       if(data.Length != Length) throw new ArgumentException("Expected an array of 9 elements.");
-      fixed(double* src=data)
-      fixed(double* dest=&M00)
+      fixed(double* src=data, dest=&M00)
       {
         Unsafe.Copy(src, dest, Length*sizeof(double));
       }
@@ -50,8 +49,7 @@ namespace AdamMil.Mathematics
     public unsafe Matrix3(Matrix3 matrix)
     {
       if(matrix == null) throw new ArgumentNullException();
-      fixed(double* src=&matrix.M00)
-      fixed(double* dest=&M00)
+      fixed(double* src=&matrix.M00, dest=&M00)
       {
         Unsafe.Copy(src, dest, Length*sizeof(double));
       }
@@ -61,8 +59,7 @@ namespace AdamMil.Mathematics
     {
       if(matrix == null) throw new ArgumentNullException();
       if(matrix.Width != Width || matrix.Height != Height) throw new ArgumentException("The matrix is the wrong size.");
-      fixed(double* src=matrix.Array)
-      fixed(double* dest=&M00)
+      fixed(double* src=matrix.Array, dest=&M00)
       {
         Unsafe.Copy(src, dest, Length*sizeof(double));
       }
@@ -162,8 +159,7 @@ namespace AdamMil.Mathematics
     public unsafe double[] ToArray()
     {
       double[] ret = new double[Length];
-      fixed(double* src=&M00)
-      fixed(double* dest=ret)
+      fixed(double* src=&M00, dest=ret)
       {
         for(int i=0; i<Length; i++) dest[i]=src[i];
       }
@@ -197,10 +193,7 @@ namespace AdamMil.Mathematics
     public static unsafe void Add(Matrix3 a, Matrix3 b, Matrix3 dest)
     {
       if(a == null || b == null || dest == null) throw new ArgumentNullException();
-
-      fixed(double* ap=&a.M00)
-      fixed(double* bp=&b.M00)
-      fixed(double* dp=&dest.M00)
+      fixed(double* ap=&a.M00, bp=&b.M00, dp=&dest.M00)
       {
         for(int i=0; i<Length; i++) dp[i] = ap[i]+bp[i];
       }
@@ -209,10 +202,7 @@ namespace AdamMil.Mathematics
     public static unsafe void Subtract(Matrix3 a, Matrix3 b, Matrix3 dest)
     {
       if(a == null || b == null || dest == null) throw new ArgumentNullException();
-
-      fixed(double* ap=&a.M00)
-      fixed(double* bp=&b.M00)
-      fixed(double* dp=&dest.M00)
+      fixed(double* ap=&a.M00, bp=&b.M00, dp=&dest.M00)
       {
         for(int i=0; i<Length; i++) dp[i] = ap[i]-bp[i];
       }
@@ -222,9 +212,7 @@ namespace AdamMil.Mathematics
     {
       if(a == null || b == null || dest == null) throw new ArgumentNullException();
 
-      fixed(double* ap=&a.M00)
-      fixed(double* bp=&b.M00)
-      fixed(double* dp=&dest.M00)
+      fixed(double* ap=&a.M00, bp=&b.M00, dp=&dest.M00)
       {
         dp[0] = ap[0]*bp[0] + ap[1]*bp[3] + ap[2]*bp[6];
         dp[1] = ap[0]*bp[1] + ap[1]*bp[4] + ap[2]*bp[7];
@@ -243,8 +231,7 @@ namespace AdamMil.Mathematics
       if(a == null) return b == null;
       else if(b == null) return false;
 
-      fixed(double* ap=&a.M00)
-      fixed(double* bp=&b.M00)
+      fixed(double* ap=&a.M00, bp=&b.M00)
       {
         for(int i=0; i<Length; i++)
         {
@@ -259,8 +246,7 @@ namespace AdamMil.Mathematics
       if(a == null) return b == null;
       else if(b == null) return false;
 
-      fixed(double* ap=&a.M00)
-      fixed(double* bp=&b.M00)
+      fixed(double* ap=&a.M00, bp=&b.M00)
       {
         for(int i=0; i<Length; i++)
         {
@@ -454,32 +440,20 @@ namespace AdamMil.Mathematics
     {
       if(data == null) throw new ArgumentNullException();
       if(data.Length != Length) throw new ArgumentException("Expected an array of 16 elements.");
-      fixed(double* src=data)
-      fixed(double* dest=&M00)
-      {
-        Unsafe.Copy(src, dest, Length*sizeof(double));
-      }
+      fixed(double* src=data, dest=&M00) Unsafe.Copy(src, dest, Length*sizeof(double));
     }
 
     public unsafe Matrix4(Matrix4 matrix)
     {
       if(matrix == null) throw new ArgumentNullException();
-      fixed(double* src=&matrix.M00)
-      fixed(double* dest=&M00)
-      {
-        Unsafe.Copy(src, dest, Length*sizeof(double));
-      }
+      fixed(double* src=&matrix.M00, dest=&M00) Unsafe.Copy(src, dest, Length*sizeof(double));
     }
 
     public unsafe Matrix4(Matrix matrix)
     {
       if(matrix == null) throw new ArgumentNullException();
       if(matrix.Width != Width || matrix.Height != Height) throw new ArgumentException("The matrix is the wrong size.");
-      fixed(double* src=matrix.Array)
-      fixed(double* dest=&M00)
-      {
-        Unsafe.Copy(src, dest, Length*sizeof(double));
-      }
+      fixed(double* src=matrix.Array, dest=&M00) Unsafe.Copy(src, dest, Length*sizeof(double));
     }
 
     public const int Width=4, Height=4, Length=Width*Height;
@@ -641,11 +615,7 @@ namespace AdamMil.Mathematics
     public unsafe double[] ToArray()
     {
       double[] ret = new double[Length];
-      fixed(double* src=&M00)
-      fixed(double* dest=ret)
-      {
-        Unsafe.Copy(src, dest, Length*sizeof(double));
-      }
+      fixed(double* src=&M00, dest=ret) Unsafe.Copy(src, dest, Length*sizeof(double));
       return ret;
     }
 
@@ -653,9 +623,7 @@ namespace AdamMil.Mathematics
     {
       if(a == null || b == null || dest == null) throw new ArgumentNullException();
 
-      fixed(double* ap=&a.M00)
-      fixed(double* bp=&b.M00)
-      fixed(double* dp=&dest.M00)
+      fixed(double* ap=&a.M00, bp=&b.M00, dp=&dest.M00)
       {
         for(int i=0; i<Length; i++) dp[i] = ap[i]+bp[i];
       }
@@ -665,9 +633,7 @@ namespace AdamMil.Mathematics
     {
       if(a == null || b == null || dest == null) throw new ArgumentNullException();
 
-      fixed(double* ap=&a.M00)
-      fixed(double* bp=&b.M00)
-      fixed(double* dp=&dest.M00)
+      fixed(double* ap=&a.M00, bp=&b.M00, dp=&dest.M00)
       {
         for(int i=0; i<Length; i++) dp[i] = ap[i]-bp[i];
       }
@@ -677,9 +643,7 @@ namespace AdamMil.Mathematics
     {
       if(a == null || b == null || dest == null) throw new ArgumentNullException();
 
-      fixed(double* ap=&a.M00)
-      fixed(double* bp=&b.M00)
-      fixed(double* dp=&dest.M00)
+      fixed(double* ap=&a.M00, bp=&b.M00, dp=&dest.M00)
       {
         dp[0]  = ap[0]*bp[0]  + ap[1]*bp[4]  + ap[2]*bp[8]   + ap[3]*bp[12];
         dp[1]  = ap[0]*bp[1]  + ap[1]*bp[5]  + ap[2]*bp[9]   + ap[3]*bp[13];
@@ -705,8 +669,7 @@ namespace AdamMil.Mathematics
       if(a == null) return b == null;
       else if(b == null) return false;
 
-      fixed(double* ap=&a.M00)
-      fixed(double* bp=&b.M00)
+      fixed(double* ap=&a.M00, bp=&b.M00)
       {
         for(int i=0; i<Length; i++)
         {
@@ -721,8 +684,7 @@ namespace AdamMil.Mathematics
       if(a == null) return b == null;
       else if(b == null) return false;
 
-      fixed(double* ap=&a.M00)
-      fixed(double* bp=&b.M00)
+      fixed(double* ap=&a.M00, bp=&b.M00)
       {
         for(int i=0; i<Length; i++)
         {
@@ -946,8 +908,7 @@ namespace AdamMil.Mathematics
       Height = data.Length / width;
       this.data = new double[Height, Width];
 
-      fixed(double* psrc=data)
-      fixed(double* pdest=this.data)
+      fixed(double* psrc=data, pdest=this.data)
       {
         Unsafe.Copy(psrc, pdest, data.Length*sizeof(double));
       }
@@ -994,8 +955,7 @@ namespace AdamMil.Mathematics
     {
       if(matrix == null) throw new ArgumentNullException();
       AssertSameSize(matrix);
-      fixed(double* dest=data)
-      fixed(double* src=matrix.data)
+      fixed(double* dest=data, src=matrix.data)
       {
         for(int i=0, length=data.Length; i<length; i++) dest[i] += src[i];
       }
@@ -1098,22 +1058,14 @@ namespace AdamMil.Mathematics
     {
       if((uint)row >= (uint)Height) throw new ArgumentOutOfRangeException();
       Utility.ValidateRange(array, index, Width);
-      fixed(double* psrc=data)
-      fixed(double* pdest=array)
-      {
-        Unsafe.Copy(psrc+row*Width, pdest+index, Width*sizeof(double));
-      }
+      fixed(double* psrc=data, pdest=array) Unsafe.Copy(psrc+row*Width, pdest+index, Width*sizeof(double));
     }
 
     public unsafe void Invert()
     {
       // do the inversion in a separate matrix to prevent this matrix from being clobbered if it turns out to not be invertible
       Matrix inverse = Invert(this);
-      fixed(double* src=inverse.data)
-      fixed(double* dest=data)
-      {
-        Unsafe.Copy(src, dest, data.Length*sizeof(double));
-      }
+      fixed(double* src=inverse.data, dest=data) Unsafe.Copy(src, dest, data.Length*sizeof(double));
     }
 
     public unsafe void Multiply(double factor)
@@ -1155,8 +1107,7 @@ namespace AdamMil.Mathematics
       if(srcMatrix == null) throw new ArgumentNullException();
       if((uint)destColumn >= (uint)Width || (uint)srcColumn >= (uint)srcMatrix.Width) throw new ArgumentOutOfRangeException();
       if(Height != srcMatrix.Height) throw new ArgumentException("The matrixes must have the same height.");
-      fixed(double* src=srcMatrix.data)
-      fixed(double* dest=data)
+      fixed(double* src=srcMatrix.data, dest=data)
       {
         for(int i=0; i<Height; srcColumn += srcMatrix.Width, destColumn += Width, i++) dest[destColumn] = src[srcColumn];
       }
@@ -1220,8 +1171,7 @@ namespace AdamMil.Mathematics
     {
       if(matrix == null) throw new ArgumentNullException();
       AssertSameSize(matrix);
-      fixed(double* src=matrix.data)
-      fixed(double* dest=data)
+      fixed(double* src=matrix.data, dest=data)
       {
         for(int i=0, length=data.Length; i<length; i++) dest[i] -= src[i];
       }
@@ -1364,9 +1314,7 @@ namespace AdamMil.Mathematics
       if(a.Height != b.Height) throw new ArgumentException("The matrices must have the same height.");
       Matrix result = new Matrix(a.Height, a.Width+b.Width);
 
-      fixed(double* pdest=result.Array)
-      fixed(double* pa=a.Array)
-      fixed(double* pb=b.Array)
+      fixed(double* pdest=result.Array, pa=a.Array, pb=b.Array)
       {
         for(int dy=0, di=0, ai=0, bi=0; dy<result.Height; dy++)
         {
@@ -1401,8 +1349,7 @@ namespace AdamMil.Mathematics
       if(a == null) return b == null;
       else if(b == null || a.Width != b.Width || a.Height != b.Height) return false;
 
-      fixed(double* pa=a.data)
-      fixed(double* pb=b.data)
+      fixed(double* pa=a.data, pb=b.data)
       {
         for(int i=0, length=a.data.Length; i<length; i++)
         {
@@ -1417,8 +1364,7 @@ namespace AdamMil.Mathematics
       if(a == null) return b == null;
       else if(b == null || a.Width != b.Width || a.Height != b.Height) return false;
 
-      fixed(double* pa=a.data)
-      fixed(double* pb=b.data)
+      fixed(double* pa=a.data, pb=b.data)
       {
         for(int i=0, length=a.data.Length; i<length; i++)
         {
@@ -1451,9 +1397,7 @@ namespace AdamMil.Mathematics
       // when multiplying A*B, an element of the result is sum of the products of pairs of elements from the same row in A and the same
       // column in B.
       Matrix result = new Matrix(a.Height, b.Width);
-      fixed(double* plhs=a.data)
-      fixed(double* prhs=b.data)
-      fixed(double* pdest=result.data)
+      fixed(double* plhs=a.data, prhs=b.data, pdest=result.data)
       {
         double* lhs=plhs, dest=pdest;
         for(int i=0; i<result.Height; lhs += a.Width, i++)
@@ -1481,9 +1425,7 @@ namespace AdamMil.Mathematics
       //        | d e f | * | 0 h | = | dg eh |
       //                    | 0 0 |
       Matrix result = new Matrix(a.Height, bDiagonal.Width);
-      fixed(double* plhs=a.data)
-      fixed(double* rhs=bDiagonal.data)
-      fixed(double* pdest=result.data)
+      fixed(double* plhs=a.data, rhs=bDiagonal.data, pdest=result.data)
       {
         double* lhs=plhs, dest=pdest;
         for(int i=0; i<result.Height; lhs += a.Width, i++)
@@ -1499,9 +1441,7 @@ namespace AdamMil.Mathematics
       if(a == null || bDiagonal == null) throw new ArgumentNullException();
       if(a.Width != bDiagonal.Size) throw new ArgumentException("The width of the matrix does not match the size of the vector.");
       Matrix result = new Matrix(a.Height, bDiagonal.Size);
-      fixed(double* plhs=a.data)
-      fixed(double* rhs=bDiagonal.Array)
-      fixed(double* pdest=result.data)
+      fixed(double* plhs=a.data, rhs=bDiagonal.Array, pdest=result.data)
       {
         double* lhs=plhs, dest=pdest;
         for(int i=0; i<result.Height; lhs += a.Width, i++)
@@ -1520,9 +1460,7 @@ namespace AdamMil.Mathematics
       //                    | d e f | * transpose(| j k l |) = | d e f | * | h k |
       //                                                                   | i l |
       Matrix result = new Matrix(a.Height, bToTranspose.Height);
-      fixed(double* plhs=a.data)
-      fixed(double* prhs=bToTranspose.data)
-      fixed(double* pdest=result.data)
+      fixed(double* plhs=a.data, prhs=bToTranspose.data, pdest=result.data)
       {
         double* lhs=plhs, dest=pdest;
         for(int i=0; i<result.Height; lhs += a.Width, i++)
@@ -1547,9 +1485,7 @@ namespace AdamMil.Mathematics
       //                    transpose(| d e f |) * | j k l | = | b e | * | j k l |
       //                                                       | c f |
       Matrix result = new Matrix(aToTranspose.Width, b.Width);
-      fixed(double* plhs=aToTranspose.data)
-      fixed(double* prhs=b.data)
-      fixed(double* pdest=result.data)
+      fixed(double* plhs=aToTranspose.data, prhs=b.data, pdest=result.data)
       {
         double* lhs=plhs, dest=pdest;
         for(int i=0; i<result.Height; lhs++, i++)

@@ -115,7 +115,7 @@ public abstract class RandomNumberGenerator
   /// <summary>Loads the generator state from a stream.</summary>
   public void LoadState(Stream stream)
   {
-    using(BinaryReader reader = new BinaryReader(stream)) LoadState(reader);
+    using(BinaryReader reader = new BinaryReader(stream, false)) LoadState(reader);
   }
 
   /// <summary>Loads the generator state from a <see cref="BinaryReader"/>.</summary>
@@ -130,7 +130,7 @@ public abstract class RandomNumberGenerator
   /// <summary>Saves the generator state to a stream.</summary>
   public void SaveState(Stream stream)
   {
-    using(BinaryWriter writer = new BinaryWriter(stream)) SaveState(writer);
+    using(BinaryWriter writer = new BinaryWriter(stream, false)) SaveState(writer);
   }
 
   /// <summary>Saves the generator state to a <see cref="BinaryWriter"/>.</summary>
