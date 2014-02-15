@@ -27,8 +27,8 @@ namespace AdamMil.Mathematics.Random
 /// useful for creating procedural textures, generating landscapes and clouds, drawing "natural" shapes that exhibit
 /// slight wobbles, and many other things. Specifically, Perlin and Simplex noise in 1, 2, and 3 dimensions are implemented.
 /// </summary>
-/// <include file="documentation.xml" path="/Math/CoherentNoise/AboutPerlin/*" />
-/// <include file="documentation.xml" path="/Math/CoherentNoise/AboutSimplex/*" />
+/// <include file="documentation.xml" path="/Math/CoherentNoise/AboutPerlin/node()"/>
+/// <include file="documentation.xml" path="/Math/CoherentNoise/AboutSimplex/node()"/>
 public sealed class CoherentNoise
 {
   /// <summary>Initializes a new <see cref="CoherentNoise"/> object using the default seed.</summary>
@@ -48,7 +48,7 @@ public sealed class CoherentNoise
   /// <summary>Generates one-dimensional Perlin noise based on the given position on the x axis. The noise value will
   /// lie in the range [-1,1], and will begin to repeat if <paramref name="x"/> is outside the range [0,256).
   /// </summary>
-  /// <include file="documentation.xml" path="/Math/CoherentNoise/AboutPerlin/*" />
+  /// <include file="documentation.xml" path="/Math/CoherentNoise/AboutPerlin/node()"/>
   public double Perlin(double x)
   {
     int ix = FastFloor(x);
@@ -68,7 +68,7 @@ public sealed class CoherentNoise
   /// will lie in the range [-1,1], and will repeat if <paramref name="x"/> or <paramref name="y"/> is outside the
   /// range [0,256).
   /// </summary>
-  /// <include file="documentation.xml" path="/Math/CoherentNoise/AboutPerlin/*" />
+  /// <include file="documentation.xml" path="/Math/CoherentNoise/AboutPerlin/node()"/>
   public double Perlin(double x, double y)
   {
     int ix = FastFloor(x), iy = FastFloor(y); // find the unit square that contains the point
@@ -95,7 +95,7 @@ public sealed class CoherentNoise
   /// value will lie in the range [-1,1], and will repeat if <paramref name="x"/>, <paramref name="y"/>, or
   /// <paramref name="z"/> is outside the range [0,256).
   /// </summary>
-  /// <include file="documentation.xml" path="/Math/CoherentNoise/AboutPerlin/*" />
+  /// <include file="documentation.xml" path="/Math/CoherentNoise/AboutPerlin/node()"/>
   public double Perlin(double x, double y, double z)
   {
     int ix = FastFloor(x), iy = FastFloor(y), iz = FastFloor(z); // find the unit cube that contains the point
@@ -127,7 +127,7 @@ public sealed class CoherentNoise
   /// <summary>Generates one-dimensional Simplex noise based on the given position on the x axis. The noise value will
   /// lie in the range [-1,1], and will begin to repeat if <paramref name="x"/> is outside the range [0,256).
   /// </summary>
-  /// <include file="documentation.xml" path="/Math/CoherentNoise/AboutSimplex/*" />
+  /// <include file="documentation.xml" path="/Math/CoherentNoise/AboutSimplex/node()"/>
   public double Simplex(double x)
   {
     const double DistanceCutoff = 1;
@@ -162,7 +162,7 @@ public sealed class CoherentNoise
   /// will lie in the range [-1,1], and will repeat if <paramref name="x"/> or <paramref name="y"/> is outside the
   /// range [0,256).
   /// </summary>
-  /// <include file="documentation.xml" path="/Math/CoherentNoise/AboutSimplex/*" />
+  /// <include file="documentation.xml" path="/Math/CoherentNoise/AboutSimplex/node()"/>
   public double Simplex(double x, double y)
   {
     const double SkewFactor = 0.36602540378443864676;   // (sqrt(3) - 1) / 2
@@ -231,7 +231,7 @@ public sealed class CoherentNoise
   /// value will lie in the range [-1,1], and will repeat if <paramref name="x"/>, <paramref name="y"/>, or
   /// <paramref name="z"/> is outside the range [0,256).
   /// </summary>
-  /// <include file="documentation.xml" path="/Math/CoherentNoise/AboutSimplex/*" />
+  /// <include file="documentation.xml" path="/Math/CoherentNoise/AboutSimplex/node()"/>
   public double Simplex(double x, double y, double z)
   {
     const double SkewFactor   = 1.0/3; // (sqrt(4) - 1) / 2

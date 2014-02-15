@@ -523,7 +523,7 @@ public sealed class ArraySegmentEnumerator<T> : IEnumerator<T>
     Reset();
   }
 
-  /// <include file="documentation.xml" path="//Utilities/IEnumerator/Current/*"/>
+  /// <include file="documentation.xml" path="//Utilities/IEnumerator/Current/node()"/>
   public T Current
   {
     get
@@ -533,14 +533,14 @@ public sealed class ArraySegmentEnumerator<T> : IEnumerator<T>
     }
   }
 
-  /// <include file="documentation.xml" path="//Utilities/IEnumerator/MoveNext/*"/>
+  /// <include file="documentation.xml" path="//Utilities/IEnumerator/MoveNext/node()"/>
   public bool MoveNext()
   {
     if(currentIndex != end) currentIndex++;
     return currentIndex != end;
   }
 
-  /// <include file="documentation.xml" path="//Utilities/IEnumerator/Reset/*"/>
+  /// <include file="documentation.xml" path="//Utilities/IEnumerator/Reset/node()"/>
   public void Reset()
   {
     currentIndex = start-1;

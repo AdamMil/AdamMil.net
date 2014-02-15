@@ -82,7 +82,7 @@ namespace AdamMil.Mathematics.Geometry
       get { return new Size(root.Width, root.Height); }
     }
 
-    /// <summary>Adds a rectangle of the given size, and returns point where the rectangle was placed, or null if the
+    /// <summary>Adds a rectangle of the given size, and returns the point where the rectangle was placed, or null if the
     /// rectangle didn't fit.
     /// </summary>
     public Point? TryAdd(Size size)
@@ -90,7 +90,7 @@ namespace AdamMil.Mathematics.Geometry
       return TryAdd(size.Width, size.Height);
     }
 
-    /// <summary>Adds a rectangle of the given size, and returns point where the rectangle was placed, or null if the
+    /// <summary>Adds a rectangle of the given size, and returns the point where the rectangle was placed, or null if the
     /// rectangle didn't fit.
     /// </summary>
     public Point? TryAdd(int width, int height)

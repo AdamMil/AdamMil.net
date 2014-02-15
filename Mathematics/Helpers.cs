@@ -36,6 +36,33 @@ namespace AdamMil.Mathematics
       }
     }
 
+    public static object DefaultConvertToType(IConvertible value, Type destinationType, IFormatProvider provider)
+    {
+      if(value.GetType() == destinationType) return value;
+
+      switch(Type.GetTypeCode(destinationType))
+      {
+        case TypeCode.Boolean: return value.ToBoolean(provider);
+        case TypeCode.Byte: return value.ToByte(provider);
+        case TypeCode.Char: return value.ToChar(provider);
+        case TypeCode.DateTime: return value.ToDateTime(provider);
+        case TypeCode.Decimal: return value.ToDecimal(provider);
+        case TypeCode.Double: return value.ToDouble(provider);
+        case TypeCode.Int16: return value.ToInt16(provider);
+        case TypeCode.Int32: return value.ToInt32(provider);
+        case TypeCode.Int64: return value.ToInt64(provider);
+        case TypeCode.SByte: return value.ToSByte(provider);
+        case TypeCode.Single: return value.ToSingle(provider);
+        case TypeCode.String: return value.ToString(provider);
+        case TypeCode.UInt16: return value.ToUInt16(provider);
+        case TypeCode.UInt32: return value.ToUInt32(provider);
+        case TypeCode.UInt64: return value.ToUInt64(provider);
+        default:
+          throw new InvalidCastException("Can't convert from " + value.GetType().FullName + " to " +
+                                         (destinationType == null ? "NULL" : destinationType.FullName));
+      }
+    }
+
     public static void CopyColumn(Matrix src, int srcColumn, Matrix dest, int destColumn)
     {
       for(int i=0; i<dest.Height; i++) dest[i, destColumn] = src[i, srcColumn];

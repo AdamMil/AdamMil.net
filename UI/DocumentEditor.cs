@@ -766,16 +766,16 @@ public class DocumentEditor : Control
       get { return new Span(Start, ContentLength); }
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/BeginLayout/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/BeginLayout/node()"/>
     public virtual void BeginLayout(Graphics gdi) { }
 
-    /// <include file="documentation.xml" path="/UI/Common/Dispose/*"/>
+    /// <include file="documentation.xml" path="/UI/Common/Dispose/node()"/>
     public virtual void Dispose()
     {
       foreach(LayoutRegion child in GetChildren()) child.Dispose();
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/EndLayout/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/EndLayout/node()"/>
     public virtual void EndLayout(Graphics gdi)
     {
       int index = 0;
@@ -787,16 +787,16 @@ public class DocumentEditor : Control
       }
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetChildren/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetChildren/node()"/>
     public abstract LayoutRegion[] GetChildren();
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetCursorHeight/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetCursorHeight/node()"/>
     public virtual int GetCursorHeight(int index)
     {
       return Math.Max(index == 0 || index >= ContentLength ? BorderBox.Height : ContentArea.Height, 1);
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNearestIndex/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNearestIndex/node()"/>
     public virtual int GetNearestIndex(Graphics gdi, Point regionPt)
     {
       int end = DocumentContentSpan.End;
@@ -830,7 +830,7 @@ public class DocumentEditor : Control
       else return Start; // otherwise, there are no children node, so just return the starting index
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetPixelOffset/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetPixelOffset/node()"/>
     public virtual Point GetPixelOffset(Graphics gdi, int indexOffset)
     {
       if((uint)indexOffset > (uint)Length) throw new ArgumentOutOfRangeException();
@@ -864,7 +864,7 @@ public class DocumentEditor : Control
       return new Point(indexOffset == 0 ? Margin.Left-(Border.Width == 1 ? 1 : 0) : Width-Margin.Right, BorderBox.Top);
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetRegion/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetRegion/node()"/>
     public virtual LayoutRegion GetRegion(int index)
     {
       if(!Span.Contains(index)) return null;
@@ -877,33 +877,33 @@ public class DocumentEditor : Control
       return this;
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNode/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNode/node()"/>
     public virtual DocumentNode GetNode() { return null; }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/OnClick/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/OnClick/node()"/>
     public virtual void OnClick(DocumentEditor editor, MouseEventArgs e)
     {
       if(Parent != null) Parent.OnClick(editor, e);
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/OnDoubleClick/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/OnDoubleClick/node()"/>
     public virtual void OnDoubleClick(DocumentEditor editor, MouseEventArgs e)
     {
       if(Parent != null) Parent.OnDoubleClick(editor, e);
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/OnMouseEnter/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/OnMouseEnter/node()"/>
     public virtual void OnMouseEnter(DocumentEditor editor, MouseEventArgs e) { }
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/OnMouseLeave/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/OnMouseLeave/node()"/>
     public virtual void OnMouseLeave(DocumentEditor editor) { }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/OnMouseHover/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/OnMouseHover/node()"/>
     public virtual void OnMouseHover(DocumentEditor editor, Point docPt)
     {
       if(Parent != null) Parent.OnMouseHover(editor, docPt);
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/Render/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/Render/node()"/>
     public virtual void Render(ref RenderData data, Point clientPoint)
     {
       RenderBackgroundAndBorder(ref data, clientPoint);
@@ -937,7 +937,7 @@ public class DocumentEditor : Control
     /// <summary>The portion of the <see cref="DocumentNode"/> represented by this region.</summary>
     public NodePart NodePart;
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/CalculateDistance/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/CalculateDistance/node()"/>
     /// <remarks>Distances are biased so that points contained vertically are always nearer than points not contained
     /// vertically. The distances should not be taken as actual measurements of space, but only used for comparisons
     /// of relative closeness.
@@ -1082,13 +1082,13 @@ public class DocumentEditor : Control
     /// <summary>Initializes this <see cref="LayoutRegion{T}"/> with the given child array.</summary>
     public LayoutRegion(ChildType[] children) { Children = children; }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetChildren/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetChildren/node()"/>
     public sealed override LayoutRegion[] GetChildren()
     {
       return Children;
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetChildren/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetChildren/node()"/>
     public ChildType[] Children;
   }
   #endregion
@@ -1113,7 +1113,7 @@ public class DocumentEditor : Control
     /// <summary>Initializes a new <see cref="Block"/> with the given child array.</summary>
     public Block(NodeType node, LayoutRegion[] children) : base(children) { Node = node; }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNode/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNode/node()"/>
     public sealed override DocumentNode GetNode()
     {
       return Node;
@@ -1135,7 +1135,7 @@ public class DocumentEditor : Control
     /// <summary>Initializes a new <see cref="Line"/> with the given child array.</summary>
     public Line(LayoutSpan[] children) : base(children) { }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/CalculateDistance/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/CalculateDistance/node()"/>
     /// <remarks>Calculates the distance, considering horizontal positioning only.</remarks>
     protected override uint CalculateDistance(Point pt, Rectangle rect)
     {
@@ -1153,7 +1153,7 @@ public class DocumentEditor : Control
     /// <summary>Initializes this <see cref="LineBlock"/> with the given array of <see cref="Line"/> children.</summary>
     public LineBlock(Line[] children) : base(children) { }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNearestIndex/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNearestIndex/node()"/>
     public override int GetNearestIndex(Graphics gdi, Point regionPt)
     {
       // clip the point to be within the region horizontally so that the child lines will be considered by the base
@@ -1176,22 +1176,22 @@ public class DocumentEditor : Control
     /// <summary>Gets or sets the number of pixels from the baseline to the bottom of the region.</summary>
     public int Descent;
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/LineCount/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/LineCount/node()"/>
     public virtual int LineCount
     {
       get { return 1; }
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/CreateNew/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/CreateNew/node()"/>
     public abstract LayoutSpan CreateNew();
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetChildren/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetChildren/node()"/>
     public sealed override LayoutRegion[] GetChildren()
     {
       return Children;
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNearestIndex/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNearestIndex/node()"/>
     public override int GetNearestIndex(Graphics gdi, Point regionPt)
     {
       Rectangle paddingRect = PaddingArea;
@@ -1200,10 +1200,10 @@ public class DocumentEditor : Control
       return base.GetNearestIndex(gdi, regionPt);
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/Split/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/Split/node()"/>
     public abstract IEnumerable<SplitPiece> Split(Graphics gdi, int line);
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetChildren/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetChildren/node()"/>
     public LayoutSpan[] Children = NoChildren;
 
     static readonly LayoutSpan[] NoChildren = new LayoutSpan[0];
@@ -1217,19 +1217,19 @@ public class DocumentEditor : Control
     /// <summary>Initializes a new <see cref="ContainerSpan{T}"/> with the given node.</summary>
     public ContainerSpan(NodeType node) : base(node) { }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/LineCount/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/LineCount/node()"/>
     public override int LineCount
     {
       get { return 0; }
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/CreateNew/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/CreateNew/node()"/>
     public override LayoutSpan CreateNew()
     {
       return new ContainerSpan<NodeType>(Node);
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/Split/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/Split/node()"/>
     public override IEnumerable<SplitPiece> Split(Graphics gdi, int line)
     {
       throw new NotSupportedException();
@@ -1248,7 +1248,7 @@ public class DocumentEditor : Control
       Node = node;
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNode/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNode/node()"/>
     public sealed override DocumentNode GetNode()
     {
       return Node;
@@ -1287,7 +1287,7 @@ public class DocumentEditor : Control
       Size = child.Size;
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetRegion/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetRegion/node()"/>
     public override LayoutRegion GetRegion(int index)
     {
       if(index == Length) // if the index is at the end of the document, normally no region would contain it. but we
@@ -1464,13 +1464,13 @@ public class DocumentEditor : Control
       Font   = font;
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/LineCount/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/LineCount/node()"/>
     public override int LineCount
     {
       get { return Node.LineCount; }
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/BeginLayout/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/BeginLayout/node()"/>
     public override void BeginLayout(Graphics gdi)
     {
       base.BeginLayout(gdi);
@@ -1481,26 +1481,26 @@ public class DocumentEditor : Control
                                           (float)Font.FontFamily.GetLineSpacing(Font.Style)));
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/CreateNew/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/CreateNew/node()"/>
     public override LayoutSpan CreateNew()
     {
       return new TextNodeSpan(Node, Editor, Font);
     }
 
-    /// <include file="documentation.xml" path="/UI/Common/Dispose/*"/>
+    /// <include file="documentation.xml" path="/UI/Common/Dispose/node()"/>
     public override void Dispose()
     {
       base.Dispose();
       Font.Dispose();
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetCursorHeight/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetCursorHeight/node()"/>
     public override int GetCursorHeight(int index)
     {
       return Math.Max(ContentArea.Height, 1);
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetPixelOffset/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetPixelOffset/node()"/>
     public override int GetNearestIndex(Graphics gdi, Point regionPt)
     {
       int end = DocumentContentSpan.End;
@@ -1577,7 +1577,7 @@ public class DocumentEditor : Control
       return Start + charactersFit;
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNearestIndex/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/GetNearestIndex/node()"/>
     public override Point GetPixelOffset(Graphics gdi, int indexOffset)
     {
       if((uint)indexOffset > (uint)Length) throw new ArgumentOutOfRangeException();
@@ -1596,7 +1596,7 @@ public class DocumentEditor : Control
       return new Point(xPos, TopPBM);
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/Split/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutSpan/Split/node()"/>
     public override IEnumerable<SplitPiece> Split(Graphics gdi, int line)
     {
       int lineOffset, lineLength, fontHeight = (int)Math.Ceiling(Font.GetHeight(gdi));
@@ -1642,7 +1642,7 @@ public class DocumentEditor : Control
       }
     }
 
-    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/Render/*"/>
+    /// <include file="documentation.xml" path="/UI/DocumentEditor/LayoutRegion/Render/node()"/>
     public override void Render(ref RenderData data, Point clientPoint)
     {
       RenderBackgroundAndBorder(ref data, clientPoint);
@@ -2930,7 +2930,7 @@ public class DocumentEditor : Control
     throw new NotImplementedException();
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/Dispose/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/Dispose/node()"/>
   protected override void Dispose(bool disposing)
   {
     base.Dispose(disposing);
@@ -3072,7 +3072,7 @@ public class DocumentEditor : Control
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/Document/OnNodeChanged/*"/>
+  /// <include file="documentation.xml" path="/UI/Document/OnNodeChanged/node()"/>
   protected virtual void OnNodeChanged(Document document, DocumentNode node)
   {
     InvalidateNodeLayout(node);

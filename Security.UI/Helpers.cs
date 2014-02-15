@@ -235,7 +235,7 @@ public static class PGPUI
     return key.Revoked ? "revoked" : key.Expired ? "expired" : PGPUI.GetTrustDescription(key.CalculatedTrust);
   }
 
-  /// <include file="documentation.xml" path="/UI/Helpers/GetPasswordStrength/*"/>
+  /// <include file="documentation.xml" path="/UI/Helpers/GetPasswordStrength/node()"/>
   public unsafe static PasswordStrength GetPasswordStrength(SecureString password, bool assumeHumanInput)
   {
     if(password.Length == 0) return PasswordStrength.Blank;

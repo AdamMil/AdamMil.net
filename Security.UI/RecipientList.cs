@@ -97,14 +97,14 @@ public class RecipientList : KeyListBase
     return new PrimaryKeyItem(key, PGPUI.GetKeyName(key));
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnSizeChanged/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnSizeChanged/node()"/>
   protected override void OnSizeChanged(EventArgs e)
   {
     base.OnSizeChanged(e);
     Columns[0].Width = Width - 20; // make the column scale with the form, and allow 20 pixels for the scrollbar
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/RecreateItems/*"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/RecreateItems/node()"/>
   protected override void RecreateItems()
   {
     List<PrimaryKey> keys = new List<PrimaryKey>(Items.Count);

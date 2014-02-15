@@ -245,7 +245,7 @@
         The loop counter's ending value, exclusive. This must be greater than or equal to
         <paramref name="start"/>.
       </param>
-      <!--<include file="documentation.xml" path="//Tasks/ParallelismRemarks/*"/>-->
+      <!--<include file="documentation.xml" path="//Tasks/ParallelismRemarks/node()"/>-->
     </ParallelForCommon>
     <ParallelFor>
       <param name="body">The body of the loop, which is executed for each iteration and passed the loop counter.</param>
@@ -255,7 +255,7 @@
         iteration of the loop, is preferred when the loop iterations take a substantial amount of time or take an uneven amount
         of time, such that scheduling them in large chunks could lead to an uneven amount of work for each thread.
       </remarks>
-      <!--<include file="documentation.xml" path="//Tasks/ParallelForCommon/*"/>-->
+      <!--<include file="documentation.xml" path="//Tasks/ParallelForCommon/node()"/>-->
     </ParallelFor>
     <ParallelForChunked>
       <param name="body">The body of the loop, which is called just once with a range of loop counter values, as an inclusive
@@ -267,7 +267,7 @@
         iterations, is preferred when the loop iterations take a small and even amount of time, such that it is unnecessary to
         incur the overhead of scheduling each loop iteration individually in order to balance the work between threads.
       </remarks>
-      <!--<include file="documentation.xml" path="//Tasks/ParallelForCommon/*"/>-->
+      <!--<include file="documentation.xml" path="//Tasks/ParallelForCommon/node()"/>-->
     </ParallelForChunked>
     <ParallelForWithInit>
       <param name="body">The body of the loop, which is executed for each iteration and passed the loop counter, the context

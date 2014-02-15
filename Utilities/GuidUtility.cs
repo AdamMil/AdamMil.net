@@ -44,7 +44,7 @@ public static class GuidUtility
     byte[] hash;
     using(SHA1 sha1 = SHA1.Create()) hash = sha1.ComputeHash(data);
 
-    // a GUID comprises four portions, one 32-bit integer, two 16 bit integers, and one block of 8 bytes. the top 1 to 3 bits of
+    // a GUID comprises four portions: one 32-bit integer, two 16 bit integers, and one block of 8 bytes. the top 1 to 3 bits of
     // the second byte of the fourth portion represent the type of GUID (0=NCS backwards compatibility, 10=standard,
     // 110=COM backwards compatibility, and 111=reserved). the top four bits of the third portion represent the version of the
     // GUID (1=MAC+Timestamp, 2=MAC+UserID, 3=MD5, 4=random, 5=SHA1). we'll create a standard version 5 GUID from a SHA1 hash.

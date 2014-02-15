@@ -84,21 +84,21 @@ public partial class NewPhotoIdForm : Form
     overlay.Bitmap = new Bitmap(imageStream);
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnMouseDown/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnMouseDown/node()"/>
   protected override void OnMouseDown(MouseEventArgs e)
   {
     base.OnMouseDown(e);
     OnMouseDown(e.Button, e.Location);
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnMouseMove/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnMouseMove/node()"/>
   protected override void OnMouseMove(MouseEventArgs e)
   {
     base.OnMouseMove(e);
     OnMouseMove(e.Location);
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnMouseUp/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnMouseUp/node()"/>
   protected override void OnMouseUp(MouseEventArgs e)
   {
     base.OnMouseUp(e);

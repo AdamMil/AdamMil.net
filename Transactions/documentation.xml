@@ -26,7 +26,7 @@
         Thrown if any variables have changed since they were read by the transaction
         in such a way that restarting the transaction would allow it to see different values.
       </exception>
-      <!--<include file="documentation.xml" path="/TX/STM/ConsistencyCheckRemarks/*" />-->
+      <!--<include file="documentation.xml" path="/TX/STM/ConsistencyCheckRemarks/node()"/>-->
     </CheckConsistency>
     <Commit>
       <summary>
@@ -45,7 +45,7 @@
       </exception>
     </Commit>
     <ConsistencyCheckRemarks>
-      <!--<include file="documentation.xml" path="/TX/STM/ConsistencyRemarks/*" />-->
+      <!--<include file="documentation.xml" path="/TX/STM/ConsistencyRemarks/node()"/>-->
       <remarks>
         <para>
           This method will deliberately fail to detect inconsistency in the case that this is a nested transaction and the
@@ -91,10 +91,10 @@ using(STMTransaction tx = STMTransaction.Create())
         called.
       </summary>
       <seealso cref="CheckConsistency"/>
-      <!--<include file="documentation.xml" path="/TX/STM/ConsistencyCheckRemarks/*" />-->
+      <!--<include file="documentation.xml" path="/TX/STM/ConsistencyCheckRemarks/node()"/>-->
     </IsConsistent>
     <NewTVar>
-      <!--<include file="documentation.xml" path="/TX/STM/TVarRemarks/*" />-->
+      <!--<include file="documentation.xml" path="/TX/STM/TVarRemarks/node()"/>-->
       <exception cref="NotSupportedException"> Thrown if <typeparamref name="T"/> is not cloneable.</exception>
     </NewTVar>
     <OpenForWrite>

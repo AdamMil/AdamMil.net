@@ -9,13 +9,13 @@ namespace AdamMil.Utilities.Encodings
 /// </summary>
 public abstract class BinaryEncoder
 {
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/CanEncodeInPlace/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/CanEncodeInPlace/node()"/>
   public virtual bool CanEncodeInPlace
   {
     get { return false; }
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/EncodePtr/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/EncodePtr/node()"/>
   /// <remarks>
   /// The default implementation copies the data into arrays and calls <see cref="Encode(byte[],int,int,byte[],int,bool)"/>.
   /// </remarks>
@@ -28,11 +28,11 @@ public abstract class BinaryEncoder
     return Encode(sourceArray, 0, sourceCount, destinationArray, 0, flush);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Encode/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Encode/node()"/>
   public abstract int Encode(byte[] source, int sourceIndex, int sourceCount, byte[] destination, int destinationIndex,
                              bool flush);
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCountPtr/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCountPtr/node()"/>
   /// <remarks>
   /// The default implementation copies the data into arrays and calls <see cref="GetByteCount(byte[],int,int,bool)"/>.
   /// </remarks>
@@ -45,13 +45,13 @@ public abstract class BinaryEncoder
     return GetByteCount(array, 0, count, simulateFlush);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCount/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCount/node()"/>
   public abstract int GetByteCount(byte[] data, int index, int count, bool simulateFlush);
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetMaxBytes/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetMaxBytes/node()"/>
   public abstract int GetMaxBytes(int unencodedByteCount);
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Reset/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Reset/node()"/>
   public abstract void Reset();
 }
 #endregion
@@ -65,7 +65,7 @@ public abstract class BinaryEncoder
 /// </remarks>
 public abstract class UnsafeBinaryEncoder : BinaryEncoder
 {
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Encode/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Encode/node()"/>
   /// <remarks>The default implementation fixes the arrays and calls <see cref="Encode(byte*,int,byte*,int,bool)"/>.</remarks>
   public unsafe override int Encode(byte[] source, int sourceIndex, int sourceCount, byte[] destination, int destinationIndex, bool flush)
   {
@@ -79,7 +79,7 @@ public abstract class UnsafeBinaryEncoder : BinaryEncoder
     }
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/EncodePtr/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/EncodePtr/node()"/>
   /// <remarks>Derived classes must override this method.</remarks>
   [CLSCompliant(false)]
   public override unsafe int Encode(byte* source, int sourceCount, byte* destination, int destinationCapacity, bool flush)
@@ -87,7 +87,7 @@ public abstract class UnsafeBinaryEncoder : BinaryEncoder
     throw new NotImplementedException();
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCount/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCount/node()"/>
   /// <remarks>The default implementation fixes the array and calls <see cref="GetByteCount(byte*,int,bool)"/>.</remarks>
   public unsafe override int GetByteCount(byte[] data, int index, int count, bool simulateFlush)
   {
@@ -99,7 +99,7 @@ public abstract class UnsafeBinaryEncoder : BinaryEncoder
     }
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCountPtr/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCountPtr/node()"/>
   /// <remarks>Derived classes must override this method.</remarks>
   [CLSCompliant(false)]
   public override unsafe int GetByteCount(byte* data, int count, bool simulateFlush)
@@ -115,14 +115,14 @@ public abstract class UnsafeBinaryEncoder : BinaryEncoder
 /// </summary>
 public abstract class BinaryEncoding
 {
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/CanDecodeInPlace/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/CanDecodeInPlace/node()"/>
   /// <remarks>The default implementation returns false.</remarks>
   public virtual bool CanDecodeInPlace
   {
     get { return false; }
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/CanEncodeInPlace/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/CanEncodeInPlace/node()"/>
   /// <remarks>The default implementation returns false.</remarks>
   public virtual bool CanEncodeInPlace
   {
@@ -153,7 +153,7 @@ public abstract class BinaryEncoding
     return MakeReturnArray(decodedBytes, Decode(encodedBytes, index, count, decodedBytes, 0));
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/DecodePtr/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/DecodePtr/node()"/>
   /// <remarks>
   /// The default implementation copies the data into an array and calls <see cref="Decode(byte[],int,int,byte[],int)"/>.
   /// </remarks>
@@ -190,7 +190,7 @@ public abstract class BinaryEncoding
     return MakeReturnArray(encodedBytes, Encode(decodedBytes, index, count, encodedBytes, 0));
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/EncodePtr/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/EncodePtr/node()"/>
   /// <remarks>
   /// The default implementation copies the data into an array and calls <see cref="Encode(byte[],int,int,byte[],int)"/>.
   /// </remarks>
@@ -210,7 +210,7 @@ public abstract class BinaryEncoding
     return GetDecodedByteCount(encodedBytes, 0, encodedBytes.Length);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetDecodedByteCountPtr/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetDecodedByteCountPtr/node()"/>
   [CLSCompliant(false)]
   public unsafe virtual int GetDecodedByteCount(byte* encodedBytes, int count)
   {
@@ -227,7 +227,7 @@ public abstract class BinaryEncoding
     return GetEncodedByteCount(decodedBytes, 0, decodedBytes.Length);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetEncodedByteCountPtr/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetEncodedByteCountPtr/node()"/>
   [CLSCompliant(false)]
   public unsafe virtual int GetEncodedByteCount(byte* decodedBytes, int count)
   {
@@ -237,7 +237,7 @@ public abstract class BinaryEncoding
     return GetEncodedByteCount(array, 0, count);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetDecoder/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetDecoder/node()"/>
   /// <remarks>Note that the default implementation creates and returns a <see cref="DefaultBinaryEncoder"/>, which may not be
   /// capable of properly decoding data in chunks. If the encoding requires that state be maintained while decoding chunks of
   /// data, you must override this method and return a more suitable encoder.
@@ -247,7 +247,7 @@ public abstract class BinaryEncoding
     return new DefaultBinaryEncoder(this, false);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetEncoder/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetEncoder/node()"/>
   /// <remarks>Note that the default implementation creates and returns a <see cref="DefaultBinaryEncoder"/>, which may not be
   /// capable of properly encoding data in chunks. If the encoding requires that state be maintained while encoding chunks of
   /// data, you must override this method and return a more suitable encoder.
@@ -257,23 +257,23 @@ public abstract class BinaryEncoding
     return new DefaultBinaryEncoder(this, true);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/Decode/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/Decode/node()"/>
   public abstract int Decode(byte[] encodedBytes, int encodedByteIndex, int encodedByteCount,
                              byte[] decodedBytes, int decodedByteIndex);
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/Encode/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/Encode/node()"/>
   public abstract int Encode(byte[] data, int dataIndex, int dataByteCount, byte[] encodedBytes, int encodedByteIndex);
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetDecodedByteCount/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetDecodedByteCount/node()"/>
   public abstract int GetDecodedByteCount(byte[] encodedBytes, int index, int count);
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetEncodedByteCount/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetEncodedByteCount/node()"/>
   public abstract int GetEncodedByteCount(byte[] decodedBytes, int index, int count);
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetMaxDecodedBytes/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetMaxDecodedBytes/node()"/>
   public abstract int GetMaxDecodedBytes(int encodedByteCount);
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetMaxEncodedBytes/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetMaxEncodedBytes/node()"/>
   public abstract int GetMaxEncodedBytes(int dataByteCount);
 
   static byte[] MakeReturnArray(byte[] array, int desiredLength)
@@ -298,7 +298,7 @@ public abstract class BinaryEncoding
 /// </remarks>
 public abstract class UnsafeBinaryEncoding : BinaryEncoding
 {
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/Decode/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/Decode/node()"/>
   /// <remarks>The default implementation fixes the arrays and calls <see cref="Decode(byte*,int,byte*,int)"/>.</remarks>
   public unsafe override int Decode(byte[] encodedBytes, int encodedByteIndex, int encodedByteCount,
                                     byte[] decodedBytes, int decodedByteIndex)
@@ -313,7 +313,7 @@ public abstract class UnsafeBinaryEncoding : BinaryEncoding
     }
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/DecodePtr/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/DecodePtr/node()"/>
   /// <remarks>Derived classes must override this method.</remarks>
   [CLSCompliant(false)]
   public override unsafe int Decode(byte* encodedBytes, int encodedByteCount, byte* decodedBytes, int decodedByteCapacity)
@@ -321,7 +321,7 @@ public abstract class UnsafeBinaryEncoding : BinaryEncoding
     throw new NotImplementedException();
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/Encode/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/Encode/node()"/>
   /// <remarks>The default implementation fixes the arrays and calls <see cref="Encode(byte*,int,byte*,int)"/>.</remarks>
   public unsafe override int Encode(byte[] data, int dataIndex, int dataByteCount, byte[] encodedBytes, int encodedByteIndex)
   {
@@ -335,7 +335,7 @@ public abstract class UnsafeBinaryEncoding : BinaryEncoding
     }
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/EncodePtr/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/EncodePtr/node()"/>
   /// <remarks>Derived classes must override this method.</remarks>
   [CLSCompliant(false)]
   public override unsafe int Encode(byte* dataBytes, int dataByteCount, byte* encodedBytes, int encodedByteCapacity)
@@ -343,7 +343,7 @@ public abstract class UnsafeBinaryEncoding : BinaryEncoding
     throw new NotImplementedException();
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetDecodedByteCount/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetDecodedByteCount/node()"/>
   /// <remarks>The default implementation fixes the array and calls <see cref="GetDecodedByteCount(byte*,int)"/>.</remarks>
   public unsafe override int GetDecodedByteCount(byte[] encodedBytes, int index, int count)
   {
@@ -355,7 +355,7 @@ public abstract class UnsafeBinaryEncoding : BinaryEncoding
     }
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetDecodedByteCountPtr/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetDecodedByteCountPtr/node()"/>
   /// <remarks>Derived classes must override this method.</remarks>
   [CLSCompliant(false)]
   public override unsafe int GetDecodedByteCount(byte* encodedBytes, int count)
@@ -363,7 +363,7 @@ public abstract class UnsafeBinaryEncoding : BinaryEncoding
     throw new NotImplementedException();
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetEncodedByteCount/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetEncodedByteCount/node()"/>
   /// <remarks>The default implementation fixes the array and calls <see cref="GetEncodedByteCount(byte*,int)"/>.</remarks>
   public unsafe override int GetEncodedByteCount(byte[] decodedBytes, int index, int count)
   {
@@ -375,7 +375,7 @@ public abstract class UnsafeBinaryEncoding : BinaryEncoding
     }
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetEncodedByteCountPtr/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetEncodedByteCountPtr/node()"/>
   /// <remarks>Derived classes must override this method.</remarks>
   [CLSCompliant(false)]
   public override unsafe int GetEncodedByteCount(byte* decodedBytes, int count)
@@ -404,13 +404,13 @@ public sealed class DefaultBinaryEncoder : BinaryEncoder
     this.encode   = encode;
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/CanEncodeInPlace/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/CanEncodeInPlace/node()"/>
   public override bool CanEncodeInPlace
   {
     get { return encode ? encoding.CanEncodeInPlace : encoding.CanDecodeInPlace; }
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/EncodePtr/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/EncodePtr/node()"/>
   [CLSCompliant(false)]
   public override unsafe int Encode(byte* source, int sourceCount, byte* destination, int destinationCapacity, bool flush)
   {
@@ -418,33 +418,33 @@ public sealed class DefaultBinaryEncoder : BinaryEncoder
                     encoding.Decode(source, sourceCount, destination, destinationCapacity);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Encode/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Encode/node()"/>
   public override int Encode(byte[] source, int sourceIndex, int sourceCount, byte[] destination, int destinationIndex, bool flush)
   {
     return encode ? encoding.Encode(source, sourceIndex, sourceCount, destination, destinationIndex) :
                     encoding.Decode(source, sourceIndex, sourceCount, destination, destinationIndex);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCountPtr/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCountPtr/node()"/>
   [CLSCompliant(false)]
   public override unsafe int GetByteCount(byte* data, int count, bool simulateFlush)
   {
     return encode ? encoding.GetEncodedByteCount(data, count) : encoding.GetDecodedByteCount(data, count);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCount/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCount/node()"/>
   public override int GetByteCount(byte[] data, int index, int count, bool simulateFlush)
   {
     return encode ? encoding.GetEncodedByteCount(data, index, count) : encoding.GetDecodedByteCount(data, index, count);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetMaxBytes/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetMaxBytes/node()"/>
   public override int GetMaxBytes(int unencodedByteCount)
   {
     return encode ? encoding.GetMaxEncodedBytes(unencodedByteCount) : encoding.GetMaxDecodedBytes(unencodedByteCount);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Reset/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Reset/node()"/>
   public override void Reset()
   {
   }
@@ -468,19 +468,19 @@ public class EncoderDecoderBinaryEncoding : BinaryEncoding
     this.decoder = decoder;
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/CanDecodeInPlace/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/CanDecodeInPlace/node()"/>
   public override bool CanDecodeInPlace
   {
     get { return decoder.CanEncodeInPlace; }
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/CanEncodeInPlace/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/CanEncodeInPlace/node()"/>
   public override bool CanEncodeInPlace
   {
     get { return encoder.CanEncodeInPlace; }
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/DecodePtr/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/DecodePtr/node()"/>
   [CLSCompliant(false)]
   public override unsafe int Decode(byte* encodedBytes, int encodedByteCount, byte* decodedBytes, int decodedByteCapacity)
   {
@@ -488,7 +488,7 @@ public class EncoderDecoderBinaryEncoding : BinaryEncoding
     return decoder.Encode(encodedBytes, encodedByteCount, decodedBytes, decodedByteCapacity, true);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/Decode/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/Decode/node()"/>
   public override int Decode(byte[] encodedBytes, int encodedByteIndex, int encodedByteCount,
                              byte[] decodedBytes, int decodedByteIndex)
   {
@@ -496,7 +496,7 @@ public class EncoderDecoderBinaryEncoding : BinaryEncoding
     return decoder.Encode(encodedBytes, encodedByteIndex, encodedByteCount, decodedBytes, decodedByteIndex, true);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/EncodePtr/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/EncodePtr/node()"/>
   [CLSCompliant(false)]
   public override unsafe int Encode(byte* dataBytes, int dataByteCount, byte* encodedBytes, int encodedByteCapacity)
   {
@@ -504,14 +504,14 @@ public class EncoderDecoderBinaryEncoding : BinaryEncoding
     return encoder.Encode(dataBytes, dataByteCount, encodedBytes, encodedByteCapacity, true);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/Encode/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/Encode/node()"/>
   public override int Encode(byte[] data, int dataIndex, int dataByteCount, byte[] encodedBytes, int encodedByteIndex)
   {
     encoder.Reset();
     return encoder.Encode(data, dataIndex, dataByteCount, encodedBytes, encodedByteIndex, true);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetDecodedByteCountPtr/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetDecodedByteCountPtr/node()"/>
   [CLSCompliant(false)]
   public override unsafe int GetDecodedByteCount(byte* encodedBytes, int count)
   {
@@ -519,14 +519,14 @@ public class EncoderDecoderBinaryEncoding : BinaryEncoding
     return decoder.GetByteCount(encodedBytes, count, true);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetDecodedByteCount/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetDecodedByteCount/node()"/>
   public override int GetDecodedByteCount(byte[] encodedBytes, int index, int count)
   {
     decoder.Reset();
     return decoder.GetByteCount(encodedBytes, index, count, true);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetEncodedByteCountPtr/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetEncodedByteCountPtr/node()"/>
   [CLSCompliant(false)]
   public override unsafe int GetEncodedByteCount(byte* data, int count)
   {
@@ -534,7 +534,7 @@ public class EncoderDecoderBinaryEncoding : BinaryEncoding
     return encoder.GetByteCount(data, count, true);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetEncodedByteCount/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetEncodedByteCount/node()"/>
   public override int GetEncodedByteCount(byte[] data, int index, int count)
   {
     encoder.Reset();
@@ -553,13 +553,13 @@ public class EncoderDecoderBinaryEncoding : BinaryEncoding
     return encoder;
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetMaxDecodedBytes/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetMaxDecodedBytes/node()"/>
   public override int GetMaxDecodedBytes(int encodedByteCount)
   {
     return decoder.GetMaxBytes(encodedByteCount);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetMaxEncodedBytes/*"/>
+  /// <include file="documentation.xml" path="//Utilities/BinaryEncoding/GetMaxEncodedBytes/node()"/>
   public override int GetMaxEncodedBytes(int dataByteCount)
   {
     return encoder.GetMaxBytes(dataByteCount);

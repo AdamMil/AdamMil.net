@@ -77,10 +77,10 @@ public abstract class ChangeEvent : IDisposable
   /// <summary>Returns a short, human-readable string describing the change that this event represents.</summary>
   public override abstract string ToString();
 
-  /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/*"/>
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/node()"/>
   protected internal abstract void Do();
 
-  /// <include file="documentation.xml" path="/UI/ChangeEvent/Undo/*"/>
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Undo/node()"/>
   protected internal abstract void Undo();
 
   /// <summary>Gets the document with which this change is associated, if any.</summary>
@@ -160,7 +160,7 @@ public class CompositeChange : ChangeEvent
     this.description = description;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/ToString/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/ToString/node()"/>
   public override string ToString()
   {
     if(this.description != null) return this.description;
@@ -170,14 +170,14 @@ public class CompositeChange : ChangeEvent
     return description;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/Dispose1/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/Dispose1/node()"/>
   protected override void Dispose(bool manualDispose)
   {
     foreach(ChangeEvent change in changes) change.Dispose();
     base.Dispose(manualDispose);
   }
 
-  /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/*"/>
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/node()"/>
   protected internal override void Do()
   {
     // try to do all the changes in order
@@ -196,7 +196,7 @@ public class CompositeChange : ChangeEvent
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/ChangeEvent/Undo/*"/>
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Undo/node()"/>
   protected internal override void Undo()
   {
     // try to do all the changes in reverse order
@@ -235,13 +235,13 @@ public class ClearNodeChange : ChangeEvent
     this.nodeToClear = nodeToClear;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/ToString/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/ToString/node()"/>
   public override string ToString()
   {
     return "Clear "+nodeToClear.GetDescription();
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/Dispose1/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/Dispose1/node()"/>
   protected override void Dispose(bool manualDispose)
   {
     if(children != null)
@@ -255,7 +255,7 @@ public class ClearNodeChange : ChangeEvent
     base.Dispose(manualDispose);
   }
 
-  /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/*"/>
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/node()"/>
   protected internal override void Do()
   {
     ValidateVersionForDo(nodeToClear.Document);
@@ -270,7 +270,7 @@ public class ClearNodeChange : ChangeEvent
     nodeToClear.Children.InternalClearItems();
   }
 
-  /// <include file="documentation.xml" path="/UI/ChangeEvent/Undo/*"/>
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Undo/node()"/>
   protected internal override void Undo()
   {
     ValidateVersionForUndo(nodeToClear.Document);
@@ -319,20 +319,20 @@ public class InsertNodeChange : ChangeEvent
     this.newItem.Lock(); // hold a lock on the node while it's not attached to the parent
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/ToString/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/ToString/node()"/>
   public override string ToString()
   {
     return "Insert "+newItem.GetDescription();
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/Dispose1/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/Dispose1/node()"/>
   protected override void Dispose(bool manualDispose)
   {
     if(!inserted && newItem.Locked) newItem.Unlock();
     base.Dispose(manualDispose);
   }
 
-  /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/*"/>
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/node()"/>
   protected internal override void Do()
   {
     ValidateVersionForDo(parent.Document);
@@ -344,7 +344,7 @@ public class InsertNodeChange : ChangeEvent
     inserted = true;
   }
 
-  /// <include file="documentation.xml" path="/UI/ChangeEvent/Undo/*"/>
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Undo/node()"/>
   protected internal override void Undo()
   {
     ValidateVersionForUndo(parent.Document);
@@ -393,13 +393,13 @@ public class ReplaceNodeChange : ChangeEvent
     this.newItem.Lock(); // hold a lock on the new node while it's not attached to the parent
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/ToString/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/ToString/node()"/>
   public override string ToString()
   {
     return "Replace "+oldItem.GetDescription()+" with "+newItem.GetDescription();
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/Dispose1/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/Dispose1/node()"/>
   protected override void Dispose(bool manualDispose)
   {
     if(replaced)
@@ -411,7 +411,7 @@ public class ReplaceNodeChange : ChangeEvent
     base.Dispose(manualDispose);
   }
 
-  /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/*"/>
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/node()"/>
   protected internal override void Do()
   {
     ValidateVersionForDo(parent.Document);
@@ -427,7 +427,7 @@ public class ReplaceNodeChange : ChangeEvent
     replaced = true;
   }
 
-  /// <include file="documentation.xml" path="/UI/ChangeEvent/Undo/*"/>
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Undo/node()"/>
   protected internal override void Undo()
   {
     ValidateVersionForUndo(parent.Document);
@@ -470,20 +470,20 @@ public class RemoveNodeChange : ChangeEvent
     this.item   = parent.Children[index];
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/ToString/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/ToString/node()"/>
   public override string ToString()
   {
     return "Delete "+item.GetDescription();
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/Dispose1/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/Dispose1/node()"/>
   protected override void Dispose(bool manualDispose)
   {
     if(removed && item.Locked) item.Unlock();
     base.Dispose(manualDispose);
   }
 
-  /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/*"/>
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/node()"/>
   protected internal override void Do()
   {
     ValidateVersionForDo(parent.Document);
@@ -498,7 +498,7 @@ public class RemoveNodeChange : ChangeEvent
     removed = true;
   }
 
-  /// <include file="documentation.xml" path="/UI/ChangeEvent/Undo/*"/>
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Undo/node()"/>
   protected internal override void Undo()
   {
     ValidateVersionForUndo(parent.Document);
@@ -528,20 +528,20 @@ public class ClearDocumentChange : ChangeEvent
     originalRoot = (RootNode)document.Root;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/ToString/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/ToString/node()"/>
   public override string ToString()
   {
     return "Clear the document";
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/Dispose1/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/Dispose1/node()"/>
   protected override void Dispose(bool manualDispose)
   {
     if(cleared && originalRoot.Locked) originalRoot.Unlock();
     base.Dispose(manualDispose);
   }
 
-  /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/*"/>
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/node()"/>
   protected internal override void Do()
   {
     ValidateVersionForDo(originalRoot.Document);
@@ -553,7 +553,7 @@ public class ClearDocumentChange : ChangeEvent
     cleared = true;
   }
 
-  /// <include file="documentation.xml" path="/UI/ChangeEvent/Undo/*"/>
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Undo/node()"/>
   protected internal override void Undo()
   {
     ValidateVersionForUndo(originalRoot.Document);
@@ -592,14 +592,14 @@ public class DeleteTextChange : ChangeEvent
     this.count    = count;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/ToString/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/ToString/node()"/>
   public override string ToString()
   {
     string text = this.deletedText != null ? this.deletedText : textNode.GetText(index, count);
     return "Delete \"" + text + "\"";
   }
 
-  /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/*"/>
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/node()"/>
   protected internal override void Do()
   {
     ValidateVersionForDo(textNode.Document);
@@ -609,7 +609,7 @@ public class DeleteTextChange : ChangeEvent
     textNode.InternalDelete(index, count);        // then go ahead and delete it
   }
 
-  /// <include file="documentation.xml" path="/UI/ChangeEvent/Undo/*"/>
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Undo/node()"/>
   protected internal override void Undo()
   {
     ValidateVersionForUndo(textNode.Document);
@@ -644,13 +644,13 @@ public class InsertTextChange : ChangeEvent
     this.text     = text;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/ToString/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/ToString/node()"/>
   public override string ToString()
   {
     return "Insert \"" + text + "\"";
   }
 
-  /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/*"/>
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/node()"/>
   protected internal override void Do()
   {
     ValidateVersionForDo(textNode.Document);
@@ -660,7 +660,7 @@ public class InsertTextChange : ChangeEvent
     inserted = true;
   }
 
-  /// <include file="documentation.xml" path="/UI/ChangeEvent/Undo/*"/>
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Undo/node()"/>
   protected internal override void Undo()
   {
     ValidateVersionForUndo(textNode.Document);
@@ -697,7 +697,7 @@ public class ReplaceTextChange : ChangeEvent
     this.newText  = text;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/ToString/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/ToString/node()"/>
   public override string ToString()
   {
     StringBuilder sb = new StringBuilder();
@@ -706,7 +706,7 @@ public class ReplaceTextChange : ChangeEvent
     return sb.ToString();
   }
 
-  /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/*"/>
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Do/node()"/>
   protected internal override void Do()
   {
     ValidateVersionForDo(textNode.Document);
@@ -716,7 +716,7 @@ public class ReplaceTextChange : ChangeEvent
     textNode.InternalSetText(index, count, newText); // and set the new text
   }
 
-  /// <include file="documentation.xml" path="/UI/ChangeEvent/Undo/*"/>
+  /// <include file="documentation.xml" path="/UI/ChangeEvent/Undo/node()"/>
   protected internal override void Undo()
   {
     ValidateVersionForUndo(textNode.Document);
