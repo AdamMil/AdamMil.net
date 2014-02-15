@@ -51,7 +51,7 @@
     <Compile Include="CoherentNoise.cs" />
     <Compile Include="Functions.cs" />
     <Compile Include="Geometry.cs" />
-    <Compile Include="IEEE754.cs" />
+    <Compile Include="FloatingPoint.cs" />
     <Compile Include="LinearAlgebra.cs" />
     <Compile Include="Matrices.cs" />
     <Compile Include="Helpers.cs" />

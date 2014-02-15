@@ -54,7 +54,7 @@ public class Wizard : Control
       this.owner = owner;
     }
 
-    /// <include file="documentation.xml" path="/UI/Collection/ClearItems/*"/>
+    /// <include file="documentation.xml" path="/UI/Collection/ClearItems/node()"/>
     protected override void ClearItems()
     {
       foreach(WizardStep step in this) OnRemove(step);
@@ -64,7 +64,7 @@ public class Wizard : Control
       owner.CurrentStepIndex = -1;
     }
 
-    /// <include file="documentation.xml" path="/UI/Collection/InsertItem/*"/>
+    /// <include file="documentation.xml" path="/UI/Collection/InsertItem/node()"/>
     protected override void InsertItem(int index, WizardStep item)
     {
       ValidateItem(item);
@@ -82,7 +82,7 @@ public class Wizard : Control
       else owner.UpdateButtons();
     }
 
-    /// <include file="documentation.xml" path="/UI/Collection/RemoveItem/*"/>
+    /// <include file="documentation.xml" path="/UI/Collection/RemoveItem/node()"/>
     protected override void RemoveItem(int index)
     {
       OnRemove(this[index]);
@@ -102,7 +102,7 @@ public class Wizard : Control
       }
     }
 
-    /// <include file="documentation.xml" path="/UI/Collection/SetItem/*"/>
+    /// <include file="documentation.xml" path="/UI/Collection/SetItem/node()"/>
     protected override void SetItem(int index, WizardStep item)
     {
       if(item != this[index])
@@ -239,7 +239,7 @@ public class Wizard : Control
     get { return steps; }
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/DefaultSize/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/DefaultSize/node()"/>
   protected override System.Drawing.Size DefaultSize
   {
     get { return new Size(540, 400); }
@@ -766,7 +766,7 @@ public abstract class WizardStep : Control
     if(StepDisplayed != null) StepDisplayed(this, e);
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnFontChanged/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnFontChanged/node()"/>
   protected override void OnFontChanged(EventArgs e)
   {
     base.OnFontChanged(e);
@@ -780,7 +780,7 @@ public abstract class WizardStep : Control
     if(subtitleWasDefault) ResetSubtitleFont();
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnPaint/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnPaint/node()"/>
   protected override void OnPaint(PaintEventArgs e)
   {
     base.OnPaint(e);
@@ -788,7 +788,7 @@ public abstract class WizardStep : Control
     PaintTitleText(e);        // and the title and subtitle text
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnSizeChanged/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnSizeChanged/node()"/>
   protected override void OnSizeChanged(EventArgs e)
   {
     base.OnSizeChanged(e);

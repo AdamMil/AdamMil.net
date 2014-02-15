@@ -219,7 +219,7 @@ public abstract class CollectionBase<T> : IList<T>
     AddRange((IEnumerable<T>)items);
   }
 
-  /// <include file="documentation.xml" path="//Common/Clear/*"/>
+  /// <include file="documentation.xml" path="//Common/Clear/node()"/>
   public void Clear()
   {
     AssertNotReadOnly();
@@ -230,31 +230,31 @@ public abstract class CollectionBase<T> : IList<T>
     }
   }
 
-  /// <include file="documentation.xml" path="//Common/Contains/*"/>
+  /// <include file="documentation.xml" path="//Common/Contains/node()"/>
   public bool Contains(T item)
   {
     return IndexOf(item) != -1;
   }
 
-  /// <include file="documentation.xml" path="//Common/CopyTo/*"/>
+  /// <include file="documentation.xml" path="//Common/CopyTo/node()"/>
   public void CopyTo(T[] array, int arrayIndex)
   {
     Items.CopyTo(array, arrayIndex);
   }
 
-  /// <include file="documentation.xml" path="//Common/GetEnumerator/*"/>
+  /// <include file="documentation.xml" path="//Common/GetEnumerator/node()"/>
   public IEnumerator<T> GetEnumerator()
   {
     return Items.GetEnumerator();
   }
 
-  /// <include file="documentation.xml" path="//Common/IndexOf/*"/>
+  /// <include file="documentation.xml" path="//Common/IndexOf/node()"/>
   public virtual int IndexOf(T item)
   {
     return Items.IndexOf(item);
   }
 
-  /// <include file="documentation.xml" path="//Common/Insert/*"/>
+  /// <include file="documentation.xml" path="//Common/Insert/node()"/>
   public void Insert(int index, T item)
   {
     if((uint)index > (uint)Count) throw new ArgumentOutOfRangeException();
@@ -262,7 +262,7 @@ public abstract class CollectionBase<T> : IList<T>
     InsertItem(index, item);
   }
 
-  /// <include file="documentation.xml" path="//Common/Remove/*"/>
+  /// <include file="documentation.xml" path="//Common/Remove/node()"/>
   public bool Remove(T item)
   {
     AssertNotReadOnly();
@@ -278,14 +278,14 @@ public abstract class CollectionBase<T> : IList<T>
     }
   }
 
-  /// <include file="documentation.xml" path="//Common/RemoveAt/*"/>
+  /// <include file="documentation.xml" path="//Common/RemoveAt/node()"/>
   public void RemoveAt(int index)
   {
     AssertNotReadOnly();
     RemoveItem(index, this[index]);
   }
 
-  /// <include file="documentation.xml" path="//Common/ToArray/*"/>
+  /// <include file="documentation.xml" path="//Common/ToArray/node()"/>
   public T[] ToArray()
   {
     T[] array = new T[Count];
@@ -307,35 +307,35 @@ public abstract class CollectionBase<T> : IList<T>
     if(IsReadOnly) throw new InvalidOperationException("The collection is read-only.");
   }
 
-  /// <include file="documentation.xml" path="//CollectionBase/ClearItems/*"/>
+  /// <include file="documentation.xml" path="//CollectionBase/ClearItems/node()"/>
   protected virtual void ClearItems()
   {
     Items.Clear();
     OnCollectionChanged();
   }
 
-  /// <include file="documentation.xml" path="//CollectionBase/InsertItem/*"/>
+  /// <include file="documentation.xml" path="//CollectionBase/InsertItem/node()"/>
   protected virtual void InsertItem(int index, T item)
   {
     Items.Insert(index, item);
     OnCollectionChanged();
   }
 
-  /// <include file="documentation.xml" path="//CollectionBase/RemoveItem/*"/>
+  /// <include file="documentation.xml" path="//CollectionBase/RemoveItem/node()"/>
   protected virtual void RemoveItem(int index, T item)
   {
     Items.RemoveAt(index);
     OnCollectionChanged();
   }
 
-  /// <include file="documentation.xml" path="//CollectionBase/SetItem/*"/>
+  /// <include file="documentation.xml" path="//CollectionBase/SetItem/node()"/>
   protected virtual void SetItem(int index, T item)
   {
     Items[index] = item;
     OnCollectionChanged();
   }
 
-  /// <include file="documentation.xml" path="//CollectionBase/OnCollectionChanged/*"/>
+  /// <include file="documentation.xml" path="//CollectionBase/OnCollectionChanged/node()"/>
   protected virtual void OnCollectionChanged()
   {
   }
@@ -357,21 +357,21 @@ public abstract class ValidatedCollection<T> : CollectionBase<T>
   /// <summary>Initializes a new <see cref="ValidatedCollection{T}"/> with the given list of items.</summary>
   protected ValidatedCollection(IEnumerable<T> items) : base(items) { }
 
-  /// <include file="documentation.xml" path="//CollectionBase/InsertItem/*"/>
+  /// <include file="documentation.xml" path="//CollectionBase/InsertItem/node()"/>
   protected override void InsertItem(int index, T item)
   {
     ValidateItem(item, index);
     base.InsertItem(index, item);
   }
 
-  /// <include file="documentation.xml" path="//CollectionBase/SetItem/*"/>
+  /// <include file="documentation.xml" path="//CollectionBase/SetItem/node()"/>
   protected override void SetItem(int index, T item)
   {
     ValidateItem(item, index);
     base.SetItem(index, item);
   }
 
-  /// <include file="documentation.xml" path="//ValidatedCollection/ValidateItem/*"/>
+  /// <include file="documentation.xml" path="//ValidatedCollection/ValidateItem/node()"/>
   protected abstract void ValidateItem(T item, int index);
 }
 #endregion
@@ -386,7 +386,7 @@ public class NonNullCollection<T> : ValidatedCollection<T> where T : class
   /// <summary>Initializes a new <see cref="NonNullCollection{T}"/> with the given list of items.</summary>
   public NonNullCollection(IEnumerable<T> items) : base(items) { }
 
-  /// <include file="documentation.xml" path="//ValidatedCollection/ValidateItem/*"/>
+  /// <include file="documentation.xml" path="//ValidatedCollection/ValidateItem/node()"/>
   protected override void ValidateItem(T item, int index)
   {
     if(item == null) throw new ArgumentNullException();
@@ -402,7 +402,7 @@ public class NonEmptyStringCollection : ValidatedCollection<string>
   /// <summary>Initializes a new, empty <see cref="NonEmptyStringCollection"/>.</summary>
   public NonEmptyStringCollection() { }
 
-  /// <include file="documentation.xml" path="//ValidatedCollection/ValidateItem/*"/>
+  /// <include file="documentation.xml" path="//ValidatedCollection/ValidateItem/node()"/>
   protected override void ValidateItem(string item, int index)
   {
     if(string.IsNullOrEmpty(item)) throw new ArgumentException();

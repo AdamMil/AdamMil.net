@@ -179,14 +179,14 @@ public abstract class GameSearchBase<StateType, ActionType> :
     }
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search/node()"/>
   public sealed override SearchResult Search(SearchLimiter limiter,
                                              out StateActionPair<StateType, ActionType> solution)
   {
     return Search(game.GetInitialState(), limiter, out solution);
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/node()"/>
   public sealed override SearchResult Search(StateType initialState, SearchLimiter limiter,
                                              out StateActionPair<StateType, ActionType> solution)
   {
@@ -198,7 +198,7 @@ public abstract class GameSearchBase<StateType, ActionType> :
     return result == SearchResult.Failed ? SearchResult.LimitReached : result;
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/IterativeDeepeningSearch/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/IterativeDeepeningSearch/node()"/>
   /// <include file="documentation.xml" path="/AI/Search/SearchBase/Search_Timeout/param[@name='msTimeLimit']"/>
   public SearchResult IterativeDeepeningSearch(int msTimeLimit,
                                                out StateActionPair<StateType, ActionType> solution)
@@ -206,7 +206,7 @@ public abstract class GameSearchBase<StateType, ActionType> :
     return IterativeDeepeningSearch(game.GetInitialState(), msTimeLimit, out solution);
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/IterativeDeepeningSearch/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/IterativeDeepeningSearch/node()"/>
   /// <include file="documentation.xml" path="/AI/Search/SearchBase/Search_Timeout/param[@name='msTimeLimit']"/>
   /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/param[@name = 'initialState']"/>
   public SearchResult IterativeDeepeningSearch(StateType initialState, int msTimeLimit,
@@ -216,7 +216,7 @@ public abstract class GameSearchBase<StateType, ActionType> :
                                     out solution);
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/IterativeDeepeningSearch/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/IterativeDeepeningSearch/node()"/>
   /// <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/param[@name='limiter']"/>
   public SearchResult IterativeDeepeningSearch(SearchLimiter limiter,
                                                out StateActionPair<StateType, ActionType> solution)
@@ -224,7 +224,7 @@ public abstract class GameSearchBase<StateType, ActionType> :
     return IterativeDeepeningSearch(game.GetInitialState(), limiter, out solution);
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/IterativeDeepeningSearch/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/IterativeDeepeningSearch/node()"/>
   /// <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/param[@name='limiter']"/>
   /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/param[@name='initialState']"/>
   public SearchResult IterativeDeepeningSearch(StateType initialState, SearchLimiter limiter,
@@ -313,17 +313,17 @@ public abstract class GameSearchBase<StateType, ActionType> :
     return DepthLimit != Infinite && depth >= DepthLimit;
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/PerformSearch/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/PerformSearch/node()"/>
   protected abstract SearchResult PerformSearch(StateType initialState, SearchLimiter limiter,
                                                 out StateActionPair<StateType, ActionType> solution);
 
-  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/BeginIterativeDeepeningSearch/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/BeginIterativeDeepeningSearch/node()"/>
   protected virtual void BeginIterativeDeepeningSearch(StateType initialState) { }
 
-  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/EndIterativeDeepeningSearch/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/EndIterativeDeepeningSearch/node()"/>
   protected virtual void EndIterativeDeepeningSearch() { }
 
-  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/PrepareToStartSearch/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/PrepareToStartSearch/node()"/>
   protected virtual void PrepareToStartSearch(StateType initialState)
   {
     game.GetGameInformation(out numberOfPlayers, out minUtility, out maxUtility);
@@ -365,7 +365,7 @@ public class AlphaBetaSearch<StateType, ActionType> : GameSearchBase<StateType,A
   /// <summary>Initializes the <see cref="AlphaBetaSearch{S,A}"/> with the given game instance.</summary>
   public AlphaBetaSearch(ITurnBasedGame<StateType, ActionType> game) : base(game) { }
 
-  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/PerformSearch/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/PerformSearch/node()"/>
   protected override SearchResult PerformSearch(StateType initialState, SearchLimiter limiter,
                                                 out StateActionPair<StateType,ActionType> solution)
   {
@@ -452,7 +452,7 @@ public class AlphaBetaSearch<StateType, ActionType> : GameSearchBase<StateType,A
     return depthLimitHit ? SearchResult.LimitReached : SearchResult.Success;
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/BeginIterativeDeepeningSearch/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/BeginIterativeDeepeningSearch/node()"/>
   protected override void BeginIterativeDeepeningSearch(StateType initialState)
   {
     base.BeginIterativeDeepeningSearch(initialState);
@@ -460,7 +460,7 @@ public class AlphaBetaSearch<StateType, ActionType> : GameSearchBase<StateType,A
     rootUtilities  = new float[rootSuccessors.Length];
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/EndIterativeDeepeningSearch/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/EndIterativeDeepeningSearch/node()"/>
   protected override void EndIterativeDeepeningSearch()
   {
     rootSuccessors = null;
@@ -468,7 +468,7 @@ public class AlphaBetaSearch<StateType, ActionType> : GameSearchBase<StateType,A
     base.EndIterativeDeepeningSearch();
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/PrepareToStartSearch/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/PrepareToStartSearch/node()"/>
   protected override void PrepareToStartSearch(StateType initialState)
   {
     base.PrepareToStartSearch(initialState);
@@ -628,7 +628,7 @@ public class MaxSearch<StateType, ActionType> : GameSearchBase<StateType,ActionT
   /// <summary>Initializes the <see cref="MaxSearch{S,A}"/> with the given game instance.</summary>
   public MaxSearch(ITurnBasedGame<StateType, ActionType> game) : base(game) { }
 
-  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/PerformSearch/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/GameSearchBase/PerformSearch/node()"/>
   protected override SearchResult PerformSearch(StateType initialState, SearchLimiter limiter,
                                                 out StateActionPair<StateType, ActionType> solution)
   {

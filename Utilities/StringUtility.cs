@@ -122,6 +122,21 @@ public static class StringUtility
                          ignoreCase ? StringComparison.CurrentCultureIgnoreCase : StringComparison.CurrentCulture);
   }
 
+  /// <summary>Determines whether a substring ends at the given index within a string.</summary>
+  public static bool EndsAt(this string str, int index, string substring)
+  {
+    return EndsAt(str, index, substring, StringComparison.Ordinal);
+  }
+
+  /// <summary>Determines whether a substring ends at the given index within a string.</summary>
+  public static bool EndsAt(this string str, int index, string substring, StringComparison comparisonType)
+  {
+    if(str == null || substring == null) throw new ArgumentNullException();
+    if((uint)index >= (uint)str.Length) throw new ArgumentOutOfRangeException();
+    index++;
+    return index >= substring.Length && string.Compare(str, index-substring.Length, substring, 0, substring.Length, comparisonType) == 0;
+  }
+
   /// <summary>Returns true if the given string is not null but has a length of zero.</summary>
   public static bool IsEmpty(this string str)
   {
@@ -310,6 +325,20 @@ public static class StringUtility
     T[] items = new T[bits.Length];
     for(int i=0; i<items.Length; i++) items[i] = converter(bits[i]);
     return items;
+  }
+
+  /// <summary>Determines whether a substring starts at the given index within a string.</summary>
+  public static bool StartsAt(this string str, int index, string substring)
+  {
+    return StartsAt(str, index, substring, StringComparison.Ordinal);
+  }
+
+  /// <summary>Determines whether a substring starts at the given index within a string.</summary>
+  public static bool StartsAt(this string str, int index, string substring, StringComparison comparisonType)
+  {
+    if(str == null || substring == null) throw new ArgumentNullException();
+    if((uint)index > (uint)str.Length) throw new ArgumentOutOfRangeException();
+    return str.Length - index >= substring.Length && string.Compare(str, index, substring, 0, substring.Length, comparisonType) == 0;
   }
 
   /// <summary>Finds the region of the string within leading and trailing whitespace.</summary>

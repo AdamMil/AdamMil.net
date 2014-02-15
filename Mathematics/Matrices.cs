@@ -120,7 +120,7 @@ namespace AdamMil.Mathematics
       return M00*M11*M22 - M00*M12*M21 + M01*M12*M20 - M01*M10*M22 + M02*M10*M21 - M02*M11*M20;
     }
 
-    /// <include file="documentation.xml" path="//Common/GetHashCode/*"/>
+    /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
     public unsafe override int GetHashCode()
     {
       int hash = 0;
@@ -513,7 +513,7 @@ namespace AdamMil.Mathematics
       return M00*(M11*A - M12*B + M13*C) - M01*(M10*A - M12*D + M13*E) + M02*(M10*B - M11*D + M13*F) - M03*(M10*C - M11*E + M12*F);
     }
 
-    /// <include file="documentation.xml" path="//Common/GetHashCode/*"/>
+    /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
     public unsafe override int GetHashCode()
     {
       int hash = 0;

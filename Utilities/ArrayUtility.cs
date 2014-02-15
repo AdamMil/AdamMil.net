@@ -28,13 +28,13 @@ namespace AdamMil.Utilities
 /// <summary>Provides utilities for array data types.</summary>
 public static partial class ArrayUtility
 {
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
         public static void SmallCopy(byte[] source, byte[] dest, int length)
     {
       SmallCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
         public static unsafe void SmallCopy(byte[] source, int sourceIndex, byte[] dest, int destIndex, int length)
     {
       if(length > 128)
@@ -54,13 +54,13 @@ public static partial class ArrayUtility
         }
       }
     }
-      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
         public static void SmallCopy(char[] source, char[] dest, int length)
     {
       SmallCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
         public static unsafe void SmallCopy(char[] source, int sourceIndex, char[] dest, int destIndex, int length)
     {
       if(length > 80)
@@ -80,13 +80,13 @@ public static partial class ArrayUtility
         }
       }
     }
-      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
         public static void SmallCopy(double[] source, double[] dest, int length)
     {
       SmallCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
         public static unsafe void SmallCopy(double[] source, int sourceIndex, double[] dest, int destIndex, int length)
     {
       if(length > 64)
@@ -106,13 +106,13 @@ public static partial class ArrayUtility
         }
       }
     }
-      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
         public static void SmallCopy(float[] source, float[] dest, int length)
     {
       SmallCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
         public static unsafe void SmallCopy(float[] source, int sourceIndex, float[] dest, int destIndex, int length)
     {
       if(length > 40)
@@ -132,13 +132,13 @@ public static partial class ArrayUtility
         }
       }
     }
-      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
         public static void SmallCopy(int[] source, int[] dest, int length)
     {
       SmallCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
         public static unsafe void SmallCopy(int[] source, int sourceIndex, int[] dest, int destIndex, int length)
     {
       if(length > 40)
@@ -158,13 +158,13 @@ public static partial class ArrayUtility
         }
       }
     }
-      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
         public static void SmallCopy(long[] source, long[] dest, int length)
     {
       SmallCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
         public static unsafe void SmallCopy(long[] source, int sourceIndex, long[] dest, int destIndex, int length)
     {
       if(length > 20)
@@ -184,14 +184,14 @@ public static partial class ArrayUtility
         }
       }
     }
-      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
           [CLSCompliant(false)]
         public static void SmallCopy(sbyte[] source, sbyte[] dest, int length)
     {
       SmallCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
           [CLSCompliant(false)]
         public static unsafe void SmallCopy(sbyte[] source, int sourceIndex, sbyte[] dest, int destIndex, int length)
     {
@@ -212,13 +212,13 @@ public static partial class ArrayUtility
         }
       }
     }
-      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
         public static void SmallCopy(short[] source, short[] dest, int length)
     {
       SmallCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
         public static unsafe void SmallCopy(short[] source, int sourceIndex, short[] dest, int destIndex, int length)
     {
       if(length > 80)
@@ -238,14 +238,14 @@ public static partial class ArrayUtility
         }
       }
     }
-      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
           [CLSCompliant(false)]
         public static void SmallCopy(uint[] source, uint[] dest, int length)
     {
       SmallCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
           [CLSCompliant(false)]
         public static unsafe void SmallCopy(uint[] source, int sourceIndex, uint[] dest, int destIndex, int length)
     {
@@ -266,14 +266,14 @@ public static partial class ArrayUtility
         }
       }
     }
-      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
           [CLSCompliant(false)]
         public static void SmallCopy(ulong[] source, ulong[] dest, int length)
     {
       SmallCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
           [CLSCompliant(false)]
         public static unsafe void SmallCopy(ulong[] source, int sourceIndex, ulong[] dest, int destIndex, int length)
     {
@@ -294,14 +294,14 @@ public static partial class ArrayUtility
         }
       }
     }
-      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
           [CLSCompliant(false)]
         public static void SmallCopy(ushort[] source, ushort[] dest, int length)
     {
       SmallCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/node()"/>
           [CLSCompliant(false)]
         public static unsafe void SmallCopy(ushort[] source, int sourceIndex, ushort[] dest, int destIndex, int length)
     {

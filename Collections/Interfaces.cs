@@ -38,7 +38,7 @@ public interface IQueue<T> : ICollection<T>
   T Dequeue();
   /// <summary>Returns the first item in the queue.</summary>
   T Peek();
-  /// <include file="documentation.xml" path="//Queue/TryDequeue/*"/>
+  /// <include file="documentation.xml" path="//Queue/TryDequeue/node()"/>
   bool TryDequeue(out T item);
 }
 #endregion

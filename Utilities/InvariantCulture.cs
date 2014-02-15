@@ -271,7 +271,7 @@ public static class InvariantCultureUtility
     if(length != 0)
     {
       bool negative = str[index] == '-';
-      if(negative)
+      if(negative || str[index] == '+')
       {
         if(--length == 0) goto failed;
         index++;
@@ -343,7 +343,7 @@ public static class InvariantCultureUtility
     if(length != 0)
     {
       bool negative = str[index] == '-';
-      if(negative)
+      if(negative || str[index] == '+')
       {
         if(--length == 0) goto failed;
         index++;

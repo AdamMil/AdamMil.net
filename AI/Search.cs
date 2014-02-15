@@ -61,10 +61,10 @@ public interface ISearchable<StateType>
 /// <include file="documentation.xml" path="/AI/Search/typeparam[@name='StateType' or @name='SolutionType']"/>
 public interface ISearch<StateType, SolutionType>
 {
-  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search/node()"/>
   SearchResult Search(SearchLimiter limiter, out SolutionType solution);
 
-  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/node()"/>
   SearchResult Search(StateType initialState, SearchLimiter limiter, out SolutionType solution);
 }
 #endregion
@@ -74,11 +74,11 @@ public interface ISearch<StateType, SolutionType>
 /// <include file="documentation.xml" path="/AI/Search/typeparam[@name='StateType' or @name='SolutionType' or @name='ContextType']"/>
 public interface IIterativeSearch<StateType, SolutionType, ContextType> where ContextType : IterativeSearchContext<SolutionType>
 {
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch/node()"/>
   ContextType BeginSearch();
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch_State/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch_State/node()"/>
   ContextType BeginSearch(StateType initialState);
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/Iterate/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/Iterate/node()"/>
   SearchResult Iterate(ContextType context);
 }
 #endregion
@@ -176,7 +176,7 @@ public abstract class SearchBase<StateType, SolutionType> : SearchBase, ISearch<
   }
 
   /// <include file="documentation.xml" path="/AI/Search/ISearch/Search/summary"/>
-  /// <include file="documentation.xml" path="/AI/Search/SearchBase/Search_Timeout/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/SearchBase/Search_Timeout/node()"/>
   public SearchResult Search(int msTimeLimit, out SolutionType solution)
   {
     return Search(msTimeLimit == Infinite ? null : new TimeLimiter(msTimeLimit), out solution);
@@ -184,16 +184,16 @@ public abstract class SearchBase<StateType, SolutionType> : SearchBase, ISearch<
 
   /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/summary"/>
   /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/param[@name='initialState']"/>
-  /// <include file="documentation.xml" path="/AI/Search/SearchBase/Search_Timeout/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/SearchBase/Search_Timeout/node()"/>
   public SearchResult Search(StateType initialState, int msTimeLimit, out SolutionType solution)
   {
     return Search(initialState, msTimeLimit == Infinite ? null : new TimeLimiter(msTimeLimit), out solution);
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search/node()"/>
   public abstract SearchResult Search(SearchLimiter limiter, out SolutionType solution);
 
-  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/node()"/>
   public abstract SearchResult Search(StateType initialState, SearchLimiter limiter, out SolutionType solution);
 }
 #endregion
@@ -205,34 +205,34 @@ public abstract class IterativeSearchBase<StateType, SolutionType, ContextType>
   : SearchBase<StateType,SolutionType>, IIterativeSearch<StateType, SolutionType, ContextType>
   where ContextType : IterativeSearchContext<SolutionType>
 {
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch/node()"/>
   public abstract ContextType BeginSearch();
 
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch_State/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch_State/node()"/>
   public abstract ContextType BeginSearch(StateType initialState);
 
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/Iterate/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/Iterate/node()"/>
   public abstract SearchResult Iterate(ContextType context);
 
-  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search/node()"/>
   public override SearchResult Search(SearchLimiter limiter, out SolutionType solution)
   {
     return FinishLimitedSearch(limiter, () => BeginSearch(), out solution);
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/node()"/>
   public override SearchResult Search(StateType initialState, SearchLimiter limiter, out SolutionType solution)
   {
     return FinishLimitedSearch(limiter, () => BeginSearch(initialState), out solution);
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/UseAutomaticParallelism/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/UseAutomaticParallelism/node()"/>
   protected virtual bool UseAutomaticParallelism
   {
     get { return true; }
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/SelectBestSolution/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/SelectBestSolution/node()"/>
   protected abstract SolutionType SelectBestSolution(ContextType[] contexts);
 
   /// <summary>Finishes a potentially-limited search. To be called by a <see cref="Search"/> method after
@@ -281,10 +281,10 @@ public abstract class IterativeSearchBase<StateType, SolutionType, ContextType>
 /// </remarks>
 public abstract class SearchLimiter
 {
-  /// <include file="documentation.xml" path="/AI/Search/SearchLimiter/LimitReached/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/SearchLimiter/LimitReached/node()"/>
   public abstract bool LimitReached { get; }
 
-  /// <include file="documentation.xml" path="/AI/Search/SearchLimiter/Start/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/SearchLimiter/Start/node()"/>
   public abstract void Start();
 }
 #endregion
@@ -313,7 +313,7 @@ public sealed class TimeLimiter : SearchLimiter
     }
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/SearchLimiter/LimitReached/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/SearchLimiter/LimitReached/node()"/>
   public override bool LimitReached
   {
     get
@@ -323,7 +323,7 @@ public sealed class TimeLimiter : SearchLimiter
     }
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/SearchLimiter/Start/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/SearchLimiter/Start/node()"/>
   public override void Start()
   {
     timer = new System.Diagnostics.Stopwatch();

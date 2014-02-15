@@ -26,7 +26,7 @@ public class BloomFilterTest
         BloomFilter<ulong> f = new BloomFilter<ulong>(itemCount, desiredRate);
         for(int i=0; i<itemCount; i++)
         {
-          ulong n = rands[0].NextUint64();
+          ulong n = rands[0].NextUInt64();
           f.Add(n); // we can't gainfully parallelize addition of items because the filter is not thread-safe
           Assert.IsTrue(f.PossiblyContains(n)); // make sure that there are no false negatives
         }
@@ -38,7 +38,7 @@ public class BloomFilterTest
           RandomNumberGenerator rand = rands[info.ThreadNumber];
           do
           {
-            ulong n = rand.NextUint64();
+            ulong n = rand.NextUInt64();
             if(f.PossiblyContains(n)) Interlocked.Increment(ref collisions);
             i++;
           } while(i < end);

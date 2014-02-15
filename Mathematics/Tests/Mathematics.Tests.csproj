@@ -59,6 +59,7 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="FloatingPoint.cs" />
     <Compile Include="LinearAlgebra.cs" />
     <Compile Include="Optimization.cs" />
     <Compile Include="Polynomials.cs" />
@@ -66,6 +67,10 @@
     <Compile Include="RootFinding.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\IO\AdamMil.IO.csproj">
+      <Project>{ceb9bc77-b63f-40a1-bede-7c32e9b90d55}</Project>
+      <Name>AdamMil.IO</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\TestHelpers\AdamMil.TestHelpers.csproj">
       <Project>{E755006A-EB9E-4A5A-9872-65A2C4737C20}</Project>
       <Name>AdamMil.TestHelpers</Name>

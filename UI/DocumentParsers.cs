@@ -9,7 +9,7 @@ namespace AdamMil.UI.RichDocument
 /// <summary>A base class for parsers to convert various document types into <see cref="Document"/> objects.</summary>
 public abstract class DocumentParser
 {
-  /// <include file="documentation.xml" path="/UI/DocumentParser/Parse/*"/>
+  /// <include file="documentation.xml" path="/UI/DocumentParser/Parse/node()"/>
   public abstract Document Parse(Stream data);
 }
 #endregion
@@ -18,7 +18,7 @@ public abstract class DocumentParser
 /// <summary>A parser to convert HTML documents into <see cref="Document"/> objects.</summary>
 public class HtmlParser : DocumentParser
 {
-  /// <include file="documentation.xml" path="/UI/DocumentParser/Parse/*"/>
+  /// <include file="documentation.xml" path="/UI/DocumentParser/Parse/node()"/>
   public override Document Parse(Stream data)
   {
     throw new NotImplementedException();
@@ -30,7 +30,7 @@ public class HtmlParser : DocumentParser
 /// <summary>A parser to convert RTF documents into <see cref="Document"/> objects.</summary>
 public class RtfParser : DocumentParser
 {
-  /// <include file="documentation.xml" path="/UI/DocumentParser/Parse/*"/>
+  /// <include file="documentation.xml" path="/UI/DocumentParser/Parse/node()"/>
   public override Document Parse(Stream data)
   {
     throw new NotImplementedException();

@@ -211,7 +211,7 @@
 
       <BeginSearch_State>
         <summary>Begins a new search using the given initial state.</summary>
-        <!--<include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearchCommon/*"/>-->
+        <!--<include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearchCommon/node()"/>-->
       </BeginSearch_State>
 
       <Iterate>
@@ -255,7 +255,7 @@
         <summary>
           Searches using a default initial state, and running until the search completes or reaches the given limit.
         </summary>
-        <!--<include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*"/>-->
+        <!--<include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/node()"/>-->
       </Search>
 
       <Search_State>
@@ -263,7 +263,7 @@
           Searches using the given initial state, and running until the search completes or reaches the given limit.
         </summary>
         <param name="initialState">The initial state used in the search.</param>
-        <!--<include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*"/>-->
+        <!--<include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/node()"/>-->
       </Search_State>
     </ISearch>
 
@@ -302,7 +302,7 @@
         <summary>Performs a search using the given initial state and running to its conclusion or until the time limit
           expires.
         </summary>
-        <!--<include file="documentation.xml" path="/AI/Search/SearchBase/Search/*"/>-->
+        <!--<include file="documentation.xml" path="/AI/Search/SearchBase/Search/node()"/>-->
       </Search_State_Limit>
     </SearchBase>
 

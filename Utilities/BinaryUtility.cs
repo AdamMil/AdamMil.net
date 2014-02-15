@@ -44,6 +44,48 @@ public static class BinaryUtility
     fixed(byte* pA=a, pB=b) return Unsafe.AreEqual(pA+aIndex, pB+bIndex, length);
   }
 
+  /// <summary>Returns the number of leading zero bits in the given value.</summary>
+  [CLSCompliant(false)]
+  public static int CountLeadingZeros(uint value)
+  {
+    if(value == 0) return 32;
+    int count = 1;
+    if((value >> 16) == 0) { count = 17; value <<= 16; }
+    if((value >> 24) == 0) { count += 8; value <<= 8; }
+    if((value >> 28) == 0) { count += 4; value <<= 4; }
+    if((value >> 30) == 0) { count += 2; value <<= 2; }
+    return count - (int)(value >> 31);
+  }
+
+  /// <summary>Returns the number of leading zero bits in the given value.</summary>
+  [CLSCompliant(false)]
+  public static int CountLeadingZeros(ulong value)
+  {
+    uint hi = (uint)(value >> 32);
+    return hi == 0 ? 32 + CountLeadingZeros((uint)value) : CountLeadingZeros(hi);
+  }
+
+  /// <summary>Returns the number of trailing zero bits in the given value.</summary>
+  [CLSCompliant(false)]
+  public static int CountTrailingZeros(uint value)
+  {
+    if(value == 0) return 32;
+    int count = 1;
+    if((value & 0xFFFF) == 0) { count = 17; value >>= 16; }
+    if((value & 0x00FF) == 0) { count += 8; value >>= 8; }
+    if((value & 0x000F) == 0) { count += 4; value >>= 4; }
+    if((value & 0x0003) == 0) { count += 2; value >>= 2; }
+    return count - (int)(value & 1);
+  }
+
+  /// <summary>Returns the number of trailing zero bits in the given value.</summary>
+  [CLSCompliant(false)]
+  public static int CountTrailingZeros(ulong value)
+  {
+    uint lo = (uint)value;
+    return lo == 0 ? 32 + CountTrailingZeros((uint)(value>>32)) : CountTrailingZeros(lo);
+  }
+
   /// <summary>Returns a 32-bit hash of the given array, which can be null.</summary>
   public static int Hash(byte[] data)
   {
@@ -199,6 +241,66 @@ public static class BinaryUtility
     return bytes;
   }
 
+  /// <summary>Converts the given value to a string of binary digits.</summary>
+  public static string ToBinary(int value)
+  {
+    return ToBinary((uint)value);
+  }
+
+  /// <summary>Converts the given value to a string of binary digits.</summary>
+  [CLSCompliant(false)]
+  public static string ToBinary(uint value)
+  {
+    char[] chars = new char[Math.Max(1, 32-CountLeadingZeros(value))];
+    int i = chars.Length - 1;
+    do
+    {
+      chars[i--] = (char)('0' + (value & 1));
+      value >>= 1;
+    } while(value != 0);
+    return new string(chars);
+  }
+
+  /// <summary>Converts the given value to a string of binary digits.</summary>
+  public static string ToBinary(long value)
+  {
+    return ToBinary((ulong)value);
+  }
+
+  /// <summary>Converts the given value to a string of binary digits.</summary>
+  [CLSCompliant(false)]
+  public static string ToBinary(ulong value)
+  {
+    char[] chars = new char[Math.Max(1, 64-CountLeadingZeros(value))];
+    int i = chars.Length - 1;
+    do
+    {
+      chars[i--] = (char)('0' + ((uint)value & 1));
+      value >>= 1;
+    } while(value != 0);
+    return new string(chars);
+  }
+
+  /// <summary>Converts the given byte value into a corresponding two-digit hex string.</summary>
+  public static string ToHex(byte value)
+  {
+    return new string(new char[2] { HexChars[value >> 4], HexChars[value & 0xF] });
+  }
+
+  /// <summary>Converts the given binary data into a hex string.</summary>
+  public static string ToHex(byte[] data)
+  {
+    if(data == null) throw new ArgumentNullException();
+    char[] chars = new char[data.Length * 2];
+    for(int i=0, o=0; i<data.Length; i++)
+    {
+      byte value = data[i];
+      chars[o++] = HexChars[value >> 4];
+      chars[o++] = HexChars[value & 0xF];
+    }
+    return new string(chars);
+  }
+
   /// <summary>Attempts to parse a hex string that may contain embedded whitespace. Returns true if binary data was parsed successfully
   /// and false if not (i.e. if there were an odd number of hex digits or any non-hex, non-whitespace characters).
   /// </summary>
@@ -258,26 +360,6 @@ public static class BinaryUtility
       bytes = data.Trim(length);
       return true;
     }
-  }
-
-  /// <summary>Converts the given byte value into a corresponding two-digit hex string.</summary>
-  public static string ToHex(byte value)
-  {
-    return new string(new char[2] { HexChars[value >> 4], HexChars[value & 0xF] });
-  }
-
-  /// <summary>Converts the given binary data into a hex string.</summary>
-  public static string ToHex(byte[] data)
-  {
-    if(data == null) throw new ArgumentNullException();
-    char[] chars = new char[data.Length * 2];
-    for(int i=0, o=0; i<data.Length; i++)
-    {
-      byte value = data[i];
-      chars[o++] = HexChars[value >> 4];
-      chars[o++] = HexChars[value & 0xF];
-    }
-    return new string(chars);
   }
 
   /// <summary>Converts the given hex digit into its numeric value.</summary>

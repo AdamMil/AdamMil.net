@@ -51,7 +51,7 @@ public partial class KeySignaturesForm : Form
     sigList.Initialize(publicKey);
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/*"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/node()"/>
   protected override void OnKeyDown(KeyEventArgs e)
   {
     base.OnKeyDown(e);

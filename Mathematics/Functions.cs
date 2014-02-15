@@ -65,10 +65,10 @@ namespace AdamMil.Mathematics
   /// <summary>Represents a one-dimensional function that can be continuously differentiated in a region of interest.</summary>
   public interface IDifferentiableFunction : IOneDimensionalFunction
   {
-    /// <include file="documentation.xml" path="/Math/Functions/DifferentiableFunction/DerivativeCount/*"/>
+    /// <include file="documentation.xml" path="/Math/Functions/DifferentiableFunction/DerivativeCount/node()"/>
     int DerivativeCount { get; }
 
-    /// <include file="documentation.xml" path="/Math/Functions/DifferentiableFunction/EvaluateDerivative/*"/>
+    /// <include file="documentation.xml" path="/Math/Functions/DifferentiableFunction/EvaluateDerivative/node()"/>
     double EvaluateDerivative(double x, int derivative);
   }
   #endregion
@@ -77,7 +77,7 @@ namespace AdamMil.Mathematics
   /// <summary>Represents a differentiable multidimensional function.</summary>
   public interface IDifferentiableMDFunction : IMultidimensionalFunction
   {
-    /// <include file="documentation.xml" path="/Math/Functions/DifferentiableFunction/EvaluateGradient/*"/>
+    /// <include file="documentation.xml" path="/Math/Functions/DifferentiableFunction/EvaluateGradient/node()"/>
     void EvaluateGradient(double[] x, double[] gradient);
   }
   #endregion
@@ -299,7 +299,7 @@ namespace AdamMil.Mathematics
       this.gradient = gradient;
     }
 
-    /// <include file="documentation.xml" path="/Math/Functions/DifferentiableFunction/EvaluateGradient/*"/>
+    /// <include file="documentation.xml" path="/Math/Functions/DifferentiableFunction/EvaluateGradient/node()"/>
     public void EvaluateGradient(double[] x, double[] gradient)
     {
       this.gradient(x, gradient);

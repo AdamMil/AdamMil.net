@@ -51,9 +51,9 @@ public static class MathConst
 /// </summary>
 public static class Math2D
 {
-  /// <include file="documentation.xml" path="//Geometry/Math2D/AngleBetween/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Math2D/AngleBetween/node()"/>
   public static double AngleBetween(Point2 start, Point2 end) { return (end-start).Angle; }
-  /// <include file="documentation.xml" path="//Geometry/Math2D/AngleBetween/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Math2D/AngleBetween/node()"/>
   public static double AngleBetween(SysPoint start, SysPoint end)
   {
     return (new Point2(end)-new Point2(start)).Angle;
@@ -887,7 +887,7 @@ public struct Vector2
   /// returns a perpendicular vector.
   /// </remarks>
   public Vector2 CrossVector { get { return new Vector2(Y, -X); } }
-  /// <include file="documentation.xml" path="//Geometry/Vector/Length/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Vector/Length/node()"/>
   public double Length
   {
     get { return System.Math.Sqrt(X*X+Y*Y); }
@@ -895,18 +895,18 @@ public struct Vector2
   }
   /// <summary>Returns the length of this vector, squared.</summary>
   public double LengthSqr { get { return X*X+Y*Y; } }
-  /// <include file="documentation.xml" path="//Geometry/Vector/Normal/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Vector/Normal/node()"/>
   public Vector2 Normal { get { return this/Length; } }
   /// <summary>Determines whether the vector is valid.</summary>
   /// <remarks>Invalid vectors are returned by some mathematical functions to signal that the function is undefined
   /// given the input. A vector returned by such a function can be tested for validity using this property.
   /// </remarks>
   public bool IsValid { get { return !double.IsNaN(X); } }
-  /// <include file="documentation.xml" path="//Geometry/Vector/DotProduct/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Vector/DotProduct/node()"/>
   public double DotProduct(Vector2 v) { return X*v.X + Y*v.Y; }
-  /// <include file="documentation.xml" path="//Geometry/Vector/Normalize/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Vector/Normalize/node()"/>
   public void Normalize() { this/=Length; }
-  /// <include file="documentation.xml" path="//Geometry/Vector/Normalize2/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Vector/Normalize2/node()"/>
   public void Normalize(double length) { this *= length/Length; }
   /// <summary>Returns a copy of this vector, normalized to the given length.</summary>
   /// <remarks>Calling this method is invalid when the length of the vector is zero, since the vector would not be
@@ -929,14 +929,14 @@ public struct Vector2
     double sin = Math.Sin(angle), cos = Math.Cos(angle);
     return new Vector2(X*cos-Y*sin, X*sin+Y*cos);
   }
-  /// <include file="documentation.xml" path="//Geometry/Vector/Equals/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Vector/Equals/node()"/>
   public override bool Equals(object obj) { return obj is Vector2 && (Vector2)obj==this; }
-  /// <include file="documentation.xml" path="//Geometry/Vector/Equals3/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Vector/Equals3/node()"/>
   public bool Equals(Vector2 vect, double epsilon)
   {
     return Math.Abs(vect.X-X)<=epsilon && Math.Abs(vect.Y-Y)<=epsilon;
   }
-  /// <include file="documentation.xml" path="//Common/GetHashCode/*"/>
+  /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
   public unsafe override int GetHashCode()
   {
     fixed(double* dp=&X) { int* p=(int*)dp; return *p ^ *(p+1) ^ *(p+2) ^ *(p+3); }
@@ -1010,13 +1010,13 @@ public struct Point2
   /// given the input. A point returned by such a function can be tested for validity using this property.
   /// </remarks>
   public bool IsValid { get { return !double.IsNaN(X); } }
-  /// <include file="documentation.xml" path="//Geometry/Point/DistanceTo/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Point/DistanceTo/node()"/>
   public double DistanceTo(Point2 point)
   {
     double xd=point.X-X, yd=point.Y-Y;
     return Math.Sqrt(xd*xd+yd*yd);
   }
-  /// <include file="documentation.xml" path="//Geometry/Point/DistanceSquaredTo/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Point/DistanceSquaredTo/node()"/>
   public double DistanceSquaredTo(Point2 point)
   {
     double xd=point.X-X, yd=point.Y-Y;
@@ -1034,14 +1034,14 @@ public struct Point2
   /// <summary>Converts this point to a <see cref="System.Drawing.PointF"/>.</summary>
   /// <returns>A <see cref="System.Drawing.PointF"/> containing approximately the same coordinates.</returns>
   public SysPointF ToPointF() { return new SysPointF((float)X, (float)Y); }
-  /// <include file="documentation.xml" path="//Geometry/Point/Equals/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Point/Equals/node()"/>
   public override bool Equals(object obj) { return obj is Point2 && (Point2)obj==this; }
-  /// <include file="documentation.xml" path="//Geometry/Point/Equals3/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Point/Equals3/node()"/>
   public bool Equals(Point2 point, double epsilon)
   {
     return Math.Abs(point.X-X)<=epsilon && Math.Abs(point.Y-Y)<=epsilon;
   }
-  /// <include file="documentation.xml" path="//Common/GetHashCode/*"/>
+  /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
   public unsafe override int GetHashCode()
   {
     fixed(double* dp=&X) { int* p=(int*)dp; return *p ^ *(p+1) ^ *(p+2) ^ *(p+3); }
@@ -1146,9 +1146,9 @@ public struct Line2
   /// this should be the distance from <paramref name="y"/> to the endpoint's Y coordinate.
   /// </param>
   public Line2(double x, double y, double xd, double yd) { Start=new Point2(x, y); Vector=new Vector2(xd, yd); }
-  /// <include file="documentation.xml" path="//Geometry/Line/Line/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Line/Line/node()"/>
   public Line2(Point2 start, Vector2 vector) { Start=start; Vector=vector; }
-  /// <include file="documentation.xml" path="//Geometry/Line/Line2/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Line/Line2/node()"/>
   public Line2(Point2 start, Point2 end) { Start=start; Vector=end-start; }
 
   /// <summary>Returns the endpoint of the line segment.</summary>
@@ -1197,7 +1197,7 @@ public struct Line2
   /// </returns>
   public double DistanceTo(Point2 point) { return Vector.CrossVector.Normal.DotProduct(point-Start); }
 
-  /// <include file="documentation.xml" path="//Geometry/Line/GetPoint/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Line/GetPoint/node()"/>
   public Point2 GetPoint(int point)
   {
     if(point<0 || point>1) throw new ArgumentOutOfRangeException("point", point, "must be 0 or 1");
@@ -1328,14 +1328,14 @@ public struct Line2
   /// polygon. The point would be inside the polygon if it was "inside" all of the lines defining it.
   /// </returns>
   public double WhichSide(Point2 point) { return Vector.CrossVector.DotProduct(point-Start); }
-  /// <include file="documentation.xml" path="//Geometry/Line/Equals/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Line/Equals/node()"/>
   public override bool Equals(object obj) { return obj is Line2 && (Line2)obj==this; }
-  /// <include file="documentation.xml" path="//Geometry/Line/Equals3/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Line/Equals3/node()"/>
   public bool Equals(Line2 line, double epsilon)
   {
     return Start.Equals(line.Start, epsilon) && Vector.Equals(line.Vector, epsilon);
   }
-  /// <include file="documentation.xml" path="//Common/GetHashCode/*"/>
+  /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
   public override int GetHashCode() { return Start.GetHashCode() ^ Vector.GetHashCode(); }
   /// <summary>Converts this <see cref="Line2"/> into a human-readable string.</summary>
   /// <returns>A human-readable string representing this line.</returns>
@@ -1443,7 +1443,7 @@ public struct Circle
     return obj is Circle && this == (Circle)obj;
   }
 
-  /// <include file="documentation.xml" path="//Common/GetHashCode/*"/>
+  /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
   public override int GetHashCode()
   {
     return Center.GetHashCode() ^ Radius.GetHashCode();
@@ -2436,7 +2436,7 @@ public struct Rectangle
   {
     return string.Format("X={0:F2} Y={1:F2} Width={2:F2} Height={3:F2}", X, Y, Width, Height);
   }
-  /// <include file="documentation.xml" path="//Common/GetHashCode/*"/>
+  /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
   public override int GetHashCode()
   {
     return X.GetHashCode() ^ Y.GetHashCode() ^ Width.GetHashCode() ^ Height.GetHashCode();
@@ -2504,7 +2504,7 @@ public struct Vector3
   /// </param>
   public Vector3(Point3 pt) { X=pt.X; Y=pt.Y; Z=pt.Z; }
 
-  /// <include file="documentation.xml" path="//Geometry/Vector/Length/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Vector/Length/node()"/>
   public double Length
   {
     get { return System.Math.Sqrt(X*X+Y*Y+Z*Z); }
@@ -2512,17 +2512,17 @@ public struct Vector3
   }
   /// <summary>Returns the length of this vector, squared.</summary>
   public double LengthSqr { get { return X*X+Y*Y+Z*Z; } }
-  /// <include file="documentation.xml" path="//Geometry/Vector/Normal/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Vector/Normal/node()"/>
   public Vector3 Normal { get { return this/Length; } }
   /// <summary>Returns the cross product of this vector with another vector.</summary>
   /// <param name="v">The other operand.</param>
   /// <returns>A <see cref="Vector3"/> perpendicular to both this vector and <paramref name="v"/>.</returns>
   public Vector3 CrossProduct(Vector3 v) { return new Vector3(X*v.Z-Z*v.Y, Z*v.X-X*v.Z, X*v.Y-Y*v.X); }
-  /// <include file="documentation.xml" path="//Geometry/Vector/DotProduct/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Vector/DotProduct/node()"/>
   public double DotProduct(Vector3 v) { return X*v.X + Y*v.Y + Z*v.Z; }
-  /// <include file="documentation.xml" path="//Geometry/Vector/Normalize/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Vector/Normalize/node()"/>
   public void Normalize() { this /= Length; }
-  /// <include file="documentation.xml" path="//Geometry/Vector/Normalize2/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Vector/Normalize2/node()"/>
   public void Normalize(double length) { this /= Length/length; }
   /// <summary>Rotates this vector around the X axis.</summary>
   /// <param name="angle">The angle to rotate by, in radians.</param>
@@ -2572,15 +2572,15 @@ public struct Vector3
     return (a*b*a.Conjugate).V;
   }
 
-  /// <include file="documentation.xml" path="//Geometry/Vector/Equals/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Vector/Equals/node()"/>
   public override bool Equals(object obj) { return obj is Vector3 && (Vector3)obj==this; }
-  /// <include file="documentation.xml" path="//Geometry/Vector/Equals3/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Vector/Equals3/node()"/>
   public bool Equals(Vector3 vect, double epsilon)
   {
     return Math.Abs(vect.X-X)<=epsilon && Math.Abs(vect.Y-Y)<=epsilon && Math.Abs(vect.Z-Z)<=epsilon;
   }
 
-  /// <include file="documentation.xml" path="//Common/GetHashCode/*"/>
+  /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
   public unsafe override int GetHashCode()
   {
     fixed(double* dp=&X) { int* p=(int*)dp; return *p ^ *(p+1) ^ *(p+2) ^ *(p+3) ^ *(p+4) ^ *(p+5); }
@@ -2633,13 +2633,13 @@ public struct Point3
   /// <param name="y">The point's Y coordinate.</param>
   /// <param name="z">The point's Z coordinate.</param>
   public Point3(double x, double y, double z) { X=x; Y=y; Z=z; }
-  /// <include file="documentation.xml" path="//Geometry/Point/DistanceTo/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Point/DistanceTo/node()"/>
   public double DistanceTo(Point3 point)
   {
     double xd=point.X-X, yd=point.Y-Y, zd=point.Z-Z;
     return Math.Sqrt(xd*xd+yd*yd+zd*zd);
   }
-  /// <include file="documentation.xml" path="//Geometry/Point/DistanceSquaredTo/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Point/DistanceSquaredTo/node()"/>
   public double DistanceCubedTo(Point3 point)
   {
     double xd=point.X-X, yd=point.Y-Y, zd=point.Z-Z;
@@ -2651,14 +2651,14 @@ public struct Point3
   /// <param name="zd">The value to add to the point's Z coordinate.</param>
   public void Offset(double xd, double yd, double zd) { X+=xd; Y+=yd; Z+=zd; }
 
-  /// <include file="documentation.xml" path="//Geometry/Point/Equals/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Point/Equals/node()"/>
   public override bool Equals(object obj) { return obj is Point3 && (Point3)obj==this; }
-  /// <include file="documentation.xml" path="//Geometry/Point/Equals3/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Point/Equals3/node()"/>
   public bool Equals(Point3 point, double epsilon)
   {
     return Math.Abs(point.X-X)<=epsilon && Math.Abs(point.Y-Y)<=epsilon && Math.Abs(point.Z-Z)<=epsilon;
   }
-  /// <include file="documentation.xml" path="//Common/GetHashCode/*"/>
+  /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
   public unsafe override int GetHashCode()
   {
     fixed(double* dp=&X) { int* p=(int*)dp; return *p ^ *(p+1) ^ *(p+2) ^ *(p+3) ^ *(p+4) ^ *(p+5); }
@@ -2711,9 +2711,9 @@ public struct Line3
   {
     Start=new Point3(x, y, z); Vector=new Vector3(xd, yd, zd);
   }
-  /// <include file="documentation.xml" path="//Geometry/Line/Line/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Line/Line/node()"/>
   public Line3(Point3 start, Vector3 vector) { Start=start; Vector=vector; }
-  /// <include file="documentation.xml" path="//Geometry/Line/Line2/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Line/Line2/node()"/>
   public Line3(Point3 start, Point3 end) { Start=start; Vector=end-start; }
   /// <summary>Returns the endpoint of the line segment.</summary>
   /// <remarks>This is equivalent to <see cref="Start"/> + <see cref="Vector"/>.</remarks>
@@ -2724,20 +2724,20 @@ public struct Line3
   /// <summary>Calculates and returns the square of the line segment's length.</summary>
   /// <remarks>This returns the square of the length of <see cref="Vector"/>.</remarks>
   public double LengthSqr { get { return Vector.LengthSqr; } }
-  /// <include file="documentation.xml" path="//Geometry/Line/GetPoint/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Line/GetPoint/node()"/>
   public Point3 GetPoint(int point)
   {
     if(point<0 || point>1) throw new ArgumentOutOfRangeException("point", point, "must be 0 or 1");
     return point==0 ? Start : End;
   }
-  /// <include file="documentation.xml" path="//Geometry/Line/Equals/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Line/Equals/node()"/>
   public override bool Equals(object obj) { return obj is Line3 && (Line3)obj==this; }
-  /// <include file="documentation.xml" path="//Geometry/Line/Equals3/*"/>
+  /// <include file="documentation.xml" path="//Geometry/Line/Equals3/node()"/>
   public bool Equals(Line3 line, double epsilon)
   {
     return Start.Equals(line.Start, epsilon) && Vector.Equals(line.Vector, epsilon);
   }
-  /// <include file="documentation.xml" path="//Common/GetHashCode/*"/>
+  /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
   public override int GetHashCode() { return Start.GetHashCode() ^ Vector.GetHashCode(); }
   /// <summary>Converts this <see cref="Line3"/> into a human-readable string.</summary>
   /// <returns>A human-readable string representing this line.</returns>
@@ -2787,7 +2787,7 @@ public struct Plane
     return obj is Plane && this == (Plane)obj;
   }
 
-  /// <include file="documentation.xml" path="//Common/GetHashCode/*"/>
+  /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
   public override int GetHashCode()
   {
     return Point.GetHashCode() ^ Normal.GetHashCode();
@@ -2845,7 +2845,7 @@ public struct Sphere
     return obj is Sphere && this == (Sphere)obj;
   }
 
-  /// <include file="documentation.xml" path="//Common/GetHashCode/*"/>
+  /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
   public override int GetHashCode()
   {
     return Center.GetHashCode() ^ Radius.GetHashCode();
@@ -2917,7 +2917,7 @@ public struct Quaternion
     }
   }
 
-  /// <include file="documentation.xml" path="//Common/GetHashCode/*"/>
+  /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
   public unsafe override int GetHashCode()
   {
     fixed(double* dp=&W) { int* p=(int*)dp; return *p ^ *(p+1) ^ V.GetHashCode(); }

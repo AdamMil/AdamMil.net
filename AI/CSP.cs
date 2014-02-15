@@ -72,7 +72,7 @@ public interface IFiniteDomainCSP<VarType>
 /// </summary>
 public interface INeighborList
 {
-  /// <include file="documentation.xml" path="/AI/CSP/INeighborList/Indexer/*"/>
+  /// <include file="documentation.xml" path="/AI/CSP/INeighborList/Indexer/node()"/>
   AC.IReadOnlyCollection<int> this[int variable] { get; }
 }
 #endregion
@@ -207,7 +207,7 @@ public sealed class NeighborArrayList : INeighborList
     for(int i=0; i<neighbors.Length; i++) this.neighbors[i] = new AC.ReadOnlyCollectionWrapper<int>(neighbors[i]);
   }
 
-  /// <include file="documentation.xml" path="/AI/CSP/INeighborList/Indexer/*"/>
+  /// <include file="documentation.xml" path="/AI/CSP/INeighborList/Indexer/node()"/>
   public AC.IReadOnlyCollection<int> this[int index]
   {
     get { return neighbors[index]; }
@@ -681,7 +681,7 @@ public sealed class BacktrackingSolver<VarType> : SearchBase<Assignment,Assignme
     set { optimizations = value; }
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search/node()"/>
   public override SearchResult Search(SearchLimiter limiter, out Assignment solution)
   {
     return Search(null, limiter, out solution);
@@ -693,7 +693,7 @@ public sealed class BacktrackingSolver<VarType> : SearchBase<Assignment,Assignme
   /// to fail to find a solution to the problem even if one exists, if the initial assignments are not valid. If null,
   /// an empty assignment will be used.
   /// </param>
-  /// <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/node()"/>
   public override SearchResult Search(Assignment initialAssignment, SearchLimiter limiter, out Assignment solution)
   {
     if(!BeginSearch(initialAssignment, limiter, out solution)) return SearchResult.Failed;
@@ -1764,7 +1764,7 @@ public class LocalSearchSolver<VarType> : IterativeSearchBase<Assignment,Assignm
     }
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch/node()"/>
   public override Context BeginSearch()
   {
     return BeginSearch(null);
@@ -1776,13 +1776,13 @@ public class LocalSearchSolver<VarType> : IterativeSearchBase<Assignment,Assignm
   /// The search will use the assignment given as a starting point, but may change some of the values to create a
   /// solution.
   /// </param>
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearchCommon/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearchCommon/node()"/>
   public override Context BeginSearch(Assignment initialAssignment)
   {
     return new Context(problem, initialAssignment, CreateRandom(), CacheConflicts);
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/Iterate/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/Iterate/node()"/>
   public override SearchResult Iterate(Context context)
   {
     if(context == null) throw new ArgumentNullException();
@@ -1797,7 +1797,7 @@ public class LocalSearchSolver<VarType> : IterativeSearchBase<Assignment,Assignm
     return RandomNumberGenerator.CreateDefault();
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/SelectBestSolution/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/SelectBestSolution/node()"/>
   protected override Assignment SelectBestSolution(Context[] contexts)
   {
     if(contexts == null) throw new ArgumentNullException();

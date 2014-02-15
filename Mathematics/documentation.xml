@@ -8,8 +8,8 @@
         for use in computer graphics. Perlin noise has some minor flaws, however. These include computational
         complexity that increases exponentially with the number of dimensions and minor directional artifacts due to
         its anisotropy. These have been mostly rectified by the creation of Simplex noise, which is also implemented
-        in this class. Note that this class implements the improvements to Perlin noise that Ken Perlin published in
-        2002, which eliminate several artifacts.
+        in this class. This class implements the improvements to Perlin noise that Ken Perlin published in 2002,
+        which eliminate some of the artifacts.
       </remarks>
     </AboutPerlin>
 
@@ -26,6 +26,82 @@
   <Common>
     <GetHashCode>Returns a hash code for the object.</GetHashCode>
   </Common>
+
+  <FP107>
+    <ExpRemarks>
+      <remarks>
+        This method cannot always achieve full 107-bit precision, but comes close. The results are more accurate when
+        the power is an integer. With integer powers, the relative error ranges from 0 to 4.39e-31. With non-integer powers,
+        the relative error ranges from about 0 to 2.8e-30, but is usually at least 5e-33.
+      </remarks>
+    </ExpRemarks>
+    <LogRemarks>
+      <remarks>
+        This method cannot always achieve full 107-bit precision, although it is close. The relative error is typically around 1e-32, but
+        ranges from 0 to 6e-31 through most of the range, and is usually at least 5e-33. With values near the extremes of the range (above
+        1e300 or so in magnitude), the relative error may rise to about 5e-27 or more.
+      </remarks>
+    </LogRemarks>
+    <Log10Remarks>
+      <remarks>
+        This method cannot always achieve full 107-bit precision, although it is close. The relative error is typically around 1e-32, but
+        ranges from 0 to 6e-31 through most of the range, and is usually at least 5e-33. With values near the extremes of the range (above
+        1e300 or so in magnitude), the relative error may rise to about 5e-27 or more.
+        <para>
+          This method has a small bias that allows it to produce exact results for powers of 10 from 10^-300 to 10^300, but which
+          causes some values very close to powers of 10 to be treated as though they were powers of 10. This bias is small, however; for
+          integer values, the first incorrect value to produce the wrong result because of the bias is near 10^29, so the relative error
+          introduced by the bias is about 1e-29, and then only for values similarly close to powers of 10.
+        </para>
+      </remarks>
+    </Log10Remarks>
+    <Parse>
+      <exception cref="ArgumentNullException">Thrown if <paramref name="str"/> is null.</exception>
+      <exception cref="FormatException">Thrown if <paramref name="str"/> is not a valid number.</exception>
+    </Parse>
+    <ParseRemarks>
+      <remarks>
+        This method cannot parse strings printed using the "S" format.
+        <note type="caution">
+          This method only guarantees 107 bits of precision on input. As a result, <see cref="FP107"/> values whose effective mantissa is
+          larger than 107 bits may not round-trip exactly, even if converted to string using the "R" (round-trip) mode. ("R" only
+          guarantees that the first 107 bits will round-trip.) If you want to perfect round-tripping with the built-in parser, use the
+          "X" (hexadecimal) mode when converting to string.
+        </note>
+      </remarks>
+    </ParseRemarks>
+    <RootRemarks>
+      <remarks>
+        This method cannot always achieve full 107-bit precision, although it is often close. The relative error is typically around 5e-32, but
+        ranges from 5e-33 to 6e-31 through most of the range. With values near the extremes of the range (above 1e300 or so in magnitude) and
+        atypical roots, the relative error may rise to about 1e-25 or more.
+        It's more accurate when finding lesser roots (e.g. square root or cube root) than greater roots (e.g. 11th root).
+      </remarks>
+    </RootRemarks>
+    <SinCosRemarks>
+      <remarks>
+        This method produces the most accurate results when the value ranges from -<see cref="Pi"/> to <see cref="Pi"/>. Outside of that
+        range, it will still work, but accuracy will slowly degrade as the magnitude increases.
+      </remarks>
+    </SinCosRemarks>
+    <ToString>
+      <remarks>
+        This method supports the standard numeric format strings suitable for use with floating point numbers, which are "C", "E", "F",
+        "G", "N", "P", and "R", including precision specifiers (such as "F6"). In addition, this method supports the "X" format, which
+        is a hexadecimal representation that allows fast, exact conversions to and from string. The method also supports an "S" format
+        that returns the individual components, simplifying the creation of constants in source code. (If one component is returned,
+        it is an exact double-precision value that can be used to initialize a new <see cref="FP107"/> value. If two components are
+        returned, they can be passed to the <see cref="FromComponents"/> method to reconstruct the original value.)
+        Custom format strings are not currently supported.
+        <note type="caution">
+          Although the "R" (round-trip) mode outputs with full precision, the <see cref="FP107.Parse(string)"/> method can only
+          guarantee 107 bits of precision on input, so values that have effective mantissas larger than 107 bits will not round-trip if you
+          use the built-in parser to parse them, even when using the "R" format string. If you want to guarantee perfect round-tripping
+          with the built-in parser, use the "X" (hexadecimal) mode.
+        </note>
+      </remarks>
+    </ToString>
+  </FP107>
 
   <Functions>
     <DifferentiableFunction>
