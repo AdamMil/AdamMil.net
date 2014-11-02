@@ -79,9 +79,29 @@ public static class Utility
     }
   }
 
-  /// <summary>Enlarges the given buffer if it's too small to accommodate its current size plus the new elements. The new array is
+  /// <summary>Enlarges the given array to precisely the given length if it's not already of the given length. The array cannot be shrunk
+  /// by this method, and attempting to do so will cause an exception to be thrown.
+  /// </summary>
+  public static T[] EnlargeArray<T>(T[] array, int newLength)
+  {
+    int currentLength = array == null ? 0 : array.Length;
+    if(newLength <= currentLength)
+    {
+      if(newLength < currentLength) throw new ArgumentOutOfRangeException();
+    }
+    else
+    {
+      T[] newArray = new T[newLength];
+      if(array != null) Array.Copy(array, newArray, currentLength);
+      array = newArray;
+    }
+    return array;
+  }
+
+  /// <summary>Enlarges the given array if it's too small to accommodate its current size plus the new elements. The new array is
   /// returned. It is acceptable if <paramref name="array"/> is null or <paramref name="newElements"/> is negative, indicating that
-  /// elements are being removed from the array.
+  /// elements are being removed from the array. If the array is enlarged, it may be made larger than strictly necessary to hold the
+  /// new elements, in order to accomodate future growth.
   /// </summary>
   public static T[] EnlargeArray<T>(T[] array, int currentSize, int newElements)
   {

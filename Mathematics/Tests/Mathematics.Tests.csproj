@@ -59,6 +59,7 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BigInteger.cs" />
     <Compile Include="FloatingPoint.cs" />
     <Compile Include="LinearAlgebra.cs" />
     <Compile Include="Optimization.cs" />
@@ -74,6 +75,10 @@
     <ProjectReference Include="..\..\TestHelpers\AdamMil.TestHelpers.csproj">
       <Project>{E755006A-EB9E-4A5A-9872-65A2C4737C20}</Project>
       <Name>AdamMil.TestHelpers</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Utilities\AdamMil.Utilities.csproj">
+      <Project>{29134637-6d08-432c-8161-9deee13c955d}</Project>
+      <Name>AdamMil.Utilities</Name>
     </ProjectReference>
     <ProjectReference Include="..\AdamMil.Mathematics.csproj">
       <Project>{BC146E65-29FA-4D05-89E2-CF485EBC86B8}</Project>

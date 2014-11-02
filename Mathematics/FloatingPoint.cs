@@ -1,20 +1,40 @@
-﻿using System;
+﻿/*
+AdamMil.Mathematics is a library that provides some useful mathematics classes
+for the .NET framework.
+
+http://www.adammil.net/
+Copyright (C) 2007-2013 Adam Milazzo
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+*/
+using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Text;
 using AdamMil.IO;
 using AdamMil.Utilities;
+
+// TODO: add tests for compose/decompose
 
 namespace AdamMil.Mathematics
 {
   #region FP107
-  /// <summary>A relatively efficient floating-point type that provides the same range as an IEEE 754 double-precision floating-point value
+  /// <summary>A relatively efficient floating-point type that provides the same range as an IEEE 754 double-precision floating-point type
   /// but with approximately 107 bits of precision instead of 53, which is equivalent to 32 decimal digits instead of 15.
   /// </summary>
   /// <remarks>This data type does not implement a true 107-bit mantissa, but a variable-sized mantissa that in the great majority of cases
   /// is 107 bits or slightly more. In very rare cases, it can provide precision up to 2046 bits, and when the magnitude of the number is
   /// very small (around 1e-300 or less), the effective precision is reduced to less than 107 bits, gradually dropping to the point where
-  /// it's equivalent to double precision (53 bits). When the magnitude is very large (around 1e300 or more), the data type continues can
+  /// it's equivalent to double precision (53 bits). When the magnitude is very large (around 1e300 or more), the data type continues to
   /// represent at least 107 bits of precision, but certain computations can only be performed with double precision.
   /// <note type="caution">Be careful when specifying literal or constant <see cref="FP107"/> values in source code. Simply assigning
   /// double-precision constants to <see cref="FP107"/> values will produce inaccurate results unless the decimal value can be represented
@@ -27,20 +47,22 @@ namespace AdamMil.Mathematics
   /// slowest: <c>FP107.FromComponents(1.1, -8.8817841970012528E-17)</c>, <c>x = FP107.Divide(11, 10)</c>, <c>x = (FP107)1.1m</c>,
   /// <c>x = FP107.Parse("1.1", CultureInfo.InvariantCulture)</c>, or <c>x = FP107.FromDecimalApproximation(1.1)</c>. The first is very
   /// fast. The second is reasonably fast, but for certain values may not provide the perfect approximation due to inaccuracies in the
-  /// division. The last three are quite slow and should not be executed often, and the method that uses a <see cref="decimal"/> literal
-  /// (1.1m in this case) is only suitable if the literal can be represented exactly by a <see cref="decimal"/> value. To discover the
-  /// values needed by the <see cref="FromComponents"/> method, you can construct the approximation with any other method and pass the
-  /// "S" format string to the <see cref="ToString(string)"/> method. (See the <see cref="ToString(string)"/> documentation for more
-  /// details.)
+  /// division (but for certain other values can provide even better than 107-bit precision). The last three are quite slow and should not
+  /// be executed often, and the method that uses a <see cref="decimal"/> literal (1.1m in this case) is only suitable if the literal
+  /// can be represented exactly by a <see cref="decimal"/> value. To discover the values needed by the <see cref="FromComponents"/>
+  /// method, you can construct the approximation with any other method and pass the "S" format string to the <see cref="ToString(string)"/>
+  /// method. (See the <see cref="ToString(string)"/> documentation for more details.)
   /// </para>
   /// <para>
   /// Similar considerations apply when calling <see cref="FP107"/> methods that can take either a double or an <see cref="FP107"/> value.
   /// For instance, <c>FP107.Log(Math.E) != 1</c> because <c>Math.E</c> is not the best 107-bit approximation to e. <c>FP107.E</c> works
   /// better in this case: <c>FP107.Log(FP107.E) == 1</c>.
   /// </para>
+  /// <para>
   /// If a decimal value can be represented exactly as a double-precision floating-point number (e.g. 1.25), then it is safe to assign it
   /// directly to an <see cref="FP107"/> value or to pass it as a value to any <see cref="FP107"/> method, e.g. <c>FP107 x = 1.25;</c>
   /// or <c>FP107.Log(1.25)</c>.
+  /// </para>
   /// </note>
   /// </remarks>
   // The basic idea is that the value is represented as the sum of two floating-point values. Since the two values can have different
@@ -51,7 +73,7 @@ namespace AdamMil.Mathematics
   // represented as well: 12e0 + 34e-6, for an effective eight-digit mantissa. With two IEEE754 doubles, we get a typical precision of 107
   // bits, 53 from each value plus an extra bit from the smaller value's sign bit.
   //
-  // When FP107 numbers gets down to near minimum exponent, however, it can no longer maintain sufficient separation between the two
+  // When a FP107 number gets down to near the minimum exponent, however, it can no longer maintain sufficient separation between the two
   // values' exponents (because that would require the smaller value's exponent to be below the minimum), so precision is gradually reduced
   // to the precision of a double. When FP107 numbers get near the extremes of the range, operations to compute the new component values
   // begin to overflow, in which case FP107 will fall back to using only a single component, again reducing the precision to that of
@@ -89,16 +111,17 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Initializes a new <see cref="FP107"/> value from a <see cref="decimal"/> value.</summary>
+    /// <remarks>The conversion is approximate.</remarks>
     public FP107(decimal value)
     {
       // a Decimal is a base-10 floating-point value. extract the base-10 mantissa and exponent
       int[] bits = Decimal.GetBits(value);
-      BigInt mantissa = new BigInt(new uint[] { (uint)bits[0], (uint)bits[1], (uint)bits[2] });
-      int negExponent = ((bits[3]>>16) & 0xFF); // the negation of the actual exponent
+      Integer mantissa = new Integer(new uint[] { (uint)bits[0], (uint)bits[1], (uint)bits[2] }, false, false);
+      int negExponent = ((bits[3]>>16) & 0xFF); // Decimal stores the negation of the actual exponent
       bool negative = (bits[3]>>31) != 0;
 
       // compute an approximation and refine it
-      FP107 floatValue = new FP107(mantissa);
+      FP107 floatValue = (FP107)mantissa;
       if(negExponent != 0) floatValue /= FP107.Pow(10, negExponent);
       this = RefineParsedEstimate(floatValue, -negExponent, mantissa);
       if(negative) this = -this;
@@ -165,6 +188,13 @@ namespace AdamMil.Mathematics
       }
     }
 
+    /// <summary>Initializes a new <see cref="FP107"/> value from an arbitrary-precision integer.</summary>
+    /// <remarks>The conversion is approximate.</remarks>
+    public FP107(Integer value)
+    {
+      this = (FP107)value;
+    }
+
     /// <summary>Initializes a new <see cref="FP107"/> value from a <see cref="BinaryReader"/>. The value is expected to have been saved
     /// with the <see cref="Save"/> method.
     /// </summary>
@@ -195,13 +225,6 @@ namespace AdamMil.Mathematics
     {
       this.hi = hi;
       this.lo = checkInfinities && double.IsInfinity(hi) ? 0 : lo;
-    }
-
-    FP107(BigInt value)
-    {
-      hi = value.array[value.array.Length-1];
-      lo = 0;
-      for(int i=value.array.Length-2; i >= 0; i--) this = this*4294967296.0 + value.array[i];
     }
 
     /// <summary>Determines whether the value represents positive or negative infinity.</summary>
@@ -339,6 +362,50 @@ namespace AdamMil.Mathematics
       return Cosh(this);
     }
 
+    /// <summary>Decomposes an <see cref="FP107"/> value into an exponent and mantissa, where the magnitude of the value equals
+    /// <paramref name="mantissa"/> * 2^<paramref name="exponent"/>. If the value is <see cref="PositiveInfinity"/>,
+    /// <see cref="NegativeInfinity"/>, or <see cref="NaN"/>, the method returns false.
+    /// </summary>
+    public bool Decompose(out bool negative, out int exponent, out Integer mantissa)
+    {
+      // decompose the high component, adjust the exponent if it's denormalized, add the hidden bit, and see if it matches special patterns
+      ulong rawMantissa;
+      IEEE754.RawDecompose(hi, out negative, out exponent, out rawMantissa);
+      if(exponent == 0) exponent++; // if the number is denormalized (or zero) the actual exponent is one greater
+      else if(exponent != (1<<IEEE754.DoubleExponentBits)-1) rawMantissa |= 1UL << IEEE754.DoubleMantissaBits; // add the hidden bit if normal
+      else
+      {
+        mantissa = default(Integer);
+        return false;
+      }
+
+      // the number isn't infinity or NaN, so decompose the low component and construct the full 107-bit mantissa.
+      mantissa = new Integer(rawMantissa);
+      if(!mantissa.IsZero)
+      {
+        // decompose the low component
+        bool loNegative;
+        int loExponent;
+        IEEE754.RawDecompose(lo, out loNegative, out loExponent, out rawMantissa);
+        if(loExponent == 0) loExponent++;
+        else if(loExponent != 0) rawMantissa |= 1UL << IEEE754.DoubleMantissaBits; // add the hidden one bit if the number is normalized
+
+        // combine the low mantissa with the high one
+        int bitLength = mantissa.BitLength; // keep track of the bit length separately since we use it to calculate the exponent below,
+        if(rawMantissa != 0)                // and we don't want bit length changes due to the addition or subtraction to affect the
+        {                                   // calculation of the exponent
+          mantissa <<= exponent - loExponent;
+          bitLength += exponent - loExponent;
+          if(loNegative == negative) mantissa += rawMantissa; // add the low mantissa if the signs are equal
+          else mantissa -= rawMantissa; // otherwise subtract it
+        }
+
+        exponent -= Math.Max(IEEE754.DoubleMantissaBits+1, bitLength) + (IEEE754.DoubleBias-1);
+      }
+
+      return true;
+    }
+
     /// <summary>Divides this value by the given divisor, returns the quotient, and stores the remainder in <paramref name="remainder"/>.</summary>
     public FP107 DivRem(FP107 divisor, out FP107 remainder)
     {
@@ -403,7 +470,7 @@ namespace AdamMil.Mathematics
     /// <summary>Computes a hash code for the value.</summary>
     public override int GetHashCode()
     {
-      return hi.GetHashCode() ^ (lo.GetHashCode()<<1); // avoid zeros if both components are NaN, infinity, etc.
+      return hi.GetHashCode() ^ lo.GetHashCode();
     }
 
     /// <summary>Computes the natural logarithm of this value and returns it.</summary>
@@ -581,10 +648,10 @@ namespace AdamMil.Mathematics
       NumberFormatInfo nums = NumberFormatInfo.GetInstance(provider);
 
       // decompose the value into a sign, exponent, and mantissa
-      BigInt mantissa;
-      int exponent, mantissaSize;
+      Integer mantissa;
+      int exponent;
       bool negative;
-      if(!Decompose(out negative, out exponent, out mantissa, out mantissaSize))
+      if(!Decompose(out negative, out exponent, out mantissa))
       {
         if(IsNaN) return nums.NaNSymbol;
         else if(IsPositiveInfinity) return nums.PositiveInfinitySymbol;
@@ -593,17 +660,17 @@ namespace AdamMil.Mathematics
 
       // we want to increase the size of the mantissa to ensure it's at least 107 bits because the output precision depends on the mantissa
       // size, and if it's output with lower precision than the parser will use to read it back, it may not be read back accurately.
-      if(mantissaSize < 107 && mantissaSize != 0)
+      if(mantissa.BitLength < 107 && !mantissa.IsZero)
       {
-        mantissa <<= 107 - mantissaSize; // the low component contributes a sign bit as well
-        exponent -= 107 - mantissaSize;
-        mantissaSize = 107;
+        exponent  -= 107 - mantissa.BitLength;
+        mantissa <<= 107 - mantissa.BitLength; // the low component contributes a sign bit as well
       }
 
       // now convert the exponent and mantissa into decimal digits and then format the digits into a string
       int decimalPlace;
-      byte[] digits = GetSignificantDigits(hi, exponent, -mantissaSize - (IEEE754.DoubleBias-2), mantissa, mantissaSize, out decimalPlace);
-      return FormatNumber(digits, decimalPlace, negative, nums, formatType, desiredPrecision, capitalize);
+      byte[] digits = GetSignificantDigits(hi, exponent, -mantissa.BitLength - (IEEE754.DoubleBias-2), mantissa, out decimalPlace);
+      // 32 is the typical number of full decimal digits of precision provided by FP107 (sometimes more or fewer)
+      return NumberFormat.FormatNumber(digits, decimalPlace, negative, nums, formatType, desiredPrecision, 32, capitalize);
     }
 
     /// <summary>Returns the value, truncated towards zero.</summary>
@@ -1518,6 +1585,12 @@ namespace AdamMil.Mathematics
       intValue += (ulong)(long)(value.lo + remainder);
       return intValue;
     }
+
+    /// <summary>Provides an explicit conversion from an <see cref="FP107"/> value to an arbitrary precision <see cref="Integer"/>.</summary>
+    public static explicit operator Integer(FP107 value)
+    {
+      return new Integer(value);
+    }
     #endregion
 
     /// <summary>Returns the magnitude (i.e. the absolute value) of a given value.</summary>
@@ -1667,6 +1740,16 @@ namespace AdamMil.Mathematics
     {
       if(value.Abs() >= 1d) return NaN;
       else return Log((1d + value) / (1d - value)).ScaleByPowerOfTwo(0.5);
+    }
+
+    /// <summary>Composes an <see cref="FP107"/> value from an exponent and mantissa, where the magnitude of the value equals
+    /// <paramref name="mantissa"/> * 2^<paramref name="exponent"/>.
+    /// </summary>
+    public static FP107 Compose(bool negative, int exponent, Integer mantissa)
+    {
+      FP107 value = Compose(exponent, mantissa, true);
+      if(negative) value = -value;
+      return value;
     }
 
     /// <summary>Returns the cosine of the given value.</summary>
@@ -1880,13 +1963,12 @@ namespace AdamMil.Mathematics
 
       // get the decimal digits for a 53-bit approximation
       int decimalPlace;
-      byte[] digits = GetSignificantDigits(value, exponent, 1-IEEE754.DoubleBiasToInt, new BigInt(mantissa),
-                                           IEEE754.DoubleMantissaBits+1, out decimalPlace);
+      byte[] digits = GetSignificantDigits(value, exponent, 1-IEEE754.DoubleBiasToInt, new Integer(mantissa), out decimalPlace);
 
       // parse the digits into a decimal value and exponent, and compute an approximate value
-      BigInt b10mantissa = ParseDigitsToBigInt(digits, digits.Length);
+      Integer b10mantissa = Integer.ParseDigits(digits, digits.Length);
       exponent = decimalPlace - digits.Length;
-      FP107 approxValue = new FP107(b10mantissa);
+      FP107 approxValue = (FP107)b10mantissa;
       if(exponent > 0) approxValue *= Pow(10, exponent);
       else approxValue /= Pow(10, -exponent);
 
@@ -2006,7 +2088,7 @@ namespace AdamMil.Mathematics
     /// <include file="documentation.xml" path="/Math/FP107/ParseRemarks/node()"/>
     public static FP107 Parse(string str)
     {
-      return Parse(str, null);
+      return Parse(str, NumberStyles.Any, null);
     }
 
     /// <summary>Parses a high-precision floating-point value formatted using the given provider.</summary>
@@ -2014,11 +2096,7 @@ namespace AdamMil.Mathematics
     /// <include file="documentation.xml" path="/Math/FP107/ParseRemarks/node()"/>
     public static FP107 Parse(string str, IFormatProvider provider)
     {
-      if(str == null) throw new ArgumentNullException();
-      FP107 value;
-      Exception ex;
-      if(!TryParse(str, NumberStyles.Any, provider, out value, out ex)) throw ex;
-      return value;
+      return Parse(str, NumberStyles.Any, provider);
     }
 
     /// <summary>Parses a high-precision floating-point value formatted using the given provider.</summary>
@@ -2130,7 +2208,9 @@ namespace AdamMil.Mathematics
     public static FP107 Random(Random.RandomNumberGenerator rng)
     {
       if(rng == null) throw new ArgumentNullException();
-      return new FP107(rng.NextDouble(), rng.NextDouble()*1.11022302462515654e-16); // scale the second value by 2^-53
+      double hi = rng.NextDouble(), lo = rng.NextDouble()*(1.0/(1L<<54)); // scale the second value by 2^-54
+      if(rng.NextBoolean()) lo = -lo;
+      return new FP107(hi, lo); 
     }
 
     /// <summary>Returns a root of the value (e.g. square root, cube root, etc).</summary>
@@ -2367,7 +2447,7 @@ namespace AdamMil.Mathematics
     /// <include file="documentation.xml" path="/Math/FP107/ParseRemarks/node()"/>
     public static bool TryParse(string str, out FP107 value)
     {
-      return TryParse(str, null, out value);
+      return TryParse(str, NumberStyles.Any, null, out value);
     }
 
     /// <summary>Attempts to parse a high-precision floating-point value formatted according to the given provider and returns true if the
@@ -2429,452 +2509,6 @@ namespace AdamMil.Mathematics
 
     const double Precision = 4.9303806576313237838E-32; // Precision = 2^-104 (similar to IEEE754.DoublePrecision but not quite the same)
 
-    #region BigInt
-    // a "simple" arbitrary precision integer class used for rendering floating-point values
-    struct BigInt // NOTE: this doesn't handle default(BigInt) values properly, but we don't use them
-    {
-      public BigInt(uint value)
-      {
-        array = new uint[1] { value };
-      }
-
-      public BigInt(ulong value)
-      {
-        array = value <= uint.MaxValue ? new uint[1] { (uint)value } : new uint[2] { (uint)value, (uint)(value>>32) };
-      }
-
-      public BigInt(uint[] array)
-      {
-        this.array = array;
-      }
-
-      BigInt(uint[] array, bool trim)
-      {
-        if(trim)
-        {
-          int realLength = array.Length;
-          while(realLength > 1 && array[realLength-1] == 0) realLength--;
-          array = array.Trim(realLength);
-        }
-        this.array = array;
-      }
-
-      public static implicit operator BigInt(uint v)
-      {
-        return new BigInt(v);
-      }
-
-      public static implicit operator BigInt(ulong v)
-      {
-        return new BigInt(v);
-      }
-
-      public bool IsEven
-      {
-        get { return (array[0] & 1) == 0; }
-      }
-
-      public override bool Equals(object obj)
-      {
-        return obj is BigInt && Compare(this, (BigInt)obj) == 0;
-      }
-
-      public bool GetBit(int index)
-      {
-        return (array[index>>5] & (1u<<(index&31))) != 0;
-      }
-
-      public int GetBitLength()
-      {
-        return array.Length*32 - BinaryUtility.CountLeadingZeros(array[array.Length-1]);
-      }
-
-      public override int GetHashCode()
-      {
-        int hash = 0;
-        for(int i=0; i<array.Length; i++) hash ^= (int)array[i];
-        return hash;
-      }
-
-      public override string ToString() { return ToString(10); }
-
-      public string ToString(int radix)
-      {
-        const string CharSet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        if(radix<2 || radix>36) throw new ArgumentOutOfRangeException("radix", radix, "radix must be from 2 to 36");
-        System.Text.StringBuilder sb = new System.Text.StringBuilder();
-        uint[] data = (uint[])array.Clone();
-        int len = array.Length-1;
-        while(true)
-        {
-          ulong rem = 0;
-          for(int i=len; i >= 0; i--)
-          {
-            rem = (rem<<32) | data[i];
-            data[i] = (uint)(rem/(uint)radix);
-            rem %= (uint)radix;
-          }
-          sb.Append(CharSet[(int)rem]);
-          while(data[len] == 0)
-          {
-            if(len-- == 0) goto done;
-          }
-        }
-        done:
-        return sb.ToString().Reverse();
-      }
-
-      public uint ToUInt32()
-      {
-        return array[0];
-      }
-
-      public ulong ToUInt64()
-      {
-        ulong value = array[0];
-        if(array.Length > 1) value |= (ulong)array[1] << 32;
-        return value;
-      }
-
-      public static int Compare(BigInt a, BigInt b)
-      {
-        int cmp = a.array.Length.CompareTo(b.array.Length);
-        return cmp != 0 ? cmp : Compare(a.array, b.array);
-      }
-
-      public static BigInt Pow2(uint exponent)
-      {
-        uint whole = exponent/32, part = exponent%32;
-        uint[] array = new uint[whole+1];
-        array[whole] = 1u<<(int)part;
-        return new BigInt(array);
-      }
-
-      public static BigInt Pow10(uint exponent)
-      {
-        if(exponent <= 19) return new BigInt((ulong)Math.Pow(10, exponent));
-
-        BigInt factor = 10, result = One;
-        while(exponent != 0)
-        {
-          if((exponent&1) != 0) result *= factor;
-          factor *= factor;
-          exponent >>= 1;
-        }
-        return result;
-      }
-
-      public static bool operator==(BigInt a, BigInt b) { return Compare(a, b) == 0; }
-      public static bool operator!=(BigInt a, BigInt b) { return Compare(a, b) != 0; }
-      public static bool operator<(BigInt a, BigInt b) { return Compare(a, b) < 0; }
-      public static bool operator<=(BigInt a, BigInt b) { return Compare(a, b) <= 0; }
-      public static bool operator>(BigInt a, BigInt b) { return Compare(a, b) > 0; }
-      public static bool operator>=(BigInt a, BigInt b) { return Compare(a, b) >= 0; }
-
-      public static BigInt operator<<(BigInt value, int shift)
-      {
-        if(shift < 0) return value >> -shift; // NOTE: I suppose this could cause a problem if shift == int.MinValue, but we don't do that
-        else if(shift == 0 || value == Zero) return value;
-
-        int whole = shift >> 5, part = shift & 31;
-        uint[] result;
-        if(part == 0)
-        {
-          result = new uint[value.array.Length + whole];
-          for(int i=whole; i<result.Length; i++) result[i] = value.array[i-whole];
-        }
-        else
-        {
-          int comp = 32-part, newLength = value.array.Length + whole;
-          // if some one bits would be carried out of the left side, add another element to hold them
-          if((value.array[value.array.Length-1] >> comp) != 0) newLength++;
-          result = new uint[newLength];
-
-          uint carry = 0;
-          for(int i=0; i<value.array.Length; i++)
-          {
-            uint v = value.array[i];
-            result[i+whole] = (v << part) | carry;
-            carry = v >> comp;
-          }
-          if(carry != 0) result[result.Length-1] = carry;
-        }
-        return new BigInt(result);
-      }
-
-      public static BigInt operator>>(BigInt value, int shift)
-      {
-        if(shift < 0) return value << -shift; // NOTE: I suppose this could cause a problem if shift == int.MinValue, but we don't do that
-        else if(shift == 0) return value;
-
-        int whole = shift >> 5, part = shift & 31;
-        uint[] result;
-        if(part == 0)
-        {
-          result = new uint[value.array.Length - whole];
-          for(int i=0; i<result.Length; i++) result[i] = value.array[i+whole];
-        }
-        else
-        {
-          int comp = 32-part, newLength = value.array.Length - whole;
-          uint carry = 0;
-
-          // if all the one bits would be shifted out of the high word, subtract one from the length (but ensure the length is positive)
-          if(newLength > 1 && (value.array[value.array.Length-1] >> part) == 0)
-          {
-            newLength--;
-            carry = value.array[newLength+whole] << comp;
-          }
-          result = new uint[newLength];
-
-          for(int i=result.Length-1; i >= 0; i--)
-          {
-            uint v = value.array[i+whole];
-            result[i] = (v >> part) | carry;
-            carry = v << comp;
-          }
-        }
-        return new BigInt(result);
-      }
-
-      public static BigInt operator+(BigInt a, uint b)
-      {
-        int newLength = a.array.Length;
-        if(newLength == 1 && a.array[0] + b < b) newLength++;
-
-        uint[] result = new uint[newLength];
-        Array.Copy(a.array, result, a.array.Length);
-        if((result[0] += b) < b)
-        {
-          for(int i=1; i<result.Length; i++)
-          {
-            if(++result[i] != 0) break;
-          }
-        }
-        return new BigInt(result);
-      }
-
-      public static BigInt operator+(BigInt a, BigInt b)
-      {
-        uint[] aArray = a.array, bArray = b.array;
-        if(aArray.Length < bArray.Length) Utility.Swap(ref aArray, ref bArray);
-
-        // estimate the length of the result array. the length can only be greater if the inputs are the same length and adding the
-        // high word with carry overflows. this is just an estimate because we don't know whether there will actually be carry
-        int newLength = aArray.Length;
-        if(newLength == bArray.Length && aArray[newLength-1]+bArray[newLength-1]+1 < aArray[newLength-1]) newLength++;
-
-        uint[] result = new uint[newLength];
-        uint carry = 0;
-        int i;
-        for(i=0; i<bArray.Length; i++)
-        {
-          uint sum = aArray[i] + bArray[i] + carry;
-          result[i] = sum;
-          if(carry == 0)
-          {
-            if(sum < bArray[i]) carry = 1;
-          }
-          else if(sum > bArray[i]) carry = 0;
-        }
-        if(carry != 0)
-        {
-          while(i < aArray.Length)
-          {
-            uint value = aArray[i] + 1;
-            result[i] = value;
-            i++;
-            if(value != 0) { carry = 0; break; }
-          }
-        }
-        if(carry != 0)
-        {
-          result[aArray.Length] = carry;
-        }
-        else
-        {
-          for(; i<aArray.Length; i++) result[i] = aArray[i]; // copy the rest
-          result = result.Trim(aArray.Length);
-        }
-        return new BigInt(result);
-      }
-
-      public static BigInt operator-(BigInt a, ulong b) // this method assumes a >= b
-      {
-        uint[] result = new uint[a.array.Length];
-        a.array.CopyTo(result, 0);
-
-        uint av = result[0], bv = (uint)b;
-        result[0] = av - bv;
-
-        if(result.Length != 1)
-        {
-          bool borrow = av < bv;
-          av = result[1];
-          bv = (uint)(b>>32);
-          if(borrow && av-- != 0 && bv <= av) borrow = false;
-          result[1] = av - bv;
-
-          if(borrow)
-          {
-            for(int i=2; i<result.Length; i++)
-            {
-              if(result[i]-- != 0) break;
-            }
-          }
-        }
-
-        return new BigInt(result, true);
-      }
-
-      public static BigInt operator-(BigInt a, BigInt b) // this method assumes a >= b
-      {
-        uint[] result = new uint[a.array.Length];
-        a.array.CopyTo(result, 0);
-
-        int i;
-        bool borrow = false;
-        for(i=0; i<b.array.Length; i++)
-        {
-          uint av = result[i], bv = b.array[i];
-          if(borrow)
-          {
-            if(av-- != 0 && bv <= av) borrow = false;
-          }
-          else
-          {
-            if(bv > av) borrow = true;
-          }
-
-          result[i] = av - bv;
-        }
-
-        if(borrow)
-        {
-          do
-          {
-            if(result[i]-- != 0) break;
-          } while(++i < result.Length);
-        }
-
-        return new BigInt(result, true);
-      }
-
-      public static BigInt operator*(BigInt a, uint b)
-      {
-        uint[] result = new uint[a.array.Length+1];
-        ulong carry = 0;
-        int i;
-        for(i=0; i<a.array.Length; i++)
-        {
-          carry += (ulong)a.array[i] * (ulong)b;
-          result[i] = (uint)carry;
-          carry >>= 32;
-        }
-        if(carry == 0) result = result.Trim(a.array.Length);
-        else result[i] = (uint)carry;
-        return new BigInt(result);
-      }
-
-      public static BigInt operator*(BigInt a, BigInt b)
-      {
-        uint[] result = new uint[a.array.Length + b.array.Length];
-        for(int ai=0, rb=0; ai<a.array.Length; rb++, ai++)
-        {
-          uint av = a.array[ai];
-          if(av == 0) continue;
-          ulong carry = 0;
-          int ri = rb;
-          for(int bi=0; bi<b.array.Length; ri++, bi++)
-          {
-            carry += (ulong)av * (ulong)b.array[bi] + result[ri];
-            result[ri] = (uint)carry;
-            carry >>= 32;
-          }
-          if(carry != 0) result[ri] = (uint)carry;
-        }
-        return new BigInt(result, true);
-      }
-
-      public static BigInt DivRem(BigInt a, BigInt b, out BigInt remainder)
-      {
-        int cmp = Compare(a, b);
-        if(cmp < 0)
-        {
-          remainder = a;
-          return Zero;
-        }
-        else if(cmp == 0) // b != 0 so we don't have 0/0 == 1
-        {
-          remainder = Zero;
-          return One;
-        }
-
-        // simple binary long division
-        uint[] quot = new uint[a.array.Length], rem = new uint[b.array.Length+1], bArray = new uint[rem.Length];
-        int bbits = b.GetBitLength();
-        Array.Copy(b.array, bArray, b.array.Length);
-        for(int bit = a.GetBitLength()-1, rembits = 0; bit >= 0; bit--)
-        {
-          // left-shift the remainder by one and copy the numerator bit to the low bit of the remainder
-          rembits++;
-          for(uint carry=(a.array[bit>>5] >> (bit&31)) & 1, e=(uint)rembits>>5, i=0; i<rem.Length; i++)
-          {
-            uint v = rem[i];
-            rem[i] = (v<<1) | carry;
-            carry  = v>>31;
-            if(i == e) break;
-          }
-
-          if(rembits >= bbits && Compare(rem, bArray) >= 0) // if remainder >= b...
-          {
-            bool borrow = false;
-            for(uint i=0; i<rem.Length; i++) // remainder -= b
-            {
-              uint av = rem[i], bv = bArray[i];
-              if(borrow)
-              {
-                if(av-- != 0 && bv <= av) borrow = false;
-              }
-              else
-              {
-                if(bv > av) borrow = true;
-              }
-
-              rem[i] = av - bv;
-            }
-
-            rembits = 0;
-            for(int i=rem.Length-1; i >= 0; i--)
-            {
-              if(rem[i] != 0) { rembits = (i+1)*32 - BinaryUtility.CountLeadingZeros(rem[i]); break; }
-            }
-
-            quot[bit>>5] |= 1u << (bit&31); // quotient[bit] = 1
-          }
-        }
-
-        remainder = new BigInt(rem, true);
-        return new BigInt(quot, true);
-      }
-
-      public static readonly BigInt Zero = 0, One = 1;
-
-      internal uint[] array;
-
-      static int Compare(uint[] a, uint[] b) // assumes a.Length == b.Length
-      {
-        int cmp, i = a.Length-1;
-        do
-        {
-          uint av = a[i], bv = b[i];
-          cmp = av < bv ? -1 : av > bv ? 1 : 0;
-        } while(cmp == 0 && --i >= 0);
-        return cmp;
-      }
-    }
-    #endregion
-
     #region IComparable Members
     int IComparable.CompareTo(object obj)
     {
@@ -2916,30 +2550,38 @@ namespace AdamMil.Mathematics
     decimal IConvertible.ToDecimal(IFormatProvider provider)
     {
       // decompose the value into a sign, exponent, and mantissa
-      BigInt mantissa;
-      int exponent, mantissaSize;
+      Integer mantissa;
+      int exponent;
       bool negative;
-      if(!Decompose(out negative, out exponent, out mantissa, out mantissaSize))
+      if(!Decompose(out negative, out exponent, out mantissa))
       {
         throw new InvalidCastException("The FP107 value is NaN or Infinity.");
       }
 
       // now convert the exponent and mantissa into decimal digits
       int decimalPlace, start = 0;
-      byte[] digits = GetSignificantDigits(hi, exponent, -mantissaSize - (IEEE754.DoubleBias-2), mantissa, mantissaSize, out decimalPlace);
+      byte[] digits = GetSignificantDigits(hi, exponent, -mantissa.BitLength - (IEEE754.DoubleBias-2), mantissa, out decimalPlace);
       if(decimalPlace <= -29) return 0m; // if there are at least 29 leading fractional zeros, it must round to zero
       else if(decimalPlace > 28) throw new OverflowException(); // if it's at least 10^29 in magnitude, there's definitely an overflow
 
       // round to at most 28 digits by pretending that all digits are in the fraction (start == 0)
-      int digitCount = RoundDigits(digits, ref start, false, ref exponent, 28);
+      int digitCount = NumberFormat.RoundDigits(digits, ref start, false, ref exponent, 28);
       decimalPlace += start; // take into account any shifting in the decimal place done by RoundDigits
-      mantissa = ParseDigitsToBigInt(digits, digitCount);
-      if(decimalPlace > 28 || mantissa.GetBitLength() > 96) throw new OverflowException();
+      mantissa = Integer.ParseDigits(digits, digitCount);
+      if(decimalPlace > 28 || mantissa.BitLength > 96) throw new OverflowException();
 
-      return new decimal(new int[]
+      int ilo=0, imid=0, ihi=0;
+      if(!mantissa.IsZero)
       {
-        (int)mantissa.array[0], (int)mantissa.array[1], (int)mantissa.array[2], ((28-decimalPlace)<<16) | (negative ? int.MinValue : 0)
-      });
+        uint[] bits = mantissa.GetBits();
+        ilo = (int)bits[0];
+        if(mantissa.BitLength > 32)
+        {
+          imid = (int)bits[1];
+          if(mantissa.BitLength > 64) ihi = (int)bits[2];
+        }
+      }
+      return new decimal(ilo, imid, ihi, negative, (byte)(28-decimalPlace));
     }
 
     double IConvertible.ToDouble(IFormatProvider provider)
@@ -2974,7 +2616,8 @@ namespace AdamMil.Mathematics
 
     object IConvertible.ToType(Type conversionType, IFormatProvider provider)
     {
-      return MathHelpers.DefaultConvertToType(this, conversionType, provider);
+      if(conversionType == typeof(Integer)) return new Integer(this);
+      else return MathHelpers.DefaultConvertToType(this, conversionType, provider);
     }
 
     ushort IConvertible.ToUInt16(IFormatProvider provider)
@@ -3011,48 +2654,6 @@ namespace AdamMil.Mathematics
       return sum;
     }
 
-    bool Decompose(out bool negative, out int exponent, out BigInt mantissa, out int mantissaSize)
-    {
-      // decompose the high component, adjust the exponent if it's denormalized, add the hidden bit, and see if it matches special patterns
-      ulong rawMantissa;
-      IEEE754.RawDecompose(hi, out negative, out exponent, out rawMantissa);
-      if(exponent == 0) exponent++; // if the number is denormalized (or zero) the actual exponent is one greater
-      else if(exponent != (1<<IEEE754.DoubleExponentBits)-1) rawMantissa |= 1UL << IEEE754.DoubleMantissaBits; // add the hidden bit if normal
-      else
-      {
-        mantissa = default(BigInt);
-        mantissaSize = 0;
-        return false;
-      }
-
-      // the number isn't infinity or NaN, so decompose the low component and construct the full 107-bit mantissa.
-      mantissa = new BigInt(rawMantissa); // shift the high mantissa into position
-      mantissaSize = 64 - BinaryUtility.CountLeadingZeros(rawMantissa);
-      if(mantissaSize != 0)
-      {
-        // decompose the low component
-        bool loNegative;
-        int loExponent;
-        IEEE754.RawDecompose(lo, out loNegative, out loExponent, out rawMantissa);
-        if(loExponent == 0) loExponent++;
-        else if(loExponent != 0) rawMantissa |= 1UL << IEEE754.DoubleMantissaBits; // add the hidden one bit if the number is normalized
-
-        // combine the low mantissa with the high one
-        if(rawMantissa != 0)
-        {
-          int shift = exponent - loExponent;
-          mantissa <<= shift;
-          mantissaSize += shift;
-          if(loNegative == negative) mantissa += rawMantissa; // add the low mantissa if the signs are equal
-          else mantissa -= rawMantissa; // otherwise subtract it
-        }
-
-        exponent -= Math.Max(IEEE754.DoubleMantissaBits+1, mantissaSize) + (IEEE754.DoubleBias-1);
-      }
-
-      return true;
-    }
-
     /// <summary>Returns this <see cref="FP107"/> value with each component scaled directly by the given factor. This is most useful to
     /// quickly scale by powers of two.
     /// </summary>
@@ -3073,33 +2674,8 @@ namespace AdamMil.Mathematics
       return sum;
     }
 
-    /// <summary>Computes the rough length of the number if it's rendered in decimal format to the given precision.</summary>
-    static int ComputeDecimalLength(byte[] digits, int decimalPlace, char formatType, int desiredPrecision, NumberFormatInfo nums)
-    {
-      int wholeDigits = Math.Max(1, decimalPlace), fractionDigits = digits.Length - decimalPlace;
-      if(desiredPrecision != -1) fractionDigits = Math.Min(desiredPrecision, fractionDigits);
-
-      int length = wholeDigits;
-      if(fractionDigits > 0)
-      {
-        string decimalSymbol = formatType == 'C' ? nums.CurrencyDecimalSeparator :
-                               formatType == 'P' ? nums.PercentDecimalSeparator  : nums.NumberDecimalSeparator;
-        length += fractionDigits + decimalSymbol.Length;
-      }
-      return length;
-    }
-
-    /// <summary>Computes the rough length of the number if it's rendered in exponential format to the given precision.</summary>
-    static int ComputeExponentialLength(byte[] digits, int decimalPlace, char formatType, int desiredPrecision, NumberFormatInfo nums)
-    {
-      int significandLength =
-        ComputeDecimalLength(digits, 1, formatType, desiredPrecision == -1 ? digits.Length-1 : desiredPrecision, nums);
-      int absExponent = Math.Abs(decimalPlace - 1);
-      return significandLength + 2 + absExponent.ToStringInvariant().Length;
-    }
-
     /// <summary>Given a base-10 number represented as an exponent and mantissa, returns the closest 107-bit binary floating-point value.</summary>
-    static FP107 FindNearestFloat(int exponent, BigInt mantissa)
+    static FP107 FindNearestFloat(int exponent, Integer mantissa)
     {
       // this is AlgorithmM from "How to Read Floating Point Numbers Accurately" (Clinger, 1990), converted to an iterative form, and
       // limited by min and max exponents
@@ -3107,114 +2683,48 @@ namespace AdamMil.Mathematics
       const int MinExponent = 1-IEEE754.DoubleBias-MantissaSize, MaxExponent = (1<<IEEE754.DoubleExponentBits)-2-IEEE754.DoubleBiasToInt;
       // the value is represented by the rational n/d, which we rescale until n/d is within the range for a valid IEEE floating-point
       // mantissa
-      BigInt n, d, nmax = BigInt.Pow2(MantissaSize), hnmax = BigInt.Pow2(MantissaSize-1);
+      Integer n, d, nmax = Integer.Pow(2, MantissaSize), hnmax = Integer.Pow(2, MantissaSize-1);
       if(exponent < 0)
       {
-        n = mantissa;
-        d = BigInt.Pow10((uint)-exponent);
+        n = mantissa.Clone();
+        d = Integer.Pow(10, -exponent);
       }
       else
       {
-        n = mantissa * BigInt.Pow10((uint)exponent);
-        d = BigInt.One;
+        n = mantissa * Integer.Pow(10, exponent);
+        d = Integer.One;
+        if(exponent == 0) n = n.Clone(); // if the exponent was 0, then n*10^0 may share storage with mantissa
       }
 
       int b2exponent = 0;
       while(true)
       {
-        BigInt r, b2mantissa = BigInt.DivRem(n, d, out r);
+        Integer r, b2mantissa = Integer.DivRem(n, d, out r);
         if(b2mantissa < nmax && (b2exponent == MinExponent || b2mantissa >= hnmax)) // if the base-2 mantissa is in the valid range...
         {
-          BigInt half = d - r; // round it to even
+          Integer half = d - r; // round it to even
           if(r > half || !b2mantissa.IsEven && r == half) GetSuccessor(hnmax, nmax, ref b2exponent, ref b2mantissa);
-          return MakeFloat(b2exponent, b2mantissa); // and create an FP107 from it
+          return Compose(b2exponent, b2mantissa, false); // and create an FP107 from it
         }
         else if(b2mantissa < hnmax) // otherwise, if the base-2 mantissa is too small (i.e. it's not normalized)...
         {
-          n <<= 1; // double n/d (which roughly doubles the mantissa) and decrement the base-2 exponent to keep the value the same
+          n.UnsafeLeftShift(1); // double n/d (roughly doubling the mantissa) and decrement the base-2 exponent to keep the value the same
           if(--b2exponent < MinExponent) return FP107.Zero; // if the exponent went out of bounds, the value is too small to be represented
         }
         else // otherwise, if the base-2 mantissa is too large...
         {
-          d <<= 1; // halve n/d (which roughly halves the mantissa) and increment the base-2 exponent to keep the value the same
+          d.UnsafeLeftShift(1); // halve n/d (roughly halving the mantissa) and increment the base-2 exponent to keep the value the same
           if(++b2exponent > MaxExponent) return FP107.PositiveInfinity; // if the exponent went out of bounds, the value is too large
         }
       }
     }
 
-    static string FormatNumber(byte[] digits, int decimalPlace, bool isNegative,
-                               NumberFormatInfo nums, char formatType, int desiredPrecision, bool capitalize)
-    {
-      const int FP107Precision = 32; // the typical number of full decimal digits of precision provided by FP107 (sometimes more or fewer)
-      bool exponentialFormat = false, groupDigits = false;
-
-      // set 'exponentialFormat' and 'groupDigits' based on the formatting options
-      switch(formatType)
-      {
-        case 'C': // currency
-          groupDigits = true;
-          if(desiredPrecision == -1) desiredPrecision = nums.CurrencyDecimalDigits;
-          break;
-        case 'E': // exponential notation with the typical precision by default
-          exponentialFormat = true;
-          if(desiredPrecision == -1) desiredPrecision = FP107Precision;
-          break;
-        case 'F': // number with ungrouped digits and culture precision by default
-          if(desiredPrecision == -1) desiredPrecision = nums.NumberDecimalDigits;
-          break;
-        case 'G': // E or F, whichever is shorter, but using the typical precision by default in either case
-          if(desiredPrecision == -1) desiredPrecision = FP107Precision;
-          exponentialFormat = ComputeExponentialLength(digits, decimalPlace, formatType, desiredPrecision, nums) <
-                              ComputeDecimalLength(digits, decimalPlace, formatType, desiredPrecision, nums);
-          break;
-        case 'N': // a number using normal cultural conventions, including culture precision
-          groupDigits = true;
-          if(desiredPrecision == -1) desiredPrecision = nums.NumberDecimalDigits;
-          break;
-        case 'P': // a percentage, using cultural conventions, including culture precision
-          groupDigits = true;
-          if(desiredPrecision == -1) desiredPrecision = nums.PercentDecimalDigits;
-          decimalPlace += 2; // multiply the number by 100 by shifting the decimal point
-          break;
-        case 'R': // a round-trip format. either E or F, whichever is shorter, but always maximum precision
-          exponentialFormat = ComputeExponentialLength(digits, decimalPlace, formatType, -1, nums) <
-                              ComputeDecimalLength(digits, decimalPlace, formatType, -1, nums);
-          desiredPrecision = -1; // don't limit precision in round-trip format
-          break;
-      }
-
-      // if exponential format is used, calculate the exponent and put the decimal point after the first digit, which is assumed to be
-      // non-zero if the number itself is non-zero
-      int exponent = 0;
-      if(exponentialFormat)
-      {
-        exponent     = decimalPlace - 1;
-        decimalPlace = 1;
-      }
-
-      // if a precision specifier was given, round the fraction off to that precision if necessary
-      int digitCount = desiredPrecision == -1 ? digits.Length : // use all digits if we're not rounding
-        RoundDigits(digits, ref decimalPlace, exponentialFormat, ref exponent, desiredPrecision); // otherwise, subtract some for rounding
-
-      // if the number is negative zero (potentially due to rounding) and we're not using round-trip format, then avoid rendering
-      // the negative zero
-      if(isNegative && digitCount == 1 && digits[0] == 0 && formatType != 'R') isNegative = false;
-
-      // now render the number along with any symbols (e.g. dollar sign, percent, etc.)
-      StringBuilder sb = new StringBuilder(digitCount + 16);
-      AddLeadingNumberSymbols(sb, isNegative, nums, formatType);
-      AddNumber(sb, digits, digitCount, decimalPlace, exponentialFormat, exponent, formatType, nums, capitalize, groupDigits);
-      AddTrailingNumberSymbols(sb, isNegative, nums, formatType);
-      return sb.ToString();
-    }
-
-    static byte[] GetSignificantDigits(double approxValue, int exponent, int minExponent, BigInt mantissa, int mantissaSize,
-                                       out int decimalPlace)
+    static byte[] GetSignificantDigits(double approxValue, int exponent, int minExponent, Integer mantissa, out int decimalPlace)
     {
       if(double.IsNaN(approxValue) || double.IsInfinity(approxValue)) throw new ArgumentException();
 
       // the Burger & Dybvig algorithm returns an unintuitive decimal place for zero values, so special case them
-      if(mantissa == BigInt.Zero)
+      if(mantissa.IsZero)
       {
         decimalPlace = 1;
         return new byte[1];
@@ -3305,39 +2815,39 @@ namespace AdamMil.Mathematics
       // representing v = n/d with an explicit numerator and denominator, and m- and m+ with just their numerators. i.e. m- = d(v - v-)/2
       // and m+ = d(v+ - v)/2. this converts some expensive arbitrary precision rational computations into somewhat less expensive arbitary
       // precision integer computations.
-      BigInt n, d, mMinus, mPlus;
+      Integer n, d, mMinus, mPlus;
       bool evenMantissa = mantissa.IsEven; // can we assume an input routine would round ties to the correct mantissa?
       if(exponent >= 0) // if the number is >= 1...
       {
-        BigInt power = BigInt.Pow2((uint)exponent); // power = 2^e. e could be 0, so power could equal 1.
-        if(mantissa != BigInt.Pow2((uint)mantissaSize-1)) // m != 2^(p-1), so v- = v - 2^e and v+ = v + 2^e...
+        Integer power = Integer.Pow(2, exponent); // power = 2^e. e could be 0, so power could equal 1.
+        if(mantissa != Integer.Pow(2, mantissa.BitLength-1)) // m != 2^(p-1), so v- = v - 2^e and v+ = v + 2^e...
         {
-          n = (power*mantissa)<<1; // n = 2(m * 2^e)
-          d = 2;                   // d = 2. thus n/d = m * 2^e = v
-          mMinus = mPlus = power;  // m- = m+ = (v+ - v)/2 = (v + 2^e - v)/2 = 2^e/2 = power/d
+          n = (power*mantissa) << 1; // n = 2(m * 2^e)
+          d = 2;                     // d = 2. thus n/d = m * 2^e = v
+          mMinus = mPlus = power;    // m- = m+ = (v+ - v)/2 = (v + 2^e - v)/2 = 2^e/2 = power/d
         }
         else // m = 2^(p-1), so v- = v - 2^(e-1) and v+ = v + 2^e
         {
-          n = (power*mantissa)<<2; // n = 4(m * 2^e)
-          d = 4;                   // d = 4. this n/d = m * 2^e = v
-          mMinus = power;          // m- = (v - v-)/2 = (v - (v - 2^(e-1)))/2 = 2^(e-1)/2 = 2^e/4 = power/d
-          mPlus  = power<<1;       // m+ = (v+ - v)/2 = (v + 2^e - v)/2 = 2^e/2 = 2*2^e/4 = 2*power/d
+          n = (power*mantissa) << 2; // n = 4(m * 2^e)
+          d = 4;                     // d = 4. this n/d = m * 2^e = v
+          mMinus = power;            // m- = (v - v-)/2 = (v - (v - 2^(e-1)))/2 = 2^(e-1)/2 = 2^e/4 = power/d
+          mPlus  = power<<1;         // m+ = (v+ - v)/2 = (v + 2^e - v)/2 = 2^e/2 = 2*2^e/4 = 2*power/d
         }
       }
       else // otherwise, if the number is between 0 and 1 exclusive...
       {
-        if(mantissa != BigInt.Pow2((uint)mantissaSize-1) || exponent == minExponent) // if v- = v - 2^e and v+ = v + 2^e...
+        if(mantissa != Integer.Pow(2, mantissa.BitLength-1) || exponent == minExponent) // if v- = v - 2^e and v+ = v + 2^e...
         {
-          n = mantissa << 1;                   // n = 2m
-          d = BigInt.Pow2((uint)(1-exponent)); // d = 2^(1-e) = 1/2^(e-1). thus n/d = 2m * 2^(e-1) = m * 2^e = v
-          mMinus = mPlus = BigInt.One;         // m- = m+ = (v+ - v)/2 = (v + 2^e - v)/2 = 2^e/2 = 2^(e-1) = 1 / (1/2^(e-1)) = 1/d
+          n = mantissa << 1;              // n = 2m
+          d = Integer.Pow(2, 1-exponent); // d = 2^(1-e) = 1/2^(e-1). thus n/d = 2m * 2^(e-1) = m * 2^e = v
+          mMinus = mPlus = Integer.One;   // m- = m+ = (v+ - v)/2 = (v + 2^e - v)/2 = 2^e/2 = 2^(e-1) = 1 / (1/2^(e-1)) = 1/d
         }
         else // m = 2^(p-1), so v- = v - 2^(e-1) and v+ = v + 2^e
         {
-          n = mantissa << 2;                   // n = 4m
-          d = BigInt.Pow2((uint)(2-exponent)); // d = 2^(2-e) = 1/2^(e-2). this n/d = 4m * 2^(e-2) = m * 2^e = v
-          mMinus = BigInt.One;                 // m- = (v - v-)/2 = (v - (v - 2^(e-1)))/2 = 2^(e-1)/2 = 2^(e-2) = 1 / (1/2^(e-2)) = 1/d
-          mPlus  = 2;                          // m+ = (v+ - v)/2 = (v + 2^e - v)/2 = 2^e/2 = 2*2^(e-2) = 2 / (1/2^(e-2)) = 2/d
+          n = mantissa << 2;              // n = 4m
+          d = Integer.Pow(2, 2-exponent); // d = 2^(2-e) = 1/2^(e-2). this n/d = 4m * 2^(e-2) = m * 2^e = v
+          mMinus = Integer.One;           // m- = (v - v-)/2 = (v - (v - 2^(e-1)))/2 = 2^(e-1)/2 = 2^(e-2) = 1 / (1/2^(e-2)) = 1/d
+          mPlus  = 2;                     // m+ = (v+ - v)/2 = (v + 2^e - v)/2 = 2^e/2 = 2*2^(e-2) = 2 / (1/2^(e-2)) = 2/d
         }
       }
 
@@ -3348,20 +2858,22 @@ namespace AdamMil.Mathematics
       return GetSignificantDigits(n, d, mMinus, mPlus, evenMantissa);
     }
 
-    static byte[] GetSignificantDigits(BigInt n, BigInt d, BigInt mMinus, BigInt mPlus, bool boundaryOk)
+    static byte[] GetSignificantDigits(Integer n, Integer d, Integer mMinus, Integer mPlus, bool boundaryOk)
     {
       // in this method, the value v is represented by the rational n/d, which has been scaled to lie within [0.1,1). this way, the first
       // significant digit can be extracted using truncate(10n/d). the remainder of the division contains the remaining digits.
       List<byte> digits = new List<byte>(34); // we have over 32 digits of precision, plus one just in case it's needed for rounding
       bool wouldRoundUp, wouldRoundDown; // whether the number output so far would round to the correct value (in the given direction)
+      if(mMinus.BitLength == mPlus.BitLength) mPlus = mPlus.Clone(); // avoid sharing data between mMinus and mPlus
       do
       {
         // extract the first digit and assign the remainer back to n
-        byte digit = (byte)BigInt.DivRem(n*10, d, out n).ToUInt32();
-        mMinus *= 10; // since we effectively scaled n up by 10, we should also scale m- and m+
-        mPlus  *= 10;
+        n.UnsafeMultiply(10u);
+        mMinus.UnsafeMultiply(10u); // since we scaled n up by 10, we should also scale m- and m+
+        mPlus.UnsafeMultiply(10u);
+        byte digit = (byte)Integer.DivRem(n, d, out n);
         // now check the termination conditions
-        BigInt rNext = n + mPlus;
+        Integer rNext = n + mPlus;
         wouldRoundUp   = boundaryOk ? n <= mMinus : n < mMinus; // if the value output would round up to the correct value
         wouldRoundDown = boundaryOk ? rNext >= d : rNext > d;   // if the value output would round down to the correct value
         // if we're not done, or if we're done because the number would round up to the correct value, output the digit.
@@ -3388,317 +2900,24 @@ namespace AdamMil.Mathematics
 
     static char ParseFormatString(string format, out int desiredPrecision, out bool capitalize)
     {
-      desiredPrecision = -1;
-
       char formatType;
-      if(string.IsNullOrEmpty(format))
-      {
-        formatType = 'G';
-        capitalize = true;
-      }
-      else
-      {
-        bool badFormat;
-        formatType = char.ToUpperInvariant(format[0]);
-        capitalize = formatType == format[0];
-        if(formatType == 'F' || formatType == 'E' || formatType == 'G' || formatType == 'R' || formatType == 'X' ||
-           formatType == 'N' || formatType == 'P' || formatType == 'C' || formatType == 'S')
-        {
-          badFormat = format.Length > 1 &&
-                      (!InvariantCultureUtility.TryParseExact(format, 1, format.Length-1, out desiredPrecision) || desiredPrecision < 0);
-        }
-        else
-        {
-          badFormat = true;
-        }
-        if(badFormat) throw new FormatException("Unsupported format string: " + format);
-      }
+      bool parsed = NumberFormat.ParseFormatString(format, 'G', out formatType, out desiredPrecision, out capitalize);
+      if(!parsed && formatType != 'S') throw new FormatException("Unsupported format string: " + format);
       return formatType;
     }
 
-    static void AddLeadingNumberSymbols(StringBuilder sb, bool isNegative, NumberFormatInfo nums, char formatType)
-    {
-      if(isNegative)
-      {
-        if(formatType == 'C') // currency
-        {
-          switch(nums.CurrencyNegativePattern)
-          {
-            case 0: sb.Append('(').Append(nums.CurrencySymbol); break;                            // ($n)
-            case 1: sb.Append(nums.NegativeSign).Append(nums.CurrencySymbol); break;              // -$n
-            case 2: sb.Append(nums.CurrencySymbol).Append(nums.NegativeSign); break;              // $-n
-            case 3: sb.Append(nums.CurrencySymbol); break;                                        // $n-
-            case 4: case 15: sb.Append('('); break;                                               // (n$) or (n $)
-            case 5: case 8: sb.Append(nums.NegativeSign); break;                                  // -n$ or -n $
-            case 9: sb.Append(nums.NegativeSign).Append(nums.CurrencySymbol).Append(' '); break;  // -$ n
-            case 11: sb.Append(nums.CurrencySymbol).Append(' '); break;                           // $ n-
-            case 12: sb.Append(nums.CurrencySymbol).Append(' ').Append(nums.NegativeSign); break; // $ -n
-            case 14: sb.Append('(').Append(nums.CurrencySymbol).Append(' '); break;               // ($ n)
-          }
-        }
-        else if(formatType == 'P') // percent
-        {
-          switch(nums.PercentNegativePattern)
-          {
-            case 0: case 1: sb.Append(nums.NegativeSign); break;                                 // -n % or -n%
-            case 2: sb.Append(nums.NegativeSign).Append(nums.PercentSymbol); break;              // -%n
-            case 3: sb.Append(nums.PercentSymbol).Append(nums.NegativeSign); break;              // %-n
-            case 4: sb.Append(nums.PercentSymbol); break;                                        // %n-
-            case 7: sb.Append(nums.NegativeSign).Append(nums.PercentSymbol).Append(' '); break;  // -% n
-            case 9: sb.Append(nums.PercentSymbol).Append(' '); break;                            // % n-
-            case 10: sb.Append(nums.PercentSymbol).Append(' ').Append(nums.NegativeSign); break; // % -n
-          }
-        }
-        else
-        {
-          switch(nums.NumberNegativePattern)
-          {
-            case 0: sb.Append('('); break;                           // (n)
-            case 1: sb.Append(nums.NegativeSign); break;             // -n
-            case 2: sb.Append(nums.NegativeSign).Append(' '); break; // - n
-          }
-        }
-      }
-      else // the number is positive
-      {
-        if(formatType == 'C') // currency
-        {
-          if(nums.CurrencyPositivePattern == 0) sb.Append(nums.CurrencySymbol); // $n
-          else if(nums.CurrencyPositivePattern == 2) sb.Append(nums.CurrencySymbol).Append(' '); // $ n
-        }
-        else if(formatType == 'P') // percent
-        {
-          if(nums.PercentPositivePattern == 2) sb.Append(nums.PercentSymbol); // %n
-          else if(nums.PercentPositivePattern == 3) sb.Append(nums.PercentSymbol).Append(' '); // % n
-        }
-      }
-    }
-
-    static void AddNumber(StringBuilder sb, byte[] digits, int digitCount, int decimalPlace, bool exponentialFormat, int exponent,
-                          char formatType, NumberFormatInfo nums, bool capitalize, bool groupDigits)
-    {
-      // if grouping is enabled and there are any whole digits, break the digits up into groups
-      string groupSeparator = null;
-      List<int> groupIndexes = null; // indexes of digits within the whole part before which group separators should be inserted
-      if(groupDigits && decimalPlace > 0)
-      {
-        int[] groupSizes;
-        if(formatType == 'C') // currency
-        {
-          groupSeparator = nums.CurrencyGroupSeparator;
-          groupSizes     = nums.CurrencyGroupSizes;
-        }
-        else if(formatType == 'P') // percent
-        {
-          groupSeparator = nums.PercentGroupSeparator;
-          groupSizes     = nums.PercentGroupSizes;
-        }
-        else
-        {
-          groupSeparator = nums.NumberGroupSeparator;
-          groupSizes     = nums.NumberGroupSizes;
-        }
-
-        if(groupSizes.Length == 0 || groupSizes[0] == 0) // if there is no grouping in this culture...
-        {
-          groupDigits = false; // don't group
-        }
-        else
-        {
-          groupIndexes = new List<int>();
-          int i, count = 0; // the number of digits examined so far
-          // go through all groups until we reach the last one or until we run out of digits to group
-          for(i=0; i<groupSizes.Length-1 && decimalPlace-count > groupSizes[i]; i++)
-          {
-            groupIndexes.Add(decimalPlace - count - groupSizes[i]); // add an index calculated from the right side
-            count += groupSizes[i];
-          }
-          if(i == groupSizes.Length-1) // if we got through all groups but the last one...
-          {
-            int lastGroupSize = groupSizes[groupSizes.Length-1]; // get the last group, which is repeated
-            if(lastGroupSize != 0) // if the last group size isn't zero (meaning 'stop grouping'), group the remaining digits
-            {
-              for(; decimalPlace-count > lastGroupSize; count += lastGroupSize) groupIndexes.Add(decimalPlace-count-lastGroupSize);
-            }
-          } 
-          groupIndexes.Reverse(); // the indexes were added starting from the right, but the string is rendered from the left, so reverse
-        }
-      }
-
-      // get the decimal string to use, and start rendering the number
-      string decimalSymbol = formatType == 'C' ? nums.CurrencyDecimalSeparator :
-                             formatType == 'P' ? nums.PercentDecimalSeparator  : nums.NumberDecimalSeparator;
-      // add leading zeros, if any
-      if(decimalPlace <= 0) // if the number is less than 1...
-      {
-        sb.Append('0'); // add the leading zero in the one's place
-        if(decimalPlace < 0) sb.Append(decimalSymbol).Append('0', -decimalPlace); // add leading zeros in the fraction, if any
-      }
-
-      // now add the significant digits
-      int groupIndex = 0;
-      for(int i=0; i<digitCount; i++)
-      {
-        if(i == decimalPlace)
-        {
-          sb.Append(decimalSymbol);
-        }
-        else if(groupDigits && groupIndex < groupIndexes.Count && i == groupIndexes[groupIndex])
-        {
-          sb.Append(groupSeparator);
-          groupIndex++;
-        }
-        sb.Append((char)('0' + digits[i]));
-      }
-
-      // now add trailing zeros, if any
-      if(decimalPlace > digitCount)
-      {
-        if(!groupDigits)
-        {
-          sb.Append('0', decimalPlace-digitCount);
-        }
-        else
-        {
-          for(int i=digitCount; i<decimalPlace; i++)
-          {
-            if(groupDigits && groupIndex < groupIndexes.Count && i == groupIndexes[groupIndex])
-            {
-              sb.Append(groupSeparator);
-              groupIndex++;
-            }
-            sb.Append('0');
-          }
-        }
-      }
-
-      // add the exponent if we're using exponential notation
-      if(exponentialFormat)
-      {
-        sb.Append(capitalize ? 'E' : 'e');
-        if(exponent >= 0) sb.Append('+');
-        sb.Append(exponent.ToStringInvariant());
-      }
-    }
-
-    static void AddTrailingNumberSymbols(StringBuilder sb, bool isNegative, NumberFormatInfo nums, char formatType)
-    {
-      if(isNegative)
-      {
-        if(formatType == 'C')
-        {
-          switch(nums.CurrencyNegativePattern)
-          {
-            case 0: case 14: sb.Append(')'); break;                                               // ($n) or ($ n)
-            case 3: case 11: sb.Append(nums.NegativeSign); break;                                 // $n- or $ n-
-            case 4: sb.Append(nums.CurrencySymbol).Append(')'); break;                            // (n$)
-            case 5: sb.Append(nums.CurrencySymbol); break;                                        // -n$
-            case 6: sb.Append(nums.NegativeSign).Append(nums.CurrencySymbol); break;              // n-$
-            case 7: sb.Append(nums.CurrencySymbol).Append(nums.NegativeSign); break;              // n$-
-            case 8: sb.Append(' ').Append(nums.CurrencySymbol); break;                            // -n $
-            case 10: sb.Append(' ').Append(nums.CurrencySymbol).Append(nums.NegativeSign); break; // n $-
-            case 13: sb.Append(nums.NegativeSign).Append(' ').Append(nums.CurrencySymbol); break; // n- $
-            case 15: sb.Append(' ').Append(nums.CurrencySymbol).Append(')'); break;               // (n $)
-          }
-        }
-        else if(formatType == 'P')
-        {
-          switch(nums.PercentNegativePattern)
-          {
-            case 0: sb.Append(' ').Append(nums.PercentSymbol); break;                            // -n %
-            case 1: sb.Append(nums.PercentSymbol); break;                                        // -n%
-            case 4: case 9: sb.Append(nums.NegativeSign); break;                                 // %n- or % n-
-            case 5: sb.Append(nums.NegativeSign).Append(nums.PercentSymbol); break;              // n-%
-            case 6: sb.Append(nums.PercentSymbol).Append(nums.NegativeSign); break;              // n%-
-            case 8: sb.Append(' ').Append(nums.PercentSymbol).Append(nums.NegativeSign); break;  // n %-
-            case 11: sb.Append(nums.NegativeSign).Append(' ').Append(nums.PercentSymbol); break; // n- %
-          }
-        }
-        else
-        {
-          switch(nums.NumberNegativePattern)
-          {
-            case 0: sb.Append(')'); break;                           // (n)
-            case 3: sb.Append(nums.NegativeSign); break;             // n-
-            case 4: sb.Append(' ').Append(nums.NegativeSign); break; // n -
-          }
-        }
-      }
-      else // the number is positive
-      {
-        if(formatType == 'C')
-        {
-          if(nums.CurrencyPositivePattern == 1) sb.Append(nums.CurrencySymbol); // n$
-          else if(nums.CurrencyPositivePattern == 3) sb.Append(' ').Append(nums.CurrencySymbol); // $ n
-        }
-        else if(formatType == 'P')
-        {
-          if(nums.PercentPositivePattern == 0) sb.Append(' ').Append(nums.PercentSymbol); // n %
-          else if(nums.PercentPositivePattern == 1) sb.Append(nums.PercentSymbol); // n%
-        }
-      }
-    }
-
-    /// <summary>Returns the first character of the given string, or a nul character if the string is null or empty.</summary>
-    static char GetFirstChar(string str)
-    {
-      return string.IsNullOrEmpty(str) ? '\0' : str[0];
-    }
-
-    /// <summary>Returns the last character of the given string, or a nul character if the string is null or empty.</summary>
-    static char GetLastChar(string str)
-    {
-      return string.IsNullOrEmpty(str) ? '\0' : str[str.Length-1];
-    }
-
-    /// <summary>Given a floating-point number expressed as an exponent and mantissa, along with values equal to 2^(n-1) and 2^n-1 where
-    /// n is the maximum size of the mantissa (including any hidden bit), returns the floating-point number immediately less than it.
-    /// </summary>
-    static bool GetPredecessor(BigInt hnmax, BigInt nmaxm1, ref int exponent, ref BigInt mantissa)
-    {
-      if(mantissa == hnmax)
-      {
-        exponent--;
-        mantissa = nmaxm1;
-        return true;
-      }
-      else
-      {
-        mantissa -= 1;
-        return false;
-      }
-    }
-
-    /// <summary>Given a floating-point number expressed as an exponent and mantissa, along with values equal to 2^(n-1) and 2^n where
-    /// n is the maximum size of the mantissa (including any hidden bit), returns the floating-point number immediately greater than it.
-    /// </summary>
-    static bool GetSuccessor(BigInt hnmax, BigInt nmax, ref int exponent, ref BigInt mantissa)
-    {
-      if(mantissa == nmax)
-      {
-        exponent++;
-        mantissa = hnmax;
-        return true;
-      }
-      else
-      {
-        mantissa += 1;
-        return false;
-      }
-    }
-
     /// <summary>Returns an <see cref="FP107"/> value constructed from a base-2 mantissa and exponent.</summary>
-    static FP107 MakeFloat(int exponent, BigInt mantissa)
+    static FP107 Compose(int exponent, Integer mantissa, bool exact)
     {
       const int MantissaSize = IEEE754.DoubleMantissaBits+1; // the size of the mantissas for hi and lo
       const int MinExponent = 1-IEEE754.DoubleBiasToInt, MaxExponent = (1<<IEEE754.DoubleExponentBits)-2-IEEE754.DoubleBiasToInt;
       if(exponent > MaxExponent) return FP107.PositiveInfinity;
 
-      int bitLength = mantissa.GetBitLength(), maxLength = Math.Min(MantissaSize, exponent - (MinExponent-bitLength));
+      int bitLength = mantissa.BitLength, maxLength = Math.Min(MantissaSize, exponent - (MinExponent-bitLength));
       if(maxLength <= 0) return FP107.Zero; // if the exponent would have to be reduced below the minimum, return zero
 
       // construct the mantissa for the high value
-      BigInt hiMantissa = mantissa; // start out with the whole mantissa
+      Integer hiMantissa = mantissa; // start out with the whole mantissa
       double lo = 0;
       int hiExponent = exponent;
       bool loNegative = false;
@@ -3709,12 +2928,12 @@ namespace AdamMil.Mathematics
         if(hiExponent > MaxExponent) return FP107.PositiveInfinity;
 
         // we want to round up if the matissa is odd and the next bit is set and the mantissa isn't all 1's
-        if(!hiMantissa.IsEven && mantissa.GetBit(bitLength-(maxLength+1)) && hiMantissa != BigInt.Pow2((uint)maxLength)-1)
+        if(!hiMantissa.IsEven && mantissa.GetBit(bitLength-(maxLength+1)) && hiMantissa != Integer.Pow(2, maxLength)-1)
         {
           // increment the hi mantissa to round up. after doing so it becomes greater than the original mantissa, so rather than
           // subtracting the high mantissa from the full mantissa, we need to subtract the full mantissa from the high mantissa.
           // because the remaining mantissa is effectively negative, the low value must become negative
-          hiMantissa += 1;
+          hiMantissa++;
           mantissa    = (hiMantissa << (bitLength - maxLength)) - mantissa;
           loNegative  = true;
         }
@@ -3724,20 +2943,21 @@ namespace AdamMil.Mathematics
         }
 
         // if we had enough bits to fill the high mantissa and there are still some bits left, set the low mantissa
-        if(maxLength >= MantissaSize && mantissa != BigInt.Zero)
+        if(maxLength >= MantissaSize && !mantissa.IsZero)
         {
-          BigInt loMantissa = mantissa; // start out with the whole remaining mantissa
-          int loBitLength = mantissa.GetBitLength();
+          Integer loMantissa = mantissa; // start out with the whole remaining mantissa
+          int loBitLength = mantissa.BitLength;
           maxLength = Math.Min(MantissaSize, exponent - (MinExponent-loBitLength));
           if(loBitLength > maxLength) // if the mantissa has more bits than we can fit, perhaps because the exponent hit the minimum...
           {
+            if(exact) throw new ArgumentOutOfRangeException();
             if(maxLength > 0) // if we're allowed to put any bits in the low mantissa...
             {
               loMantissa >>= loBitLength - maxLength; // chop the low mantissa to the length we're allowed
               exponent    += loBitLength - maxLength;
-              if(!loMantissa.IsEven && mantissa.GetBit(loBitLength-(maxLength+1)) && loMantissa != BigInt.Pow2((uint)maxLength)-1)
+              if(!loMantissa.IsEven && mantissa.GetBit(loBitLength-(maxLength+1)) && loMantissa != Integer.Pow(2, maxLength)-1)
               {
-                loMantissa += 1; // round to even if needed and the mantissa isn't at the maximum value
+                loMantissa++; // round to even if needed and the mantissa isn't at the maximum value
               }
             }
             loBitLength = maxLength;
@@ -3750,24 +2970,40 @@ namespace AdamMil.Mathematics
       return new FP107(hi, lo);
     }
 
-    /// <summary>Converts an array of decimal digits into a <see cref="BigInt"/> value.</summary>
-    static BigInt ParseDigitsToBigInt(byte[] digits, int digitCount)
+    /// <summary>Given a floating-point number expressed as an exponent and mantissa, along with values equal to 2^(n-1) and 2^n-1 where
+    /// n is the maximum size of the mantissa (including any hidden bit), returns the floating-point number immediately less than it.
+    /// </summary>
+    static bool GetPredecessor(Integer hnmax, Integer nmaxm1, ref int exponent, ref Integer mantissa)
     {
-      BigInt mantissa = BigInt.Zero;
-      for(int total=0; total<digitCount; ) // while there are digits left to parse...
+      if(mantissa == hnmax)
       {
-        // parse digits in groups of 19, sticking them into a ulong to avoid as much BigInt math as possible
-        ulong someDigits = 0;
-        int parsed = 0;
-        for(int count=Math.Min(19, digitCount-total); parsed<count; parsed++) someDigits = someDigits*10 + digits[parsed+total];
-
-        // then combine the ulong value with the BigInt
-        if(total != 0) mantissa = mantissa * BigInt.Pow10((uint)parsed) + someDigits;
-        else mantissa = someDigits;
-
-        total += parsed;
+        exponent--;
+        mantissa = nmaxm1;
+        return true;
       }
-      return mantissa;
+      else
+      {
+        mantissa.UnsafeDecrement();
+        return false;
+      }
+    }
+
+    /// <summary>Given a floating-point number expressed as an exponent and mantissa, along with values equal to 2^(n-1) and 2^n where
+    /// n is the maximum size of the mantissa (including any hidden bit), returns the floating-point number immediately greater than it.
+    /// </summary>
+    static bool GetSuccessor(Integer hnmax, Integer nmax, ref int exponent, ref Integer mantissa)
+    {
+      if(mantissa == nmax)
+      {
+        exponent++;
+        mantissa = hnmax;
+        return true;
+      }
+      else
+      {
+        mantissa.UnsafeIncrement();
+        return false;
+      }
     }
 
     /// <summary>Parses one half of an <see cref="FP107"/> value specified in hex format.</summary>
@@ -3780,229 +3016,6 @@ namespace AdamMil.Mathematics
         value = (value << 4) + (uint)(c - (c >= 'A' ? 'A'-10 : '0'));
       }
       return *(double*)&value; // return the parsed bytes as a double
-    }
-
-    static byte[] ParseSignificantDigits(string str, int start, int end, NumberStyles style, NumberFormatInfo nums,
-                                         out int digitCount, out int exponent, out bool negative)
-    {
-      digitCount = 0;
-      exponent   = 0;
-      negative   = false;
-
-      // keep track of various symbols we've seen
-      bool currency = false, negativeSign = false, parens = false, percent = false, permille = false, positiveSign = false;
-      bool sawUnknownChar = false;
-
-      // scan the leading symbols until we find the first digit or unrecognized character
-      char negativeChar = GetFirstChar(nums.NegativeSign), currencyChar = GetFirstChar(nums.CurrencySymbol);
-      char percentChar = GetFirstChar(nums.PercentSymbol), permilleChar = GetFirstChar(nums.PerMilleSymbol);
-      char positiveChar = GetFirstChar(nums.PositiveSign);
-      for(; start < end; start++)
-      {
-        char c = str[start];
-        if(c >= '0' && c <= '9')
-        {
-          break; // stop scanning if we find the first digit
-        }
-        else if(char.IsWhiteSpace(c))
-        {
-          continue; // skip over whitespace
-        }
-        else if(c == negativeChar && str.StartsAt(start, nums.NegativeSign))
-        {
-          if((negativeSign | positiveSign) || (style & NumberStyles.AllowLeadingSign) == 0) return null;
-          negative = negativeSign = true;
-          start += nums.NegativeSign.Length - 1;
-        }
-        else if(c == positiveChar && str.StartsAt(start, nums.PositiveSign))
-        {
-          if((negative | positiveSign) || (style & NumberStyles.AllowLeadingSign) == 0) return null;
-          positiveSign = true;
-          start += nums.PositiveSign.Length - 1;
-        }
-        else if(c == '(') // parentheses indicate negative numbers
-        {
-          if((parens | positiveSign) || (style & NumberStyles.AllowParentheses) == 0) return null;
-          negative = parens = true;
-        }
-        else if(c == currencyChar && str.StartsAt(start, nums.CurrencySymbol))
-        {
-          if((currency | percent | permille) || (style & NumberStyles.AllowCurrencySymbol) == 0) return null;
-          currency = true;
-          start += nums.CurrencySymbol.Length - 1;
-        }
-        else if(c == percentChar && str.StartsAt(start, nums.PercentSymbol))
-        {
-          if(currency | percent | permille) return null;
-          percent = true;
-          end -= nums.PercentSymbol.Length - 1;
-        }
-        else if(c == permilleChar && str.StartsAt(start, nums.PerMilleSymbol))
-        {
-          if(currency | percent | permille) return null;
-          permille = true;
-          end -= nums.PerMilleSymbol.Length - 1;
-        }
-        else // otherwise, if the character is unknown, stop scanning
-        {
-          // we should return null if we see an unknown character, but since the number could start with a decimal point and the
-          // character used for the decimal point depends on the type of string (currency, percent, etc.), and the type of string
-          // may not be determined yet, we don't know whether the unknown character is truly unknown. we'll check it later
-          sawUnknownChar = true;
-          break;
-        }
-      }
-
-      // now scan the trailing symbols until we find the last digit or unrecognized character
-      negativeChar = GetLastChar(nums.NegativeSign);
-      currencyChar = GetLastChar(nums.CurrencySymbol);
-      percentChar  = GetLastChar(nums.PercentSymbol);
-      permilleChar = GetLastChar(nums.PerMilleSymbol);
-      positiveChar = GetLastChar(nums.PositiveSign);
-      while(start < end)
-      {
-        char c = str[end-1];
-        if(c >= '0' && c <= '9') break;
-        end--;
-
-        if(char.IsWhiteSpace(c))
-        {
-          continue;
-        }
-        else if(c == ')')
-        {
-          if(!parens) return null;
-        }
-        else if(c == negativeChar && str.EndsAt(end, nums.NegativeSign))
-        {
-          if(negativeSign || (style & NumberStyles.AllowTrailingSign) == 0) return null;
-          negative = negativeSign = true;
-          end -= nums.NegativeSign.Length - 1;
-        }
-        else if(c == positiveChar && str.EndsAt(end, nums.PositiveSign))
-        {
-          if((negativeSign | positiveSign) || (style & NumberStyles.AllowTrailingSign) == 0) return null;
-          positiveSign = true;
-          end -= nums.PositiveSign.Length - 1;
-        }
-        else if(c == currencyChar && str.EndsAt(end, nums.CurrencySymbol))
-        {
-          if((currency | percent | permille) || (style & NumberStyles.AllowCurrencySymbol) == 0) return null;
-          currency = true;
-          end -= nums.CurrencySymbol.Length - 1;
-        }
-        else if(c == percentChar && str.EndsAt(end, nums.PercentSymbol))
-        {
-          if(currency | percent | permille) return null;
-          percent = true;
-          end -= nums.PercentSymbol.Length - 1;
-        }
-        else if(c == permilleChar && str.EndsAt(end, nums.PerMilleSymbol))
-        {
-          if(currency | percent | permille) return null;
-          permille = true;
-          end -= nums.PerMilleSymbol.Length - 1;
-        }
-        else // otherwise, if the character is unknown, stop scanning
-        {
-          // we should return null if we see an unknown character, but since the number could end with a decimal point and the character
-          // used for the decimal point depends on the type of string (currency, percent, etc.), and the type of string may not have been
-          // determined when we started scanning, we don't know whether the unknown character is illegal or is just a decimal, so we'll
-          // defer that check until the next part
-          sawUnknownChar = true;
-          end++;
-          break;
-        }
-      }
-
-      // now that we know the type of string, we can determine the string used for decimal points
-      string decimalStr = currency ? nums.CurrencyDecimalSeparator :
-                          percent | permille ? nums.PercentDecimalSeparator : nums.NumberDecimalSeparator;
-      char decimalChar = GetFirstChar(decimalStr);
-
-      // if we saw a character that might have been illegal, check whether it was illegal or just a decimal point
-      if(sawUnknownChar && start < end)
-      {
-        char c = str[start]; // check for an illegal character at the start
-        if((c < '0' || c > '9') && (c != decimalChar || !str.StartsAt(start, decimalStr))) return null;
-
-        if(start < end-1) // if the length is greater than one, check for an illegal character at the end too
-        {
-          c = str[end-1];
-          if((c < '0' || c > '9') && (c != decimalChar || !str.EndsAt(end-1, decimalStr))) return null;
-        }
-      }
-
-      // now that we've identified the region containing the digits, read them
-      string groupStr = currency ? nums.CurrencyGroupSeparator : // figure out the type of digit group separator
-                        percent | permille ? nums.PercentGroupSeparator : nums.NumberGroupSeparator;
-      int decimalPlace = 0; // the location of the decimal point. it may be outside the array, since we exclude leading and trailing zeros
-      char groupChar = GetFirstChar(groupStr);
-      bool lastWasDigit = false, sawDecimal = false, sawDigit = false, sawNonzeroDigit = false;
-
-      byte[] digits = new byte[end-start];
-      for(; start < end; start++)
-      {
-        char c = str[start];
-        if(c >= '0' && c <= '9')
-        {
-          sawDigit = lastWasDigit = true;
-          if(c != '0')
-          {
-            sawNonzeroDigit = true;
-          }
-          else if(!sawNonzeroDigit) // if it's a leading zero...
-          {
-            if(sawDecimal) decimalPlace--; // if we're in the fraction, move the decimal place
-            continue; // and skip the leading zero
-          }
-          digits[digitCount++] = (byte)(c - '0'); // save the character
-          if(!sawDecimal) decimalPlace++; // if we're not in the fraction, move the decimal place
-        }
-        else // if this character isn't a digit...
-        {
-          // allow spaces in the whole part if we allow digit grouping. (some software groups digits with spaces)
-          if(c == ' ' && !sawDecimal && (style & NumberStyles.AllowThousands) != 0)
-          {
-            continue; // don't clear lastWasDigit when skipping over spaces. (pretend spaces simply don't exist.)
-          }
-          else if(c == decimalChar && str.StartsAt(start, decimalStr))
-          {
-            if(sawDecimal || (style & NumberStyles.AllowDecimalPoint) == 0) return null;
-            sawDecimal = true;
-          }
-          else if(char.ToUpperInvariant(c) == 'E') // if the number was given in exponential notation...
-          {
-            if(!sawDigit || !InvariantCultureUtility.TryParseExact(str, start+1, end-(start+1), out exponent)) return null;
-            break;
-          }
-          else if(c == groupChar && str.StartsAt(start, groupStr))
-          {
-            if(!lastWasDigit || (style & NumberStyles.AllowThousands) == 0) return null; // only allow group characters after digits
-          }
-          else
-          {
-            return null;
-          }
-          lastWasDigit = false;
-        }
-      }
-
-      // there must be at least one digit in the string (but not necessarily in the digits array)
-      if(!sawDigit) return null;
-
-      // if we only saw leading zeros and skipped over them, add one zero back so we can have at least one digit
-      if(digitCount == 0) digitCount = decimalPlace = 1;
-
-      // trim trailing zeros from the fraction
-      while(digitCount > decimalPlace && digits[digitCount-1] == 0) digitCount--;
-
-      // update the exponent based on the decimal point and whether any percent or permille symbols were found
-      exponent -= digitCount - decimalPlace;
-      if(percent) exponent -= 2; // percent implies division by 100
-      else if(permille) exponent -= 3; // permille implies division by 1000
-
-      return digits;
     }
 
     /// <summary>Reduces the given value to have a magnitude no greater than Pi/32.</summary>
@@ -4031,13 +3044,13 @@ namespace AdamMil.Mathematics
     /// <summary>Attempts to refine a value that approximates the base-10 number represented by <paramref name="exponent"/> and
     /// <paramref name="mantissa"/> into the closest 107-bit floating-point number.
     /// </summary>
-    static FP107 RefineParsedEstimate(FP107 value, int exponent, BigInt mantissa)
+    static FP107 RefineParsedEstimate(FP107 value, int exponent, Integer mantissa)
     {
-      BigInt b2mantissa;
-      int b2exponent, mantissaSize;
+      Integer b2mantissa;
+      int b2exponent;
       bool dummy;
       // if the estimate underflowed or overflowed or contains too few bits for the refinement to be likely to converge...
-      if(value.IsZero || !value.Decompose(out dummy, out b2exponent, out b2mantissa, out mantissaSize) || mantissaSize < 103)
+      if(value.IsZero || !value.Decompose(out dummy, out b2exponent, out b2mantissa) || b2mantissa.BitLength < 103)
       {
         return FindNearestFloat(exponent, mantissa); // switch to an algorithm that starts over from scratch
       }
@@ -4047,19 +3060,17 @@ namespace AdamMil.Mathematics
         bool refined = false; // whether 'value' needs to be recalculated from b2exponent and b2mantissa
 
         // the algorithm expects a 107-bit mantissa, so fix it if it's too large or small
-        if(mantissaSize != MantissaSize)
+        if(b2mantissa.BitLength != MantissaSize)
         {
-          b2mantissa <<= MantissaSize - mantissaSize;
-          b2exponent  -= MantissaSize - mantissaSize;
-          refined      = mantissaSize < MantissaSize; // try to keep the original value if it had more bits of precision
-          mantissaSize = MantissaSize;
+          refined      = b2mantissa.BitLength < MantissaSize; // try to keep the original value if it had more bits of precision
+          b2exponent  -= MantissaSize - b2mantissa.BitLength;
+          b2mantissa <<= MantissaSize - b2mantissa.BitLength;
         }
 
         // this is AlgorithmR from "How to Read Floating Point Numbers Accurately" (Clinger, 1990), limited to 8 iterations, after which
         // it'll fall back to using AlgorithmM (implemented in FindNearestFloat)
-        BigInt pow10 = exponent >= 0 ? BigInt.Pow10((uint)exponent) : BigInt.Pow10((uint)-exponent); // 10^exponent
-        BigInt pow2 = default(BigInt); // 2^b2exponent
-        BigInt nmax = BigInt.Pow2(MantissaSize), hnmax = BigInt.Pow2(MantissaSize-1), nmaxm1 = nmax - 1;
+        Integer pow10 = Integer.Pow(10, Math.Abs(exponent)), pow2 = default(Integer);
+        Integer nmax = Integer.Pow(2, MantissaSize), hnmax = Integer.Pow(2, MantissaSize-1), nmaxm1 = nmax-1;
         int tries; // how many iterations we've run so far
         bool changedExponent = true; // whether we need to recalculate pow2
         for(tries=0; tries<MaxTries; tries++)
@@ -4070,12 +3081,11 @@ namespace AdamMil.Mathematics
             const int MinExponent = 1-IEEE754.DoubleBias-MantissaSize;
             const int MaxExponent = (1<<IEEE754.DoubleExponentBits)-2-IEEE754.DoubleBiasToInt;
             if(b2exponent < MinExponent || b2exponent > MaxExponent) return FindNearestFloat(exponent, mantissa);
-            // otherwise, recalculate pow2
-            pow2 = b2exponent >= 0 ? BigInt.Pow2((uint)b2exponent) : BigInt.Pow2((uint)-b2exponent);
+            else pow2 = Integer.Pow(2, Math.Abs(b2exponent)); // otherwise, recalculate pow2
           }
 
           // compute the ratio dec/bin, which is the ratio of the target decimal value to the binary approximation
-          BigInt dec, bin;
+          Integer dec, bin;
           if(exponent >= 0)
           {
             dec = mantissa * pow10;
@@ -4104,7 +3114,7 @@ namespace AdamMil.Mathematics
           }
 
           // this computes a measure of the error between the target and the approximation
-          BigInt error;
+          Integer error;
           bool dNegative = bin > dec;
           if(dNegative) error = bin - dec;
           else error = dec - bin;
@@ -4141,64 +3151,12 @@ namespace AdamMil.Mathematics
         }
 
         if(tries == MaxTries) value = FindNearestFloat(exponent, mantissa); // if too many iterations, give up and use another method
-        else if(refined) value = MakeFloat(b2exponent, b2mantissa); // otherwise, reconstruct 'value' if we changed it
+        else if(refined) value = Compose(b2exponent, b2mantissa, false); // otherwise, reconstruct 'value' if we changed it
         return value;
       }
     }
 
-    static int RoundDigits(byte[] digits, ref int decimalPlace, bool exponentialFormat, ref int exponent, int desiredPrecision)
-    {
-      int digitCount = digits.Length, fractionDigits = digits.Length - decimalPlace, roundOff = fractionDigits - desiredPrecision;
-      if(roundOff > 0) // if rounding is needed...
-      {
-        if(roundOff <= digits.Length)
-        {
-          int i, roundIndex = digits.Length - roundOff;
-          bool roundUp = digits[roundIndex] > 5;
-          if(digits[roundIndex] == 5) // if we're not sure if we need to round up...
-          {
-            for(i=roundIndex+1; i<digits.Length; i++)
-            {
-              if(digits[i] != 0) { roundUp = true; break; }
-            }
-            // if all the remaining digits were zeros, round to even
-            if(i == digits.Length) roundUp = roundIndex == 0 || (digits[roundIndex-1] & 1) == 1;
-          }
-
-          digitCount -= roundOff;
-          if(roundUp) // if we need to round up, increment the previous digit and all prior digits equal to nine
-          {
-            i = roundIndex - 1;
-            while(i >= 0)
-            {
-              if(++digits[i] != 10) break; // if adding one didn't go from 9 to 10, then we're done
-              else digits[i--] = 0; // otherwise, set that digit to 0 and move to the previous digit
-            }
-            if(i < 0) // if all the prior digits were 9 (or there were no prior digits)...
-            {
-              digits[0] = 1; // stick a 1 into the digit array
-              // since it actually represents the previous digit now, change the exponent or decimal place
-              if(exponentialFormat) exponent--;
-              else decimalPlace++;
-              if(roundOff == digits.Length) digitCount++;
-            }
-          }
-
-          // after rounding, we may have trailing zeros in the fraction. remove them
-          for(i=digitCount-1; i >= 0 && digits[i] == 0; i--) digitCount--;
-        }
-
-        if(roundOff > digits.Length || digitCount == 0) // if there are more leading fractional zeros than desired digits...
-        {
-          digits[0]    = 0; // then the whole number should round to zero
-          decimalPlace = digitCount = 1; // just set decimalPlace and not exponent because this can't happen with exponential notation
-        }
-      }
-
-      return digitCount;
-    }
-
-    static void Scale(double approximateValue, ref BigInt n, ref BigInt d, ref BigInt mMinus, ref BigInt mPlus, bool boundaryOk,
+    static void Scale(double approximateValue, ref Integer n, ref Integer d, ref Integer mMinus, ref Integer mPlus, bool boundaryOk,
                       out int decimalPlace)
     {
       // we start with v = n/d and m- = d(v - v-)/2 and m+ = d(v+ - v)/2. we need to scale n and d so that n/d lies within [0.1,1). this is
@@ -4223,11 +3181,11 @@ namespace AdamMil.Mathematics
       // assume the estimate is correct and scale by it
       if(k >= 0) // if k >= 0, the value is too large and we need to divide by 10^k
       {
-        d *= BigInt.Pow10((uint)k); // we can divide n, m-, and m+ at the same time by increasing the denominator
+        d *= Integer.Pow(10, k); // we can divide n, m-, and m+ at the same time by increasing the denominator
       }
       else // otherwise, k < 0 and the value is too small, so we need to multiply by 10^-k
       {
-        BigInt scale = BigInt.Pow10((uint)-k);
+        Integer scale = Integer.Pow(10, -k);
         n      *= scale; // scale up all three numerators
         mPlus  *= scale;
         mMinus *= scale;
@@ -4237,7 +3195,7 @@ namespace AdamMil.Mathematics
       // value will be > 1. high = (v + v+)/2, v+ = v + 2^e, v = n/d, and m+ = d(v+ - v)/2. so 2m+/d = v+ - v, 2m+/d + 2v = v+ + v,
       // m+/d + v = (v + v+)/2 = high. and m+/d + v = m+/d + n/d = (n + m+)/d. and as noted above, we can check whether a/b > 1 by seeing
       // whether a > b. in this case, then, we need to compare n + m+ with d.
-      BigInt rPlus = n + mPlus;
+      Integer rPlus = n + mPlus;
       if(boundaryOk ? rPlus >= d : rPlus > d) // if the scaled high > 1 (or >= 1 depending on what we can assume about the rounding mode)..
       {
         d *= 10; // scale everything down once more by increasing the denominator
@@ -4384,7 +3342,7 @@ namespace AdamMil.Mathematics
       // at this point, it seems like we have a regular number, so parse the digits out of the string
       int digitCount, exponent;
       bool negative;
-      byte[] digits = ParseSignificantDigits(str, start, end, style, nums, out digitCount, out exponent, out negative);
+      byte[] digits = NumberFormat.ParseSignificantDigits(str, start, end, style, nums, out digitCount, out exponent, out negative);
       if(digits == null)
       {
         ex = new FormatException();
@@ -4392,27 +3350,24 @@ namespace AdamMil.Mathematics
       }
 
       // we've got a valid set of digits, so parse them into an FP107 value (which may be approximate)
-      BigInt mantissa = ParseDigitsToBigInt(digits, digitCount);
+      Integer mantissa = Integer.ParseDigits(digits, digitCount);
 
       // now we've parsed all the digits into a decimal mantissa. if the value is an integer, try to take a fast path with it
       if(exponent >= 0 && (digitCount < 20 || digitCount == 20 && digits[0] == 1 && digits[1] < 8))
       {
         // if the number given is an integer that might fit into a ulong, try to take a fast path
-        if(exponent >= 0)
+        ulong shortMantissa = mantissa.ToUInt64(); // scale the integer up and see if it overflows
+        int i;
+        for(i=0; i<exponent && shortMantissa <= 1844674407370955161UL; i++) shortMantissa *= 10;
+        if(i == exponent) // if it didn't overflow...
         {
-          ulong shortMantissa = mantissa.ToUInt64(); // scale the integer up and see if it overflows
-          int i;
-          for(i=0; i<exponent && shortMantissa <= 1844674407370955161UL; i++) shortMantissa *= 10;
-          if(i == exponent) // if it didn't overflow...
-          {
-            value = shortMantissa; // then we're done
-            goto done;
-          }
+          value = shortMantissa; // then we're done
+          goto done;
         }
       }
 
       // create an approximation of the value by scaling the mantissa by the exponent
-      value = new FP107(mantissa);
+      value = (FP107)mantissa;
       if(exponent < 0) value /= FP107.Pow(10, -exponent);
       else if(exponent > 0) value *= FP107.Pow(10, exponent);
 
@@ -4748,7 +3703,7 @@ namespace AdamMil.Mathematics
       }
 
       if(biasedExponent == 0) biasedExponent++; // if the number is denormalized (or zero) the actual exponent is one greater
-      else mantissa |= 1U<<SingleExponentBits; // otherwise, the mantissa has a hidden one bit
+      else mantissa |= 1U<<SingleMantissaBits; // otherwise, the mantissa has a hidden one bit
 
       exponent = biasedExponent - SingleBiasToInt; // unbias the exponent
       return true;

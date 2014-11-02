@@ -81,8 +81,8 @@ public abstract class SetBase<T> : ICollection<T>
     Items.CopyTo(array, arrayIndex);
   }
 
-  /// <summary>Returns an <see cref="IEnumerator{T}"/> to enumerate the items in the set.</summary>
-  public IEnumerator<T> GetEnumerator()
+  /// <include file="documentation.xml" path="//Common/GetEnumerator/node()"/>
+  public HashSet<T>.Enumerator GetEnumerator()
   {
     return Items.GetEnumerator();
   }
@@ -214,6 +214,11 @@ public abstract class SetBase<T> : ICollection<T>
   void ICollection<T>.Add(T item)
   {
     Add(item);
+  }
+
+  IEnumerator<T> IEnumerable<T>.GetEnumerator()
+  {
+    return GetEnumerator();
   }
 
   System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()

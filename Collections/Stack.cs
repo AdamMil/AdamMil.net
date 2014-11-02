@@ -25,22 +25,25 @@ namespace AdamMil.Collections
 {
 
 /// <summary>This class represents a stack, also known as a LIFO queue.</summary>
+/// <remarks>Unlike the built-in <see cref="System.Collections.Generic.Stack{T}"/> class, this collection is indexable.
+/// It also implements <see cref="IQueue{T}"/>.
+/// </remarks>
 [Serializable]
-public sealed class Stack<T> : IQueue<T>, IReadOnlyList<T>
+public sealed class IndexableStack<T> : IQueue<T>, IReadOnlyList<T>
 {
-  /// <summary>Initializes a new, empty instance of the <see cref="Stack{T}"/> class, with a default capacity.</summary>
-  public Stack() : this(0) { }
-  /// <summary>Initializes a new, empty instance of the <see cref="Stack{T}"/> class, with the specified capacity.</summary>
+  /// <summary>Initializes a new, empty instance of the <see cref="IndexableStack{T}"/> class, with a default capacity.</summary>
+  public IndexableStack() : this(0) { }
+  /// <summary>Initializes a new, empty instance of the <see cref="IndexableStack{T}"/> class, with the specified capacity.</summary>
   /// <param name="capacity">The initial capacity of the stack.</param>
-  public Stack(int capacity)
+  public IndexableStack(int capacity)
   {
     if(capacity < 0) throw new ArgumentOutOfRangeException("capacity", capacity, "capacity must not be negative");
     this.array = new T[capacity == 0 ? 16 : capacity];
     this.mustClear = !typeof(T).UnderlyingSystemType.IsPrimitive; // primitive types don't need to be cleared
   }
-  /// <summary>Initializes a new instance of the <see cref="Stack{T}"/> class, filled with items from the given object.</summary>
+  /// <summary>Initializes a new instance of the <see cref="IndexableStack{T}"/> class, filled with items from the given object.</summary>
   /// <param name="items">An <see cref="IEnumerable{T}"/> containing objects to add to the stack.</param>
-  public Stack(IEnumerable<T> items)
+  public IndexableStack(IEnumerable<T> items)
   {
     if(items == null) throw new ArgumentNullException();
 
@@ -58,6 +61,75 @@ public sealed class Stack<T> : IQueue<T>, IReadOnlyList<T>
 
     this.mustClear = !typeof(T).UnderlyingSystemType.IsPrimitive; // primitive types don't need to be cleared
   }
+
+  #region Enumerator
+  /// <summary>An enumerator capable of enumerating the items in a <see cref="IndexableStack{T}"/>.</summary>
+  /// <remarks>This structure is not meant to be instantiated directly. Rather, you should call <see cref="GetEnumerator"/>.</remarks>
+  public struct Enumerator : IEnumerator<T>
+  {
+    internal Enumerator(IndexableStack<T> stack)
+    {
+      this.stack = stack;
+      version    = stack.version;
+      index      = 0;
+      count      = 0;
+      current    = default(T);
+      Reset();
+    }
+
+    /// <inheritdoc/>
+    public T Current
+    {
+      get
+      {
+        if(index < 0 || index == count) throw new InvalidOperationException();
+        return current;
+      }
+    }
+
+    /// <inheritdoc/>
+    public void Dispose() { }
+
+    /// <inheritdoc/>
+    public bool MoveNext()
+    {
+      AssertNotModified();
+      if(index == -1) return false;
+      if(--index == -1)
+      {
+        current = default(T);
+        return false;
+      }
+      else
+      {
+        current = stack.array[index];
+        return true;
+      }
+    }
+
+    /// <inheritdoc/>
+    public void Reset()
+    {
+      AssertNotModified();
+      count   = stack.count;
+      index   = count;
+    }
+
+    void AssertNotModified()
+    {
+      if(version != stack.version) throw new InvalidOperationException("The collection has been modified.");
+    }
+
+    object System.Collections.IEnumerator.Current
+    {
+      get { return Current; }
+    }
+
+    readonly IndexableStack<T> stack;
+    int index, count, version;
+    T current;
+  }
+  #endregion
 
   /// <summary>Gets or sets an item in the stack.</summary>
   /// <param name="index">The index of the item on the stack. The bottom of the stack has an index of zero and the top
@@ -92,6 +164,13 @@ public sealed class Stack<T> : IQueue<T>, IReadOnlyList<T>
         array = newArray;
       }
     }
+  }
+
+  /// <summary></summary>
+  /// <returns></returns>
+  public Enumerator GetEnumerator()
+  {
+    return new Enumerator(this);
   }
 
   /// <summary>Returns the index of the first item in the stack (starting from the bottom) that is equal to the given
@@ -240,68 +319,13 @@ public sealed class Stack<T> : IQueue<T>, IReadOnlyList<T>
   #endregion
 
   #region IEnumerable<T>
-  sealed class Enumerator : IEnumerator<T>
-  {
-    public Enumerator(Stack<T> stack)
-    {
-      this.stack   = stack;
-      this.version = stack.version;
-      Reset();
-    }
-
-    public T Current
-    {
-      get
-      {
-        if(index < 0 || index == count) throw new InvalidOperationException();
-        return current;
-      }
-    }
-
-    public bool MoveNext()
-    {
-      AssertNotModified();
-      if(index == -1) return false;
-      if(--index == -1)
-      {
-        current = default(T);
-        return false;
-      }
-      else
-      {
-        current = stack.array[index];
-        return true;
-      }
-    }
-
-    public void Reset()
-    {
-      AssertNotModified();
-      count   = stack.count;
-      index   = count;
-    }
-
-    void AssertNotModified()
-    {
-      if(version != stack.version) throw new InvalidOperationException("The collection has been modified.");
-    }
-
-    object System.Collections.IEnumerator.Current
-    {
-      get { return Current; }
-    }
-
-    void IDisposable.Dispose() { }
-
-    readonly Stack<T> stack;
-    T current;
-    int index, count, version;
-  }
-
   /// <summary>Returns an <see cref="IEnumerator{T}"/> that can iterate through the queue in the same order as items
   /// would be dequeued.
   /// </summary>
-  public IEnumerator<T> GetEnumerator() { return new Enumerator(this); }
+  IEnumerator<T> IEnumerable<T>.GetEnumerator()
+  {
+    return GetEnumerator();
+  }
   #endregion
 
   T[] array;

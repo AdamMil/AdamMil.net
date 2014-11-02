@@ -1,13 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <Utilities>
   <ArrayUtility>
-    <SmallCopy>
-      <summary>Provides an array copy routine optimized for copying small amounts of data. The routine is faster than
-        <see cref="Array.Copy(Array,Array,int)" /> by up to a factor of 4 when the amount of data to copy is small, and only slightly
-        slower when it is larger. Specifically, this routine is faster for up to 128 bytes or sbytes; 80 shorts or ushorts; 64 doubles;
-        40 floats, ints, or uints; and 20 longs or ulongs.
+    <FastCopy>
+      <summary>Provides an optimized array copy routine. The routine is up to 10 times as fast as <see cref="Array.Copy(Array,Array,int)" />
+        when the amount of data to copy is small and roughly the same speed for larger amounts of data.
       </summary>
-    </SmallCopy>
+    </FastCopy>
   </ArrayUtility>
   
   <BinaryEncoder>

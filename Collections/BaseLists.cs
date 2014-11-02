@@ -78,8 +78,8 @@ public abstract class AccessLimitedCollectionBase<T> : IList<T>
     Items.CopyTo(array, arrayIndex);
   }
 
-  /// <inheritdoc/>
-  public IEnumerator<T> GetEnumerator()
+  /// <include file="documentation.xml" path="//Common/GetEnumerator/node()"/>
+  public List<T>.Enumerator GetEnumerator()
   {
     return Items.GetEnumerator();
   }
@@ -104,8 +104,13 @@ public abstract class AccessLimitedCollectionBase<T> : IList<T>
     get; private set;
   }
 
-  #region IEnumerable
-  System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+  #region IEnumerable<T>
+  IEnumerator IEnumerable.GetEnumerator()
+  {
+    return GetEnumerator();
+  }
+
+  IEnumerator<T> IEnumerable<T>.GetEnumerator()
   {
     return GetEnumerator();
   }
@@ -243,7 +248,7 @@ public abstract class CollectionBase<T> : IList<T>
   }
 
   /// <include file="documentation.xml" path="//Common/GetEnumerator/node()"/>
-  public IEnumerator<T> GetEnumerator()
+  public List<T>.Enumerator GetEnumerator()
   {
     return Items.GetEnumerator();
   }
@@ -341,6 +346,11 @@ public abstract class CollectionBase<T> : IList<T>
   }
 
   IEnumerator IEnumerable.GetEnumerator()
+  {
+    return GetEnumerator();
+  }
+
+  IEnumerator<T> IEnumerable<T>.GetEnumerator()
   {
     return GetEnumerator();
   }

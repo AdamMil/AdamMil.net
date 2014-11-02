@@ -86,8 +86,8 @@
     </SinCosRemarks>
     <ToString>
       <remarks>
-        This method supports the standard numeric format strings suitable for use with floating point numbers, which are "C", "E", "F",
-        "G", "N", "P", and "R", including precision specifiers (such as "F6"). In addition, this method supports the "X" format, which
+        This method supports the standard numeric format strings suitable for use with floating point numbers, which are "C", "D", "E",
+        "F", "G", "N", "P", and "R", including precision specifiers (such as "F6"). In addition, this method supports the "X" format, which
         is a hexadecimal representation that allows fast, exact conversions to and from string. The method also supports an "S" format
         that returns the individual components, simplifying the creation of constants in source code. (If one component is returned,
         it is an exact double-precision value that can be used to initialize a new <see cref="FP107"/> value. If two components are
@@ -267,6 +267,50 @@
      </Normal>
     </Vector>
   </Geometry>
+
+  <Integer>
+    <BitwiseOps>
+      <remarks>
+        <note type="caution">
+          This method performs a bitwise operation. This works as expected for positive operands, however negative operands are different.
+          In normal fixed-size integers (such as int and long) negative values are stored in two's complement form on most machines. This
+          means that <c>-x == ~((unsigned)x-1)</c>. Two's complement form is one way to conveniently represent positive and negative
+          numbers in a fixed-size integer on a CPU. For an arbitrarily sized integer type such as this, two's complement is unnecessary.
+          However, bitwise operations depend on the precise bits stored in the value, so for consistency with fixed-size integers this
+          method will emulate two's complement for negative values. This may result in a substantial performance decrease and an unexpected
+          result. If you wish to avoid this behavior, only perform bitwise operations on non-negative integers.
+        </note>
+      </remarks>
+    </BitwiseOps>
+    <UnsafeOps>
+      <remarks>
+        <note type="caution">
+          This method is unsafe. <see cref="Integer"/> values can share storage with each other. Operations between two Integers may result
+          in new Integer that shares storage with one or both of the operands. For instance, <c>a = b</c> or <c>a | b</c> or
+          <c>a &amp; b</c> or <c>a + b</c> or others may result in a new value that shares internal storage with <c>a</c> or <c>b</c>, even
+          if the result doesn't have the same value as either <c>a</c> or <c>b</c>. (Storage may be shared if they have the same magnitude,
+          regardless of sign.) Since Integer values are immutable for all normal operations, this improves performance. However, if an
+          unsafe method is invoked, it may mutate the integer in-place without allocating new storage. This can greatly improve performance
+          in some cases, but if the integer shares storage with other values, the other values may become corrupted.
+          <para>
+            To use unsafe methods properly, first make sure that the integer does not share storage with other values. You can do this by
+            not setting the value based on other <see cref="Integer"/> values and not setting other values based on it. For instance, it's
+            safe to perform unsafe operations on an Integer initialized from a non-Integer value such as an int literal. As an exception,
+            it's also safe to perform unsafe operations on values initialized using <see cref="One"/>, <see cref="MinusOne"/>, or
+            <see cref="Zero"/>. Alternately, you can call <see cref="Clone"/> to obtain an Integer that is guaranteed not to share storage
+            with any other values. Just be careful not to reintroduce sharing, as in the following:
+            <c>a = a.Clone(); a.UnsafeIncrement(); ... b *= a; ... a.UnsafeIncrement();</c> In the example, <c>a</c> is cloned, allowing
+            unsafe operations upon it. But then it is used to reassign <c>b</c>, potentially causing <c>b</c> to share storage with
+            <c>a</c>. Then a later unsafe operation upon <c>a</c> can corrupt <c>b</c>. If you really want to walk a fine line, you can mix
+            unsafe operations with normal operations as long as you can guarantee that the normal operations do not cause sharing, i.e.
+            that the result will not have a magnitude equal to any operand. In the example above, <c>b *= a</c> would be safe if you know
+            that neither operand equals 1 or -1. (Zero values never share internal storage.)
+          </para>
+          <para>Finally, don't rely on unsafe operations to do the operation in-place. Sometimes they may have to allocate new storage.</para>
+        </note>
+      </remarks>
+    </UnsafeOps>
+  </Integer>
 
   <LinearAlgebra>
     <ILinearEquationSolver>

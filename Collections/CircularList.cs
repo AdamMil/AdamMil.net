@@ -48,16 +48,20 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
     this.mustClear = !typeof(T).UnderlyingSystemType.IsPrimitive; // primitive types don't need to be cleared
   }
 
-  #region CircularListEnumerator
-  sealed class CircularListEnumerator : IEnumerator<T>
+  #region Enumerator
+  /// <summary>An enumerator capable of enumerating the items in a <see cref="CircularList{T}"/>.</summary>
+  /// <remarks>This structure is not meant to be instantiated directly. Rather, you should call <see cref="GetEnumerator"/>.</remarks>
+  public struct Enumerator : IEnumerator<T>
   {
-    public CircularListEnumerator(CircularList<T> list)
+    internal Enumerator(CircularList<T> list)
     {
       this.list      = list;
       this.myVersion = list.version;
       this.index     = -1;
+      this.item      = default(T);
     }
 
+    /// <inheritdoc/>
     public T Current
     {
       get
@@ -67,8 +71,10 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
       }
     }
 
+    /// <inheritdoc/>
     public void Dispose() { }
 
+    /// <inheritdoc/>
     public bool MoveNext()
     {
       AssertNotModified();
@@ -82,6 +88,7 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
       return true;
     }
 
+    /// <inheritdoc/>
     public void Reset()
     {
       AssertNotModified();
@@ -101,8 +108,8 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
 
     readonly CircularList<T> list;
     readonly int myVersion;
-    T item;
     int index;
+    T item;
   }
   #endregion
 
@@ -530,16 +537,21 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
   }
   #endregion
 
-  #region IEnumerable<T>
   /// <summary>Returns an object that will iterate over the items in the list.</summary>
-  public IEnumerator<T> GetEnumerator()
+  public Enumerator GetEnumerator()
   {
-    return new CircularListEnumerator(this);
+    return new Enumerator(this);
   }
-  #endregion
 
   #region IEnumerable
   System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+  {
+    return GetEnumerator();
+  }
+  #endregion
+
+  #region IEnumerable<T>
+  IEnumerator<T> IEnumerable<T>.GetEnumerator()
   {
     return GetEnumerator();
   }
@@ -798,27 +810,29 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
       {
         T[] temp = new T[LeftCount];
         Array.Copy(array, temp, temp.Length);
-        Array.Copy(array, RightIndex, array, 0, RightCount);
+        Array.Copy(array, tail, array, 0, RightCount);
         Array.Copy(temp, 0, array, RightCount, temp.Length);
       }
       else
       {
         T[] temp = new T[RightCount];
-        Array.Copy(array, RightIndex, temp, 0, temp.Length);
+        Array.Copy(array, tail, temp, 0, temp.Length);
         Array.Copy(array, 0, array, RightCount, LeftCount);
         Array.Copy(temp, array, temp.Length);
       }
 
-      if(mustClear) Array.Clear(array, count, array.Length-count);
+      if(mustClear)
+      {
+        int clearIndex = Math.Max(count, tail);
+        Array.Clear(array, clearIndex, array.Length-clearIndex);
+      }
 
       tail = 0;
       head = count;
     }
   }
 
-  /// <summary>
-  /// Get the current value of <see cref="Head"/>, and then increases it by one, wrapping it around if necessary.
-  /// </summary>
+  /// <summary>Get the current value of <see cref="Head"/>, and then increases it by one, wrapping it around if necessary.</summary>
   int MoveHead()
   {
     int index = head++;
@@ -826,16 +840,16 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
     return index;
   }
 
-  /// <summary>Advances <see cref="Head"/> by the given number of items, wrapping it around if necessary.</summary>
+  /// <summary>Advances <see cref="Head"/> by the given number of items (assumed to be &lt;= array.Length), wrapping it around if
+  /// necessary.
+  /// </summary>
   void MoveHead(int count)
   {
     head += count;
     if(head >= array.Length) head -= array.Length;
   }
 
-  /// <summary>
-  /// Get the current value of <see cref="Tail"/>, and then increases it by one, wrapping it around if necessary.
-  /// </summary>
+  /// <summary>Get the current value of <see cref="Tail"/>, and then increases it by one, wrapping it around if necessary.</summary>
   int MoveTail()
   {
     int index = tail++;
@@ -843,14 +857,16 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
     return index;
   }
 
-  /// <summary>Advances <see cref="Tail"/> by the given number of items, wrapping it around if necessary.</summary>
+  /// <summary>Advances <see cref="Tail"/> by the given number of items (assumed to be &lt;= array.Length), wrapping it around if
+  /// necessary.
+  /// </summary>
   void MoveTail(int count)
   {
     tail += count;
     if(tail >= array.Length) tail -= array.Length;
   }
 
-  /// <summary>This method must be called when the list of items changes.</summary>
+  /// <summary>This method must be called when a logical element of the list is added, removed, or changed.</summary>
   void OnModified()
   {
     version++;
@@ -876,9 +892,9 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
   /// <summary>The version number of the list, used by enumerators to see if the list has changed.</summary>
   int version;
   /// <summary>Whether the list contains a data type that must be cleared out from the array.</summary>
-  bool mustClear;
+  readonly bool mustClear;
   /// <summary>Whether the list can automatically increase its capacity when necessary.</summary>
-  bool canGrow;
+  readonly bool canGrow;
 }
 
 } // namespace AdamMil.Collections

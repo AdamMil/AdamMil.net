@@ -29,6 +29,22 @@ namespace AdamMil.Utilities
 /// <summary>Provides additional LINQ extensions for <see cref="IEnumerable{T}"/>.</summary>
 public static class EnumerableExtensions
 {
+  /// <summary>Casts the given sequence to an <see cref="ICollection{T}"/> if possible, or creates a new <see cref="ICollection{T}"/>
+  /// otherwise.
+  /// </summary>
+  public static ICollection<T> AsCollection<T>(this IEnumerable<T> items)
+  {
+    if(items == null) throw new ArgumentNullException();
+    return items as ICollection<T> ?? new List<T>(items);
+  }
+
+  /// <summary>Casts the given sequence to an <see cref="IList{T}"/> if possible, or creates a new <see cref="IList{T}"/> otherwise.</summary>
+  public static IList<T> AsList<T>(this IEnumerable<T> items)
+  {
+    if(items == null) throw new ArgumentNullException();
+    return items as IList<T> ?? new List<T>(items);
+  }
+
   /// <summary>Concatenates two sequences. If either sequence is null, it is treated as though it was empty.</summary>
   public static IEnumerable<T> Coalesce<T>(this IEnumerable<T> first, IEnumerable<T> second)
   {
@@ -263,6 +279,26 @@ public static class EnumerableExtensions
     return items.OrderByDescending(Identity, new DelegateComparer<T>(comparison));
   }
 
+  /// <summary>Returns a sequence of <see cref="KeyValuePair{K,V}"/> objects having the given items as the values and the indexes of
+  /// those items as the keys.
+  /// </summary>
+  public static IEnumerable<KeyValuePair<int,T>> SelectIndexValuePairs<T>(this IEnumerable<T> items)
+  {
+    if(items == null) throw new ArgumentNullException();
+    int index = 0;
+    foreach(T item in items) yield return new KeyValuePair<int, T>(index++, item);
+  }
+
+  /// <summary>Returns a sequence of <see cref="KeyValuePair{K,V}"/> objects having the given items as the keys and the indexes of
+  /// those items as the values.
+  /// </summary>
+  public static IEnumerable<KeyValuePair<T, int>> SelectValueIndexPairs<T>(this IEnumerable<T> items)
+  {
+    if(items == null) throw new ArgumentNullException();
+    int index = 0;
+    foreach(T item in items) yield return new KeyValuePair<T, int>(item, index++);
+  }
+
   /// <summary>Returns up to the specified number of items, all of which are greater than or equal to the rest of the items. The
   /// items may not be returned in sorted order.
   /// </summary>
@@ -346,6 +382,71 @@ public static class EnumerableExtensions
     // SelectLeast assumes that count < array.Length, which we've guaranteed above
     SelectLeast(array, comparer ?? Comparer<T>.Default, count);
     return new ArraySegmentEnumerable<T>(array, 0, count);
+  }
+
+  /// <summary>Returns an array items selected from the given sequence. If the sequence is an <see cref="ICollection{T}"/>, this is more
+  /// efficient than using <see cref="Enumerable.Select{T,TResult}(IEnumerable{T},Func{T,TResult})"/> directly.
+  /// </summary>
+  public static TResult[] ToArray<T, TResult>(this IEnumerable<T> items, Func<T, TResult> selector)
+  {
+    if(items == null || selector == null) throw new ArgumentNullException();
+    ICollection<T> collection = items as ICollection<T>;
+    if(collection == null)
+    {
+      return items.Select(selector).ToArray();
+    }
+    else
+    {
+      TResult[] array = new TResult[collection.Count];
+      int index = 0;
+      foreach(T item in items) array[index++] = selector(item);
+      return array;
+    }
+  }
+
+  /// <summary>Returns a dictionary mapping the given items from their indexes within the sequence.</summary>
+  public static Dictionary<int, T> ToIndexValueDictionary<T>(this IEnumerable<T> items)
+  {
+    if(items == null) throw new ArgumentNullException();
+    Dictionary<int, T> dict;
+    ICollection<T> collection = items as ICollection<T>;
+    if(collection == null) dict = new Dictionary<int, T>();
+    else dict = new Dictionary<int, T>(collection.Count);
+    int index = 0;
+    foreach(T item in items) dict.Add(index++, item);
+    return dict;
+  }
+
+  /// <summary>Returns a dictionary mapping the given items to their indexes within the sequence.</summary>
+  public static Dictionary<T, int> ToValueIndexDictionary<T>(this IEnumerable<T> items)
+  {
+    if(items == null) throw new ArgumentNullException();
+    Dictionary<T, int> dict;
+    ICollection<T> collection = items as ICollection<T>;
+    if(collection == null) dict = new Dictionary<T, int>();
+    else dict = new Dictionary<T, int>(collection.Count);
+    int index = 0;
+    foreach(T item in items) dict.Add(item, index++);
+    return dict;
+  }
+
+  /// <summary>Returns a <see cref="HashSet{T}"/> containing the items from the given sequence.</summary>
+  public static HashSet<T> ToSet<T>(this IEnumerable<T> items)
+  {
+    if(items == null) throw new ArgumentNullException();
+    return new HashSet<T>(items);
+  }
+
+  /// <summary>Filters the given sequence to remove null values.</summary>
+  public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T> items) where T : class
+  {
+    return items.Where(item => item != null);
+  }
+
+  /// <summary>Filters the given sequence to remove null values.</summary>
+  public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> items) where T : struct
+  {
+    return items.Where(item => item.HasValue).Select(item => item.GetValueOrDefault()); // .GetValueOrDefault() is faster than .Value
   }
 
   static IEnumerable<T> CoalesceCore<T>(IEnumerable<T>[] sequences)
@@ -433,25 +534,6 @@ public static class EnumerableExtensions
         }
       }
     }
-  }
-
-  /// <summary>Returns a <see cref="HashSet{T}"/> containing the items from the given sequence.</summary>
-  public static HashSet<T> ToSet<T>(this IEnumerable<T> items)
-  {
-    if(items == null) throw new ArgumentNullException();
-    return new HashSet<T>(items);
-  }
- 
-  /// <summary>Filters the given sequence to remove null values.</summary>
-  public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T> items) where T : class
-  {
-    return items.Where(item => item != null);
-  }
-   
-  /// <summary>Filters the given sequence to remove null values.</summary>
-  public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> items) where T : struct
-  {
-    return items.Where(item => item.HasValue).Select(item => item.GetValueOrDefault()); // .GetValueOrDefault() is faster than .Value
   }
 }
 

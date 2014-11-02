@@ -359,7 +359,7 @@ namespace AdamMil.Mathematics
       if(input == null || gradient == null) throw new ArgumentNullException();
 
       double value = function.Evaluate(input);
-      ArrayUtility.SmallCopy(input, input2, input.Length);
+      ArrayUtility.FastCopy(input, input2, input.Length);
       for(int x=0; x<input2.Length; x++)
       {
         double arg = input[x], h = arg*factor;
@@ -436,7 +436,7 @@ namespace AdamMil.Mathematics
       if(input == null || matrix == null) throw new ArgumentNullException();
 
       function.Evaluate(input, output);
-      ArrayUtility.SmallCopy(input, input2, input.Length);
+      ArrayUtility.FastCopy(input, input2, input.Length);
       for(int x=0; x<input2.Length; x++)
       {
         double arg = input[x], h = arg*factor;

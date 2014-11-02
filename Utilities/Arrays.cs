@@ -118,10 +118,12 @@ public class ArrayBuffer<T> : ICollection<T>
     get; private set;
   }
 
-  /// <summary>If true, data within the buffer will not be moved, and a new buffer array will be allocated if the current array fills up.
-  /// If false, data within the buffer may be moved to make space for new data rather than allocating a new array. This property will be
-  /// automatically reset to false whenever the buffer is reallocated. It may be useful to set this to true when data is being sent
-  /// asynchronously. The default is false.
+  /// <summary>If false, data within the buffer may be moved automatically by various methods of this class, for instance to make room for
+  /// new data. If true, data within the buffer will not be moved, and a new buffer array will be allocated whenever data would otherwise
+  /// be moved within the buffer. This property will be automatically reset to false whenever the buffer is reallocated, since the newly
+  /// allocated array has not been exposed to other code yet. It may be useful to set this to true if you perform buffer operations while
+  /// data is being read from it asynchronously, and reset it to false when the asynchronous read is complete, since asynchronous reads
+  /// usually require the data to remain in place until the operation is complete.
   /// </summary>
   public bool PinData { get; set; }
 
@@ -188,7 +190,7 @@ public class ArrayBuffer<T> : ICollection<T>
   /// <summary>Returns an enumerator that iterates over the items in the buffer. It is not valid to modify the buffer while the
   /// enumerator is in use.
   /// </summary>
-  public IEnumerator<T> GetEnumerator()
+  public ArraySegmentEnumerator<T> GetEnumerator()
   {
     return new ArraySegmentEnumerator<T>(Buffer, Offset, Count);
   }
@@ -252,10 +254,22 @@ public class ArrayBuffer<T> : ICollection<T>
 
   /// <summary>Ensures that all data is shifted to the beginning of the underlying array, so that <see cref="End"/> equals
   /// <see cref="Count"/> and <see cref="Offset"/> equals zero, and then returns a reference to <see cref="Buffer"/>.
+  /// <see cref="Buffer"/> may be reallocated if <see cref="PinData"/> is true.
   /// </summary>
-  public T[] GetContiguousArray()
+  public T[] GetZeroOffsetArray()
   {
-    ShiftToFront();
+    if(!PinData)
+    {
+      ShiftToFront();
+    }
+    else if(Offset != 0 && Count != 0)
+    {
+      T[] newBuffer = new T[Buffer.Length];
+      Array.Copy(Buffer, Offset, newBuffer, 0, Count);
+      _buffer = newBuffer;
+      Offset  = 0;
+      PinData = false;
+    }
     return Buffer;
   }
 
@@ -355,7 +369,7 @@ public class ArrayBuffer<T> : ICollection<T>
 
   void ShiftToFront()
   {
-    if(Offset != 0)
+    if(Offset != 0 && Count != 0)
     {
       Array.Copy(Buffer, Offset, Buffer, 0, Count);
       Offset = 0;
@@ -368,6 +382,11 @@ public class ArrayBuffer<T> : ICollection<T>
   }
 
   System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+  {
+    return GetEnumerator();
+  }
+
+  IEnumerator<T> IEnumerable<T>.GetEnumerator()
   {
     return GetEnumerator();
   }
@@ -476,7 +495,7 @@ public static class ArrayExtensions
 
 #region ArraySegmentEnumerable
 /// <summary>Enumerates the items within a segment of an array.</summary>
-public sealed class ArraySegmentEnumerable<T> : IEnumerable<T>
+public struct ArraySegmentEnumerable<T> : IEnumerable<T>
 {
   /// <summary>Initializes a new <see cref="ArraySegmentEnumerable{T}"/> from the given <see cref="ArraySegment{T}"/>.</summary>
   public ArraySegmentEnumerable(ArraySegment<T> segment) : this(segment.Array, segment.Offset, segment.Count) { }
@@ -508,7 +527,7 @@ public sealed class ArraySegmentEnumerable<T> : IEnumerable<T>
 
 #region ArraySegmentEnumerator
 /// <summary>Enumerates the items within a segment of an array.</summary>
-public sealed class ArraySegmentEnumerator<T> : IEnumerator<T>
+public struct ArraySegmentEnumerator<T> : IEnumerator<T>
 {
   /// <summary>Initializes a new <see cref="ArraySegmentEnumerator{T}"/> from the given <see cref="ArraySegment{T}"/>.</summary>
   public ArraySegmentEnumerator(ArraySegment<T> segment) : this(segment.Array, segment.Offset, segment.Count) { }
@@ -520,6 +539,7 @@ public sealed class ArraySegmentEnumerator<T> : IEnumerator<T>
     this.array = array;
     this.start = index;
     this.end   = index + count;
+    this.currentIndex = 0;
     Reset();
   }
 

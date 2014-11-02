@@ -61,7 +61,7 @@ public sealed class PriorityQueue<T> : ICloneable, IQueue<T>, IReadOnlyCollectio
   /// <param name="capacity">The initial capacity of the queue.</param>
   public PriorityQueue(IComparer<T> comparer, int capacity)
   {
-    if(comparer == null) throw new ArgumentNullException("comparer");
+    if(comparer == null) throw new ArgumentNullException();
     if(capacity < 0) throw new ArgumentOutOfRangeException("capacity", capacity, "capacity must not be negative");
     this.cmp       = comparer;
     this.array     = new T[capacity == 0 ? 16 : capacity];

@@ -30,9 +30,10 @@ namespace AdamMil.IO
 {
 
 // TODO: make sure BinaryReader has a way to avoid reading more data than requested (like the .NET
-// BinaryReader does)
+// BinaryReader does - so it works better with non-seekable streams)
 // TODO: make sure these work with non-seekable streams
 // TODO: remove support for shared streams? (what would that impact? jappy?)
+// TODO: get rid of *ValueWithType? it's too provincial.
 
 #region PinnedBuffer
 /// <summary>This class supports the <see cref="BinaryReader"/> and <see cref="BinaryWriter"/> classes and is not
@@ -691,13 +692,15 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// <summary>Reads a four-byte float from the stream.</summary>
   public float ReadSingle()
   {
-    return *(float*)ReadContiguousData(sizeof(float));
+    byte* data = ReadContiguousData(sizeof(float));
+    return LittleEndian == BitConverter.IsLittleEndian ? *(float*)data : LittleEndian ? IOH.ReadLESingle(data) : IOH.ReadBESingle(data);
   }
 
   /// <summary>Reads an eight-byte float from the stream.</summary>
   public double ReadDouble()
   {
-    return *(double*)ReadContiguousData(sizeof(double));
+    byte* data = ReadContiguousData(sizeof(double));
+    return LittleEndian == BitConverter.IsLittleEndian ? *(double*)data : LittleEndian ? IOH.ReadLEDouble(data) : IOH.ReadBEDouble(data);
   }
 
   /// <summary>Reads a 13-byte <see cref="decimal"/> value from the stream.</summary>
@@ -944,7 +947,9 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   [CLSCompliant(false)]
   public void ReadInt32s(int* array, int count)
   {
-    ReadUInt32s((uint*)array, count);
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    Read(array, count*sizeof(uint));
+    MakeSystemEndian4(array, count);
   }
 
   /// <summary>Reads an array of unsigned four-byte integers from the stream.</summary>
@@ -968,9 +973,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   [CLSCompliant(false)]
   public void ReadUInt32s(uint* array, int count)
   {
-    if(count < 0) throw new ArgumentOutOfRangeException();
-    Read(array, count*sizeof(uint));
-    MakeSystemEndian4(array, count);
+    ReadInt32s((int*)array, count);
   }
 
   /// <summary>Reads an array of signed eight-byte integers from the stream.</summary>
@@ -992,7 +995,9 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   [CLSCompliant(false)]
   public void ReadInt64s(long* array, int count)
   {
-    ReadUInt64s((ulong*)array, count);
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    Read(array, count*sizeof(long));
+    MakeSystemEndian8(array, count);
   }
 
   /// <summary>Reads an array of unsigned eight-byte integers from the stream.</summary>
@@ -1016,9 +1021,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   [CLSCompliant(false)]
   public void ReadUInt64s(ulong* array, int count)
   {
-    if(count < 0) throw new ArgumentOutOfRangeException();
-    Read(array, count*sizeof(ulong));
-    MakeSystemEndian8(array, count);
+    ReadInt64s((long*)array, count);
   }
 
   /// <summary>Reads a value that was written with <see cref="BinaryWriter.WriteValueWithType"/>.</summary>
@@ -1170,8 +1173,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   [CLSCompliant(false)]
   public void ReadSingles(float* array, int count)
   {
-    if(count < 0) throw new ArgumentOutOfRangeException();
-    Read(array, count*sizeof(float));
+    ReadInt32s((int*)array, count);
   }
 
   /// <summary>Reads an array of eight-byte floats from the stream.</summary>
@@ -1193,8 +1195,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   [CLSCompliant(false)]
   public void ReadDoubles(double* array, int count)
   {
-    if(count < 0) throw new ArgumentOutOfRangeException();
-    Read(array, count*sizeof(double));
+    ReadInt64s((long*)array, count);
   }
 
   /// <summary>Reads an array of 13-byte <see cref="decimal"/> values from the stream.</summary>
@@ -1631,42 +1632,44 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// <summary>Writes a signed four-byte integer to the stream.</summary>
   public void Write(int value)
   {
-    Write((uint)value);
+    EnsureSpace(sizeof(int));
+    if(LittleEndian == BitConverter.IsLittleEndian) *(int*)WritePtr = value;
+    else if(LittleEndian) IOH.WriteLE4(WritePtr, value);
+    else IOH.WriteBE4(WritePtr, value);
+    writeIndex += sizeof(int);
   }
 
   /// <summary>Writes an unsigned four-byte integer to the stream.</summary>
   [CLSCompliant(false)]
   public void Write(uint value)
   {
-    EnsureSpace(sizeof(uint));
-    if(LittleEndian == BitConverter.IsLittleEndian) *(uint*)WritePtr = value;
-    else if(LittleEndian) IOH.WriteLE4U(WritePtr, value);
-    else IOH.WriteBE4U(WritePtr, value);
-    writeIndex += sizeof(uint);
+    Write((int)value);
   }
 
   /// <summary>Writes a signed eight-byte integer to the stream.</summary>
   public void Write(long value)
   {
-    Write((ulong)value);
+    EnsureSpace(sizeof(long));
+    if(LittleEndian == BitConverter.IsLittleEndian) *(long*)WritePtr = value;
+    else if(LittleEndian) IOH.WriteLE8(WritePtr, value);
+    else IOH.WriteBE8(WritePtr, value);
+    writeIndex += sizeof(long);
   }
 
   /// <summary>Writes an unsigned eight-byte integer to the stream.</summary>
   [CLSCompliant(false)]
   public void Write(ulong value)
   {
-    EnsureSpace(sizeof(ulong));
-    if(LittleEndian == BitConverter.IsLittleEndian) *(ulong*)WritePtr = value;
-    else if(LittleEndian) IOH.WriteLE8U(WritePtr, value);
-    else IOH.WriteBE8U(WritePtr, value);
-    writeIndex += sizeof(ulong);
+    Write((long)value);
   }
 
   /// <summary>Writes a four-byte float to the stream.</summary>
   public void Write(float value)
   {
     EnsureSpace(sizeof(float));
-    *(float*)WritePtr = value;
+    if(LittleEndian == BitConverter.IsLittleEndian) *(float*)WritePtr = value;
+    else if(LittleEndian) IOH.WriteLESingle(WritePtr, value);
+    else IOH.WriteBESingle(WritePtr, value);
     writeIndex += sizeof(float);
   }
 
@@ -1674,7 +1677,9 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(double value)
   {
     EnsureSpace(sizeof(double));
-    *(double*)WritePtr = value;
+    if(LittleEndian == BitConverter.IsLittleEndian) *(double*)WritePtr = value;
+    else if(LittleEndian) IOH.WriteLEDouble(WritePtr, value);
+    else IOH.WriteBEDouble(WritePtr, value);
     writeIndex += sizeof(double);
   }
 
@@ -1931,7 +1936,8 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   [CLSCompliant(false)]
   public void Write(int* data, int count)
   {
-    Write((uint*)data, count);
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    WriteCore((byte*)data, count, sizeof(int));
   }
 
   /// <summary>Writes an array of unsigned four-byte integers to the stream.</summary>
@@ -1954,8 +1960,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   [CLSCompliant(false)]
   public void Write(uint* data, int count)
   {
-    if(count < 0) throw new ArgumentOutOfRangeException();
-    WriteCore((byte*)data, count, sizeof(uint));
+    Write((int*)data, count);
   }
 
   /// <summary>Writes an array of signed eight-byte integers to the stream.</summary>
@@ -1976,7 +1981,8 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   [CLSCompliant(false)]
   public void Write(long* data, int count)
   {
-    Write((ulong*)data, count);
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    WriteCore((byte*)data, count, sizeof(long));
   }
 
   /// <summary>Writes an array of unsigned eight-byte integers to the stream.</summary>
@@ -1999,8 +2005,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   [CLSCompliant(false)]
   public void Write(ulong* data, int count)
   {
-    if(count < 0) throw new ArgumentOutOfRangeException();
-    WriteCore((byte*)data, count, sizeof(ulong));
+    Write((long*)data, count);
   }
 
   /// <summary>Writes an array of four-byte floats to the stream.</summary>
@@ -2022,7 +2027,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(float* data, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
-    WriteCore((byte*)data, count*sizeof(float));
+    WriteCore((byte*)data, count, sizeof(float));
   }
 
   /// <summary>Writes an array of eight-byte floats to the stream.</summary>
@@ -2044,7 +2049,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(double* data, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
-    WriteCore((byte*)data, count*sizeof(double));
+    WriteCore((byte*)data, count, sizeof(double));
   }
 
   /// <summary>Writes an array of 13-byte decimals to the stream.</summary>
