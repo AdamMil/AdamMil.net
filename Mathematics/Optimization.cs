@@ -18,6 +18,8 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
+// TODO: communicate results with an enum rather than throwing exceptions, here and in other functions
+
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
@@ -213,7 +215,7 @@ public class ConstrainedMinimizer
       }
 
       value = newValue;
-      ArrayUtility.SmallCopy(x, oldX, x.Length);
+      ArrayUtility.FastCopy(x, oldX, x.Length);
 
       // if we're using a barrier method, we need to decrease the penalty factor on each iteration. otherwise, we need to increase it
       if(IsBarrierMethod) penaltyFunction.PenaltyFactor /= PenaltyChangeFactor;
@@ -586,13 +588,13 @@ public static class Minimize
         // move in the step direction as far as we can go. the new point is output in 'tmp'
         FindRoot.LineSearch(function, x, value, gradient, step, tmp, out value, maxStep);
         MathHelpers.SubtractVectors(tmp, x, step); // store the actual distance moved into 'step'
-        ArrayUtility.SmallCopy(tmp, x, x.Length); // update the current point
+        ArrayUtility.FastCopy(tmp, x, x.Length); // update the current point
 
         // if the parameters are barely changing, then we've converged
         if(GetParameterConvergence(x, step) <= ParameterTolerance) return value;
 
         // evaluate the gradient at the new point. if the gradient is about zero, we're done
-        ArrayUtility.SmallCopy(gradient, gradDiff, gradient.Length); // copy the old gradient
+        ArrayUtility.FastCopy(gradient, gradDiff, gradient.Length); // copy the old gradient
         function.EvaluateGradient(x, gradient); // get the new gradient
         if(GetGradientConvergence(x, gradient, value) <= tolerance) return value; // check the new gradient for convergence to zero
 

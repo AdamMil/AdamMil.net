@@ -20,7 +20,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-// this code has been auto-generated from ArrayUtility.tt
+// NOTE: this code has been auto-generated from ArrayUtility.tt
 
 using System;
 
@@ -31,44 +31,46 @@ namespace AdamMil.Utilities
 public static partial class ArrayUtility
 {
 <#
-  string[] types = new string[] { "byte", "char", "double", "float", "int", "long", "sbyte", "short", "uint", "ulong", "ushort" };
-  int[] thresholds = new int[] { 128, 80, 64, 40, 40, 20, 128, 80, 40, 20, 80 };
-  bool[] clsCompliant = new bool[] { true, true, true, true, true, true, false, true, false, false, false };
-
+  string[] types = new string[] { "byte", "char", "double", "float", "int", "long", "sbyte", "short", "uint", "ulong", "ushort", "T" };
+	int[] loopThresholds = new int[] { 10, 15, 20, 20, 15, 20, 10, 14, 17, 22, 15, 30 };
+  bool[] clsCompliant = new bool[] { true, true, true, true, true, true, false, true, false, false, false, true };
   for(int i=0; i<types.Length; i++)
   {
-    string type = types[i];#>
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+		bool isGeneric = types[i] == "T";
+    string type = types[i], typeParam = isGeneric ? "<T>" : "";#>
+    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
     <# if(!clsCompliant[i]) {#>
       [CLSCompliant(false)]
     <# } #>
-    public static void SmallCopy(<#=type#>[] source, <#=type#>[] dest, int length)
+    public static void FastCopy<#=typeParam#>(this <#=type#>[] source, <#=type#>[] dest, int length)<# if(isGeneric) {#> where T : class<#}#>
     {
-      SmallCopy(source, 0, dest, 0, length);
+      FastCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/SmallCopy/*"/>
+    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
     <# if(!clsCompliant[i]) {#>
       [CLSCompliant(false)]
     <# } #>
-    public static unsafe void SmallCopy(<#=type#>[] source, int sourceIndex, <#=type#>[] dest, int destIndex, int length)
+    public static unsafe void FastCopy<#=typeParam#>(this <#=type#>[] source, int sourceIndex, <#=type#>[] dest, int destIndex, int length)<# if(isGeneric) {#> where T : class<#}#>
     {
-      if(length > <#=thresholds[i]#>)
-      {
-        Array.Copy(source, sourceIndex, dest, destIndex, length);
-      }
-      else
-      {
-        if(source == null || dest == null) throw new ArgumentNullException();
-        if((sourceIndex|destIndex|length) < 0 || sourceIndex+length > source.Length || destIndex+length > dest.Length)
-        {
-          throw new ArgumentOutOfRangeException();
-        }
-        fixed(<#=type#>* psrc=source, pdest=dest)
-        {
-          Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(<#=type#>));
-        }
-      }
+      if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
+			if(length <= <#=loopThresholds[i]#>)
+			{
+				for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
+			}
+			else
+			{
+				<# if(isGeneric) { #>
+				Array.Copy(source, sourceIndex, dest, destIndex, length);
+				<# } else { #>
+	      if(source == null || dest == null) throw new ArgumentNullException();
+				if(sourceIndex+length > source.Length || destIndex+length > dest.Length) throw new ArgumentOutOfRangeException();
+				fixed(<#=type#>* psrc=source, pdest=dest)
+				{
+					Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(<#=type#>));
+				}
+				<# } #>
+			}
     }
   <#
   }

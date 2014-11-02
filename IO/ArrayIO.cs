@@ -34,14 +34,22 @@ public unsafe static partial class IOH
 
   /// <summary>Reads a little-endian short (2 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
-  public static short ReadLE2(byte* buf) { return (short)(*buf|(buf[1]<<8)); }
+  public static short ReadLE2(byte* buf)
+  {
+    if(BitConverter.IsLittleEndian) return *(short*)buf;
+    else return (short)(*buf|(buf[1]<<8));
+  }
 
   /// <summary>Reads a big-endian short (2 bytes) from a byte array.</summary>
   public static short ReadBE2(byte[] buf, int index) { return (short)((buf[index]<<8)|buf[index+1]); }
 
   /// <summary>Reads a big-endian short (2 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
-  public static short ReadBE2(byte* buf) { return (short)((*buf<<8)|buf[1]); }
+  public static short ReadBE2(byte* buf)
+  {
+    if(BitConverter.IsLittleEndian) return (short)((*buf<<8)|buf[1]);
+    else return *(short*)buf;
+  }
 
   /// <summary>Reads a little-endian integer (4 bytes) from a byte array.</summary>
   public static int ReadLE4(byte[] buf, int index)
@@ -51,7 +59,11 @@ public unsafe static partial class IOH
 
   /// <summary>Reads a little-endian integer (4 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
-  public static int ReadLE4(byte* buf) { return (int)(*buf|(buf[1]<<8)|(buf[2]<<16)|(buf[3]<<24)); }
+  public static int ReadLE4(byte* buf)
+  {
+    if(BitConverter.IsLittleEndian) return *(int*)buf;
+    else return (int)(*buf|(buf[1]<<8)|(buf[2]<<16)|(buf[3]<<24));
+  }
 
   /// <summary>Reads a big-endian integer (4 bytes) from a byte array.</summary>
   public static int ReadBE4(byte[] buf, int index)
@@ -61,21 +73,39 @@ public unsafe static partial class IOH
 
   /// <summary>Reads a big-endian integer (4 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
-  public static int ReadBE4(byte* buf) { return (int)((*buf<<24)|(buf[1]<<16)|(buf[2]<<8)|buf[3]); }
+  public static int ReadBE4(byte* buf)
+  {
+    if(BitConverter.IsLittleEndian) return (int)((*buf<<24)|(buf[1]<<16)|(buf[2]<<8)|buf[3]);
+    else return *(int*)buf;
+  }
 
   /// <summary>Reads a little-endian long (8 bytes) from a byte array.</summary>
-  public static long ReadLE8(byte[] buf, int index) { return ReadLE4U(buf, index)|((long)ReadLE4(buf, index+4)<<32); }
+  public static long ReadLE8(byte[] buf, int index)
+  {
+    return ReadLE4U(buf, index)|((long)ReadLE4(buf, index+4)<<32);
+  }
 
   /// <summary>Reads a little-endian long (8 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
-  public static long ReadLE8(byte* buf) { return ReadLE4U(buf)|((long)ReadLE4(buf+4)<<32); }
+  public static long ReadLE8(byte* buf)
+  {
+    if(BitConverter.IsLittleEndian) return *(long*)buf;
+    else return ReadLE4U(buf)|((long)ReadLE4(buf+4)<<32);
+  }
 
   /// <summary>Reads a big-endian long (8 bytes) from a byte array.</summary>
-  public static long ReadBE8(byte[] buf, int index) { return ((long)ReadBE4(buf, index)<<32)|(uint)ReadBE4(buf, index+4); }
+  public static long ReadBE8(byte[] buf, int index)
+  {
+    return ((long)ReadBE4(buf, index)<<32)|ReadBE4U(buf, index+4);
+  }
 
   /// <summary>Reads a big-endian long (8 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
-  public static long ReadBE8(byte* buf) { return ((long)ReadBE4(buf)<<32)|(uint)ReadBE4(buf+4); }
+  public static long ReadBE8(byte* buf)
+  {
+    if(BitConverter.IsLittleEndian) return ((long)ReadBE4(buf)<<32)|ReadBE4U(buf+4);
+    else return *(long*)buf;
+  }
 
   /// <summary>Reads a little-endian unsigned short (2 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
@@ -83,7 +113,11 @@ public unsafe static partial class IOH
 
   /// <summary>Reads a little-endian unsigned short (2 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
-  public static ushort ReadLE2U(byte* buf) { return (ushort)(*buf|(buf[1]<<8)); }
+  public static ushort ReadLE2U(byte* buf)
+  {
+    if(BitConverter.IsLittleEndian) return *(ushort*)buf;
+    else return (ushort)(*buf|(buf[1]<<8));
+  }
 
   /// <summary>Reads a big-endian unsigned short (2 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
@@ -91,7 +125,11 @@ public unsafe static partial class IOH
 
   /// <summary>Reads a big-endian unsigned short (2 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
-  public static ushort ReadBE2U(byte* buf) { return (ushort)((*buf<<8)|buf[1]); }
+  public static ushort ReadBE2U(byte* buf)
+  {
+    if(BitConverter.IsLittleEndian) return (ushort)((*buf<<8)|buf[1]);
+    else return *(ushort*)buf;
+  }
 
   /// <summary>Reads a little-endian unsigned integer (4 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
@@ -102,7 +140,11 @@ public unsafe static partial class IOH
 
   /// <summary>Reads a little-endian unsigned integer (4 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
-  public static uint ReadLE4U(byte* buf) { return (uint)(*buf|(buf[1]<<8)|(buf[2]<<16)|(buf[3]<<24)); }
+  public static uint ReadLE4U(byte* buf)
+  {
+    if(BitConverter.IsLittleEndian) return *(uint*)buf;
+    else return (uint)(*buf|(buf[1]<<8)|(buf[2]<<16)|(buf[3]<<24));
+  }
 
   /// <summary>Reads a big-endian unsigned integer (4 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
@@ -113,18 +155,26 @@ public unsafe static partial class IOH
 
   /// <summary>Reads a big-endian unsigned integer (4 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
-  public static uint ReadBE4U(byte* buf) { return (uint)((*buf<<24)|(buf[1]<<16)|(buf[2]<<8)|buf[3]); }
+  public static uint ReadBE4U(byte* buf)
+  {
+    if(BitConverter.IsLittleEndian) return (uint)((*buf<<24)|(buf[1]<<16)|(buf[2]<<8)|buf[3]);
+    else return *(uint*)buf;
+  }
 
   /// <summary>Reads a little-endian unsigned long (8 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
-  public static ulong ReadLE8U(byte[] buf, int index)
+  public static unsafe ulong ReadLE8U(byte[] buf, int index)
   {
     return ReadLE4U(buf, index)|((ulong)ReadLE4U(buf, index+4)<<32);
   }
 
   /// <summary>Reads a little-endian unsigned long (8 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
-  public static ulong ReadLE8U(byte* buf) { return ReadLE4U(buf)|((ulong)ReadLE4U(buf+4)<<32); }
+  public static ulong ReadLE8U(byte* buf)
+  {
+    if(BitConverter.IsLittleEndian) return *(ulong*)buf;
+    else return ReadLE4U(buf)|((ulong)ReadLE4U(buf+4)<<32);
+  }
 
   /// <summary>Reads a big-endian unsigned long (8 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
@@ -135,27 +185,99 @@ public unsafe static partial class IOH
 
   /// <summary>Reads a big-endian unsigned long (8 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
-  public static ulong ReadBE8U(byte* buf) { return ((ulong)ReadBE4U(buf)<<32)|ReadBE4U(buf+4); }
-
-  /// <summary>Reads an IEEE754 float (4 bytes) from a byte array.</summary>
-  public unsafe static float ReadFloat(byte[] buf, int index)
+  public static ulong ReadBE8U(byte* buf)
   {
-    fixed(byte* ptr=buf) return *(float*)(ptr+index);
+    if(BitConverter.IsLittleEndian) return ((ulong)ReadBE4U(buf)<<32)|ReadBE4U(buf+4);
+    else return *(ulong*)buf;
   }
 
-  /// <summary>Reads an IEEE754 float (4 bytes) from a byte array.</summary>
-  [CLSCompliant(false)]
-  public unsafe static float ReadFloat(byte* buf) { return *(float*)buf; }
-
-  /// <summary>Reads an IEEE754 double (8 bytes) from a byte array.</summary>
-  public unsafe static double ReadDouble(byte[] buf, int index)
+  /// <summary>Reads a little-endian IEEE754 float (4 bytes) from a byte array.</summary>
+  public unsafe static float ReadLEFloat(byte[] buf, int index)
   {
-    fixed(byte* ptr=buf) return *(double*)(ptr+index);
+    int v = buf[index]|(buf[index+1]<<8)|(buf[index+2]<<16)|(buf[index+3]<<24);
+    return *(float*)&v;
   }
 
-  /// <summary>Reads an IEEE754 double (8 bytes) from a byte array.</summary>
+  /// <summary>Reads a little-endian IEEE754 float (4 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
-  public unsafe static double ReadDouble(byte* buf) { return *(double*)buf; }
+  public unsafe static float ReadLESingle(byte* buf)
+  {
+    if(BitConverter.IsLittleEndian)
+    {
+      return *(float*)buf;
+    }
+    else
+    {
+      int v = *buf|(buf[1]<<8)|(buf[2]<<16)|(buf[3]<<24);
+      return *(float*)&v;
+    }
+  }
+
+  /// <summary>Reads a little-endian IEEE754 double (8 bytes) from a byte array.</summary>
+  public unsafe static double ReadLESingle(byte[] buf, int index)
+  {
+    ulong v = ReadLE4U(buf, index) | ((ulong)ReadLE4U(buf, index+4)<<32);
+    return *(double*)&v;
+  }
+
+  /// <summary>Reads a little-endian IEEE754 double (8 bytes) from a byte array.</summary>
+  [CLSCompliant(false)]
+  public unsafe static double ReadLEDouble(byte* buf)
+  {
+    if(BitConverter.IsLittleEndian)
+    {
+      return *(double*)buf;
+    }
+    else
+    {
+      ulong v = ReadLE8U(buf);
+      return *(double*)&v;
+    }
+  }
+
+  /// <summary>Reads a little-endian IEEE754 float (4 bytes) from a byte array.</summary>
+  public unsafe static float ReadBESingle(byte[] buf, int index)
+  {
+    int v = (buf[index]<<24)|(buf[index+1]<<16)|(buf[index+2]<<8)|buf[index+3];
+    return *(float*)&v;
+  }
+
+  /// <summary>Reads a little-endian IEEE754 float (4 bytes) from a byte array.</summary>
+  [CLSCompliant(false)]
+  public unsafe static float ReadBESingle(byte* buf)
+  {
+    if(BitConverter.IsLittleEndian)
+    {
+      int v = (*buf<<24)|(buf[1]<<16)|(buf[2]<<8)|buf[3];
+      return *(float*)&v;
+    }
+    else
+    {
+      return *(float*)buf;
+    }
+  }
+
+  /// <summary>Reads a little-endian IEEE754 double (8 bytes) from a byte array.</summary>
+  public unsafe static double ReadBEDouble(byte[] buf, int index)
+  {
+    ulong v = ((ulong)ReadBE4U(buf, index)<<32) | ReadBE4U(buf, index+4);
+    return *(double*)&v;
+  }
+
+  /// <summary>Reads a little-endian IEEE754 double (8 bytes) from a byte array.</summary>
+  [CLSCompliant(false)]
+  public unsafe static double ReadBEDouble(byte* buf)
+  {
+    if(BitConverter.IsLittleEndian)
+    {
+      ulong v = ReadBE8U(buf);
+      return *(double*)&v;
+    }
+    else
+    {
+      return *(double*)buf;
+    }
+  }
   #endregion
 
   #region Writing
@@ -170,8 +292,15 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static void WriteLE2(byte* buf, short val)
   {
-    *buf   = (byte)val;
-    buf[1] = (byte)(val>>8);
+    if(BitConverter.IsLittleEndian)
+    {
+      *(short*)buf = val;
+    }
+    else
+    {
+      *buf   = (byte)val;
+      buf[1] = (byte)(val>>8);
+    }
   }
 
   /// <summary>Writes a big-endian short (2 bytes) to a byte array.</summary>
@@ -185,8 +314,15 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static void WriteBE2(byte* buf, short val)
   {
-    *buf   = (byte)(val>>8);
-    buf[1] = (byte)val;
+    if(BitConverter.IsLittleEndian)
+    {
+      *buf   = (byte)(val>>8);
+      buf[1] = (byte)val;
+    }
+    else
+    {
+      *(short*)buf = val;
+    }
   }
 
   /// <summary>Writes a little-endian integer (4 bytes) to a byte array.</summary>
@@ -202,10 +338,17 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static void WriteLE4(byte* buf, int val)
   {
-    *buf   = (byte)val;
-    buf[1] = (byte)(val>>8);
-    buf[2] = (byte)(val>>16);
-    buf[3] = (byte)(val>>24);
+    if(BitConverter.IsLittleEndian)
+    {
+      *(int*)buf = val;
+    }
+    else
+    {
+      *buf   = (byte)val;
+      buf[1] = (byte)(val>>8);
+      buf[2] = (byte)(val>>16);
+      buf[3] = (byte)(val>>24);
+    }
   }
 
   /// <summary>Writes a big-endian integer (4 bytes) to a byte array.</summary>
@@ -221,10 +364,17 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static void WriteBE4(byte* buf, int val)
   {
-    *buf   = (byte)(val>>24);
-    buf[1] = (byte)(val>>16);
-    buf[2] = (byte)(val>>8);
-    buf[3] = (byte)val;
+    if(BitConverter.IsLittleEndian)
+    { 
+      *buf   = (byte)(val>>24);
+      buf[1] = (byte)(val>>16);
+      buf[2] = (byte)(val>>8);
+      buf[3] = (byte)val;
+    }
+    else
+    {
+      *(int*)buf = val;
+    }
   }
 
   /// <summary>Writes a little-endian long (8 bytes) to a byte array.</summary>
@@ -238,8 +388,15 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static void WriteLE8(byte* buf, long val)
   {
-    WriteLE4(buf, (int)val);
-    WriteLE4(buf+4, (int)(val>>32));
+    if(BitConverter.IsLittleEndian)
+    {
+      *(long*)buf = val;
+    }
+    else
+    {
+      WriteLE4(buf, (int)val);
+      WriteLE4(buf+4, (int)(val>>32));
+    }
   }
 
   /// <summary>Writes a big-endian long (8 bytes) to a byte array.</summary>
@@ -253,8 +410,15 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static void WriteBE8(byte* buf, long val)
   {
-    WriteBE4(buf, (int)(val>>32));
-    WriteBE4(buf+4, (int)val);
+    if(BitConverter.IsLittleEndian)
+    {
+      WriteBE4(buf, (int)(val>>32));
+      WriteBE4(buf+4, (int)val);
+    }
+    else
+    {
+      *(long*)buf = val;
+    }
   }
 
   /// <summary>Writes a little-endian unsigned short (2 bytes) to a byte array.</summary>
@@ -269,8 +433,15 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static void WriteLE2U(byte* buf, ushort val)
   {
-    *buf   = (byte)val;
-    buf[1] = (byte)(val>>8);
+    if(BitConverter.IsLittleEndian)
+    {
+      *(ushort*)buf = val;
+    }
+    else
+    {
+      *buf   = (byte)val;
+      buf[1] = (byte)(val>>8);
+    }
   }
 
   /// <summary>Writes a big-endian unsigned short (2 bytes) to a byte array.</summary>
@@ -285,8 +456,15 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static void WriteBE2U(byte* buf, ushort val)
   {
-    *buf   = (byte)(val>>8);
-    buf[1] = (byte)val;
+    if(BitConverter.IsLittleEndian)
+    {
+      *buf   = (byte)(val>>8);
+      buf[1] = (byte)val;
+    }
+    else
+    {
+      *(ushort*)buf = val;
+    }
   }
 
   /// <summary>Writes a little-endian unsigned integer (4 bytes) to a byte array.</summary>
@@ -303,10 +481,17 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static void WriteLE4U(byte* buf, uint val)
   {
-    *buf   = (byte)val;
-    buf[1] = (byte)(val>>8);
-    buf[2] = (byte)(val>>16);
-    buf[3] = (byte)(val>>24);
+    if(BitConverter.IsLittleEndian)
+    {
+      *(uint*)buf = val;
+    }
+    else
+    {
+      *buf   = (byte)val;
+      buf[1] = (byte)(val>>8);
+      buf[2] = (byte)(val>>16);
+      buf[3] = (byte)(val>>24);
+    }
   }
 
   /// <summary>Writes a big-endian unsigned integer (4 bytes) to a byte array.</summary>
@@ -323,10 +508,17 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static void WriteBE4U(byte* buf, uint val)
   {
-    *buf   = (byte)(val>>24);
-    buf[1] = (byte)(val>>16);
-    buf[2] = (byte)(val>>8);
-    buf[3] = (byte)val;
+    if(BitConverter.IsLittleEndian)
+    {
+      *buf   = (byte)(val>>24);
+      buf[1] = (byte)(val>>16);
+      buf[2] = (byte)(val>>8);
+      buf[3] = (byte)val;
+    }
+    else
+    {
+      *(uint*)buf = val;
+    }
   }
 
   /// <summary>Writes a little-endian unsigned long (8 bytes) to a byte array.</summary>
@@ -341,8 +533,15 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static void WriteLE8U(byte* buf, ulong val)
   {
-    WriteLE4U(buf, (uint)val);
-    WriteLE4U(buf+4, (uint)(val>>32));
+    if(BitConverter.IsLittleEndian)
+    {
+      *(ulong*)buf = val;
+    }
+    else
+    {
+      WriteLE4U(buf, (uint)val);
+      WriteLE4U(buf+4, (uint)(val>>32));
+    }
   }
 
   /// <summary>Writes a big-endian unsigned long (8 bytes) to a byte array.</summary>
@@ -357,34 +556,119 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static void WriteBE8U(byte* buf, ulong val)
   {
-    WriteBE4U(buf, (uint)(val>>32));
-    WriteBE4U(buf+4, (uint)val);
+    if(BitConverter.IsLittleEndian)
+    {
+      WriteBE4U(buf, (uint)(val>>32));
+      WriteBE4U(buf+4, (uint)val);
+    }
+    else
+    {
+      *(ulong*)buf = val;
+    }
   }
 
-  /// <summary>Writes an IEEE754 float (4 bytes) to a byte array.</summary>
-  public unsafe static void WriteFloat(byte[] buf, int index, float val)
+  /// <summary>Writes a little-endian IEEE754 float (4 bytes) to a byte array.</summary>
+  public unsafe static void WriteLESingle(byte[] buf, int index, float val)
   {
-    fixed(byte* ptr=buf) *(float*)(ptr+index) = val;
+    uint v = *(uint*)&val;
+    buf[index]   = (byte)v;
+    buf[index+1] = (byte)(v>>8);
+    buf[index+2] = (byte)(v>>16);
+    buf[index+3] = (byte)(v>>24);
   }
 
-  /// <summary>Writes an IEEE754 float (4 bytes) to a byte array.</summary>
+  /// <summary>Writes a little-endian IEEE754 float (4 bytes) to a byte array.</summary>
   [CLSCompliant(false)]
-  public unsafe static void WriteFloat(byte* buf, float val)
+  public unsafe static void WriteLESingle(byte* buf, float val)
   {
-    *(float*)buf = val;
+    if(BitConverter.IsLittleEndian)
+    {
+      *(float*)buf = val;
+    }
+    else
+    {
+      uint v = *(uint*)&val;
+      *buf   = (byte)v;
+      buf[1] = (byte)(v>>8);
+      buf[2] = (byte)(v>>16);
+      buf[3] = (byte)(v>>24);
+    }
   }
 
-  /// <summary>Writes an IEEE754 double (8 bytes) to a byte array.</summary>
-  public unsafe static void WriteDouble(byte[] buf, int index, double val)
+  /// <summary>Writes a big-endian IEEE754 float (4 bytes) to a byte array.</summary>
+  public unsafe static void WriteBESingle(byte[] buf, int index, float val)
   {
-    fixed(byte* ptr=buf) *(double*)(ptr+index) = val;
+    uint v = *(uint*)&val;
+    buf[index]   = (byte)(v>>24);
+    buf[index+1] = (byte)(v>>16);
+    buf[index+2] = (byte)(v>>8);
+    buf[index+3] = (byte)v;
   }
 
-  /// <summary>Writes an IEEE754 double (8 bytes) to a byte array.</summary>
+  /// <summary>Writes a big-endian IEEE754 float (4 bytes) to a byte array.</summary>
   [CLSCompliant(false)]
-  public unsafe static void WriteDouble(byte* buf, double val)
+  public unsafe static void WriteBESingle(byte* buf, float val)
   {
-    *(double*)buf = val;
+    if(BitConverter.IsLittleEndian)
+    {
+      *(float*)buf = val;
+    }
+    else
+    {
+      uint v = *(uint*)&val;
+      *buf   = (byte)(v>>24);
+      buf[1] = (byte)(v>>16);
+      buf[2] = (byte)(v>>8);
+      buf[3] = (byte)v;
+    }
+  }
+
+  /// <summary>Writes a little-endian IEEE754 double (8 bytes) to a byte array.</summary>
+  public unsafe static void WriteLEDouble(byte[] buf, int index, double val)
+  {
+    ulong v = *(ulong*)&val;
+    WriteLE4U(buf, index, (uint)v);
+    WriteLE4U(buf, index+4, (uint)(v>>32));
+  }
+
+  /// <summary>Writes a little-endian IEEE754 double (8 bytes) to a byte array.</summary>
+  [CLSCompliant(false)]
+  public unsafe static void WriteLEDouble(byte* buf, double val)
+  {
+    if(BitConverter.IsLittleEndian)
+    {
+      *(double*)buf = val;
+    }
+    else
+    {
+      ulong v = *(ulong*)&val;
+      WriteLE4U(buf, (uint)v);
+      WriteLE4U(buf+4, (uint)(v>>32));
+    }
+  }
+
+  /// <summary>Writes a big-endian IEEE754 double (8 bytes) to a byte array.</summary>
+  public unsafe static void WriteBEDouble(byte[] buf, int index, double val)
+  {
+    ulong v = *(ulong*)&val;
+    WriteBE4U(buf, index, (uint)(v>>32));
+    WriteBE4U(buf, index+4, (uint)v);
+  }
+
+  /// <summary>Writes a big-endian IEEE754 double (8 bytes) to a byte array.</summary>
+  [CLSCompliant(false)]
+  public unsafe static void WriteBEDouble(byte* buf, double val)
+  {
+    if(BitConverter.IsLittleEndian)
+    {
+      ulong v = *(ulong*)&val;
+      WriteBE4U(buf, (uint)(v>>32));
+      WriteBE4U(buf+4, (uint)v);
+    }
+    else
+    {
+      *(double*)buf = val;
+    }
   }
   #endregion
 }

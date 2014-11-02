@@ -25,6 +25,8 @@ using AdamMil.Utilities;
 using BinaryReader=AdamMil.IO.BinaryReader;
 using BinaryWriter=AdamMil.IO.BinaryWriter;
 
+// TODO: move these to AdamMil.Utilities? but then we might have a circular references unless we also moved BinaryReader & BinaryWriter...
+
 namespace AdamMil.Mathematics.Random
 {
 
@@ -43,7 +45,9 @@ public static class CollectionExtensions
 #endregion
 
 #region RandomNumberGenerator
-/// <summary>Provides a base class for random number generators.</summary>
+/// <summary>Provides a base class for random number generators. It supports generating uniformly random bytes, bits, integers,
+/// and floating-point numbers, as well as normally (Gaussian) and exponentially distributed values.
+/// </summary>
 /// <remarks>
 /// Comparison of included RNGs (speed is a factor relative to XorShift128, so 0.5 means half the speed of XorShift128):
 /// <list type="table">
@@ -100,135 +104,6 @@ public static class CollectionExtensions
 [Serializable]
 public abstract class RandomNumberGenerator
 {
-  /// <summary>Returns a byte array containing the internal state of the random number generator. This array can later
-  /// be passed to <see cref="SetState"/> to restore the generator state.
-  /// </summary>
-  public byte[] GetState()
-  {
-    using(MemoryStream ms = new MemoryStream())
-    {
-      SaveState(ms);
-      return ms.ToArray();
-    }
-  }
-
-  /// <summary>Loads the generator state from a stream.</summary>
-  public void LoadState(Stream stream)
-  {
-    using(BinaryReader reader = new BinaryReader(stream, false)) LoadState(reader);
-  }
-
-  /// <summary>Loads the generator state from a <see cref="BinaryReader"/>.</summary>
-  public void LoadState(BinaryReader reader)
-  {
-    if(reader == null) throw new ArgumentNullException();
-    bitBuffer = reader.ReadUInt32();
-    bits      = reader.ReadByte();
-    LoadStateCore(reader);
-  }
-
-  /// <summary>Saves the generator state to a stream.</summary>
-  public void SaveState(Stream stream)
-  {
-    using(BinaryWriter writer = new BinaryWriter(stream, false)) SaveState(writer);
-  }
-
-  /// <summary>Saves the generator state to a <see cref="BinaryWriter"/>.</summary>
-  public void SaveState(BinaryWriter writer)
-  {
-    if(writer == null) throw new ArgumentNullException();
-    writer.Write(bitBuffer);
-    writer.Write(bits);
-    SaveStateCore(writer);
-  }
-
-  /// <summary>Restores the generator state from an array retrieved by calling <see cref="GetState"/>.</summary>
-  public void SetState(byte[] state)
-  {
-    using(MemoryStream ms = new MemoryStream(state)) LoadState(ms);
-  }
-
-  /// <summary>Generates and returns a random non-negative integer.</summary>
-  /// <remarks>The default implementation right-shifts a value from <see cref="NextUInt32"/> by one bit and returns it.</remarks>
-  public int Next()
-  {
-    return (int)(NextUInt32() >> 1);
-  }
-
-  /// <summary>Generates and returns a random integer less than the given maximum, which must be positive.</summary>
-  public int Next(int exclusiveMaximum)
-  {
-    if(exclusiveMaximum <= 0) throw new ArgumentOutOfRangeException();
-    return (int)(NextDouble() * exclusiveMaximum);
-  }
-
-  /// <summary>Generates and returns a random integer between the given inclusive minimum and maximum, which may be any integers.</summary>
-  public int Next(int minimum, int maximum)
-  {
-    if(minimum > maximum) throw new ArgumentException("The minimum must be less than or equal to the maximum.");
-    return (int)(NextDouble() * ((long)maximum - minimum)) + minimum;
-  }
-
-  /// <summary>Generates and returns a random boolean value.</summary>
-  /// <remarks>This method uses <see cref="NextUInt32"/> to generate batches of 32 bits at a time.</remarks>
-  public bool NextBoolean()
-  {
-    if(bits == 0)
-    {
-      bitBuffer = NextUInt32();
-      bits = 32;
-    }
-
-    bool result = (bitBuffer & 1) != 0;
-    bitBuffer >>= 1;
-    bits--;
-    return result;
-  }
-
-  #pragma warning disable 3011 // only CLS compliant methods can be abstract
-  /// <include file="documentation.xml" path="//Math/RNG/NextUint32/node()"/>
-  // we're going to lie about the CLS compliance of this class because it's used everywhere, and is still very useable. it's only
-  // that people may not be able to create their own random number generators in some lame languages, which is no real problem
-  [CLSCompliant(false)]
-  public abstract uint NextUInt32();
-  #pragma warning restore 3011
-
-  /// <summary>Generates and returns a random 64-bit unsigned integer.</summary>
-  /// <remarks>The default implementation combines two 32-bit numbers returned from <see cref="NextUInt32"/> into a single 64-bit
-  /// number. If the generator implementation is natively capable of generating a 64-bit output, you may want to override this
-  /// method to make use of that ability.
-  /// </remarks>
-  [CLSCompliant(false)]
-  public virtual unsafe ulong NextUInt64()
-  {
-    ulong n;
-    *(uint*)&n     = NextUInt32();
-    *((uint*)&n+1) = NextUInt32();
-    return n;
-  }
-
-  /// <summary>Generates and returns a random double greater than or equal to zero and less than one.</summary>
-  /// <remarks>It is important that this method be capable of returning a sufficient number of different values. For instance,
-  /// <see cref="Next(int,int)"/> assumes that this method returns at least 2^32 possible values, and <see cref="Next(int)"/>
-  /// requires at least 2^31 possible values. The default implementation uses <see cref="NextUInt64"/> to generate a double with
-  /// the full 52 bits of randomness.
-  /// </remarks>
-  public virtual unsafe double NextDouble()
-  {
-    // adapted from http://www.cs.ucl.ac.uk/staff/d.jones/GoodPracticeRNG.pdf
-    ulong n = (NextUInt64() >> 12) | 0x3FF0000000000000;
-    return *(double*)&n - 1;
-  }
-
-  /// <summary>Generates and returns a random float greater than or equal to zero and less than one.</summary>
-  /// <remarks>The implementation uses <see cref="NextUInt32"/> to generate a float with 23 bits of randomness.</remarks>
-  public unsafe float NextFloat()
-  {
-    // adapted from http://www.cs.ucl.ac.uk/staff/d.jones/GoodPracticeRNG.pdf
-    uint n = (NextUInt32() >> 9) | 0x3F800000;
-    return *(float*)&n - 1;
-  }
-
   /// <summary>Generates and returns the given number of random bytes.</summary>
   public byte[] GenerateBytes(int byteCount)
   {
@@ -266,13 +141,267 @@ public abstract class RandomNumberGenerator
     count &= 3; // get the number of remaining bytes
     if(count != 0)
     {
-      uint chunk = NextUInt32();
+      uint chunk = NextBits(count*8);
       do
       {
         bytes[index++] = (byte)chunk;
         chunk >>= 8;
       } while(--count != 0);
     }
+  }
+
+  /// <summary>Returns a byte array containing the internal state of the random number generator. This array can later be passed
+  /// to <see cref="SetState"/> to restore the generator state, assuming it is passed to a generator of the same type.
+  /// </summary>
+  public byte[] GetState()
+  {
+    using(MemoryStream ms = new MemoryStream())
+    {
+      SaveState(ms);
+      return ms.ToArray();
+    }
+  }
+
+  /// <summary>Loads the generator state from a stream.</summary>
+  public void LoadState(Stream stream)
+  {
+    using(BinaryReader reader = new BinaryReader(stream, false)) LoadState(reader);
+  }
+
+  /// <summary>Loads the generator state from a <see cref="BinaryReader"/>.</summary>
+  public void LoadState(BinaryReader reader)
+  {
+    if(reader == null) throw new ArgumentNullException();
+    bitsInBuffer = reader.ReadByte();
+    bitBuffer    = bitsInBuffer == 0 ? 0 : reader.ReadUInt32();
+    LoadStateCore(reader);
+  }
+
+  /// <summary>Saves the generator state to a stream.</summary>
+  public void SaveState(Stream stream)
+  {
+    using(BinaryWriter writer = new BinaryWriter(stream, false)) SaveState(writer);
+  }
+
+  /// <summary>Saves the generator state to a <see cref="BinaryWriter"/>.</summary>
+  public void SaveState(BinaryWriter writer)
+  {
+    if(writer == null) throw new ArgumentNullException();
+    writer.Write(bitsInBuffer);
+    if(bitsInBuffer != 0) writer.Write(bitBuffer);
+    SaveStateCore(writer);
+  }
+
+  /// <summary>Restores the generator state from an array retrieved by calling <see cref="GetState"/>.</summary>
+  public void SetState(byte[] state)
+  {
+    using(MemoryStream ms = new MemoryStream(state)) LoadState(ms);
+  }
+
+  /// <summary>Generates and returns a random non-negative integer.</summary>
+  public int Next()
+  {
+    return (int)(NextUInt32()>>1); // we could call GetBits(31) but perhaps the overhead of managing the bit buffer would outweigh the
+  }                                // benefit of 3% fewer calls to NextUInt32(), since many of the generators are quite fast
+
+  /// <summary>Generates and returns a random integer less than the given maximum, which must be positive.</summary>
+  /// <remarks>If <paramref name="exclusiveMaximum"/> is a power of two, it's much more efficient to use <see cref="NextBits"/>, if you
+  /// can easily obtain the base-2 logarithm of <paramref name="exclusiveMaximum"/>.
+  /// </remarks>
+  public int Next(int exclusiveMaximum)
+  {
+    if(exclusiveMaximum <= 1<<23) // if we need no more than 23 bits of randomness...
+    {
+      if(exclusiveMaximum <= 0) throw new ArgumentOutOfRangeException();
+      return (int)(NextFloat() * exclusiveMaximum); // use NextFloat, which provides 23 bits of randomness and is usually faster
+    }
+    else
+    {
+      return (int)(NextDouble() * exclusiveMaximum); // otherwise use NextDouble, which provides 52 bits of randomness
+    }
+  }
+
+  /// <summary>Generates and returns a random integer between the given inclusive minimum and maximum, which may be any integers.</summary>
+  /// <remarks>If <paramref name="maximum"/>-<paramref name="minimum"/> is a power of two, it's much more efficient to use
+  /// <see cref="NextBits"/>.
+  /// </remarks>
+  public int Next(int minimum, int maximum)
+  {
+    if(minimum > maximum) throw new ArgumentException("The minimum must be less than or equal to the maximum.");
+    return (int)(NextDouble() * (uint)(maximum - minimum)) + minimum; // maximum - minimum can be up to 2^32-1, so it fits in a uint
+  }
+
+  /// <summary>Generates a number of random bits and returns them in the low order bits of an integer.</summary>
+  /// <param name="bits">The number of bits to generate, from 0 to 32.</param>
+  /// <remarks>This method can be used to efficiently generate small random numbers in the range of a power of two. For instance, by
+  /// passing 3 you get a small random number from 0 to 7 (i.e. 0 to 2^3-1) much more efficiently than calling <see cref="Next(int)"/>.
+  /// This method uses <see cref="NextUInt32"/> to generate batches of 32 bits at a time.
+  /// </remarks>
+  [CLSCompliant(false)]
+  public uint NextBits(int bits)
+  {
+    uint value;
+    if((uint)bits <= bitsInBuffer)
+    {
+      value        = bitBuffer & ((1u<<bits)-1);
+      bitBuffer  >>= bits;
+      bitsInBuffer = (byte)(bitsInBuffer - bits); // mcs generates slightly better code for this than bitsInBuffer -= (byte)bits
+    }
+    else if((uint)bits < 32)
+    {
+      bits -= bitsInBuffer; // get as many bits as we can from the buffer
+      value = bitBuffer;
+      bitBuffer = NextUInt32(); // then refill the buffer
+      value = (value<<bits) | (bitBuffer & ((1u<<bits)-1)); // and grab the remaining bits from it
+      bitBuffer  >>= bits;
+      bitsInBuffer = (byte)(32 - bits);
+    }
+    else if(bits == 32)
+    {
+      value = NextUInt32();
+    }
+    else // bits < 0 || bits > 32
+    {
+      throw new ArgumentOutOfRangeException();
+    }
+    return value;
+  }
+
+  /// <summary>Generates and returns a random boolean value.</summary>
+  /// <remarks>This method uses <see cref="NextUInt32"/> to generate batches of 32 bits at a time.</remarks>
+  public bool NextBoolean()
+  {
+    if(bitsInBuffer == 0)
+    {
+      bitBuffer    = NextUInt32();
+      bitsInBuffer = 32;
+    }
+
+    bool result = (bitBuffer & 1) != 0;
+    bitBuffer >>= 1;
+    bitsInBuffer--;
+    return result;
+  }
+
+  /// <summary>Generates and returns a random double greater than or equal to zero and less than one.</summary>
+  /// <remarks><note type="inherit">The default implementation uses <see cref="NextUInt32"/> and <see cref="NextBits"/> to generate a
+  /// double with the full 52 bits of randomness. If you override this method (perhaps because your random number generator natively
+  /// generates floating point values), it is important that this method be capable of returning a sufficient number of different values.
+  /// Ideally this method should be able to return all 2^52 different values, but at a minimum it must be able to return 2^32 different
+  /// values. The values must also be uniformly distributed.
+  /// </note></remarks>
+  public virtual unsafe double NextDouble()
+  {
+    ulong n;
+    *(uint*)&n     = NextUInt32(); // adapted from http://www.cs.ucl.ac.uk/staff/d.jones/GoodPracticeRNG.pdf
+    *((uint*)&n+1) = NextBits(20) | (1023u<<20);
+    return *(double*)&n - 1;
+  }
+
+  /// <summary>Generates and returns a random float greater than or equal to zero and less than one.</summary>
+  /// <remarks><note type="inherit">The default implementation uses <see cref="NextBits"/> to generate a float with the full 23 bits of
+  /// randomness. If you override this method (perhaps because your random number generator natively generates floating point values), it
+  /// must be able to return all 2^23 different values. The values must also be uniformly distributed.
+  /// </note></remarks>
+  public virtual unsafe float NextFloat()
+  {
+    uint n = NextBits(23) | (127u<<23); // adapted from http://www.cs.ucl.ac.uk/staff/d.jones/GoodPracticeRNG.pdf
+    return *(float*)&n - 1;
+  }
+
+  /// <summary>Returns a value from the exponential distribution with rate 1.</summary>
+  public double NextExponential()
+  {
+    while(true) // we'll use Marsaglia's ziggurat algorithm with a table size of 64. a larger table would make this faster,
+    {           // but it's pretty fast with 64
+      uint n = NextBits(6), i = n&63; // select a layer of the ziggurat
+      double x = expTables.xs[i] * NextDouble(); // generate a value from that layer
+      if(x < expTables.xs[i+1]) return x; // if the value definitely lies under the curve, we're done. it'll exit here ~92.6% of the time
+
+      if(i == 0) // if we selected the bottom layer of the ziggurat, then we need to select from the infinite tail of the distribution
+      {
+        return x + NextExponential(); // since the tail has the same shape as the rest, we can just call the method recursively
+      }
+      else // if we selected a layer of the ziggurat that has a finite width, check to see whether x lies under the curve
+      {
+        double y = expTables.xs[i-1]; // generate a high-resolution Y value
+        y = (expTables.xs[i]-y)*NextDouble() + y;
+        if(y < Math.Exp(-x)) return x; // if y < f(x), i.e. if the random y is below the curve at x, then return x
+      }
+    }
+  }
+
+  /// <summary>Returns a value from the exponential distribution with the given rate, which should be positive.</summary>
+  public double NextExponential(double rate)
+  {
+    return NextExponential() / rate;
+  }
+
+  /// <summary>Returns a value from the normal distribution with mean 0 and standard deviation 1.</summary>
+  public double NextNormal()
+  {
+    double x;
+    bool negate;
+    while(true) // we'll use Marsaglia's ziggurat algorithm with a table size of 64. a larger table would make this faster,
+    {           // but it's pretty fast with 64
+      uint n = NextBits(7), i = n&63; // select a layer of the ziggurat
+      negate = (n&64) != 0;
+      x = normalTables.xs[i] * NextDouble(); // generate a value from that layer
+      if(x < normalTables.xs[i+1]) break; // if the value definitely lies under the curve, we're done. it'll exit here 94.96% of the time
+
+      if(i == 0) // if we selected the bottom layer of the ziggurat, then we need to select from the infinite tail of the distribution
+      {
+        while(true) // we'll use Marsaglia's recommended method
+        {
+          x = NextDouble();
+          double y = NextDouble();
+          x = -Math.Log(x) / normalTables.xs[1]; // x or y will become Infinity if either is 0, but that should be okay
+          y = -Math.Log(y);
+          if(y+y > x*x) break;
+        }
+        x += normalTables.xs[1];
+        break;
+      }
+      else // if we selected a layer of the ziggurat that has a finite width, check to see whether x lies under the curve
+      {
+        double y = normalTables.xs[i-1]; // generate a high-resolution Y value
+        y = (normalTables.xs[i]-y)*NextDouble() + y;
+        if(y < Math.Exp(x*x * -0.5)) break; // if y < f(x), i.e. if the random y is below the curve at x, then return x
+      }
+    }
+
+    if(negate) return -x;
+    else return x;
+  }
+
+  /// <summary>Returns a value from the normal distribution with the given mean and standard deviation. The standard deviation should be
+  /// non-negative.
+  /// </summary>
+  public double NextNormal(double mean, double stdDev)
+  {
+    return NextNormal()*stdDev + mean;
+  }
+
+  #pragma warning disable 3011 // only CLS compliant methods can be abstract
+  // we're going to lie about the CLS compliance of this class because it's used everywhere, and is still very useable by non-CLS-compliant
+  // languages. it's only that people may not be able to create their own random number generators, which is no problem for most users
+  /// <include file="documentation.xml" path="//Math/RNG/NextUint32/node()"/>
+  [CLSCompliant(false)]
+  public abstract uint NextUInt32();
+  #pragma warning restore 3011
+
+  /// <summary>Generates and returns a random 64-bit unsigned integer.</summary>
+  /// <remarks><note type="inherit">The default implementation combines two 32-bit numbers returned from <see cref="NextUInt32"/> into a
+  /// single 64-bit number. If the generator implementation is natively capable of generating a 64-bit output, you may want to override
+  /// this method to make use of that ability.
+  /// </note></remarks>
+  [CLSCompliant(false)]
+  public virtual unsafe ulong NextUInt64()
+  {
+    ulong n;
+    *(uint*)&n     = NextUInt32();
+    *((uint*)&n+1) = NextUInt32();
+    return n;
   }
 
   /// <summary>Creates a new <see cref="RandomNumberGenerator"/> of the all-around best general-purpose type in the library.</summary>
@@ -283,7 +412,7 @@ public abstract class RandomNumberGenerator
 
   /// <summary>Creates a new <see cref="RandomNumberGenerator"/> of the all-around best general-purpose type in the library.</summary>
   [CLSCompliant(false)]
-  public static RandomNumberGenerator CreateDefault(uint[] seed)
+  public static RandomNumberGenerator CreateDefault(params uint[] seed)
   {
     return new KISSRNG(seed);
   }
@@ -296,7 +425,7 @@ public abstract class RandomNumberGenerator
 
   /// <summary>Creates a new <see cref="RandomNumberGenerator"/> of the fastest type available in the library.</summary>
   [CLSCompliant(false)]
-  public static RandomNumberGenerator CreateFastest(uint[] seed)
+  public static RandomNumberGenerator CreateFastest(params uint[] seed)
   {
     return new XorShift128RNG(seed);
   }
@@ -307,33 +436,73 @@ public abstract class RandomNumberGenerator
   /// <include file="documentation.xml" path="//Math/RNG/SaveStateCore/node()"/>
   protected abstract void SaveStateCore(BinaryWriter writer);
 
-  /// <summary>Returns a 64-bit seed based on the current time (both real-world time and an internal timer), as an array of four
-  /// uints.
-  /// </summary>
+  /// <summary>Returns a 128-bit seed based on the current time (both real-world time and an internal timer), as an array of four uints.</summary>
+  /// <remarks>Calling this method rapidly from a single thread will result in different seeds even if no measurable time has elapsed
+  /// between the calls.
+  /// </remarks>
   [CLSCompliant(false)]
   protected static uint[] MakeTimeBasedSeed()
   {
-    if(timer == null)
-    {
-      System.Diagnostics.Stopwatch t = new System.Diagnostics.Stopwatch();
-      t.Start();
-      timer = t;
-    }
-
+    if(timer == null) timer = System.Diagnostics.Stopwatch.StartNew();
     long dateTicks = DateTime.Now.Ticks, timerTicks = timer.ElapsedTicks;
-    // add constants to the timer tick values to prevent them from being too small (especially zero) shortly after startup.
-    // the timer may not be thread-safe, but it shouldn't crash and we don't really need accuracy, only rapid change in value
+    // add constants to the timer tick values to prevent them from being too small (especially zero) shortly after startup. the timer isn't
+    // thread-safe, but it shouldn't crash and we don't really need accurate timing, only rapid change in value. incrementing seedIncrement
+    // isn't thread-safe either, but it'll still advance and it's intended for the case of a tight loop on a single thread anyway
     return new uint[]
     {
       (uint)timerTicks+123456789, (uint)(timerTicks>>32)+678912345, (uint)(dateTicks>>32)+seedIncrement++, (uint)dateTicks
     };
   }
 
+  #region ZigguratTables
+  /// <summary>Computes a table for Marsaglia's ziggurat algorithm with 64 layers.</summary>
+  struct ZigguratTables
+  {
+    /// <summary>Initializes ziggurat tables with a size of 64.</summary>
+    /// <param name="x">The x value of the right edge of the bottom layer.</param>
+    /// <param name="area">The area of each layer.</param>
+    /// <param name="f">The function that the ziggurat should build tables for.</param>
+    /// <param name="invf">The inverse of <paramref name="f"/>.</param>
+    public ZigguratTables(FP107 x, FP107 area, Func<FP107, FP107> f, Func<FP107, FP107> invf)
+    {
+      xs = new double[65];
+      ys = new double[64];
+
+      // we compute the tables in high precision using FP107 to avoid rounding error
+      FP107 y = f(x); // the top of the base layer and the bottom of the next
+      xs[0] = (double)(area/y); // make xs[1]/xs[0] be the width of the rectangular proportion of the bottom layer that's under the curve
+      ys[0] = (double)y;
+      for(int i=1; i<ys.Length; i++)
+      {
+        xs[i] = (double)x;
+        y += area / x; // add the height of the layer to get the bottom of the next layer
+        ys[i] = (double)y;
+        x = invf(y); // compute the X coordinate at the right edge of the next layer
+      }
+    }
+
+    public readonly double[] xs, ys;
+  }
+  #endregion
+
   uint bitBuffer;
-  byte bits;
+  byte bitsInBuffer;
 
   static System.Diagnostics.Stopwatch timer;
   static uint seedIncrement;
+
+  // to compute the initial value for x, assuming a table size of 64, minimize g(x) := abs(f(0) - gr(f(x), 64, x*f(x)*tf(x))) where
+  // gr(y, n, area) := n <= 1 ? y : gr(y+area/invf(y), n-1, area) and tf(x) computes the area of the tail > x. for the normal distribution,
+  // tf(x) := sqrt(pi/2)*erfc(x/sqrt(2)). for the exponential distribution, tf(x) = f(x). the value for the area is x*f(x)*tf(x)
+  static readonly ZigguratTables expTables =
+    new ZigguratTables(FP107.FromComponents(6.07882124685676, -2.1720962841354067E-16),
+                       FP107.FromComponents(0.016216697728895255, -6.3099203272486121E-19),
+                       x => FP107.Exp(-x), y => FP107.Log(1/y));
+
+  static readonly ZigguratTables normalTables =
+    new ZigguratTables(FP107.FromComponents(3.2136576271588955, 1.0131948939415194E-17),
+                       FP107.FromComponents(0.020024457157351693, 9.173627566703589E-19),
+                       x => FP107.Exp(x.Square() * -0.5), y => FP107.Sqrt(FP107.Log(y) * -2));
 }
 #endregion
 
@@ -359,7 +528,7 @@ public sealed class AWCKISSRNG : RandomNumberGenerator
   /// the seed array should not contain zeros, as these may be ignored.
   /// </summary>
   [CLSCompliant(false)]
-  public AWCKISSRNG(uint[] seed)
+  public AWCKISSRNG(params uint[] seed)
   {
     X = 123456789;
     Y = 234567891;
@@ -420,11 +589,11 @@ public sealed class AWCKISSRNG : RandomNumberGenerator
 #region ISAACRNG
 /// <summary>Implements the ISAAC random number generator. The generator was designed for cryptography and is very high quality,
 /// but is also quite fast. However, it generates results in large batches, so the time needed to get a result is very uneven,
-/// depending on whether a new batch needs to be generated. It requires about 2 kb of memory. Note that although ISAAC was
-/// designed for cryptography, it is only secure if initialized with a secure seed. A secure seed is an array of 256 random uint
-/// values, perhaps obtained by encrypting an unpredictable value with a strong block cipher. The default constructor does not
-/// seed the generator securely, since it uses a small seed based on the current time.
+/// depending on whether a new batch needs to be generated. It requires about 2 kb of memory.
 /// </summary>
+/// <remarks><note type="caution">Note that although ISAAC was designed for cryptography, it is only secure if initialized with a secure
+/// seed. A secure seed is an array of 256 cryptographically random uint values. The default constructor does not seed the generator
+/// securely, since it uses a small seed based on the current time.</note></remarks>
 [Serializable]
 public sealed class ISAACRNG : RandomNumberGenerator
 {
@@ -440,11 +609,11 @@ public sealed class ISAACRNG : RandomNumberGenerator
   /// used). If <paramref name="seed"/> is null, a constant, default seed will be used.
   /// </summary>
   [CLSCompliant(false)]
-  public ISAACRNG(uint[] seed)
+  public ISAACRNG(params uint[] seed)
   {
     results = new uint[Size];
     state   = new uint[Size];
-    if(seed != null) ArrayUtility.SmallCopy(seed, results, Math.Min(Size, seed.Length));
+    if(seed != null) Array.Copy(seed, results, Math.Min(Size, seed.Length));
     Initialize(seed != null);
   }
 
@@ -594,7 +763,7 @@ public sealed class KISSRNG : RandomNumberGenerator
   /// array may be ignored.
   /// </summary>
   [CLSCompliant(false)]
-  public KISSRNG(uint[] seed)
+  public KISSRNG(params uint[] seed)
   {
     X = 123456789;
     Y = 362436000;
@@ -670,7 +839,7 @@ public sealed class MWC256RNG : RandomNumberGenerator
   /// to initialize the generator's internal state.
   /// </summary>
   [CLSCompliant(false)]
-  public MWC256RNG(uint[] seed)
+  public MWC256RNG(params uint[] seed)
   {
     Q = new uint[256];
     C = 362436;
@@ -682,8 +851,8 @@ public sealed class MWC256RNG : RandomNumberGenerator
     }
     else
     {
-      // fill the elements with random numbers from the XorShiftRNG generator (the fastest choice of the other RNGs)
-      XorShift128RNG rng = new XorShift128RNG(seed);
+      // fill the elements with random numbers from the KISSRNG generator (the best overall choice from the other RNGs)
+      KISSRNG rng = new KISSRNG(seed);
       for(int i=0; i<Q.Length; i++) Q[i] = rng.NextUInt32();
     }
   }
@@ -742,7 +911,7 @@ public sealed class XorShift128RNG : RandomNumberGenerator
   /// the seed array should not contain all zeros.
   /// </summary>
   [CLSCompliant(false)]
-  public XorShift128RNG(uint[] seed)
+  public XorShift128RNG(params uint[] seed)
   {
     X = 123456789;
     Y = 362436069;

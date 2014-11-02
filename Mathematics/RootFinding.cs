@@ -489,8 +489,8 @@ public static class FindRoot
         continue;
       }
 
-      ArrayUtility.SmallCopy(x, prevX, x.Length);
-      ArrayUtility.SmallCopy(values, prevValues, x.Length);
+      ArrayUtility.FastCopy(x, prevX, x.Length);
+      ArrayUtility.FastCopy(values, prevValues, x.Length);
       bool converged = LineSearch(sqFunction, prevX, sqValue, t, s, x, out sqValue, maxStep);
 
       // check to see whether the function values have converged to nearly zero. the values array would have been updated by LineSearch()
@@ -586,7 +586,7 @@ public static class FindRoot
       solver.Initialize(jacobian);
       solver.Solve(stepMatrix, true).GetColumn(0, step);
 
-      ArrayUtility.SmallCopy(x, prevX, x.Length);
+      ArrayUtility.FastCopy(x, prevX, x.Length);
       bool converged = LineSearch(sqFunction, prevX, sqValue, gradient, step, x, out sqValue, maxStep);
 
       // check to see whether the function values have converged to nearly zero. the values array would have been updated by LineSearch()
@@ -865,7 +865,7 @@ public static class FindRoot
 
       if(factor < minFactor) // if it's too small, then give up and return true, indicating that it has converged on a minimum
       {
-        ArrayUtility.SmallCopy(x, newX, x.Length); // put the original parameter and value back
+        ArrayUtility.FastCopy(x, newX, x.Length); // put the original parameter and value back
         newValue = value;
         return true;
       }

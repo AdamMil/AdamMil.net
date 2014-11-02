@@ -49,7 +49,7 @@ public class ArrayTests
     buffer.CopyTo(bytes, 0);
     for(int i=0; i<5; i++) Assert.AreEqual(i+5, bytes[i]);
 
-    byte[] array = buffer.GetContiguousArray();
+    byte[] array = buffer.GetZeroOffsetArray();
     for(int i=0; i<5; i++) Assert.AreEqual(i+5, array[i]);
 
     buffer.Clear();
@@ -78,7 +78,7 @@ public class ArrayTests
     Assert.AreEqual(1, buffer.Count);
     Assert.AreEqual(100, buffer.Offset);
 
-    buffer.GetContiguousArray();
+    buffer.GetZeroOffsetArray();
     Assert.AreEqual(0, buffer.Offset);
   }
 }

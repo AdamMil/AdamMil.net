@@ -42,6 +42,10 @@ public static class MathConst
   /// <summary>A value that can be used to convert radians to degrees.</summary>
   /// <remarks>If you multiply a radian value by this constant, it will be converted to degrees.</remarks>
   public const double RadiansToDegrees = 180/Math.PI;
+  /// <summary>The square root of 2.</summary>
+  public const double Sqrt2 = 1.4142135623730950488;
+  /// <summary>Half of the square root of 2, and also the sine and cosine of 45 degrees (pi/4).</summary>
+  public const double HalfSqrt2 = 0.7071067811865475244;
 }
 #endregion
 

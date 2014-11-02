@@ -57,7 +57,7 @@ namespace AdamMil.Mathematics
     Polynomial(double[] coefficients, int length, int degree)
     {
       double[] array = new double[length];
-      ArrayUtility.SmallCopy(coefficients, array, degree+1);
+      ArrayUtility.FastCopy(coefficients, array, degree+1);
 
       this.coefficients = array;
       Degree = degree;
@@ -134,7 +134,7 @@ namespace AdamMil.Mathematics
     public void CopyTo(double[] array, int index)
     {
       Utility.ValidateRange(array, index, Length);
-      ArrayUtility.SmallCopy(coefficients, 0, array, index, Length);
+      ArrayUtility.FastCopy(coefficients, 0, array, index, Length);
     }
 
     /// <summary>Divides the polynomial by a constant factor.</summary>
@@ -181,7 +181,7 @@ namespace AdamMil.Mathematics
       double mainFactor = 1 / value.coefficients[value.Degree]; // this should catch division by zero
 
       double[] remain = new double[Length];
-      ArrayUtility.SmallCopy(coefficients, remain, Length);
+      ArrayUtility.FastCopy(coefficients, remain, Length);
 
       int i = Degree;
       for(int end=Degree-value.Degree; i > end; i--) coefficients[i] = 0;
@@ -517,7 +517,7 @@ namespace AdamMil.Mathematics
     public double[] ToArray()
     {
       double[] array = new double[Length];
-      ArrayUtility.SmallCopy(coefficients, array, Length);
+      ArrayUtility.FastCopy(coefficients, array, Length);
       return array;
     }
 
@@ -794,7 +794,7 @@ namespace AdamMil.Mathematics
       if(clone || coefficients.Length-degree > 5 && degree <= coefficients.Length/2)
       {
         double[] array = new double[degree+1];
-        ArrayUtility.SmallCopy(coefficients, array, array.Length);
+        ArrayUtility.FastCopy(coefficients, array, array.Length);
         coefficients = array;
       }
 

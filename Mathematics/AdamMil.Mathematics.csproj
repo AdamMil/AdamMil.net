@@ -32,6 +32,7 @@
     <BaseAddress>19922944</BaseAddress>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
     <NoWarn>419</NoWarn>
+    <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -47,6 +48,7 @@
     <NoWarn>419</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="BigInteger.cs" />
     <Compile Include="Combinatorics.cs" />
     <Compile Include="CoherentNoise.cs" />
     <Compile Include="Functions.cs" />
@@ -55,6 +57,7 @@
     <Compile Include="LinearAlgebra.cs" />
     <Compile Include="Matrices.cs" />
     <Compile Include="Helpers.cs" />
+    <Compile Include="NumberFormatting.cs" />
     <Compile Include="Optimization.cs" />
     <Compile Include="Polynomials.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

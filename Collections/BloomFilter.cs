@@ -143,7 +143,7 @@ public class BloomFilter<T>
     {
       // we'll get the value from each hash function and use it as an index into the bit array, setting the corresponding bits
       uint hash = (uint)hashProvider.GetHashCode(hashFunction, item) % bitCount;
-      bits[hash >> 5] |= (uint)1 << (int)(hash & 31);
+      bits[hash >> 5] |= 1u << (int)(hash & 31);
     }
   }
 
@@ -164,7 +164,7 @@ public class BloomFilter<T>
       // we'll get the value from each hash function and use it as an index into the bit array. the item has not been added if
       // any bit is zero, since Add() would have set all of those bits
       uint hash = (uint)hashProvider.GetHashCode(hashFunction, item) % bitCount;
-      if((bits[hash >> 5] & ((uint)1 << (int)(hash & 31))) == 0) return false;
+      if((bits[hash >> 5] & (1u << (int)(hash & 31))) == 0) return false;
     }
     return true; // all of the bits were set, so the item might have been added (or this may be a false positive)
   }

@@ -28,6 +28,9 @@ namespace AdamMil.Mathematics.Tests
       TestDecomposition(double.Epsilon, false, -1074, 1);
       TestDecomposition(double.MaxValue, false, 971, (1UL<<53)-1);
       TestDecomposition(double.MinValue, true, 971, (1UL<<53)-1);
+      TestDecomposition(float.Epsilon, false, -149, 1);
+      TestDecomposition(float.MaxValue, false, 104, (1u<<24)-1);
+      TestDecomposition(float.MinValue, true, 104, (1u<<24)-1);
 
       // make sure Compose can normalize values, fix exponents, etc.
       Assert.AreEqual(0, IEEE754.ComposeDouble(false, 100, 0));
@@ -243,10 +246,14 @@ namespace AdamMil.Mathematics.Tests
       FP107[] values = new FP107[]
       {
         double.Epsilon, FP107.E, FP107.GoldenRatio, FP107.Pi, -0d, 1e20, 3/FP107.Pow(10, 307),
-        FP107.MaxValue, FP107.MinValue, FP107.PositiveInfinity, FP107.NegativeInfinity, FP107.NaN
+        FP107.MaxValue, FP107.MinValue, FP107.PositiveInfinity, FP107.NegativeInfinity, FP107.NaN, FP107.Pow(10, 49),
       };
       foreach(FP107 value in values) Assert.AreEqual(value, FP107.Parse(value.ToString("R", inv), inv));
       Assert.AreEqual("1.05", FP107.FromDecimalApproximation(1.05).ToString("R", inv));
+
+      // bug repros
+      Assert.AreEqual("1E+49", FP107.Pow(10, 49).ToString("E0"));
+      Assert.AreEqual("2.2E-16", FP107.FromComponents(2.2204460492503131E-16, -3.2000000000000004E-48).ToString("E1"));
 
       // overflow and underflow
       Assert.AreEqual(FP107.MaxValue, FP107.Parse("1.79769313486231580793728971405302e+308", inv));

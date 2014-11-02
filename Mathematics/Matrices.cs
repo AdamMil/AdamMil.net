@@ -29,8 +29,8 @@ using AdamMil.Utilities;
 
 namespace AdamMil.Mathematics
 {
-  #pragma warning disable 1591
   #region Matrix3
+  #pragma warning disable 1591
   [Serializable]
   public sealed class Matrix3 : ICloneable, IEquatable<Matrix3>
   {
@@ -429,8 +429,8 @@ namespace AdamMil.Mathematics
   }
   #endregion
 
-  #pragma warning disable 1591
   #region Matrix4
+  #pragma warning disable 1591
   [Serializable]
   public sealed class Matrix4 : ICloneable, IEquatable<Matrix4>
   {
@@ -881,8 +881,8 @@ namespace AdamMil.Mathematics
   }
   #endregion
 
-  #pragma warning disable 1591
   #region Matrix
+  #pragma warning disable 1591
   [Serializable]
   public sealed class Matrix : ICloneable, IEquatable<Matrix>
   {

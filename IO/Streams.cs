@@ -623,7 +623,7 @@ public class EncodedStream : Stream
         {
           if(readEncoder.CanEncodeInPlace)
           {
-            readBuffer.AddCount(baseStream.Read(readBuffer.GetContiguousArray(), 0, readBuffer.Capacity));
+            readBuffer.AddCount(baseStream.Read(readBuffer.GetZeroOffsetArray(), 0, readBuffer.Capacity));
             bool flush = readBuffer.Count == 0;
             readBuffer.SetCount(readEncoder.Encode(readBuffer.Buffer, 0, readBuffer.Count, readBuffer.Buffer, 0, flush));
           }

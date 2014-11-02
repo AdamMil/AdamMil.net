@@ -79,7 +79,7 @@ namespace AdamMil.Mathematics
     public void Assign(Vector other)
     {
       ValidateSameSize(other);
-      ArrayUtility.SmallCopy(other.data, data, data.Length);
+      ArrayUtility.FastCopy(other.data, data, data.Length);
     }
 
     /// <summary>Returns a copy of the vector.</summary>
@@ -92,7 +92,7 @@ namespace AdamMil.Mathematics
     public void CopyTo(double[] array, int index)
     {
       Utility.ValidateRange(array, index, Size);
-      ArrayUtility.SmallCopy(data, 0, array, index, data.Length);
+      ArrayUtility.FastCopy(data, 0, array, index, data.Length);
     }
 
     /// <summary>Divides the vector by a constant factor.</summary>
@@ -191,7 +191,7 @@ namespace AdamMil.Mathematics
     public double[] ToArray()
     {
       double[] array = new double[Size];
-      ArrayUtility.SmallCopy(data, array, array.Length);
+      ArrayUtility.FastCopy(data, array, array.Length);
       return array;
     }
 
@@ -405,7 +405,7 @@ namespace AdamMil.Mathematics
     {
       Utility.ValidateRange(data, index, length);
       this.data = new double[length];
-      ArrayUtility.SmallCopy(data, index, this.data, 0, length);
+      ArrayUtility.FastCopy(data, index, this.data, 0, length);
     }
 
     void ValidateSameSize(Vector other)

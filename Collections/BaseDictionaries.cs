@@ -100,6 +100,12 @@ public abstract class AccessLimitedDictionaryBase<TKey,TValue> : IDictionary<TKe
     return Items.ContainsKey(key);
   }
 
+  /// <include file="documentation.xml" path="//Common/GetEnumerator/node()"/>
+  public Dictionary<TKey, TValue>.Enumerator GetEnumerator()
+  {
+    return Items.GetEnumerator();
+  }
+
   /// <inheritdoc/>
   public bool TryGetValue(TKey key, out TValue value)
   {
@@ -149,17 +155,16 @@ public abstract class AccessLimitedDictionaryBase<TKey,TValue> : IDictionary<TKe
   #endregion
 
   #region IEnumerable<KeyValuePair<TKey,TValue>> Members
-  /// <inheritdoc/>
-  public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
+  IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
   {
-    return Items.GetEnumerator();
+    return GetEnumerator();
   }
   #endregion
 
   #region IEnumerable Members
   IEnumerator IEnumerable.GetEnumerator()
   {
-    return Items.GetEnumerator();
+    return GetEnumerator();
   }
   #endregion
 }
@@ -259,6 +264,12 @@ public abstract class DictionaryBase<TKey, TValue> : IDictionary<TKey, TValue>
     }
   }
 
+  /// <include file="documentation.xml" path="//Common/GetEnumerator/node()"/>
+  public Dictionary<TKey, TValue>.Enumerator GetEnumerator()
+  {
+    return Items.GetEnumerator();
+  }
+
   /// <summary>Gets the underlying, writeable dictionary containing the items.</summary>
   protected Dictionary<TKey, TValue> Items
   {
@@ -345,8 +356,7 @@ public abstract class DictionaryBase<TKey, TValue> : IDictionary<TKey, TValue>
   #endregion
 
   #region IEnumerable<KeyValuePair<K,V>> Members
-  /// <inheritdoc/>
-  public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
+  IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
   {
     return EnumerableExtensions.EmptyIfNull(items).GetEnumerator();
   }
@@ -355,7 +365,7 @@ public abstract class DictionaryBase<TKey, TValue> : IDictionary<TKey, TValue>
   #region IEnumerable Members
   System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
   {
-    return GetEnumerator();
+    return EnumerableExtensions.EmptyIfNull(items).GetEnumerator();
   }
   #endregion
 }
