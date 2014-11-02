@@ -1,0 +1,1 @@
+The AdamMil.net collection of libraries provides a number of useful services for .NET programming. It has the following libraries: Artificial Intelligence, Collections, IO, Mathematics, Security, Transactions, User Interfaces, General Utilities
