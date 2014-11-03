@@ -151,6 +151,9 @@ namespace AdamMil.Mathematics
     /// <summary>Initializes a new <see cref="Integer"/> value from the given floating-point number. The number will be converted to an
     /// integer by truncating it rather than rounding it, so any fractional part will be lost.
     /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="value"/> is <see cref="double.PositiveInfinity"/>,
+    /// <see cref="double.NegativeInfinity"/>, or <see cref="double.NaN"/>.
+    /// </exception>
     public Integer(double value)
     {
       ulong mantissa;
@@ -192,7 +195,7 @@ namespace AdamMil.Mathematics
     /// integer by truncating it rather than rounding it, so any fractional part will be lost.
     /// </summary>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="value"/> is <see cref="FP107.PositiveInfinity"/>,
-    /// <see cref="FP107.NegativeInfinity"/>, or <see cref="FP107.Zero"/>.
+    /// <see cref="FP107.NegativeInfinity"/>, or <see cref="FP107.NaN"/>.
     /// </exception>
     public Integer(FP107 value)
     {
@@ -230,11 +233,11 @@ namespace AdamMil.Mathematics
       data = info == 0 ? null : reader.ReadUInt32s(GetElementCount((int)(info & 0x7FFFFFFF)));
     }
 
-    /// <summary>Initializes a new <see cref="Integer"/> value from an array containing the bits within the value. The first element
-    /// should contain the 32 least significant bits, and so on.
+    /// <summary>Initializes a new <see cref="Integer"/> value from an array containing the bits for the magnitude of the value, plus a
+    /// boolean indicating whether the value is negative. The first element should contain the 32 least significant bits, and so on.
     /// </summary>
     [CLSCompliant(false)]
-    public Integer(uint[] bits, bool negative) : this(bits, negative, true) { } // TODO: ensure this has no references within this file (?)
+    public Integer(uint[] bits, bool negative) : this(bits, negative, true) { }
 
     internal Integer(uint[] array, bool negative, bool clone)
     {
@@ -273,7 +276,8 @@ namespace AdamMil.Mathematics
     Integer(uint[] array, int bitLength, bool negative)
     {
       this.data = array;
-      this.info = (uint)bitLength | (negative && bitLength != 0 ? SignBit : 0);
+      this.info = (uint)bitLength;
+      if(negative && bitLength != 0) this.info |= SignBit;
     }
 
     /// <summary>Gets the number of bits needed to store the magnitude of this <see cref="Integer"/> value. As this does not count any
@@ -331,17 +335,17 @@ namespace AdamMil.Mathematics
       return new Integer(this);
     }
 
-    /// <summary>Compares this <see cref="Integer"/> value to a <see cref="int"/> value and returns a positive number if this value is
+    /// <summary>Compares this <see cref="Integer"/> value to an <see cref="int"/> value and returns a positive number if this value is
     /// greater, a negative number if this value is less, or zero if the values are equal.
     /// </summary>
     public int CompareTo(int other)
     {
-      if(other > 0) return !IsPositive ? -1 : BitLength >= 32 ? 1 : (int)data[0] - other;
+      if(other > 0) return !IsPositive ? -1 : info >= 32 ? 1 : (int)data[0] - other;
       else if(other == 0) return Sign;
       else if(!IsNegative) return 1;
-      else if(BitLength > 32) return -1;
+      else if(BitLength > 32) return -1; // if other is negative, it may need 32 bits to store its magnitude rather than 31
       uint value = data[0];
-      other = -other; // convert 'other' to its magnitude
+      other = -other; // convert 'other' to its magnitude (when considered as an unsigned number)
       return value > (uint)other ? -1 : value < (uint)other ? 1 : 0;
     }
 
@@ -351,10 +355,9 @@ namespace AdamMil.Mathematics
     [CLSCompliant(false)]
     public int CompareTo(uint other)
     {
-      if(other == 0) return Sign;
-      else if(!IsPositive) return -1;
-      else if(BitLength > 32) return 1;
-      uint value = data[0];
+      if(IsNegative) return -1;
+      else if(info > 32) return 1;
+      uint value = ToUInt32Fast();
       return value > other ? 1 : value < other ? -1 : 0;
     }
 
@@ -363,20 +366,19 @@ namespace AdamMil.Mathematics
     /// </summary>
     public int CompareTo(long other)
     {
-      if(other > 0)
+      if(other >= 0)
       {
-        if(!IsPositive) return -1;
-        else if(BitLength >= 64) return 1;
-        ulong value = ToNonZeroUInt64Fast();
+        if(IsNegative) return -1;
+        else if(info >= 64) return 1;
+        ulong value = ToUInt64Fast();
         return value > (ulong)other ? 1 : value < (ulong)other ? -1 : 0;
       }
-      else if(other == 0) return Sign;
       else if(!IsNegative) return 1;
-      else if(BitLength > 64) return -1;
+      else if(BitLength > 64) return -1; // if other is negative, it may need 64 bits to store its magnitude rather than 63
       else
       {
         ulong value = ToNonZeroUInt64Fast();
-        other = -other; // convert 'other' to its magnitude
+        other = -other; // convert 'other' to its magnitude (when considered as an unsigned number)
         return value > (ulong)other ? -1 : value < (ulong)other ? 1 : 0;
       }
     }
@@ -387,10 +389,9 @@ namespace AdamMil.Mathematics
     [CLSCompliant(false)]
     public int CompareTo(ulong other)
     {
-      if(other == 0) return Sign;
-      else if(!IsPositive) return -1;
-      else if(BitLength > 64) return 1;
-      ulong value = ToNonZeroUInt64Fast();
+      if(IsNegative) return -1;
+      else if(info > 64) return 1;
+      ulong value = ToUInt64Fast();
       return value > other ? 1 : value < other ? -1 : 0;
     }
 
@@ -431,10 +432,11 @@ namespace AdamMil.Mathematics
       if(info != value.info) return false;
       if(!IsZero)
       {
-        for(int i=0, count=GetElementCount()-1; i<count; i++)
+        int i = 0, count = GetElementCount();
+        do
         {
           if(data[i] != value.data[i]) return false;
-        }
+        } while(++i < count);
       }
       return true;
     }
@@ -442,7 +444,7 @@ namespace AdamMil.Mathematics
     /// <summary>Determines whether this <see cref="Integer"/> equals the given <see cref="int"/> value.</summary>
     public bool Equals(int value)
     {
-      if(IsPositive) return data[0] == (uint)value && BitLength < 32;
+      if(IsPositive) return info < 32 && data[0] == (uint)value;
       else if(IsNegative) return value < 0 && data[0] == (uint)(-value) && BitLength <= 32;
       else return value == 0;
     }
@@ -451,15 +453,15 @@ namespace AdamMil.Mathematics
     [CLSCompliant(false)]
     public bool Equals(uint value)
     {
-      if(!IsZero) return IsPositive && data[0] == value && BitLength <= 32;
+      if(!IsZero) return info <= 32 && data[0] == value;
       else return value == 0;
     }
 
     /// <summary>Determines whether this <see cref="Integer"/> equals the given <see cref="long"/> value.</summary>
     public bool Equals(long value)
     {
-      if(IsPositive) return ToNonZeroUInt64Fast() == (ulong)value && BitLength < 64;
-      else if(IsNegative) return value < 0 && ToNonZeroUInt64Fast() == (ulong)(-value) && BitLength <= 64;
+      if(IsPositive) return info < 64 && ToNonZeroUInt64Fast() == (ulong)value;
+      else if(IsNegative) return BitLength <= 64 && value < 0 && ToNonZeroUInt64Fast() == (ulong)(-value);
       else return value == 0;
     }
 
@@ -467,7 +469,7 @@ namespace AdamMil.Mathematics
     [CLSCompliant(false)]
     public bool Equals(ulong value)
     {
-      if(!IsZero) return IsPositive && ToNonZeroUInt64Fast() == value && BitLength <= 64;
+      if(!IsZero) return info <= 64 && ToNonZeroUInt64Fast() == value;
       else return value == 0;
     }
 
@@ -478,16 +480,16 @@ namespace AdamMil.Mathematics
     /// </remarks>
     public bool GetBit(int index)
     {
-      if((uint)index >= (uint)BitLength)
+      if((uint)index >= (uint)BitLength) // if they're attempting to read out of bounds...
       {
         if(index < 0) throw new ArgumentOutOfRangeException();
-        return IsNegative;
+        return IsNegative; // then positive values are zero-extended and negative values are one-extended, emulating two's complement
       }
-      if(!IsNegative)
+      if(IsPositive) // if the value is positive (zero is handled above), we simply return the bit as-is
       {
         return (data[index>>5] & (1u<<(index&31))) != 0;
       }
-      else
+      else // otherwise, if the value is negative, we have to emulate two's complement
       {
         int i, wordIndex = index>>5;
         // we have to pretend that negative values are stored in two's complement. we do this by effectively subtracting 1 from the value
@@ -499,7 +501,7 @@ namespace AdamMil.Mathematics
         }
         uint v = data[wordIndex];
         if(borrow) v--;
-        return (v & (1u<<(index&31))) == 0; // invert the comparison rather than negating the bits
+        return (v & (1u<<(index&31))) == 0; // invert the comparison rather than negating the bits to save an operation
       }
     }
 
@@ -529,12 +531,13 @@ namespace AdamMil.Mathematics
     /// <include file="documentation.xml" path="/Math/Common/GetHashCode/node()"/>
     public override int GetHashCode()
     {
-      uint hash = info;
-      if(data.Length != 0)
+      int hash = 0;
+      if(data != null)
       {
-        for(int i=0; i<data.Length; i++) hash ^= data[i];
+        for(int i=0; i<data.Length; i++) hash ^= (int)data[i];
+        if(IsNegative) hash = -hash;
       }
-      return (int)hash;
+      return hash;
     }
 
     /// <summary>Saves this value to a <see cref="BinaryWriter"/>. The value can be recreated using the
@@ -561,7 +564,7 @@ namespace AdamMil.Mathematics
     {
       if(BitLength <= 32)
       {
-        uint abs = IsZero ? 0 : data[0];
+        uint abs = ToUInt32Fast();
         if(IsNegative)
         {
           if(abs <= (uint)int.MaxValue+1) return -(int)abs;
@@ -597,7 +600,7 @@ namespace AdamMil.Mathematics
       throw new OverflowException();
     }
 
-    /// <summary>Converts this <see cref="Integer"/> value to string.</summary>
+    /// <summary>Converts this <see cref="Integer"/> value to string using the conventions of the current culture.</summary>
     public override string ToString()
     {
       return ToString(null, null);
@@ -609,14 +612,16 @@ namespace AdamMil.Mathematics
       return ToString(format, null);
     }
 
-    /// <summary>Converts this <see cref="Integer"/> value to string.</summary>
+    /// <summary>Converts this <see cref="Integer"/> value to string using the conventions of the given format provider, or the current
+    /// culture if the provider is null.
+    /// </summary>
     public string ToString(IFormatProvider provider)
     {
       return ToString(null, provider);
     }
 
     /// <summary>Converts this <see cref="Integer"/> value to string using the given format and the conventions of the given format
-    /// provider.
+    /// provider, or the current culture if the provider is null.
     /// </summary>
     public string ToString(string format, IFormatProvider provider)
     {
@@ -631,33 +636,28 @@ namespace AdamMil.Mathematics
       NumberFormatInfo nums = NumberFormatInfo.GetInstance(provider);
       if(formatType == 'X') // if hexadecimal format was requested...
       {
-        StringBuilder sb = new StringBuilder();
         if(IsZero)
         {
-          sb.Append("0x0");
+          return "0x0";
         }
         else
         {
+          StringBuilder sb = new StringBuilder();
           if(IsNegative) sb.Append(nums.NegativeSign);
           sb.Append("0x");
           int i = GetElementCount()-1;
           ToHex(sb, data[i], capitalize, false);
           for(i--; i >= 0; i--) ToHex(sb, data[i], capitalize, true);
+          return sb.ToString();
         }
-        return sb.ToString();
       }
       else
       {
-        Integer value = this;
-        var digits = new System.Collections.Generic.List<byte>();
-        do
-        {
-          Integer digit;
-          value = Integer.DivRem(value, 10, out digit);
-          digits.Add((byte)digit.ToUInt32Fast());
-        } while(!value.IsZero);
-        digits.Reverse();
-
+        // generate the digits in reverse order by repeatedly dividing by 10
+        Integer value = Abs(Clone()); // clone the value so we can divide in-place
+        var digits = new System.Collections.Generic.List<byte>(GetElementCount()*10);
+        do digits.Add((byte)value.UnsafeDivide(10u)); while(!value.IsZero);
+        digits.Reverse(); // then reverse the digits to put them in the right order
         return NumberFormat.FormatNumber(digits.ToArray(), digits.Count, IsNegative, nums, formatType, desiredPrecision, -1, capitalize);
       }
     }
@@ -669,8 +669,8 @@ namespace AdamMil.Mathematics
     [CLSCompliant(false)]
     public uint ToUInt32()
     {
-      if(BitLength > 32 || IsNegative) throw new OverflowException();
-      return IsZero ? 0 : data[0];
+      if(info > 32) throw new OverflowException();
+      return ToUInt32Fast();
     }
 
     /// <summary>Converts this <see cref="Integer"/> to a <see cref="ulong"/>. If the value cannot be represented, an exception will be
@@ -680,7 +680,7 @@ namespace AdamMil.Mathematics
     [CLSCompliant(false)]
     public ulong ToUInt64()
     {
-      if(BitLength > 64 || IsNegative) throw new OverflowException();
+      if(info > 64) throw new OverflowException();
       return ToUInt64Fast();
     }
 
@@ -770,7 +770,7 @@ namespace AdamMil.Mathematics
     /// </remarks>
     public void UnsafeBitwiseNegate()
     {
-      // ~x = -(x+1)
+      // ~x == -(x+1)
       if(IsPositive)
       {
         UnsafeIncrementMagnitude();
@@ -812,7 +812,7 @@ namespace AdamMil.Mathematics
     /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
     public int UnsafeDivide(int value)
     {
-      int remainder = (int)UnsafeDivide((uint)(value < 0 ? -value : value));
+      int remainder = (int)UnsafeDivide((uint)(value < 0 ? -value : value)); // divide by the magnitude
       if(value < 0 && !IsZero) info ^= SignBit;
       return remainder;
     }
@@ -839,7 +839,7 @@ namespace AdamMil.Mathematics
         UnsafeSetMagnitude(1); // our sign stays the same because value is positive
         remainder = 0;
       }
-      else
+      else // if our value has the smaller magnitude, then we become zero
       {
         remainder = ToUInt32Fast();
         if(IsNegative) remainder = -remainder;
@@ -858,15 +858,8 @@ namespace AdamMil.Mathematics
       }
       else if(IsNegative)
       {
-        if(BitLength == 1)
-        {
-          MakeZero();
-        }
-        else
-        {
-          CloneIfNecessary();
-          Decrement(data, BitLength, data);
-        }
+        if(BitLength == 1) MakeZero();
+        else UnsafeDecrementMagnitude();
       }
       else
       {
@@ -874,12 +867,14 @@ namespace AdamMil.Mathematics
       }
     }
 
-    /// <summary>Left-shifts this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be corrupted.</summary>
+    /// <summary>Left-shifts this <see cref="Integer"/> in place by the given number of bits. (If the shift count is negative, the value
+    /// will be effectively right-shifted.) If this integer shares storage with others, the others may be corrupted.
+    /// </summary>
     /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
     public void UnsafeLeftShift(int shift)
     {
       if(shift >= 0) UnsafeLeftShift((uint)shift);
-      else UnsafeRightShift((uint)(-shift));
+      else UnsafeRightShift((uint)-shift);
     }
 
     /// <summary>Multiplies this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be corrupted.</summary>
@@ -908,18 +903,20 @@ namespace AdamMil.Mathematics
         int maxBitLength = BitLength + ComputeBitLength(value);
         if(maxBitLength < 0) throw new OverflowException();
         ExpandArrayTo(GetElementCount(maxBitLength));
-        CloneIfNecessary();
+        CloneIfNecessary(); // call this after ExpandArrayTo to avoid an extra allocation in one case
         Multiply(data, BitLength, value, data);
         BitLength = ComputeBitLength(data, GetElementCount(maxBitLength)-1);
       }
     }
 
-    /// <summary>Right-shifts this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be corrupted.</summary>
+    /// <summary>Right-shifts this <see cref="Integer"/> in place by the given number of bits. (If the shift amount is negative, the value
+    /// will be effectively left-shifted.) If this integer shares storage with others, the others may be corrupted.
+    /// </summary>
     /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
     public void UnsafeRightShift(int shift)
     {
       if(shift >= 0) UnsafeRightShift((uint)shift);
-      else UnsafeLeftShift((uint)(-shift));
+      else UnsafeLeftShift((uint)-shift);
     }
 
     /// <summary>Replaces this <see cref="Integer"/> in place with the remainder after dividing by the given value. If this integer shares
@@ -941,7 +938,7 @@ namespace AdamMil.Mathematics
       UnsafeSetMagnitude(RemainderMagnitude(data, BitLength, value));
     }
 
-    /// <summary>Modifies this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be corrupted.</summary>
+    /// <summary>Sets this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be corrupted.</summary>
     /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
     public void UnsafeSet(int value)
     {
@@ -949,7 +946,7 @@ namespace AdamMil.Mathematics
       if(IsNegative != (value < 0)) info ^= SignBit;
     }
 
-    /// <summary>Modifies this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be corrupted.</summary>
+    /// <summary>Sets this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be corrupted.</summary>
     /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
     [CLSCompliant(false)]
     public void UnsafeSet(uint value)
@@ -958,7 +955,7 @@ namespace AdamMil.Mathematics
       if(IsNegative) info ^= SignBit;
     }
 
-    /// <summary>Modifies this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be corrupted.</summary>
+    /// <summary>Sets this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be corrupted.</summary>
     /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
     public void UnsafeSet(long value)
     {
@@ -966,7 +963,7 @@ namespace AdamMil.Mathematics
       if(IsNegative != (value < 0)) info ^= SignBit;
     }
 
-    /// <summary>Modifies this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be corrupted.</summary>
+    /// <summary>Sets this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be corrupted.</summary>
     /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
     [CLSCompliant(false)]
     public void UnsafeSet(ulong value)
@@ -987,10 +984,10 @@ namespace AdamMil.Mathematics
     public void UnsafeSetBit(int index, bool value)
     {
       bool changingHighBit = index+1 == BitLength;
-      if((uint)index >= (uint)BitLength)
+      if((uint)index >= (uint)BitLength) // if possibly setting a bit beyond the current maximum...
       {
-        if((uint)index >= (uint)int.MaxValue) throw new ArgumentOutOfRangeException();
-        if(value == IsNegative) return; // don't do anything if the bit would be the same
+        if((uint)index >= (uint)int.MaxValue) throw new ArgumentOutOfRangeException(); // ensure 0 <= index < int.MaxValue
+        if(value == IsNegative) return; // don't expand the array if we're setting the bit to the value it'd effectively be anyway
         int newLength = GetElementCount(index+1); // if we're toggling a bit beyond the current end of the data, expand the array
         ExpandArrayTo(newLength);
         BitLength = index+1; // if the integer is negative this may not be the final bit length
@@ -1299,7 +1296,7 @@ namespace AdamMil.Mathematics
     public static Integer operator<<(Integer value, int shift)
     {
       if(shift >= 0) return LeftShift(value, (uint)shift);
-      else return RightShift(value, (uint)(-shift));
+      else return RightShift(value, (uint)-shift);
     }
 
     /// <summary>Shifts an <see cref="Integer"/> value right, bitwise, and returns the result. (If <paramref name="shift"/> is negative,
@@ -1308,7 +1305,7 @@ namespace AdamMil.Mathematics
     public static Integer operator>>(Integer value, int shift)
     {
       if(shift >= 0) return RightShift(value, (uint)shift);
-      else return LeftShift(value, (uint)(-shift));
+      else return LeftShift(value, (uint)-shift);
     }
 
     /// <summary>Bitwise-ANDs two <see cref="Integer"/> values and returns the result.</summary>
@@ -1326,7 +1323,7 @@ namespace AdamMil.Mathematics
     /// </remarks>
     public static Integer operator&(Integer a, int b)
     {
-      if(b >= 0) return new Integer((uint)b & (a.IsNegative ? (uint)-(int)a.data[0] : a.ToUInt32Fast()));
+      if(b >= 0) return new Integer((a.IsNegative ? (uint)-(int)a.data[0] : a.ToUInt32Fast()) & (uint)b);
       a = a.Clone();
       a.UnsafeBitwiseAnd(b);
       return a;
@@ -1337,9 +1334,9 @@ namespace AdamMil.Mathematics
     /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/node()"/></para>
     /// </remarks>
     [CLSCompliant(false)]
-    public static Integer operator&(Integer a, uint b)
+    public static uint operator&(Integer a, uint b)
     {
-      return new Integer((a.IsNegative ? (uint)-(int)a.data[0] : a.ToUInt32Fast()) & b);
+      return (a.IsNegative ? (uint)-(int)a.data[0] : a.ToUInt32Fast()) & b;
     }
 
     /// <summary>Bitwise-ANDs an <see cref="int"/> and an <see cref="Integer"/> and returns the result.</summary>
@@ -1359,9 +1356,9 @@ namespace AdamMil.Mathematics
     /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/node()"/></para>
     /// </remarks>
     [CLSCompliant(false)]
-    public static Integer operator&(uint a, Integer b)
+    public static uint operator&(uint a, Integer b)
     {
-      return new Integer((b.IsNegative ? (uint)-(int)b.data[0] : b.ToUInt32Fast()) & a);
+      return a & (b.IsNegative ? (uint)-(int)b.data[0] : b.ToUInt32Fast());
     }
 
     /// <summary>Bitwise-ORs two <see cref="Integer"/> values and returns the result.</summary>
@@ -1425,8 +1422,7 @@ namespace AdamMil.Mathematics
     /// </remarks>
     public static Integer operator~(Integer value)
     {
-      // ~x = -(x+1)
-      return new Integer(value.IsNegative ? DecrementMagnitude(value) : IncrementMagnitude(value), !value.IsNegative, false);
+      return new Integer(value.IsNegative ? DecrementMagnitude(value) : IncrementMagnitude(value), !value.IsNegative, false); // ~x==-(x+1)
     }
     #endregion
 
@@ -1615,16 +1611,9 @@ namespace AdamMil.Mathematics
     /// </summary>
     public static explicit operator int(Integer value)
     {
-      if(!value.IsZero)
-      {
-        int smallValue = (int)value.data[0];
-        if(value.IsNegative) smallValue = -smallValue;
-        return smallValue;
-      }
-      else
-      {
-        return 0;
-      }
+      int smallValue = (int)value.ToUInt32Fast();
+      if(value.IsNegative) smallValue = -smallValue;
+      return smallValue;
     }
 
     /// <summary>Provides an explicit conversion from <see cref="Integer"/> to <see cref="uint"/>. This method will not throw an exception;
@@ -1641,11 +1630,7 @@ namespace AdamMil.Mathematics
     /// </summary>
     public static explicit operator long(Integer value)
     {
-      long smallValue;
-      int bitLength = value.BitLength;
-      if(bitLength > 32) smallValue = (long)(value.data[0] | ((ulong)value.data[1]<<32));
-      else if(bitLength != 0) smallValue = (long)value.data[0];
-      else smallValue = 0;
+      long smallValue = (long)value.ToUInt64Fast();
       if(value.IsNegative) smallValue = -smallValue;
       return smallValue;
     }
@@ -1703,6 +1688,10 @@ namespace AdamMil.Mathematics
       {
         return 0;
       }
+      else if(value.BitLength > 1024) // (Integer)double.MaxValue requires 1024 bits. more than that, and it must be +/- Infinity
+      {
+        return value.IsPositive ? double.PositiveInfinity : double.NegativeInfinity;
+      }
       else
       {
         int count = value.GetElementCount();
@@ -1719,7 +1708,9 @@ namespace AdamMil.Mathematics
     /// </summary>
     public static explicit operator float(Integer value)
     {
-      return (float)(double)value;
+      // (Integer)float.MaxValue requires 128 bits. more than that, and it must be +/- Infinity
+      if(value.BitLength > 128) return value.IsPositive ? float.PositiveInfinity : float.NegativeInfinity;
+      else return (float)(double)value;
     }
 
     /// <summary>Provides an explicit conversion from <see cref="Integer"/> to <see cref="FP107"/>. This method will not throw an
@@ -1731,6 +1722,10 @@ namespace AdamMil.Mathematics
       if(value.IsZero)
       {
         return FP107.Zero;
+      }
+      else if(value.BitLength > 1024) // (Integer)FP107.MaxValue requires 1024 bits. more than that, and it must be +/- Infinity
+      {
+        return value.IsPositive ? FP107.PositiveInfinity : FP107.NegativeInfinity;
       }
       else
       {
@@ -1787,13 +1782,15 @@ namespace AdamMil.Mathematics
       return Parse(str, NumberStyles.Any, null);
     }
 
-    /// <summary>Parses an <see cref="Integer"/> value formatted using the given provider.</summary>
+    /// <summary>Parses an <see cref="Integer"/> value formatted according to the given provider, or the current culture if the provider
+    /// is null.
+    /// </summary>
     public static Integer Parse(string str, IFormatProvider provider)
     {
       return Parse(str, NumberStyles.Any, provider);
     }
 
-    /// <summary>Parses an <see cref="Integer"/> value formatted using the given provider.</summary>
+    /// <summary>Parses an <see cref="Integer"/> value formatted using the given provider, or the current culture if the provider is null.</summary>
     public static Integer Parse(string str, NumberStyles style, IFormatProvider provider)
     {
       if(str == null) throw new ArgumentNullException();
@@ -1808,8 +1805,10 @@ namespace AdamMil.Mathematics
     {
       if(power <= 0)
       {
-        if(power == 0) return One; // even 0^0 == 1
-        else throw new ArgumentOutOfRangeException();
+        if(power == 0 || value == 1) return One; // x^0 == 1 and 1^y == 1 regardless of x or y
+        else if(value == -1) return (power&1) == 0 ? One : MinusOne; // -1^y is -1 when y is odd and 1 otherwise, regardless of y's sign
+        else if(value != 0) return Zero; // x^y truncates to zero when abs(x) > 1 and y < 0
+        else throw new ArgumentOutOfRangeException(); // exception when 0^y and y < 0
       }
 
       bool negative = value < 0;
@@ -1852,20 +1851,20 @@ namespace AdamMil.Mathematics
       {
         result = new Integer(PowersOf10[power]);
       }
-      else if((uint)value-3 < SmallExponents.Length && power <= SmallExponents[(uint)value-3]) // if the value can be computed with Math.Pow...
+      else if((uint)value-3 < SmallExponents.Length && power <= SmallExponents[(uint)value-3]) // if it can be computed with Math.Pow...
       {
         result = new Integer((ulong)Math.Pow((uint)value, power));
       }
       else // powers of other values will be computed by repeated squaring
       {
-        Integer pow2 = (uint)value;
-        result = 1u;
+        Integer pow = (uint)value;
+        result = One;
         while(true)
         {
-          if((power & 1) != 0) result *= pow2;
+          if((power & 1) != 0) result *= pow;
           power >>= 1;
           if(power == 0) break;
-          pow2 = pow2.Square();
+          pow = pow.Square();
         }
       }
 
@@ -1881,16 +1880,16 @@ namespace AdamMil.Mathematics
       return TryParse(str, NumberStyles.Any, null, out value);
     }
 
-    /// <summary>Attempts to parse an <see cref="Integer"/> value formatted according to the given provider and returns true if the
-    /// parse was successful.
+    /// <summary>Attempts to parse an <see cref="Integer"/> value formatted according to the given provider (or the current culture if the
+    /// provider is null) and returns true if the parse was successful.
     /// </summary>
     public static bool TryParse(string str, IFormatProvider provider, out Integer value)
     {
       return TryParse(str, NumberStyles.Any, provider, out value);
     }
 
-    /// <summary>Attempts to parse an <see cref="Integer"/> value formatted according to the given provider and returns true if the
-    /// parse was successful.
+    /// <summary>Attempts to parse an <see cref="Integer"/> value formatted according to the given provider (or the current culture if the
+    /// provider is null) and returns true if the parse was successful.
     /// </summary>
     public static bool TryParse(string str, NumberStyles style, IFormatProvider provider, out Integer value)
     {
@@ -1934,7 +1933,7 @@ namespace AdamMil.Mathematics
 
     bool IConvertible.ToBoolean(IFormatProvider provider)
     {
-      return !IsZero;
+      return !IsZero; // use the same behavior as the built-in integer types
     }
 
     byte IConvertible.ToByte(IFormatProvider provider)
@@ -2022,7 +2021,7 @@ namespace AdamMil.Mathematics
     /// <summary>Converts an array of decimal digits into a <see cref="Integer"/> value.</summary>
     internal static Integer ParseDigits(byte[] digits, int digitCount)
     {
-      Integer mantissa = Integer.Zero;
+      Integer value = Integer.Zero;
       for(int total=0; total<digitCount; ) // while there are digits left to parse...
       {
         // parse digits in groups of 19, sticking them into a ulong to avoid as much Integer math as possible
@@ -2031,12 +2030,12 @@ namespace AdamMil.Mathematics
         for(int count=Math.Min(19, digitCount-total); parsed<count; parsed++) someDigits = someDigits*10 + digits[parsed+total];
 
         // then combine the ulong value with the Integer
-        if(total != 0) mantissa = mantissa * Integer.Pow(10, parsed) + someDigits;
-        else mantissa = someDigits;
+        if(total != 0) value = value * Integer.Pow(10, parsed) + someDigits;
+        else value = someDigits;
 
         total += parsed;
       }
-      return mantissa;
+      return value;
     }
 
     void CloneIfNecessary() // this assumes One.data == MinusOne.data and we have no other built-in non-zero values
@@ -2052,8 +2051,7 @@ namespace AdamMil.Mathematics
     int CompareMagnitudes(uint other)
     {
       if(BitLength > 32) return 1;
-      else if(IsZero) return other == 0 ? 0 : -1;
-      uint value = data[0];
+      uint value = ToUInt32Fast();
       return value > other ? 1 : value < other ? -1 : 0;
     }
 
@@ -2129,7 +2127,7 @@ namespace AdamMil.Mathematics
       else
       {
         CloneIfNecessary();
-        if(Add(data, BitLength, value))
+        if(Add(data, value))
         {
           BitLength = ComputeBitLength();
         }
@@ -2138,18 +2136,17 @@ namespace AdamMil.Mathematics
           uint[] newData = new uint[data.Length+1];
           data.FastCopy(newData, data.Length);
           newData[data.Length] = 1;
+          BitLength = data.Length*32 + 1;
           data = newData;
-          BitLength = ComputeBitLength(data, GetElementCount());
         }
       }
     }
 
-    void UnsafeBitwiseAnd(uint value, bool bNegative)
+    void UnsafeBitwiseAnd(uint value, bool bNegative) // 'value' is already in two's complement
     {
       if(!IsZero)
       {
         CloneIfNecessary();
-        int i=1, count = GetElementCount();
         if(IsPositive && !bNegative)
         {
           data[0] &= value;
@@ -2159,7 +2156,7 @@ namespace AdamMil.Mathematics
           }
           else
           {
-            for(; i<count; i++) data[i] = 0;
+            for(int i=1, count = GetElementCount(); i<count; i++) data[i] = 0;
             BitLength = ComputeBitLength(data[0]);
           }
         }
@@ -2180,6 +2177,7 @@ namespace AdamMil.Mathematics
           }
           data[0] = value;
 
+          int i=1, count = GetElementCount();
           if(!bNegative)
           {
             if(data[0] == 0)
@@ -2214,7 +2212,7 @@ namespace AdamMil.Mathematics
       }
     }
 
-    void UnsafeBitwiseOr(uint value, bool bNegative)
+    void UnsafeBitwiseOr(uint value, bool bNegative) // 'value' is already in two's complement
     {
       if(value != 0)
       {
@@ -2273,13 +2271,13 @@ namespace AdamMil.Mathematics
     void UnsafeDecrementMagnitude()
     {
       CloneIfNecessary();
-      for(int i=0, count=GetElementCount(); i<count; i++)
+      for(int i=0; i<data.Length; i++)
       {
         uint value = data[i]--;
         if(value != 0)
         {
           // if the high word was a power of two before being decremented, then the bit length decreased
-          if(i == count-1 && (value & (value-1)) == 0) BitLength--;
+          if(i == data.Length-1 && (value & (value-1)) == 0) BitLength--;
           break;
         }
       }
@@ -2288,14 +2286,13 @@ namespace AdamMil.Mathematics
     void UnsafeIncrementMagnitude()
     {
       CloneIfNecessary();
-      int i, count = GetElementCount();
-      for(i=0; i<count; i++)
+      for(int i=0; i<data.Length; i++)
       {
         uint value = ++data[i];
         if(value != 0)
         {
           // if the high word was a power of two after being incremented, then the bit length increased. otherwise, return now
-          if(i != count-1 || (value & (value-1)) != 0) return;
+          if(i != data.Length-1 || (value & (value-1)) != 0) return;
         }
       }
 
@@ -2303,26 +2300,33 @@ namespace AdamMil.Mathematics
       if(newBitLength < 0) throw new OverflowException();
       BitLength = newBitLength;
 
-      if(GetElementCount(newBitLength) != count) // if the value became all zeros, then we need to add a 1 bit to the next element
+      if(GetElementCount(newBitLength) != data.Length) // if the array became all zeros, then we need to add a 1 bit to the next element
       {
-        if(data.Length < count+1) ExpandArrayTo(count+1);
-        data[count] = 1;
+        uint[] newData = new uint[data.Length+1];
+        data.FastCopy(newData, data.Length);
+        newData[data.Length] = 1;
+        data = newData;
       }
     }
 
     void UnsafeLeftShift(uint shift)
     {
-      int newBitLength = (int)((uint)BitLength + shift);
-      if(newBitLength < 0) throw new OverflowException();
-      int newLength = GetElementCount(newBitLength);
-      uint[] result = data == null || data.Length < newLength ? new uint[newLength] : CloneIfNecessary(data);
-      LeftShift(data, BitLength, shift, result);
-      data      = result;
-      BitLength = newBitLength;
+      if(!IsZero)
+      {
+        Debug.Assert(shift <= (uint)int.MaxValue+1);
+        int newBitLength = (int)((uint)BitLength + shift);
+        if(newBitLength < 0) throw new OverflowException();
+        int newLength = GetElementCount(newBitLength);
+        uint[] result = data == null || data.Length < newLength ? new uint[newLength] : CloneIfNecessary(data);
+        LeftShift(data, BitLength, shift, result);
+        data      = result;
+        BitLength = newBitLength;
+      }
     }
 
     void UnsafeRightShift(uint shift)
     {
+      Debug.Assert(shift <= (uint)int.MaxValue+1);
       int newBitLength = (int)((uint)BitLength - shift);
       if(newBitLength <= 0)
       {
@@ -2393,7 +2397,7 @@ namespace AdamMil.Mathematics
         CloneIfNecessary();
         if(cmp > 0)
         {
-          Subtract(data, BitLength, value);
+          Subtract(data, value);
           BitLength = ComputeBitLength();
         }
         else // if the value is greater than this...
@@ -2426,14 +2430,14 @@ namespace AdamMil.Mathematics
       else return new uint[] { b - a.data[0] };
     }
 
-    static bool Add(uint[] a, int aBitLength, uint value)
+    static bool Add(uint[] a, uint value)
     {
       uint sum = a[0] + value;
       a[0] = sum;
       if(sum < value) // if there was overflow...
       {
         bool carry = true;
-        for(int i=1, count=GetElementCount(aBitLength); i<count; i++) // carry
+        for(int i=1; i<a.Length; i++) // carry
         {
           if(++a[i] != 0) { carry = false; break; }
         }
@@ -2499,7 +2503,7 @@ namespace AdamMil.Mathematics
       if(maxBitLength < 0) throw new OverflowException(); // handle the addition overflowing
       uint[] result = new uint[GetElementCount(maxBitLength)];
       a.data.FastCopy(result, a.GetElementCount());
-      Add(result, a.BitLength, b);
+      Add(result, b);
       return result;
     }
 
@@ -2512,9 +2516,10 @@ namespace AdamMil.Mathematics
       return result;
     }
 
+    /// <summary>Copies a region of bits from one array to another.</summary>
     static void BitCopy(uint[] src, int srcIndex, uint[] dest, int destIndex, int bitCount)
     {
-      if(bitCount == 1)
+      if(bitCount == 1) // if we're only copying a single bit...
       {
         uint smask = 1u << (srcIndex & 31), dmask = 1u << (destIndex & 31);
         destIndex >>= 5;
@@ -2800,9 +2805,8 @@ namespace AdamMil.Mathematics
     static int Compare(uint[] a, int aBitLength, uint[] b, int bBitLength)
     {
       int cmp = aBitLength - bBitLength;
-      if(cmp == 0 && bBitLength != 0)
+      if(cmp == 0 && bBitLength != 0) // if the values have the same bit length and neither are zero...
       {
-        // the values have the same bit length and neither are zero
         int i = GetElementCount(bBitLength)-1;
         do
         {
@@ -2869,11 +2873,12 @@ namespace AdamMil.Mathematics
       {
         return 0;
       }
-      else if((b & (b-1)) == 0) // if b is a power of two, we can take a fast path...
+      else if((b & (b-1)) == 0) // if dividing by a power of two, we can take a fast path...
       {
-        int log2b = BinaryUtility.CountTrailingZeros(b);
-        uint remainder = a[0] & ((1u<<log2b)-1);
-        RightShift(a, aBitLength, (uint)log2b, result);
+        // when b is a power of 2, a % b == a & (b-1) and a / b == (a >> log2(b)). the base-2 logarithm of a power of two equals the
+        // number of trailing zero bits
+        uint remainder = a[0] & (b-1);
+        RightShift(a, aBitLength, (uint)BinaryUtility.CountTrailingZeros(b), result); 
         return remainder;
       }
       else
@@ -2881,7 +2886,7 @@ namespace AdamMil.Mathematics
         ulong remainder = 0;
         for(int i=a.Length-1; i >= 0; i--)
         {
-          remainder  = (remainder<<32) | a[i];
+          remainder = (remainder<<32) | a[i];
           Debug.Assert(i < result.Length || remainder/b == 0);
           if(i < result.Length) result[i] = (uint)(remainder / b);
           remainder %= b;
@@ -2921,7 +2926,7 @@ namespace AdamMil.Mathematics
 
       // do binary long division, with some optimizations
       uint[] quotient = new uint[GetElementCount(a.BitLength - b.BitLength + 1)];
-      if(b.BitLength <= 32)
+      if(b.BitLength <= 32) // if the divisor fits in 32-bits, use a simpler method
       {
         remainder = new uint[] { DivideMagnitudes(a.data, a.BitLength, b.data[0], quotient) };
       }
@@ -2958,20 +2963,21 @@ namespace AdamMil.Mathematics
 
     static bool Increment(uint[] data, int bitLength, uint[] result)
     {
-      int i, count=GetElementCount(bitLength);
-      for(i=0; i<count; i++)
+      int i;
+      for(i=0; i<data.Length; i++)
       {
         uint sum = data[i] + 1;
         result[i] = sum;
         if(sum != 0) break;
       }
 
-      if(i == count)
+      if(i == data.Length)
       {
         result[i] = 1;
       }
       else if(data != result)
       {
+        int count = GetElementCount(bitLength);
         for(i++; i < count; i++) result[i] = data[i];
       }
       return true;
@@ -3002,6 +3008,7 @@ namespace AdamMil.Mathematics
 
     static Integer LeftShift(Integer value, uint shift)
     {
+      Debug.Assert(shift <= (uint)int.MaxValue+1);
       if(shift == 0 || value.IsZero) return value;
 
       int bitLength = value.BitLength, newBitLength = (int)((uint)bitLength + shift);
@@ -3013,6 +3020,7 @@ namespace AdamMil.Mathematics
 
     static void LeftShift(uint[] data, int bitLength, uint shift, uint[] result)
     {
+      Debug.Assert(shift <= (uint)int.MaxValue+1);
       if(shift == 0)
       {
         if(data != result) data.FastCopy(result, GetElementCount(bitLength));
@@ -3041,15 +3049,18 @@ namespace AdamMil.Mathematics
         }
 
         // then fill the empty space with zero bits (we do it last so we can shift in place)
-        for(int i=0; i<whole; i++) result[i] = 0;
+        if(data == result)
+        {
+          for(int i=0; i<whole; i++) result[i] = 0;
+        }
       }
     }
 
     static void Multiply(uint[] a, int aBitLength, uint b, uint[] result)
     {
       Debug.Assert(b != 0);
-      if((b & (b-1)) == 0) // if b is a power of two, we can take a fast path...
-      {
+      if((b & (b-1)) == 0) // if b is a power of two, we can take a fast path since multiplying by a power of two is the same as
+      {                    // left-shifting by its base-2 logarithm, which for a power of two is the number of trailing zero bits
         LeftShift(a, aBitLength, (uint)BinaryUtility.CountTrailingZeros(b), result);
       }
       else
@@ -3070,7 +3081,7 @@ namespace AdamMil.Mathematics
     {
       if(a.IsZero || b == 0) return null;
       else if(a.BitLength == 1) return new uint[] { b }; // if a.Abs() == 1
-      else if(b == 1) return a.data; // if b.Abs() == 1
+      else if(b == 1) return a.data;
 
       int maxBitLength = a.BitLength + ComputeBitLength(b);
       if(maxBitLength < 0) throw new OverflowException();
@@ -3116,7 +3127,7 @@ namespace AdamMil.Mathematics
       }
       else if((b & (b-1)) == 0) // if b is a power of two, we can take a fast path...
       {
-        return a[0] & ((1u<<BinaryUtility.CountTrailingZeros(b))-1);
+        return a[0] & (b-1);
       }
       else
       {
@@ -3128,6 +3139,7 @@ namespace AdamMil.Mathematics
 
     static Integer RightShift(Integer value, uint shift)
     {
+      Debug.Assert(shift <= (uint)int.MaxValue+1);
       if(shift == 0) return value;
       int bitLength = value.BitLength;
       if(shift >= (uint)bitLength) return Zero;
@@ -3167,13 +3179,13 @@ namespace AdamMil.Mathematics
       }
     }
 
-    static void Subtract(uint[] a, int aBitLength, uint value)
+    static void Subtract(uint[] a, uint value)
     {
       uint av = a[0];
       a[0] = av - value;
       if(a[0] > av) // if av - value > av, then there was underflow
       {
-        for(int i=1, count=GetElementCount(aBitLength); i<count; i++) // borrow
+        for(int i=1; i<a.Length; i++) // borrow
         {
           if(a[i]-- != 0) break;
         }
@@ -3209,10 +3221,10 @@ namespace AdamMil.Mathematics
       {
         while(i < count)
         {
-          uint diff = a[i] - 1;
-          result[i] = diff;
+          uint diff = a[i];
+          result[i] = diff - 1;
           i++;
-          if(diff != 0xFFFFFFFF) { borrow = 0; break; }
+          if(diff != 0) { borrow = 0; break; }
         }
       }
 
@@ -3247,7 +3259,7 @@ namespace AdamMil.Mathematics
           return b == 1 ? IncrementMagnitude(a) : AddMagnitudes(a, b);
         }
       }
-      else // b fits in a uint
+      else // a < b and a fits in a uint
       {
         negative = !negative;
         if(a.IsPositive == negative) return new uint[] { b - a.data[0] }; // small - big = -(big - small)
@@ -3266,7 +3278,7 @@ namespace AdamMil.Mathematics
       {
         return new uint[] { a };
       }
-      else if(b.CompareMagnitudes(a) >= 0)
+      else if(b.CompareMagnitudes(a) >= 0) // if a <= b...
       {
         if(b.IsNegative == negative) // small - big = -medium, -small - -big = medium
         {
@@ -3289,7 +3301,7 @@ namespace AdamMil.Mathematics
     {
       uint[] result = new uint[a.GetElementCount()];
       a.data.FastCopy(result, result.Length);
-      Subtract(result, a.BitLength, b);
+      Subtract(result, b);
       return result;
     }
 
@@ -3368,7 +3380,7 @@ namespace AdamMil.Mathematics
               for(int j=Math.Max(i, end-8); j < end; j++) word = (word<<4) | BinaryUtility.ParseHex(str[j]);
               data[di] = word;
             }
-            value = new Integer(data, negative);
+            value = new Integer(data, negative, false);
             return true;
           }
         }
