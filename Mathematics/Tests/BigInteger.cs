@@ -626,6 +626,8 @@ namespace AdamMil.Mathematics.Tests
       TestArithmetic(1000000000L, 10);
       TestArithmetic((long)int.MinValue, int.MaxValue);
       TestArithmetic((long)-int.MaxValue, int.MaxValue);
+      TestArithmetic((long)int.MaxValue+1, (long)int.MaxValue+1);
+      TestArithmetic(uint.MaxValue, 1);
 
       // more addition
       TestAdd(int.MinValue, int.MaxValue, false);
@@ -704,9 +706,17 @@ namespace AdamMil.Mathematics.Tests
       AssertEqual(Integer.Zero, Integer.Zero.Abs());
 
       // pow
+      AssertEqual(Integer.Zero, Integer.Pow(0, 1));
       AssertEqual(Integer.One, Integer.Pow(0, 0));
       AssertEqual(Integer.One, Integer.Pow(-1, 0));
       AssertEqual(Integer.One, Integer.Pow(1, 0));
+      AssertEqual(Integer.One, Integer.Pow(1, 5));
+      AssertEqual(Integer.One, Integer.Pow(1, -5));
+      AssertEqual(Integer.One, Integer.Pow(-1, -4));
+      AssertEqual(Integer.One, Integer.Pow(-1, 0));
+      AssertEqual(Integer.One, Integer.Pow(-1, 2));
+      AssertEqual(Integer.MinusOne, Integer.Pow(-1, -3));
+      AssertEqual(Integer.MinusOne, Integer.Pow(-1, 3));
       AssertEqual(-5, Integer.Pow(-5, 1));
       ulong p = 1;
       for(int i=0; i<64; p *= 2, i++) AssertEqual(p, Integer.Pow(2, i));
@@ -718,6 +728,7 @@ namespace AdamMil.Mathematics.Tests
       AssertEqual(Integer.Pow(10, 50), Integer.Pow(10, 25).Square());
       AssertEqual(9, Integer.Pow(-3, 2));
       AssertEqual(-27, Integer.Pow(-3, 3));
+      TestHelpers.TestException<ArgumentOutOfRangeException>(delegate { Integer.Pow(0, -1); });
 
       // unsafe set
       a = Integer.Zero;
@@ -761,6 +772,7 @@ namespace AdamMil.Mathematics.Tests
       TestGetBit(-5000000000, "011010101111110100000111000000000");
       TestGetBit(-uint.MaxValue-1, "100000000000000000000000000000000");
 
+      TestShift(0, 1);
       TestShift(500, 1);
       TestShift(500, 2);
       TestShift(500, 3);
@@ -1327,8 +1339,8 @@ namespace AdamMil.Mathematics.Tests
         Integer exleft = a * Integer.Pow(2, shift), exright = a / Integer.Pow(2, shift);
         Assert.AreEqual(exleft, left);
         Assert.AreEqual(exleft, left2);
-        Assert.AreEqual(a.BitLength+shift, left.BitLength);
-        Assert.AreEqual(a.BitLength+shift, left2.BitLength);
+        Assert.AreEqual(a.IsZero ? 0 : a.BitLength+shift, left.BitLength);
+        Assert.AreEqual(a.IsZero ? 0 : a.BitLength+shift, left2.BitLength);
         Assert.AreEqual(exright, right);
         Assert.AreEqual(exright, right2);
         Assert.AreEqual(Math.Max(0, a.BitLength-shift), right.BitLength);
