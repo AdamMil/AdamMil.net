@@ -238,9 +238,10 @@ public static class STM
     int delay = 1;
     do
     {
-      STMTransaction tx = STMTransaction.Create(options);
+      STMTransaction tx = null;
       try
       {
+        tx = STMTransaction.Create(options);
         T value = function();
         tx.Commit(postCommitAction);
         return value;
@@ -249,9 +250,9 @@ public static class STM
       catch
       {
         // if the transaction has seen a consistent view of memory, then consider the exception to be legitimate and rethrow it
-        if(tx.IsConsistent()) throw;
+        if(tx != null && tx.IsConsistent()) throw;
       }
-      finally { tx.Dispose(); }
+      finally { Utility.Dispose(tx); }
 
       if(timeoutMs != 0) // if it failed, wait a little bit before trying again
       {
@@ -342,7 +343,7 @@ public enum STMOptions
   /// <summary>Checks consistency after each variable is opened, as well as during <see cref="STMTransaction.Commit"/>, in order
   /// to ensure that the transaction always sees a consistent view of memory. This option incurs a substantial performance
   /// penalty, and it's recommended to avoid it and call <see cref="STMTransaction.CheckConsistency"/> manually where
-  /// consistency is required, or better yet, write write your transactions so that they can tolerate inconsistency. See
+  /// consistency is required, or better yet, write your transactions so that they can tolerate inconsistency. See
   /// <see cref="STMTransaction.CheckConsistency"/> for details.
   /// </summary>
   EnsureConsistency=1,

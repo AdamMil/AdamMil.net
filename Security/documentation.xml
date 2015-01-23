@@ -71,7 +71,7 @@
         available.
       </param>
       <param name="revokerKey">The public key of the designated revoker.</param>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </AddDesignatedRevoker>
 
     <AddPhoto3>
@@ -80,22 +80,22 @@
         The default implementation simply saves the image as a JPEG and passes it to
         <see cref="AddPhoto(PrimaryKey,Stream,OpenPGPImageFormat,bool)"/>.
       </remarks>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </AddPhoto3>
 
     <AddPhoto4>
       <summary>Adds a photo in the given format to the given key.</summary>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </AddPhoto4>
 
     <AddUserId>
       <summary>Adds a new user ID to the given primary key.</summary>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </AddUserId>
 
     <AddSubkey>
       <summary>Adds a new subkey to the given primary key.</summary>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </AddSubkey>
 
     <ChangeExpiration>
@@ -105,7 +105,7 @@
         The new expiration time, or null if the key should not expire. The time must be in
         the future.
       </param>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </ChangeExpiration>
 
     <ChangePassword>
@@ -114,7 +114,7 @@
 
     <CleanKeys>
       <summary>Cleans the given keys by removing unusable signatures and user IDs from them.</summary>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </CleanKeys>
 
     <CreateKey>
@@ -146,24 +146,24 @@
 
     <DeleteAttributes>
       <summary>Deletes the given attributes from their owning keys.</summary>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </DeleteAttributes>
 
     <DeleteKeys>
       <summary>Deletes the given primary keys, or a part of them, from their keyrings.</summary>
       <param name="keys">The primary keys to delete.</param>
       <param name="deletion">The portion of the keys to delete.</param>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </DeleteKeys>
 
     <DeleteSignatures>
       <summary>Deletes the given signatures from their owning attributes.</summary>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </DeleteSignatures>
 
     <DeleteSubkeys>
       <summary>Deletes the given subkeys from their owning keys.</summary>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </DeleteSubkeys>
 
     <DisableKeys>
@@ -171,7 +171,7 @@
         Disables the given primary keys. Disabling a key is a local operation that does not change the key for
         any other user.
       </summary>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </DisableKeys>
 
     <EnableKeys>
@@ -179,7 +179,7 @@
         Enables the given primary keys. Enabling a key is a local operation that does not change the key for
         any other user.
       </summary>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </EnableKeys>
 
     <Encrypt>
@@ -381,7 +381,7 @@
         Minimizes the given keys by removing all signatures except the most recent self-signature, and removes
         unusable user IDs.
       </summary>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </MinimizeKeys>
 
     <OnInvalidPassword>
@@ -413,7 +413,7 @@
 
     <RevokeAttributes>
       <summary>Revokes the given attributes from their owning keys.</summary>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </RevokeAttributes>
 
     <RevokeKeys>
@@ -422,7 +422,7 @@
         keys to a key server or otherwise distribute them afterwards so that other people will know the keys have been
         revoked.
       </summary>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </RevokeKeys>
 
     <RevokeKeysD>
@@ -431,17 +431,17 @@
         the keys to be revoked. You will typically want to publish the revoked keys to a key server or otherwise
         distribute them afterwards so that other people will know the keys have been revoked.
       </summary>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </RevokeKeysD>
 
     <RevokeSignatures>
       <summary>Revokes the given signatures from their owning attributes.</summary>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </RevokeSignatures>
 
     <RevokeSubkeys>
       <summary>Revokes the given subkeys from their owning keys.</summary>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </RevokeSubkeys>
 
     <SetOwnerTrust>
@@ -478,22 +478,22 @@
 
     <SignAttribute>
       <summary>Signs the given user ID or user attribute.</summary>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </SignAttribute>
 
     <SignAttributes>
       <summary>Signs the given user IDs or user attributes.</summary>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </SignAttributes>
 
     <SignKey>
       <summary>Signs the given key. This is equivalent to signing all user IDs on the key.</summary>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </SignKey>
 
     <SignKeys>
       <summary>Signs the given keys. This is equivalent to signing all user IDs on the keys.</summary>
-      <!--include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/-->
+      <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
     </SignKeys>
 
     <UploadKeys>

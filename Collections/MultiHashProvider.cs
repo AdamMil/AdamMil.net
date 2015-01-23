@@ -194,8 +194,7 @@ public abstract class MultiHashProvider<T> : IMultiHashProvider<T>
             goto default;
           default:
           {
-            // this branch also works for integers <= 32 bits since they can't collide without being the same. the performance should also
-            // be pretty good, assuming T.GetHashCode() is inlined when T is an integer
+            // this branch also works for integers <= 32 bits since their hashes can't collide without them being equal
             Type hashType = typeof(T).IsValueType ? typeof(GenericValueTypeHashProvider<>)
                                                   : typeof(GenericReferenceTypeHashProvider<>);
             provider = Activator.CreateInstance(hashType.MakeGenericType(typeof(T)));
@@ -433,8 +432,8 @@ public sealed class ArrayHashProvider : MultiHashProvider<Array>
     {
       hash = 0;
       string[] strings = array as string[];
-      if(strings != null) // we have to special-case the non-blittable types that have custom MultiHashProvider implementations,
-      {                   // because the generic code below will only use the generic MultiHashProvider
+      if(strings != null) // we have to special-case the non-blittable types that have custom MultiHashProvider implementations, because
+      {                   // the generic code below will only use the generic MultiHashProvider. (currently this is only string[])
         for(int i=0; i<strings.Length; i++) hash ^= MultiHashProvider<string>.Default.GetHashCode(hashFunction, strings[i]);
       }
       else

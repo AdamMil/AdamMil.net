@@ -137,13 +137,13 @@ namespace AdamMil.Mathematics
       for(int i=0; i<destVector.Length; i++) destVector[i] = -srcVector[i];
     }
 
-    public static void PostJacobiRotation(Matrix matrix, int column1, int column2, double c, double s, int startI=0)
+    public static void PostJacobiRotation(Matrix matrix, int column1, int column2, double cos, double sin, int startI=0)
     {
       for(; startI < matrix.Height; startI++)
       {
         double a = matrix[startI, column1], b = matrix[startI, column2];
-        matrix[startI, column1] = c*a - s*b;
-        matrix[startI, column2] = c*b + s*a;
+        matrix[startI, column1] = cos*a - sin*b;
+        matrix[startI, column2] = cos*b + sin*a;
       }
     }
 

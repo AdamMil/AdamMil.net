@@ -87,7 +87,6 @@ public static class Combinations
 
     // this is the binomial coefficient, which is the number of ways to choose k items from n possibilities and is
     // equal to n! / ((n-k)!k!)
-
     long count = nPossibilities;
     while(--nChosen != 0) count *= --nPossibilities;
     return count;

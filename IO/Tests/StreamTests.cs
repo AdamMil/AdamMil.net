@@ -71,12 +71,12 @@ namespace AdamMil.IO.Tests
       for(int i=0; i<bytes.Length; i++) bytes[i] = (byte)(i < 256 ? i : 511-i);
 
       MemoryStream ms = new MemoryStream();
-      using(EncodedStream stream = new EncodedStream(ms, Base64Encoding.Instance, false)) stream.Write(bytes, 0, bytes.Length);
+      using(EncodedStream stream = new EncodedStream(ms, new Base64Encoding(), false)) stream.Write(bytes, 0, bytes.Length);
       Assert.AreEqual((bytes.Length+2)/3*4, ms.Length);
       Assert.AreEqual(Convert.ToBase64String(bytes), SimpleEightBitEncoding.Instance.GetString(ms.ToArray()));
 
       ms.Position = 0;
-      using(EncodedStream stream = new EncodedStream(ms, Base64Encoding.Instance, false))
+      using(EncodedStream stream = new EncodedStream(ms, new Base64Encoding(), false))
       {
         byte[] bytesRead = new byte[bytes.Length];
         Assert.AreEqual(bytesRead.Length, stream.Read(bytesRead, 0, bytesRead.Length));

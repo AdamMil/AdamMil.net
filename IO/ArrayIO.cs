@@ -221,6 +221,13 @@ public unsafe static partial class IOH
   }
 
   /// <summary>Reads a little-endian IEEE754 double (8 bytes) from a byte array.</summary>
+  public unsafe static double ReadLEDouble(byte[] buf, int index)
+  {
+    ulong v = ReadLE8U(buf, index);
+    return *(double*)&v;
+  }
+
+  /// <summary>Reads a little-endian IEEE754 double (8 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
   public unsafe static double ReadLEDouble(byte* buf)
   {
@@ -235,14 +242,14 @@ public unsafe static partial class IOH
     }
   }
 
-  /// <summary>Reads a little-endian IEEE754 float (4 bytes) from a byte array.</summary>
+  /// <summary>Reads a big-endian IEEE754 float (4 bytes) from a byte array.</summary>
   public unsafe static float ReadBESingle(byte[] buf, int index)
   {
     int v = (buf[index]<<24)|(buf[index+1]<<16)|(buf[index+2]<<8)|buf[index+3];
     return *(float*)&v;
   }
 
-  /// <summary>Reads a little-endian IEEE754 float (4 bytes) from a byte array.</summary>
+  /// <summary>Reads a big-endian IEEE754 float (4 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
   public unsafe static float ReadBESingle(byte* buf)
   {
@@ -257,14 +264,14 @@ public unsafe static partial class IOH
     }
   }
 
-  /// <summary>Reads a little-endian IEEE754 double (8 bytes) from a byte array.</summary>
+  /// <summary>Reads a big-endian IEEE754 double (8 bytes) from a byte array.</summary>
   public unsafe static double ReadBEDouble(byte[] buf, int index)
   {
-    ulong v = ((ulong)ReadBE4U(buf, index)<<32) | ReadBE4U(buf, index+4);
+    ulong v = ReadBE8U(buf, index);
     return *(double*)&v;
   }
 
-  /// <summary>Reads a little-endian IEEE754 double (8 bytes) from a byte array.</summary>
+  /// <summary>Reads a big-endian IEEE754 double (8 bytes) from a byte array.</summary>
   [CLSCompliant(false)]
   public unsafe static double ReadBEDouble(byte* buf)
   {

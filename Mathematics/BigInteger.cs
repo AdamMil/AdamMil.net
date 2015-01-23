@@ -30,6 +30,8 @@ namespace AdamMil.Mathematics
 {
   /// <summary>This class implements an arbitrary-precision integer type capable of storing extremely large positive and negative numbers.</summary>
   /// <remarks>This implementation limits numbers to 2147483647 bits in length, allowing it to store values up to nearly 10^646456993.</remarks>
+  // NOTE: we don't derive from IEquatable<int>, IEquatable<long>, etc. because that assumes our GetHashCode implementation matches that of
+  // the runtime for those types, which may not be the case. IComparable<int>, etc. don't really seem useful either...
   [Serializable]
   public struct Integer : ICloneable, IComparable, IComparable<Integer>, IConvertible, IEquatable<Integer>, IFormattable
   {
