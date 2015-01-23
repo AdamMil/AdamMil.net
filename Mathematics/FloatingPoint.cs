@@ -55,13 +55,13 @@ namespace AdamMil.Mathematics
   /// </para>
   /// <para>
   /// Similar considerations apply when calling <see cref="FP107"/> methods that can take either a double or an <see cref="FP107"/> value.
-  /// For instance, <c>FP107.Log(Math.E) != 1</c> because <c>Math.E</c> is not the best 107-bit approximation to e. <c>FP107.E</c> works
-  /// better in this case: <c>FP107.Log(FP107.E) == 1</c>.
+  /// For instance, <c>FP107.Log(Math.E) != 1</c> because <c>Math.E</c> is not the best 107-bit approximation to Euler's constant.
+  /// <c>FP107.E</c> works better in this case: <c>FP107.Log(FP107.E) == 1</c>.
   /// </para>
   /// <para>
   /// If a decimal value can be represented exactly as a double-precision floating-point number (e.g. 1.25), then it is safe to assign it
   /// directly to an <see cref="FP107"/> value or to pass it as a value to any <see cref="FP107"/> method, e.g. <c>FP107 x = 1.25;</c>
-  /// or <c>FP107.Log(1.25)</c>.
+  /// or <c>FP107.Log(1.25)</c>, but care should be taken to document in your code that it is only safe for those particular values.
   /// </para>
   /// </note>
   /// </remarks>
@@ -70,14 +70,14 @@ namespace AdamMil.Mathematics
   // floating-point format with two digits of precision, 12.34 would normally be stored as 12e0, losing the 0.34. But stored as the sum
   // of two non-overlapping numbers, the value can be represented accurately: 12e0 + 34e-2. The combination effectively has a four-digit
   // mantissa. Usually these portions are adjacent or nearly so, as in the previous example, but they don't need to be. 12.00000034 can be
-  // represented as well: 12e0 + 34e-6, for an effective eight-digit mantissa. With two IEEE754 doubles, we get a typical precision of 107
+  // represented as well: 12e0 + 34e-8, for an effective ten-digit mantissa. With two IEEE754 doubles, we get a typical precision of 107
   // bits, 53 from each value plus an extra bit from the smaller value's sign bit.
   //
-  // When a FP107 number gets down to near the minimum exponent, however, it can no longer maintain sufficient separation between the two
+  // When an FP107 number gets down to near the minimum exponent, however, it can no longer maintain sufficient separation between the two
   // values' exponents (because that would require the smaller value's exponent to be below the minimum), so precision is gradually reduced
   // to the precision of a double. When FP107 numbers get near the extremes of the range, operations to compute the new component values
-  // begin to overflow, in which case FP107 will fall back to using only a single component, again reducing the precision to that of
-  // one double.
+  // begin to overflow, in which case FP107 will fall back to using only a single component, again reducing the precision to that of a
+  // double.
   //
   // The data type has the following invariants:
   // if hi = 0, then lo = 0
@@ -3470,12 +3470,14 @@ namespace AdamMil.Mathematics
 
     /// <summary>Multiplies the given value by 2^<paramref name="offset"/> by adjusting the exponent.</summary>
     /// <remarks>This is equivalent to the <c>ldexp</c> C function. Like regular multiplication, the result will underflow to zero or
-    /// overflow to infinity rather than an exception being thrown.
+    /// overflow to infinity rather than an exception being thrown. This method is much slower than a multiplication if you already have
+    /// 2^<paramref name="offset"/> available, but it is substantially faster than first computing Math.Pow(2, <paramref name="offset"/>)
+    /// and then multiplying.
     /// </remarks>
     public static unsafe double AdjustExponent(double value, int offset)
     {
-      // this method could be written more simply using Decompose and Compose, but since it's a replacement for multiplication,
-      // we want it to be fast, so we'll inline the operations and structure the method around the most common case
+      // this method could be written more simply using Decompose and Compose, but since it's a replacement for Math.Pow() and
+      // multiplication, we want it to be fast, so we'll inline the operations and structure the method around the most common case
       if(offset != 0)
       {
         // we'll assume that we can simply adjust the exponent, so grab the upper four bytes, where the exponent is
@@ -3549,7 +3551,7 @@ namespace AdamMil.Mathematics
       overflow: return value < 0 ? double.NegativeInfinity : double.PositiveInfinity;
     }
 
-    /// <summary>Composes a IEEE 754 double-precision floating-point value from sign, exponent, and mantissa values. The value will be
+    /// <summary>Composes an IEEE 754 double-precision floating-point value from sign, exponent, and mantissa values. The value will be
     /// equal to <paramref name="mantissa"/> * 2^<paramref name="exponent"/>. This method cannot be used to construct values of
     /// <see cref="double.PositiveInfinity"/>, <see cref="double.NegativeInfinity"/>, or <see cref="double.NaN"/>.
     /// </summary>
@@ -3605,7 +3607,7 @@ namespace AdamMil.Mathematics
       return *(double*)&value;
     }
 
-    /// <summary>Composes a IEEE 754 singe-precision floating-point value from sign, exponent, and mantissa values. The value will be
+    /// <summary>Composes an IEEE 754 singe-precision floating-point value from sign, exponent, and mantissa values. The value will be
     /// equal to <paramref name="mantissa"/> * 2^<paramref name="exponent"/>. This method cannot be used to construct values of
     /// <see cref="float.PositiveInfinity"/>, <see cref="float.NegativeInfinity"/>, or <see cref="float.NaN"/>.
     /// </summary>
@@ -3661,7 +3663,7 @@ namespace AdamMil.Mathematics
       return *(float*)&value;
     }
 
-    /// <summary>Decomposes a IEEE 754 double-precision floating-point value into a sign, exponent, and mantissa.
+    /// <summary>Decomposes an IEEE 754 double-precision floating-point value into a sign, exponent, and mantissa.
     /// If <paramref name="value"/> is a special value such as <see cref="double.PositiveInfinity"/>,
     /// <see cref="double.NegativeInfinity"/>, or <see cref="double.NaN"/>, the method returns false and the exponent is meaningless.
     /// Otherwise, the value represents a number, in which case the exponent and mantissa will be normalized so that the floating-point
@@ -3685,7 +3687,7 @@ namespace AdamMil.Mathematics
       return true;
     }
 
-    /// <summary>Decomposes a IEEE 754 single-precision floating-point value into a sign, exponent, and mantissa.
+    /// <summary>Decomposes an IEEE 754 single-precision floating-point value into a sign, exponent, and mantissa.
     /// If <paramref name="value"/> is a special value such as <see cref="float.PositiveInfinity"/>,
     /// <see cref="float.NegativeInfinity"/>, or <see cref="float.NaN"/>, the method returns false and the exponent is meaningless.
     /// Otherwise, the value represents a number, in which case the exponent and mantissa will be normalized so that the floating-point
@@ -3709,8 +3711,8 @@ namespace AdamMil.Mathematics
       return true;
     }
 
-    /// <summary>Composes a IEEE 754 double-precision floating-point value from raw sign, exponent, and mantissa values.</summary>
-    /// <remarks>The exponent should be in the raw (biased) form.</remarks>
+    /// <summary>Composes an IEEE 754 double-precision floating-point value from raw sign, exponent, and mantissa values.</summary>
+    /// <remarks>The exponent should be in the raw (biased) form according to IEEE 754 rules.</remarks>
     [CLSCompliant(false)]
     public static unsafe double RawComposeDouble(bool negative, int exponent, ulong mantissa)
     {
@@ -3720,8 +3722,8 @@ namespace AdamMil.Mathematics
       return *(double*)&value;
     }
 
-    /// <summary>Composes a IEEE 754 single-precision floating-point value from raw sign, exponent, and mantissa values.</summary>
-    /// <remarks>The exponent should be in the raw (biased) form.</remarks>
+    /// <summary>Composes an IEEE 754 single-precision floating-point value from raw sign, exponent, and mantissa values.</summary>
+    /// <remarks>The exponent should be in the raw (biased) form according to IEEE 754 rules.</remarks>
     [CLSCompliant(false)]
     public static unsafe float RawComposeSingle(bool negative, int exponent, uint mantissa)
     {
@@ -3731,7 +3733,7 @@ namespace AdamMil.Mathematics
       return *(float*)&value;
     }
 
-    /// <summary>Decomposes a IEEE 754 double-precision floating-point value into a sign, exponent, and mantissa.</summary>
+    /// <summary>Decomposes an IEEE 754 double-precision floating-point value into a sign, exponent, and mantissa.</summary>
     /// <remarks>The exponent will be returned in its raw (biased) form, and you must interpret the values according to IEEE 754 rules.</remarks>
     [CLSCompliant(false)]
     public static unsafe void RawDecompose(double value, out bool negative, out int exponent, out ulong mantissa)
@@ -3743,7 +3745,7 @@ namespace AdamMil.Mathematics
       negative = (iv & (1u<<DoubleExponentBits)) != 0;
     }
 
-    /// <summary>Decomposes a IEEE 754 single-precision floating-point value into a sign, exponent, and mantissa.</summary>
+    /// <summary>Decomposes an IEEE 754 single-precision floating-point value into a sign, exponent, and mantissa.</summary>
     /// <remarks>The exponent will be returned in its raw (biased) form, and you must interpret the values according to IEEE 754 rules.</remarks>
     [CLSCompliant(false)]
     public static unsafe void RawDecompose(float value, out bool negative, out int exponent, out uint mantissa)

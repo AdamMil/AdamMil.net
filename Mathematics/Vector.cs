@@ -137,7 +137,7 @@ namespace AdamMil.Mathematics
 
     // TODO: this method may be vulnerable to overflow and loss of precision, even when the magnitude is easily representable in a double.
     // see the methods described in Numerical Recipes for computing the magnitude of complex numbers and see if they can be extended to
-    // arbitrary vectors
+    // arbitrary vectors. alternately, consider using FP107 (although it doesn't prevent overflow)
     /// <summary>Returns the length, or magnitude, of the vector.</summary>
     public double GetMagnitude()
     {

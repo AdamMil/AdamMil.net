@@ -346,6 +346,7 @@ public sealed class DictionaryCache<TKey, TValue>
     // this method uses a 32-bit value for the time, but it won't overflow for 136 years, which should be good enough
     if(SafeNativeMethods.IsWindowsVistaOrLater)
     {
+      // startTicks64 is never changed on Windows Vista or later, so non-interlocked reads are safe
       return (uint)((SafeNativeMethods.GetTickCount64() - startTicks64) / 1000);
     }
     else
@@ -354,7 +355,7 @@ public sealed class DictionaryCache<TKey, TValue>
       // so. otherwise, we'll use Environment.TickCount. Environment.TickCount will overflow after about 49.7 days, so it's possible that
       // we won't detect the overflow, but there's only a 0.0007% chance of that, and the consequences -- some objects disappearing too
       // soon or hanging around for up to 30 seconds longer than they should -- aren't too severe
-      long time = Interlocked.Read(ref startTicks64);
+      long time = Interlocked.Read(ref startTicks64); // do a thread-safe read from startTicks64
       int elapsedMs = Environment.TickCount - (int)(uint)time;
       if((uint)elapsedMs < 30000)
       {
@@ -363,8 +364,8 @@ public sealed class DictionaryCache<TKey, TValue>
       else
       {
         uint currentTime = (uint)(stopwatch.ElapsedTicks / Stopwatch.Frequency);
-        time = ((long)currentTime << 32) | (uint)Environment.TickCount;
-        Interlocked.Exchange(ref startTicks64, time);
+        time = ((long)currentTime << 32) | (uint)Environment.TickCount; // store seconds in the high word and milliseconds in the low word
+        Interlocked.Exchange(ref startTicks64, time); // do a thread-safe write to startTick64
         return currentTime;
       }
     }
@@ -376,7 +377,9 @@ public sealed class DictionaryCache<TKey, TValue>
            FloatingTimeLimit != 0 && currentTime - entry.LastAccessTime > FloatingTimeLimit;
   }
 
-  /// <summary>Locks the current <see cref="DictionaryCache{TKey,TValue}"/> if <see cref="ThreadSafe"/> is true.</summary>
+  /// <summary>Locks the current <see cref="DictionaryCache{TKey,TValue}"/> if <see cref="ThreadSafe"/> is true. This method must not be
+  /// called when the cache is already locked.
+  /// </summary>
   void Lock()
   {
     if(ThreadSafe)
@@ -411,7 +414,7 @@ public sealed class DictionaryCache<TKey, TValue>
             overrun = Math.Min(dict.Count, overrun + threshold); // drop down to 7/8ths of the threshold
             uint currentTime = GetCurrentTime(); // remove the least recently accessed items
             dict.RemoveRange(dict.TakeGreatest(overrun, pair => currentTime - pair.Value.LastAccessTime)
-                                 .Select(pair => pair.Key).ToList());
+                                 .Select(pair => pair.Key).ToList()); // call ToList to avoid modifying dict while iterating over it
           }
         }
         finally

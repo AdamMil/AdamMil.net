@@ -30,7 +30,7 @@ namespace AdamMil.Mathematics.Geometry
   /// at once using <see cref="TryAdd(Size[])"/>, rather than adding them individually, since that gives the algorithm
   /// more information to work with.
   /// </summary>
-  public class RectanglePacker
+  public sealed class RectanglePacker
   {
     /// <summary>Initializes a new <see cref="RectanglePacker"/> that will attempt to pack rectangles into a larger
     /// rectangle of the given dimensions.

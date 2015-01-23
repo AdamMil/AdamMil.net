@@ -21,9 +21,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 using System;
 using System.Collections.Generic;
 using AdamMil.AI.Search;
+using AdamMil.Collections;
 using AdamMil.Mathematics.Random;
 using AdamMil.Utilities;
-using AC=AdamMil.Collections;
 
 namespace AdamMil.AI.ConstraintSatisfaction
 {
@@ -73,7 +73,7 @@ public interface IFiniteDomainCSP<VarType>
 public interface INeighborList
 {
   /// <include file="documentation.xml" path="/AI/CSP/INeighborList/Indexer/node()"/>
-  AC.IReadOnlyCollection<int> this[int variable] { get; }
+  IReadOnlyCollection<int> this[int variable] { get; }
 }
 #endregion
 
@@ -203,17 +203,17 @@ public sealed class NeighborArrayList : INeighborList
   public NeighborArrayList(int[][] neighbors)
   {
     if(neighbors == null) throw new ArgumentNullException();
-    this.neighbors = new AC.ReadOnlyCollectionWrapper<int>[neighbors.Length];
-    for(int i=0; i<neighbors.Length; i++) this.neighbors[i] = new AC.ReadOnlyCollectionWrapper<int>(neighbors[i]);
+    this.neighbors = new ReadOnlyCollectionWrapper<int>[neighbors.Length];
+    for(int i=0; i<neighbors.Length; i++) this.neighbors[i] = new ReadOnlyCollectionWrapper<int>(neighbors[i]);
   }
 
   /// <include file="documentation.xml" path="/AI/CSP/INeighborList/Indexer/node()"/>
-  public AC.IReadOnlyCollection<int> this[int index]
+  public IReadOnlyCollection<int> this[int index]
   {
     get { return neighbors[index]; }
   }
 
-  readonly AC.ReadOnlyCollectionWrapper<int>[] neighbors;
+  readonly ReadOnlyCollectionWrapper<int>[] neighbors;
 }
 #endregion
 
@@ -1534,7 +1534,7 @@ public class LocalSearchSolver<VarType> : IterativeSearchBase<Assignment,Assignm
         if(index < 0) // if the variable is not already in the array, insert it
         {
           index = ~index;
-          ArrayUtility.SmallCopy(conflictedVarIndices, index, conflictedVarIndices, index+1, numConflictedVars++ - index);
+          ArrayUtility.FastCopy(conflictedVarIndices, index, conflictedVarIndices, index+1, numConflictedVars++ - index);
           conflictedVarIndices[index] = variable;
         }
       }
@@ -1661,7 +1661,7 @@ public class LocalSearchSolver<VarType> : IterativeSearchBase<Assignment,Assignm
     /// <summary>Removes the variable at the given index within the list of conflicted variables.</summary>
     void RemoveConflictedVariableAt(int index)
     {
-      ArrayUtility.SmallCopy(conflictedVarIndices, index+1, conflictedVarIndices, index, --numConflictedVars - index);
+      ArrayUtility.FastCopy(conflictedVarIndices, index+1, conflictedVarIndices, index, --numConflictedVars - index);
     }
 
 
@@ -1812,7 +1812,7 @@ public class LocalSearchSolver<VarType> : IterativeSearchBase<Assignment,Assignm
   }
 
   /// <summary>The problem instance to be solved.</summary>
-  IFiniteDomainCSP<VarType> problem;
+  readonly IFiniteDomainCSP<VarType> problem;
   /// <summary>The maximum number of iterations without progress that are allowed before the search restarts.</summary>
   int _maxIterationsWithoutProgress;
 }

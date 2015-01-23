@@ -21,7 +21,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 using System;
 using System.Collections.Generic;
 using AdamMil.Collections;
-using AC=AdamMil.Collections;
 
 namespace AdamMil.AI.Search.Graph
 {
@@ -637,7 +636,7 @@ public abstract class DepthBasedSearch<StateType, ActionType> : SingleQueueSearc
   /// <summary>Creates and returns a new stack.</summary>
   protected override IQueue<Node<StateType, ActionType>> CreateQueue()
   {
-    return new AC.Stack<Node<StateType, ActionType>>();
+    return new IndexableStack<Node<StateType, ActionType>>();
   }
 }
 #endregion

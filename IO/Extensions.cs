@@ -338,15 +338,13 @@ public unsafe static partial class StreamExtensions
   /// <summary>Reads a little-endian long (8 bytes) from a stream.</summary>
   public static long ReadLE8(this Stream stream)
   {
-    byte[] buf = Read(stream, 8);
-    return IOH.ReadLE4U(buf, 0) | ((long)IOH.ReadLE4(buf, 4)<<32);
+    return IOH.ReadLE8(Read(stream, 8), 0);
   }
 
   /// <summary>Reads a big-endian long (8 bytes) from a stream.</summary>
   public static long ReadBE8(this Stream stream)
   {
-    byte[] buf = Read(stream, 8);
-    return ((long)IOH.ReadBE4(buf, 0)<<32) | IOH.ReadBE4U(buf, 4);
+    return IOH.ReadBE8(Read(stream, 8), 0);
   }
 
   /// <summary>Reads a little-endian unsigned short (2 bytes) from a stream.</summary>
@@ -383,34 +381,42 @@ public unsafe static partial class StreamExtensions
   [CLSCompliant(false)]
   public static ulong ReadLE8U(this Stream stream)
   {
-    byte[] buf = Read(stream, 8);
-    return IOH.ReadLE4U(buf, 0) | ((ulong)IOH.ReadLE4U(buf, 4)<<32);
+    return IOH.ReadLE8U(Read(stream, 8), 0);
   }
 
   /// <summary>Reads a big-endian unsigned long (8 bytes) from a stream.</summary>
   [CLSCompliant(false)]
   public static ulong ReadBE8U(this Stream stream)
   {
-    byte[] buf = Read(stream, 8);
-    return ((ulong)IOH.ReadBE4U(buf, 0)<<32) | IOH.ReadBE4U(buf, 4);
+    return IOH.ReadBE8U(Read(stream, 8), 0);
   }
 
-  /// <summary>Reads an IEEE754 float (4 bytes) from a stream.</summary>
-  public unsafe static float ReadFloat(this Stream stream)
+  /// <summary>Reads a little-endian IEEE754 float (4 bytes) from a stream.</summary>
+  public unsafe static float ReadLESingle(this Stream stream)
   {
-    byte* buf = stackalloc byte[4];
-    buf[0]=ReadByteOrThrow(stream);
-    buf[1]=ReadByteOrThrow(stream);
-    buf[2]=ReadByteOrThrow(stream);
-    buf[3]=ReadByteOrThrow(stream);
-    return *(float*)buf;
+    uint val = ReadLE4U(stream);
+    return *(float*)&val;
   }
 
-  /// <summary>Reads an IEEE754 double (8 bytes) from a stream.</summary>
-  public unsafe static double ReadDouble(this Stream stream)
+  /// <summary>Reads a little-endian IEEE754 double (8 bytes) from a stream.</summary>
+  public unsafe static double ReadLEDouble(this Stream stream)
   {
-    byte[] buf = Read(stream, sizeof(double));
-    fixed(byte* ptr=buf) return *(double*)ptr;
+    ulong val = ReadLE8U(stream);
+    return *(double*)&val;
+  }
+
+  /// <summary>Reads a big-endian IEEE754 float (4 bytes) from a stream.</summary>
+  public unsafe static float ReadBESingle(this Stream stream)
+  {
+    uint val = ReadBE4U(stream);
+    return *(float*)&val;
+  }
+
+  /// <summary>Reads a big-endian IEEE754 double (8 bytes) from a stream.</summary>
+  public unsafe static double ReadBEDouble(this Stream stream)
+  {
+    ulong val = ReadBE8U(stream);
+    return *(double*)&val;
   }
 
   /// <summary>Skips forward a number of bytes in a stream.</summary>
@@ -424,17 +430,17 @@ public unsafe static partial class StreamExtensions
     {
       stream.Position += bytes;
     }
-    else if(bytes <= 4)
+    else if(bytes < 8)
     {
       int b = (int)bytes;
       while(b-- > 0) stream.ReadByteOrThrow();
     }
     else
     {
-      byte[] buf = new byte[512];
+      byte[] buf = new byte[Math.Min(bytes, 4096)];
       while(bytes != 0)
       {
-        int read = stream.Read(buf, 0, (int)Math.Min(bytes, 512));
+        int read = stream.Read(buf, 0, (int)Math.Min(bytes, 4096));
         if(read == 0) throw new EndOfStreamException();
         bytes -= read;
       }
@@ -561,22 +567,28 @@ public unsafe static partial class StreamExtensions
     WriteBE4U(stream, (uint)val);
   }
 
-  /// <summary>Writes an IEEE754 float (4 bytes) to a stream.</summary>
-  public unsafe static void WriteFloat(this Stream stream, float val)
+  /// <summary>Writes a little-endian IEEE754 float (4 bytes) to a stream.</summary>
+  public unsafe static void WriteLESingle(this Stream stream, float val)
   {
-    byte* buf = (byte*)&val;
-    stream.WriteByte(buf[0]);
-    stream.WriteByte(buf[1]);
-    stream.WriteByte(buf[2]);
-    stream.WriteByte(buf[3]);
+    WriteLE4U(stream, *(uint*)&val);
   }
 
-  /// <summary>Writes an IEEE754 double (8 bytes) to a stream.</summary>
-  public unsafe static void WriteDouble(this Stream stream, double val)
+  /// <summary>Writes a little-endian IEEE754 double (8 bytes) to a stream.</summary>
+  public unsafe static void WriteLEDouble(this Stream stream, double val)
   {
-    byte[] buf = new byte[sizeof(double)];
-    fixed(byte* pbuf=buf) *(double*)pbuf = val;
-    stream.Write(buf, 0, sizeof(double));
+    WriteLE8U(stream, *(ulong*)&val);
+  }
+
+  /// <summary>Writes a big-endian IEEE754 float (4 bytes) to a stream.</summary>
+  public unsafe static void WriteBESingle(this Stream stream, float val)
+  {
+    WriteBE4U(stream, *(uint*)&val);
+  }
+
+  /// <summary>Writes a big-endian IEEE754 double (8 bytes) to a stream.</summary>
+  public unsafe static void WriteBEDouble(this Stream stream, double val)
+  {
+    WriteBE8U(stream, *(ulong*)&val);
   }
 }
 #endregion

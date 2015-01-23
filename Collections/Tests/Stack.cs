@@ -14,11 +14,11 @@ public class StackTest
   {
     int[] numbers = new int[] { 8, 4, 0, 2, 5, 7, 1, 8, 6, 3, 8, 9 };
 
-    Stack<int> queue;
+    IndexableStack<int> queue;
 
-    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { queue = new Stack<int>(-10); });
+    TestHelpers.TestException<ArgumentOutOfRangeException>(delegate() { queue = new IndexableStack<int>(-10); });
 
-    queue = new Stack<int>(4); // use a small capacity to force a resize
+    queue = new IndexableStack<int>(4); // use a small capacity to force a resize
     Assert.IsFalse(queue.IsReadOnly);
 
     TestHelpers.TestException<InvalidOperationException>(delegate() { queue.Pop(); });
@@ -79,14 +79,14 @@ public class StackTest
     Assert.AreEqual(0, queue.Count);
   }
 
-  static void AddItems(Stack<int> queue, IList<int> items)
+  static void AddItems(IndexableStack<int> queue, IList<int> items)
   {
     int initialCount = queue.Count;
     foreach(int i in items) queue.Push(i);
     Assert.AreEqual(initialCount+items.Count, queue.Count);
   }
 
-  static void ReversedDequeue(Stack<int> queue, List<int> items)
+  static void ReversedDequeue(IndexableStack<int> queue, List<int> items)
   {
     Assert.AreEqual(items.Count, queue.Count);
     items.Reverse(); // the queue will return items in reverse order
@@ -105,7 +105,7 @@ public class StackTest
     Assert.AreEqual(queue.Count, 0);
   }
 
-  static void TestRemove(Stack<int> queue, List<int> items, params int[] toRemove)
+  static void TestRemove(IndexableStack<int> queue, List<int> items, params int[] toRemove)
   {
     queue.Clear();
     AddItems(queue, items);

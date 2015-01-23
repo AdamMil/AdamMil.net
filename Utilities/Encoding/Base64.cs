@@ -331,9 +331,6 @@ public sealed class Base64Encoding : EncoderDecoderBinaryEncoding
   /// <paramref name="charactersPerLine"/> is zero, line wrapping is disabled.
   /// </summary>
   public Base64Encoding(int charactersPerLine) : base(new Base64Encoder(charactersPerLine), new Base64Decoder()) { }
-
-  /// <summary>Gets the default instance of the <see cref="Base64Encoding"/>, which does not perform line wrapping.</summary>
-  public static readonly Base64Encoding Instance = new Base64Encoding();
 }
 #endregion
 
@@ -343,12 +340,6 @@ public sealed class Base64Encoding : EncoderDecoderBinaryEncoding
 /// purpose of an <see cref="System.Text.Encoder"/> is to encode text into binary, but in this case, the textual representation
 /// is the encoded one. This class may be used with a <see cref="System.IO.StreamReader"/> or
 /// <see cref="System.IO.StreamWriter"/>, for instance, to provide efficient base64 encoding or decoding, respectively.
-///
-/// <para>Note that if you need to encode or decode data in chunks, you should use the <see cref="System.Text.Decoder"/> or
-/// <see cref="System.Text.Encoder"/> returned from <see cref="System.Text.Encoding.GetDecoder()"/> or
-/// <see cref="System.Text.Encoding.GetEncoder"/>, because <see cref="System.Text.Encoding"/> is not capable of handling data in
-/// chunks.
-/// </para>
 /// </summary>
 public sealed class Base64TextEncoding : EightBitEncoding
 {
@@ -360,9 +351,6 @@ public sealed class Base64TextEncoding : EightBitEncoding
   {
     get { return "base64"; }
   }
-
-  /// <summary>Gets the default instance of <see cref="Base64TextEncoding"/>, which does not perform line wrapping.</summary>
-  public static readonly Base64TextEncoding Instance = new Base64TextEncoding();
 }
 #endregion
 
