@@ -18,9 +18,6 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-// TODO: tune ArrayUtility.SmallCopy() for 64-bit too
-// TODO: see if we can get an even greater speedup in SmallCopy() by using for loops below some small threshold
-
 using System;
 using System.Collections.Generic;
 
@@ -463,18 +460,31 @@ public static class ArrayExtensions
     return Array.IndexOf<T>(array, item, startIndex);
   }
 
+  /// <summary>Returns an array containing a subsection of the given array. If the entire array is requested, the array will be returned
+  /// unchanged.
+  /// </summary>
+  public static T[] Subarray<T>(this T[] array, int index, int length)
+  {
+    return Subarray(array, index, length, false);
+  }
+
+  /// <summary>Returns an array containing a subsection of the given array. If <paramref name="alwaysAllocate"/> is false, the original
+  /// array will be returned if the entire array is requested. If <paramref name="alwaysAllocate"/> is false, this method will always
+  /// return a freshly allocated array.
+  /// </summary>
+  public static T[] Subarray<T>(this T[] array, int index, int length, bool alwaysAllocate)
+  {
+    Utility.ValidateRange(array, index, length);
+    if(!alwaysAllocate && index == 0 && length == array.Length) return array;
+    T[] newArray = new T[length];
+    Array.Copy(array, index, newArray, 0, length);
+    return newArray;
+  }
+
   /// <summary>Shrinks an array to a given length if it's not already of that length, and returns the array.</summary>
   public static T[] Trim<T>(this T[] array, int length)
   {
-    if(array == null) throw new ArgumentNullException();
-    if((uint)length > (uint)array.Length) throw new ArgumentOutOfRangeException();
-    if(length != array.Length)
-    {
-      T[] trimmed = new T[length];
-      Array.Copy(array, trimmed, length);
-      array = trimmed;
-    }
-    return array;
+    return Subarray(array, 0, length, false);
   }
 
   /// <summary>Shrinks an array to a given length if it's not already of that length, and returns the array.</summary>
