@@ -864,25 +864,25 @@ public class SeekableStreamWrapper : DelegateStream
 }
 #endregion
 
-#region StreamStream
+#region Substream
 /// <summary>This class provides a stream based on a portion of an existing stream.</summary>
 /// <remarks>Many methods taking stream arguments expect the entire range of the stream to be devoted to the data
 /// being read by that method. You may want to use a stream containing other data as well with one of those methods.
 /// This class allows you to create a stream from a section of another stream. This class is not thread-safe and
 /// should not be used by multiple threads simultaneously.
 /// </remarks>
-public class StreamStream : DelegateStream
+public class Substream : DelegateStream
 {
   /// <param name="stream">The underlying stream. It is assumed that the underlying stream will not be used by other
   /// code while this stream is in use. The underlying stream will be closed automatically when this stream is closed.
   /// </param>
-  /// <param name="length">The length of the <see cref="StreamStream"/>, beginning from the current position within the
-  /// underlying stream.
+  /// <param name="length">The length of the <see cref="Substream"/>, beginning from the current position within the
+  /// underlying stream. If the underlying stream is not long enough, the length will be reduced accordingly.
   /// </param>
   /// <remarks>If you want to use the underlying stream in other code while this stream is in use, use one of the
-  /// other constructors, such as <see cref="StreamStream(Stream,long,long,bool)"/>.
+  /// other constructors, such as <see cref="Substream(Stream,long,long,bool)"/>.
   /// </remarks>
-  public StreamStream(Stream stream, long length) : this(stream, stream.CanSeek ? stream.Position : 0, length, false, true) { }
+  public Substream(Stream stream, long length) : this(stream, stream.CanSeek ? stream.Position : 0, length, false, true) { }
 
   /// <param name="stream">The underlying stream. It is assumed that the underlying stream will not be used by other
   /// code while this stream is in use. The underlying stream will be closed automatically when this stream is closed.
@@ -891,29 +891,33 @@ public class StreamStream : DelegateStream
   /// the position is taken to be relative to the beginning of the underlying stream. Otherwise, it is taken to be relative to the
   /// current position within the underlying stream.
   /// </param>
-  /// <param name="length">The length of the <see cref="StreamStream"/>.</param>
+  /// <param name="length">The length of the <see cref="Substream"/> will be the lesser of this value and the actual length
+  /// available, if known.
+  /// </param>
   /// <remarks>If you want to use the underlying stream in other code while this stream is in use, use one of the
-  /// other constructors, such as <see cref="StreamStream(Stream,long,long,bool)"/>.
+  /// other constructors, such as <see cref="Substream(Stream,long,long,bool)"/>.
   /// </remarks>
-  public StreamStream(Stream stream, long start, long length) : this(stream, start, length, false, true) { }
+  public Substream(Stream stream, long start, long length) : this(stream, start, length, false, true) { }
 
   /// <param name="stream">The underlying stream. Unseekable streams cannot be shared (<paramref name="shared"/> must
   /// be false). If the stream is unseekable, then <paramref name="start" /> is assumed to be relative to the current position
   /// within the stream. Otherwise, it is assumed to be relative to the beginning of the stream. If <paramref name="shared"/> is
-  /// false, the stream will be closed automatically when the <see cref="StreamStream"/> is closed. If <paramref name="shared"/>
+  /// false, the stream will be closed automatically when the <see cref="Substream"/> is closed. If <paramref name="shared"/>
   /// is true, the stream will not be closed automatically.
   /// </param>
   /// <param name="start">The starting position of this stream within the underlying stream. If the underlying stream is seekable,
   /// the position is taken to be relative to the beginning of the underlying stream. Otherwise, it is taken to be relative to the
   /// current position within the underlying stream.
   /// </param>
-  /// <param name="length">The length of the <see cref="StreamStream"/>.</param>
+  /// <param name="length">The length of the <see cref="Substream"/> will be the lesser of this value and the actual length
+  /// available, if known.
+  /// </param>
   /// <param name="shared">If set to true, the underlying stream will be seeked to the expected position before
   /// each operation in case some other code has moved the file pointer. If set to false, it is assumed that other
   /// code will not touch the underlying stream while this stream is in use, so the additional seeking can be avoided.
   /// Note that setting this to true does not make the stream thread-safe.
   /// </param>
-  public StreamStream(Stream stream, long start, long length, bool shared)
+  public Substream(Stream stream, long start, long length, bool shared)
     : this(stream, start, length, shared, !shared) { }
 
   /// <param name="stream">The underlying stream. Unseekable streams cannot be shared (<paramref name="shared"/> must
@@ -924,7 +928,9 @@ public class StreamStream : DelegateStream
   /// the position is taken to be relative to the beginning of the underlying stream. Otherwise, it is taken to be relative to the
   /// current position within the underlying stream.
   /// </param>
-  /// <param name="length">The length of the <see cref="StreamStream"/>.</param>
+  /// <param name="length">The length of the <see cref="Substream"/> will be the lesser of this value and the actual length
+  /// available, if known.
+  /// </param>
   /// <param name="shared">If set to true, the underlying stream will be seeked to the expected position before
   /// each operation in case some other code has moved the file pointer. If set to false, it is assumed that other
   /// code will not touch the underlying stream while this stream is in use, so the additional seeking can be avoided.
@@ -933,7 +939,7 @@ public class StreamStream : DelegateStream
   /// <param name="closeInner">If set to true, the underlying stream will be closed automatically when this stream
   /// is closed.
   /// </param>
-  public StreamStream(Stream stream, long start, long length, bool shared, bool closeInner) : base(stream, closeInner)
+  public Substream(Stream stream, long start, long length, bool shared, bool closeInner) : base(stream, closeInner)
   {
     if(stream == null) throw new ArgumentNullException();
     if(start < 0 || length < 0) throw new ArgumentOutOfRangeException("'start' or 'length'", "cannot be negative");
@@ -941,6 +947,7 @@ public class StreamStream : DelegateStream
     if(stream.CanSeek)
     {
       if(!shared) stream.Position = start;
+      if(length > stream.Length-start) throw new ArgumentOutOfRangeException("The length is greater than the available data.");
     }
     else
     {
@@ -960,7 +967,7 @@ public class StreamStream : DelegateStream
   }
 
   /// <summary>Gets/sets the current position within this stream.</summary>
-  /// <remarks>You cannot seek past the end of a <see cref="StreamStream"/>. However, you can first use
+  /// <remarks>You cannot seek past the end of a <see cref="Substream"/>. However, you can first use
   /// <see cref="SetLength"/> to increase the size of the stream and then seek past what was previously the end.
   /// <seealso cref="Seek"/>
   /// </remarks>
@@ -1009,7 +1016,7 @@ public class StreamStream : DelegateStream
   /// the new position.
   /// </param>
   /// <returns>The new position within the current stream.</returns>
-  /// <remarks>You cannot seek past the end of a <see cref="StreamStream"/>. However, you can first use
+  /// <remarks>You cannot seek past the end of a <see cref="Substream"/>. However, you can first use
   /// <see cref="SetLength"/> to increase the size of the stream and then seek past what was previously the end.
   /// <seealso cref="Position"/>
   /// </remarks>
@@ -1025,7 +1032,7 @@ public class StreamStream : DelegateStream
   /// <summary>Sets the length of the current and underlying streams.</summary>
   /// <param name="length">The desired length of the current stream in bytes.</param>
   /// <remarks>This method calls <see cref="Stream.SetLength"/> on the underlying stream, passing the given length plus the
-  /// starting position of the <see cref="StreamStream"/>. If, after altering this stream's length, <see cref="Position"/> would
+  /// starting position of the <see cref="Substream"/>. If, after altering this stream's length, <see cref="Position"/> would
   /// be past the end of the range, it will be set to the end of the new range.
   /// </remarks>
   public override void SetLength(long length)
@@ -1046,14 +1053,14 @@ public class StreamStream : DelegateStream
   /// the underlying stream.
   /// </param>
   /// <param name="count">The number of bytes to be written to the underlying stream.</param>
-  /// <remarks>You cannot write past the end of a <see cref="StreamStream"/>. However, you can first use
+  /// <remarks>You cannot write past the end of a <see cref="Substream"/>. However, you can first use
   /// <see cref="SetLength"/> to increase the size of the stream and then write data past what was previously the end.
   /// </remarks>
   public override void Write(byte[] buffer, int offset, int count)
   {
     if(count > length-position)
     {
-      throw new ArgumentException("Cannot write past the end of a StreamStream (try resizing with SetLength first?)");
+      throw new ArgumentException("Cannot write past the end of a Substream (try resizing with SetLength first?)");
     }
     FixPosition();
     InnerStream.Write(buffer, offset, count);
@@ -1062,14 +1069,14 @@ public class StreamStream : DelegateStream
 
   /// <summary>Writes a byte to the current position in the stream and advances the current position by one byte.</summary>
   /// <param name="value">The byte to write to the stream.</param>
-  /// <remarks>You cannot write past the end of a <see cref="StreamStream"/>. However, you can first use
+  /// <remarks>You cannot write past the end of a <see cref="Substream"/>. However, you can first use
   /// <see cref="SetLength"/> to increase the size of the stream and then write data past what was previously the end.
   /// </remarks>
   public override void WriteByte(byte value)
   {
     if(position >= length)
     {
-      throw new InvalidOperationException("Cannot write past the end of a StreamStream (try resizing with SetLength first?)");
+      throw new InvalidOperationException("Cannot write past the end of a Substream (try resizing with SetLength first?)");
     }
     FixPosition();
     InnerStream.WriteByte(value);
@@ -1082,7 +1089,8 @@ public class StreamStream : DelegateStream
     if(shared) InnerStream.Position = position + start;
   }
 
-  long start, length, position;
+  readonly long start;
+  long length, position;
   readonly bool shared;
 }
 #endregion
