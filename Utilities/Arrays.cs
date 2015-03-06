@@ -408,6 +408,18 @@ public static class ArrayExtensions
     Array.Clear(array, 0, array.Length);
   }
 
+  /// <summary>Concatenates two arrays and returns a new array containing the combined contents. If both arrays are null, the result
+  /// will be null.
+  /// </summary>
+  /// <remarks>This method allocates a new array even if the combined content would equal one of the source arrays. If you want to avoid
+  /// unnecessary allocation in this case, use <see cref="ArrayUtility.Concat{T}(bool,T[],T[])"/> and pass false for the
+  /// <c>alwaysAllocate</c> parameter.
+  /// </remarks>
+  public static T[] Concat<T>(this T[] a, T[] b)
+  {
+    return ArrayUtility.Concat(true, a, b);
+  }
+
   /// <summary>Determines whether a specified item exists within an array.</summary>
   public static bool Contains(this Array array, object item)
   {
@@ -460,6 +472,34 @@ public static class ArrayExtensions
     return Array.IndexOf<T>(array, item, startIndex);
   }
 
+  /// <summary>Returns an array segment containing the entire array.</summary>
+  public static ArraySegment<T> Segment<T>(this T[] array)
+  {
+    return new ArraySegment<T>(array);
+  }
+
+  /// <summary>Returns an array segment containing the remainder of the given array, starting at the given index.</summary>
+  public static ArraySegment<T> Segment<T>(this T[] array, int index)
+  {
+    if(array == null) throw new ArgumentNullException();
+    return new ArraySegment<T>(array, index, array.Length-index);
+  }
+
+  /// <summary>Returns an array segment containing a subsection of the given array.</summary>
+  public static ArraySegment<T> Segment<T>(this T[] array, int index, int length)
+  {
+    return new ArraySegment<T>(array, index, length);
+  }
+
+  /// <summary>Returns an array containing the remainder of the given array, starting at the given index. If <paramref name="index"/> is
+  /// zero, the original array will be returned unchanged.
+  /// </summary>
+  public static T[] Subarray<T>(this T[] array, int index)
+  {
+    if(array == null) throw new ArgumentNullException();
+    return Subarray(array, index, array.Length-index, false);
+  }
+
   /// <summary>Returns an array containing a subsection of the given array. If the entire array is requested, the array will be returned
   /// unchanged.
   /// </summary>
@@ -499,6 +539,91 @@ public static class ArrayExtensions
       array = trimmed;
     }
     return array;
+  }
+}
+#endregion
+
+#region ArrayUtility
+public static partial class ArrayUtility
+{
+  /// <summary>Concatenates two arrays and returns the result. Source arrays that are null will be treated as empty. If all source arrays
+  /// are null, null will be returned.
+  /// </summary>
+  /// <param name="alwaysAllocate">If false, a source array may be returned directly if all other source arrays are empty (i.e. if that
+  /// source array's content would be equal to the concatenated content of the source arrays). If true, a new array will always be
+  /// allocated to hold the concatenated content, assuming at least one source array is not empty.
+  /// </param>
+  /// <param name="a">The first source array.</param>
+  /// <param name="b">The second source array.</param>
+  public static T[] Concat<T>(bool alwaysAllocate, T[] a, T[] b)
+  {
+    return Concat(alwaysAllocate, a, b, null);
+  }
+
+  /// <summary>Concatenates three arrays and returns the result. Source arrays that are null will be treated as empty. If all source arrays
+  /// are null, null will be returned.
+  /// </summary>
+  /// <param name="alwaysAllocate">If false, a source array may be returned directly if all other source arrays are empty (i.e. if that
+  /// source array's content would be equal to the concatenated content of the source arrays). If true, a new array will always be
+  /// allocated to hold the concatenated content, assuming at least one source array is not empty.
+  /// </param>
+  /// <param name="a">The first source array.</param>
+  /// <param name="b">The second source array.</param>
+  /// <param name="c">The third source array.</param>
+  public static T[] Concat<T>(bool alwaysAllocate, T[] a, T[] b, T[] c)
+  {
+    T[] singleArray = a; // the single source array that equals the concatenated result
+    long newLength = a == null ? 0 : a.LongLength;
+    if(!IsNullOrEmpty(b))
+    {
+      newLength += b.LongLength;
+      if(newLength < 0) throw new OutOfMemoryException();
+      singleArray = IsNullOrEmpty(a) ? b : null;
+    }
+    if(!IsNullOrEmpty(c))
+    {
+      newLength += c.LongLength;
+      if(newLength < 0) throw new OutOfMemoryException();
+      singleArray = singleArray == b && IsNullOrEmpty(b) ? c : null;
+    }
+
+    if(newLength == 0 || !alwaysAllocate && singleArray != null) return singleArray;
+
+    T[] newArray = new T[newLength];
+    long index = 0;
+    if(a != null) { Array.Copy(a, newArray, a.LongLength); index += a.LongLength; }
+    if(b != null) { Array.Copy(b, 0, newArray, index, b.LongLength); index += b.LongLength; }
+    if(c != null) Array.Copy(c, 0, newArray, index, c.LongLength);
+    return newArray;
+  }
+
+  /// <summary>Concatenates two array segments and returns the result. Source arrays that are null will be treated as empty. If all
+  /// source segments are null, null will be returned.
+  /// </summary>
+  public static T[] Concat<T>(ArraySegment<T> a, ArraySegment<T> b)
+  {
+    return Concat(a, b, default(ArraySegment<T>));
+  }
+
+  /// <summary>Concatenates three array segments and returns the result. Source arrays that are null will be treated as empty. If all
+  /// source segments are null, null will be returned.
+  /// </summary>
+  public static T[] Concat<T>(ArraySegment<T> a, ArraySegment<T> b, ArraySegment<T> c)
+  {
+    long newLength = (long)a.Count + b.Count + c.Count;
+    if(newLength == 0) return a.Array ?? b.Array ?? c.Array;
+    T[] newArray = new T[newLength];
+    long index = 0;
+    if(a.Count != 0) { Array.Copy(a.Array, a.Offset, newArray, 0, a.Count); index += a.Count; }
+    if(b.Count != 0) { Array.Copy(b.Array, b.Offset, newArray, index, b.Count); index += b.Count; }
+    if(c.Count != 0) Array.Copy(c.Array, c.Offset, newArray, index, c.Count);
+    return newArray;
+  }
+
+  /// <summary>Returns true if the given array is null or has a length of zero.</summary>
+  public static bool IsNullOrEmpty(this Array array)
+  {
+    return array == null || array.LongLength == 0;
   }
 }
 #endregion
