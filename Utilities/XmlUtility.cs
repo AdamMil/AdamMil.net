@@ -494,16 +494,22 @@ public struct XmlDuration
         double seconds;
 
         if(!ParseGroup(m.Groups["y"], 178956970, out years) || !ParseGroup(m.Groups["mo"], int.MaxValue, out months) ||
-           !ParseGroup(m.Groups["d"], 10675199, out days) || !ParseGroup(m.Groups["h"], 256204778, out hours))
+           !ParseGroup(m.Groups["d"], 10675199, out days))
         {
           goto failed;
         }
 
-        Group g = m.Groups["min"];
+        Group g = m.Groups["h"];
+        bool hadTimeComponent = g.Success;
+        if(!ParseGroup(g, 256204778, out hours)) goto failed;
+
+        g = m.Groups["min"];
+        hadTimeComponent |= g.Success;
         if(!g.Success) mins = 0;
         else if(!InvariantCultureUtility.TryParseExact(g.Value, out mins) || mins > 15372286728) goto failed;
 
         g = m.Groups["s"];
+        hadTimeComponent |= g.Success;
         if(!g.Success)
         {
           seconds = 0;
@@ -526,6 +532,8 @@ public struct XmlDuration
 
         // fail if no components were specified (at least one component is required)
         if(ticks == 0 && totalMonths == 0) goto failed;
+        // fail if an empty time component was specified (as required by the standard)
+        if(!hadTimeComponent && m.Groups["time"].Success) goto failed;
 
         duration = new XmlDuration(totalMonths, ticks, m.Groups["n"].Success);
         return true;
@@ -604,7 +612,7 @@ public struct XmlDuration
   }
 
   static readonly Regex reDuration =
-    new Regex(@"^\s*(?<n>-)?P(?:(?<y>[0-9]+)Y)?(?:(?<mo>[0-9]+)M)?(?:(?<d>[0-9]+)D)?(T(?:(?<h>[0-9]+)H)?(?:(?<min>[0-9]+)M)?(?:(?<s>[0-9]+(?:\.[0-9]+))S)?)?\s*$",
+    new Regex(@"^\s*(?<n>-)?P(?:(?<y>[0-9]+)Y)?(?:(?<mo>[0-9]+)M)?(?:(?<d>[0-9]+)D)?(?<time>T(?:(?<h>[0-9]+)H)?(?:(?<min>[0-9]+)M)?(?:(?<s>[0-9]+(?:\.[0-9]+))S)?)?\s*$",
               RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Singleline);
 }
 #endregion
@@ -1300,17 +1308,17 @@ public static class XmlNodeExtensions
     return XmlUtility.ParseList(GetAttributeValue(node, attrName), converter);
   }
 
-  /// <summary>Parses a qualified name (i.e. a name of the form <c>prefix:localName</c>) into an <see cref="XmlQualifiedName"/> in the
-  /// context of the current node.
+  /// <summary>Parses a qualified name (i.e. a name of the form <c>prefix:localName</c> or <c>namespaceUri:localName</c>) into an
+  /// <see cref="XmlQualifiedName"/> in the context of the current node. This method also accepts local names.
   /// </summary>
   public static XmlQualifiedName ParseQualifiedName(this XmlNode node, string qualifiedName)
   {
     if(node == null) throw new ArgumentNullException();
     if(string.IsNullOrEmpty(qualifiedName)) return XmlQualifiedName.Empty;
 
-    int colon = qualifiedName.IndexOf(':');
-    return new XmlQualifiedName(colon == -1 ? qualifiedName : qualifiedName.Substring(colon+1),
-                                node.GetNamespaceOfPrefix(colon == -1 ? "" : qualifiedName.Substring(0, colon)));
+    int colon = qualifiedName.LastIndexOf(':');
+    string prefix = colon == -1 ? "" : qualifiedName.Substring(0, colon), ns = node.GetNamespaceOfPrefix(prefix);
+    return new XmlQualifiedName(colon == -1 ? qualifiedName : qualifiedName.Substring(colon+1), string.IsNullOrEmpty(ns) ? prefix : ns);
   }
 
   /// <summary>Removes all the child nodes of the given node.</summary>
@@ -1675,6 +1683,39 @@ public static class XmlNodeExtensions
 }
 #endregion
 
+#region XmlQualifiedNameExtensions
+/// <summary>Provides useful extensions to the <see cref="XmlQualifiedName"/> class.</summary>
+public static class XmlQualifiedNameExtensions
+{
+  /// <summary>Converts an <see cref="XmlQualifiedName"/> into a <c>localName</c>, <c>prefix:localName</c> <c>namespaceUri:localName</c>
+  /// form valid in the context of the given node.
+  /// </summary>
+  public static string ToString(this XmlQualifiedName qname, XmlNode context)
+  {
+    if(qname == null || context == null) throw new ArgumentNullException();
+
+    // if qname is not actually a qualified name, we can't necessarily translate it
+    if(string.IsNullOrEmpty(qname.Namespace))
+    {
+      if(!string.IsNullOrEmpty(context.GetNamespaceOfPrefix(""))) // if simply using the local name wouldn't result in the same thing...
+      {
+        throw new ArgumentException("The qname has no namespace, and a default namespace has been set in the given context.");
+      }
+      return qname.Name;
+    }
+
+    string prefix = context.GetPrefixOfNamespace(qname.Namespace);
+    if(string.IsNullOrEmpty(prefix))
+    {
+      // unfortunately, the method returns an empty string for both the default namespace and an undeclared namespace. if it's actually
+      // undeclared, then use the namespace URI
+      if(!qname.Namespace.OrdinalEquals(context.GetNamespaceOfPrefix(""))) prefix = qname.Namespace;
+    }
+    return string.IsNullOrEmpty(prefix) ? qname.Name : prefix + ":" + qname.Name;
+  }
+}
+#endregion
+
 #region XmlReaderExtensions
 /// <summary>Provides extensions to the <see cref="XmlReader"/> class.</summary>
 public static class XmlReaderExtensions
@@ -1847,6 +1888,17 @@ public static class XmlReaderExtensions
     return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToInt64(attrValue);
   }
 
+  /// <summary>Returns the <see cref="XmlQualifiedName"/> for reader's current element.</summary>
+  public static XmlQualifiedName GetQualifiedName(this XmlReader reader)
+  {
+    if(reader == null) throw new ArgumentNullException();
+    if(reader.NodeType != XmlNodeType.Element && reader.NodeType != XmlNodeType.EndElement)
+    {
+      throw new InvalidOperationException("The reader must be positioned on an element.");
+    }
+    return new XmlQualifiedName(reader.LocalName, reader.NamespaceURI);
+  }
+
   /// <summary>Returns the value of the named attribute as an 8-bit signed integer, or 0 if the attribute was unspecified or empty.</summary>
   [CLSCompliant(false)]
   public static sbyte GetSByteAttribute(this XmlReader reader, string attrName)
@@ -1979,6 +2031,19 @@ public static class XmlReaderExtensions
     }
 
     return localName.OrdinalEquals(reader.LocalName) && namespaceUri.OrdinalEquals(reader.NamespaceURI);
+  }
+
+  /// <summary>Parses a qualified name (i.e. a name of the form <c>prefix:localName</c> or <c>namespaceUri:localName</c>) into an
+  /// <see cref="XmlQualifiedName"/> in the context of the current reader. This method also accepts local names.
+  /// </summary>
+  public static XmlQualifiedName ParseQualifiedName(this XmlReader reader, string qualifiedName)
+  {
+    if(reader == null) throw new ArgumentNullException();
+    if(string.IsNullOrEmpty(qualifiedName)) return XmlQualifiedName.Empty;
+
+    int colon = qualifiedName.LastIndexOf(':');
+    string prefix = colon == -1 ? "" : qualifiedName.Substring(0, colon), ns = reader.LookupNamespace(prefix);
+    return new XmlQualifiedName(colon == -1 ? qualifiedName : qualifiedName.Substring(colon+1), string.IsNullOrEmpty(ns) ? prefix : ns);
   }
 
   /// <summary>Calls <see cref="XmlReader.Read"/> until <see cref="XmlReader.NodeType"/> is no longer equal to
