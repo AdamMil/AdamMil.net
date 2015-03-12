@@ -7,13 +7,12 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{29134637-6D08-432C-8161-9DEEE13C955D}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>AdamMil.Utilities</RootNamespace>
     <AssemblyName>AdamMil.Utilities</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SignAssembly>true</SignAssembly>
-    <AssemblyOriginatorKeyFile>AdamMil.snk</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>../AdamMil.snk</AssemblyOriginatorKeyFile>
     <FileUpgradeFlags>
     </FileUpgradeFlags>
     <OldToolsVersion>3.5</OldToolsVersion>
@@ -46,7 +45,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <BaseAddress>22020096</BaseAddress>
     <DocumentationFile>bin\Debug\AdamMil.Utilities.XML</DocumentationFile>
-    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet>../../Analysis.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -58,7 +57,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <BaseAddress>22020096</BaseAddress>
     <DocumentationFile>bin\Release\AdamMil.Utilities.XML</DocumentationFile>
-    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet>../../Analysis.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -74,6 +73,7 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>ArrayUtility.tt</DependentUpon>
     </Compile>
+    <Compile Include="AssemblyInfo.cs" />
     <Compile Include="BinaryUtility.cs" />
     <Compile Include="Comparisons.cs" />
     <Compile Include="DateUtility.cs" />
@@ -91,7 +91,6 @@
     <Compile Include="SystemInformation.cs" />
     <Compile Include="Tasks.cs" />
     <Compile Include="PathUtility.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="StringUtility.cs" />
     <Compile Include="Threading.cs" />
     <Compile Include="TopologicalSort.cs" />
@@ -100,7 +99,6 @@
     <Compile Include="XmlUtility.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="AdamMil.snk" />
     <None Include="ArrayUtility.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>ArrayUtility.cs</LastGenOutput>

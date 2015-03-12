@@ -17,10 +17,14 @@ public class GuidTests
     TestParse(guid.ToString("b"), guid);
     TestParse(guid.ToString("p"), guid);
     TestParse("{" + guid.ToString("n") + "}", guid);
+    TestParse(" \n\t  " + guid.ToString() + "  \n\t", guid);
 
     Assert.IsFalse(GuidUtility.TryParse("ca761232ed4211cebacd00aa0057b22", out guid));
     Assert.IsFalse(GuidUtility.TryParse("ca761232ed4211cebacd00aa0057b-22", out guid));
     Assert.IsFalse(GuidUtility.TryParse("{ca761232ed4211cebacd00aa0057b223)", out guid));
+    Assert.IsFalse(GuidUtility.TryParse(guid.ToString() + "X", false, out guid));
+    Assert.IsFalse(GuidUtility.TryParse(guid.ToString() + " ", false, out guid));
+    Assert.IsFalse(GuidUtility.TryParse(" " + guid.ToString(), false, out guid));
   }
 
   static void TestParse(string str, Guid expectedValue)

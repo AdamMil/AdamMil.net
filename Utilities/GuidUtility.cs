@@ -56,38 +56,54 @@ public static class GuidUtility
     return new Guid(a, b, c, hash[8], (byte)(hash[9] & ~0xC0 | 0x80), hash[10], hash[11], hash[12], hash[13], hash[14], hash[15]);
   }
 
-  /// <summary>Attempts to parse a <see cref="Guid"/> from a string. Returns true if successful and false if not.</summary>
+  /// <summary>Attempts to parse a <see cref="Guid"/> from a string. The string may contain leading and trailing whitespace.
+  /// Returns true if successful and false if not.
+  /// </summary>
   public static bool TryParse(string str, out Guid guid)
   {
-    if(str != null && str.Length >= 32)
+    return TryParse(str, true, out guid);
+  }
+
+  /// <summary>Attempts to parse a <see cref="Guid"/> from a string. If <paramref name="allowWhitespace"/> is true, the string may
+  /// contain leading and trailing whitespace. Returns true if successful and false if not.
+  /// </summary>
+  public static bool TryParse(string str, bool allowWhitespace, out Guid guid)
+  {
+    if(str != null)
     {
-      int start = 0, end = str.Length;
-      char s = str[0];
-      if(s == '{' || s == '(')
+      int start = 0, length = str.Length;
+      if(allowWhitespace) StringUtility.Trim(str, out start, out length);
+      if(length >= 32)
       {
-        char e = str[end-1];
-        if(e == (s == '{' ? '}' : ')'))
+        int end = start + length;
+        char s = str[start];
+        if(s == '{' || s == '(')
         {
-          start++;
-          end--;
+          char e = str[end-1];
+          if(e == (s == '{' ? '}' : ')'))
+          {
+            start++;
+            end--;
+          }
+          else
+          {
+            start = -1;
+          }
         }
-        else
-        {
-          start = -1;
-        }
-      }
 
-      if(start >= 0)
-      {
-        uint a, f, h;
-        ushort b, c, d;
-
-        if(TryParse(str, ref start, end, out a) && TryParse(str, ref start, end, out b) && TryParse(str, ref start, end, out c) &&
-           TryParse(str, ref start, end, out d) && TryParse(str, start, end, 4, out f) && TryParse(str, start+4, end, 8, out h))
+        if(start >= 0)
         {
-          guid = new Guid(a, b, c, (byte)(d>>8), (byte)d, (byte)(f>>8), (byte)f,
-                          (byte)(h>>24), (byte)(h>>16), (byte)(h>>8), (byte)h);
-          return true;
+          uint a, f, h;
+          ushort b, c, d;
+
+          if(TryParse(str, ref start, end, out a) && TryParse(str, ref start, end, out b) && TryParse(str, ref start, end, out c) &&
+             TryParse(str, ref start, end, out d) && TryParse(str, start, end, 4, out f) && TryParse(str, start+4, end, 8, out h) &&
+             start+12 == end)
+          {
+            guid = new Guid(a, b, c, (byte)(d>>8), (byte)d, (byte)(f>>8), (byte)f,
+                            (byte)(h>>24), (byte)(h>>16), (byte)(h>>8), (byte)h);
+            return true;
+          }
         }
       }
     }

@@ -7,11 +7,10 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{72183DC2-7C98-4118-9264-FF7950851511}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>AdamMil.AI</RootNamespace>
     <AssemblyName>AdamMil.AI</AssemblyName>
     <SignAssembly>true</SignAssembly>
-    <AssemblyOriginatorKeyFile>AdamMil.snk</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>../AdamMil.snk</AssemblyOriginatorKeyFile>
     <FileUpgradeFlags>
     </FileUpgradeFlags>
     <OldToolsVersion>3.5</OldToolsVersion>
@@ -45,7 +44,7 @@
     <DocumentationFile>bin\Debug\AdamMil.AI.xml</DocumentationFile>
     <NoWarn>419</NoWarn>
     <BaseAddress>23068672</BaseAddress>
-    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet>../../Analysis.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -57,14 +56,14 @@
     <DocumentationFile>bin\Release\AdamMil.AI.xml</DocumentationFile>
     <NoWarn>419</NoWarn>
     <BaseAddress>23068672</BaseAddress>
-    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet>../../Analysis.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="AdversarialSearch.cs" />
+    <Compile Include="AssemblyInfo.cs" />
     <Compile Include="CSP.cs" />
     <Compile Include="GraphSearch.cs" />
     <Compile Include="LocalSearch.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Search.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -89,9 +88,6 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="documentation.xml" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="AdamMil.snk" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Client.3.5">

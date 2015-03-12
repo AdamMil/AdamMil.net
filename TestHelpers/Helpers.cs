@@ -77,81 +77,83 @@ public static class TestHelpers
 
   public static void AssertXmlEquals(string expectedXml, XmlNode actualNode)
   {
-    AssertXmlEquals(GetXmlReader(expectedXml), GetXmlReader(actualNode));
+    if(expectedXml != null || actualNode != null) AssertXmlEquals(GetXmlReader(expectedXml), GetXmlReader(actualNode));
   }
 
   public static void AssertXmlEquals(string expectedXml, string actualXml)
   {
-    AssertXmlEquals(GetXmlReader(expectedXml), GetXmlReader(actualXml));
+    if(expectedXml != actualXml) AssertXmlEquals(GetXmlReader(expectedXml), GetXmlReader(actualXml));
   }
 
   public static void AssertXmlEquals(string expectedXml, Stream actualXml)
   {
-    AssertXmlEquals(GetXmlReader(expectedXml), GetXmlReader(actualXml));
+    if(expectedXml != null || actualXml != null) AssertXmlEquals(GetXmlReader(expectedXml), GetXmlReader(actualXml));
   }
 
   public static void AssertXmlEquals(string expectedXml, XmlReader actual)
   {
-    AssertXmlEquals(GetXmlReader(expectedXml), actual);
+    if(expectedXml != null || actual != null) AssertXmlEquals(GetXmlReader(expectedXml), actual);
   }
 
   public static void AssertXmlEquals(Stream expectedXml, XmlNode actualNode)
   {
-    AssertXmlEquals(GetXmlReader(expectedXml), GetXmlReader(actualNode));
+    if(expectedXml != null || actualNode != null) AssertXmlEquals(GetXmlReader(expectedXml), GetXmlReader(actualNode));
   }
 
   public static void AssertXmlEquals(Stream expectedXml, string actualXml)
   {
-    AssertXmlEquals(GetXmlReader(expectedXml), GetXmlReader(actualXml));
+    if(expectedXml != null || actualXml != null) AssertXmlEquals(GetXmlReader(expectedXml), GetXmlReader(actualXml));
   }
 
   public static void AssertXmlEquals(Stream expectedXml, Stream actualXml)
   {
-    AssertXmlEquals(GetXmlReader(expectedXml), GetXmlReader(actualXml));
+    if(expectedXml != actualXml) AssertXmlEquals(GetXmlReader(expectedXml), GetXmlReader(actualXml));
   }
 
   public static void AssertXmlEquals(Stream expectedXml, XmlReader actual)
   {
-    AssertXmlEquals(GetXmlReader(expectedXml), actual);
+    if(expectedXml != null || actual != null) AssertXmlEquals(GetXmlReader(expectedXml), actual);
   }
 
   public static void AssertXmlEquals(XmlNode expectedNode, XmlNode actualNode)
   {
-    AssertXmlEquals(GetXmlReader(expectedNode), GetXmlReader(actualNode));
+    if(expectedNode != actualNode) AssertXmlEquals(GetXmlReader(expectedNode), GetXmlReader(actualNode));
   }
 
   public static void AssertXmlEquals(XmlNode expectedNode, string actualXml)
   {
-    AssertXmlEquals(GetXmlReader(expectedNode), GetXmlReader(actualXml));
+    if(expectedNode != null || actualXml != null) AssertXmlEquals(GetXmlReader(expectedNode), GetXmlReader(actualXml));
   }
 
   public static void AssertXmlEquals(XmlNode expectedNode, Stream actualXml)
   {
-    AssertXmlEquals(GetXmlReader(expectedNode), GetXmlReader(actualXml));
+    if(expectedNode != null || actualXml != null) AssertXmlEquals(GetXmlReader(expectedNode), GetXmlReader(actualXml));
   }
 
   public static void AssertXmlEquals(XmlNode expectedNode, XmlReader actual)
   {
-    AssertXmlEquals(GetXmlReader(expectedNode), actual);
+    if(expectedNode != null || actual != null) AssertXmlEquals(GetXmlReader(expectedNode), actual);
   }
 
   public static void AssertXmlEquals(XmlReader expected, XmlNode actualNode)
   {
-    AssertXmlEquals(expected, GetXmlReader(actualNode));
+    if(expected != null || actualNode != null) AssertXmlEquals(expected, GetXmlReader(actualNode));
   }
 
   public static void AssertXmlEquals(XmlReader expected, string actualXml)
   {
-    AssertXmlEquals(expected, GetXmlReader(actualXml));
+    if(expected != null || actualXml != null) AssertXmlEquals(expected, GetXmlReader(actualXml));
   }
 
   public static void AssertXmlEquals(XmlReader expected, Stream actualXml)
   {
-    AssertXmlEquals(expected, GetXmlReader(actualXml));
+    if(expected != null || actualXml != null) AssertXmlEquals(expected, GetXmlReader(actualXml));
   }
 
   public static void AssertXmlEquals(XmlReader expected, XmlReader actual)
   {
+    if(actual == expected) return;
+
     XmlQualifiedName expectedClosing = null, actualClosing = null;
     while(true)
     {

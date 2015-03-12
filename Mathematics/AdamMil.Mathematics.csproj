@@ -7,11 +7,10 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{BC146E65-29FA-4D05-89E2-CF485EBC86B8}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>AdamMil.Mathematics</RootNamespace>
     <AssemblyName>AdamMil.Mathematics</AssemblyName>
     <SignAssembly>true</SignAssembly>
-    <AssemblyOriginatorKeyFile>AdamMil.snk</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>../AdamMil.snk</AssemblyOriginatorKeyFile>
     <FileUpgradeFlags>
     </FileUpgradeFlags>
     <OldToolsVersion>3.5</OldToolsVersion>
@@ -30,7 +29,7 @@
     <DocumentationFile>bin\Debug\AdamMil.Math.xml</DocumentationFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <BaseAddress>19922944</BaseAddress>
-    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet>../../Analysis.ruleset</CodeAnalysisRuleSet>
     <NoWarn>419</NoWarn>
     <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
@@ -44,10 +43,11 @@
     <DocumentationFile>bin\Release\AdamMil.Math.xml</DocumentationFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <BaseAddress>19922944</BaseAddress>
-    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet>../../Analysis.ruleset</CodeAnalysisRuleSet>
     <NoWarn>419</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="AssemblyInfo.cs" />
     <Compile Include="BigInteger.cs" />
     <Compile Include="Combinatorics.cs" />
     <Compile Include="CoherentNoise.cs" />
@@ -60,7 +60,6 @@
     <Compile Include="NumberFormatting.cs" />
     <Compile Include="Optimization.cs" />
     <Compile Include="Polynomials.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Random.cs" />
     <Compile Include="RectanglePacker.cs" />
     <Compile Include="RootFinding.cs" />
@@ -72,9 +71,6 @@
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
     <Reference Include="System.Drawing" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="AdamMil.snk" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="documentation.xml" />
