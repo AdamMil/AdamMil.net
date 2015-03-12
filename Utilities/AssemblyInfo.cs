@@ -2,15 +2,15 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyTitle("AdamMil.net Collections")]
-[assembly: AssemblyDescription("A collection of collection classes.")]
+[assembly: AssemblyTitle("AdamMil.net Utilities")]
+[assembly: AssemblyDescription("A set of generally useful utilities for .NET development.")]
 #if DEBUG
 [assembly: AssemblyConfiguration("Debug")]
 #else
 [assembly: AssemblyConfiguration("Release")]
 #endif
 [assembly: AssemblyProduct("AdamMil.net")]
-[assembly: AssemblyCopyright("Copyright © Adam Milazzo 2007-2011")]
+[assembly: AssemblyCopyright("Copyright © Adam Milazzo 2010-2015")]
 
 [assembly: CLSCompliant(true)]
 [assembly: ComVisible(false)]

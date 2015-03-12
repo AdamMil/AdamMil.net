@@ -1,16 +1,18 @@
-﻿using System.Reflection;
+﻿using System;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyTitle("AdamMil.net Test Helpers")]
-[assembly: AssemblyDescription("Helpers for implementing unit tests.")]
+[assembly: AssemblyTitle("AdamMil.net Collections")]
+[assembly: AssemblyDescription("A collection of collection classes.")]
 #if DEBUG
 [assembly: AssemblyConfiguration("Debug")]
 #else
 [assembly: AssemblyConfiguration("Release")]
 #endif
 [assembly: AssemblyProduct("AdamMil.net")]
-[assembly: AssemblyCopyright("Copyright © Adam Milazzo 2007-2011")]
+[assembly: AssemblyCopyright("Copyright © Adam Milazzo 2007-2014")]
 
+[assembly: CLSCompliant(true)]
 [assembly: ComVisible(false)]
 
 [assembly: AssemblyVersion("1.0.0.0")]

@@ -32,8 +32,6 @@ namespace AdamMil.IO
 // TODO: make sure BinaryReader has a way to avoid reading more data than requested (like the .NET
 // BinaryReader does - so it works better with non-seekable streams)
 // TODO: make sure these work with non-seekable streams
-// TODO: remove support for shared streams? (what would that impact? jappy?)
-// TODO: get rid of *ValueWithType? it's too provincial.
 
 #region PinnedBuffer
 /// <summary>This class supports the <see cref="BinaryReader"/> and <see cref="BinaryWriter"/> classes and is not
@@ -214,15 +212,12 @@ public unsafe abstract class PinnedBuffer : IDisposable
 /// </summary>
 public abstract class BinaryReaderWriterBase : PinnedBuffer
 {
-  internal BinaryReaderWriterBase(Stream stream, bool ownStream, bool littleEndian, int bufferSize, bool shared) : base(bufferSize)
+  internal BinaryReaderWriterBase(Stream stream, bool ownStream, bool littleEndian, int bufferSize) : base(bufferSize)
   {
     if(stream == null) throw new ArgumentNullException();
-    if(shared && !stream.CanSeek) throw new ArgumentException("Shared streams must be seekable.");
     this.stream       = stream;
     this.ownStream    = ownStream;
     this.littleEndian = littleEndian;
-    this.shared       = shared;
-    StoreStreamPosition();
   }
 
   internal BinaryReaderWriterBase(byte[] array, int index, int length, bool littleEndian) : base(array)
@@ -247,14 +242,6 @@ public abstract class BinaryReaderWriterBase : PinnedBuffer
     set { littleEndian = value; }
   }
 
-  /// <summary>
-  /// Gets whether the underlying stream can be safely used by another class while this reader or writer is in use.
-  /// </summary>
-  public bool Shared
-  {
-    get { return shared; }
-  }
-
   /// <inheritdoc/>
   protected override void Dispose(bool manualDispose)
   {
@@ -262,31 +249,8 @@ public abstract class BinaryReaderWriterBase : PinnedBuffer
     base.Dispose(manualDispose);
   }
 
-  /// <summary>Seeks the underlying stream to the expected position if necessary.</summary>
-  protected void EnsureStreamPositioned()
-  {
-    if(shared && stream.Position != lastStreamPosition)
-    {
-      stream.Position = lastStreamPosition;
-    }
-  }
-
-  /// <summary>Stores the stream position if <see cref="Shared"/> is true.</summary>
-  protected void StoreStreamPosition()
-  {
-    if(shared) lastStreamPosition = stream.Position;
-  }
-
-  internal enum ValueType : byte
-  {
-    Null=0, False=1, True=2, Byte=3, Char=4, DateTime=5, Decimal=6, Double=7, Int16=8, Int32=9, Int64=10, SByte=11, Single=12, String=13,
-    UInt16=14, UInt32=15, UInt64=16, Guid=17, DBNull=18, DateTimeOffset=19, TimeSpan=20, XmlDuration=21, XmlQualifiedName=22,
-    IsArray=0x80
-  }
-
-  long lastStreamPosition;
   readonly Stream stream;
-  readonly bool ownStream, shared;
+  readonly bool ownStream;
   bool littleEndian;
 }
 #endregion
@@ -304,9 +268,6 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// <see cref="BinaryReader"/> is disposed.
   /// </summary>
   /// <param name="stream">The stream from which data will be read.</param>
-  /// <remarks>If the underlying stream will be accessed by any other classes while this reader is in use, you must use
-  /// an override that takes a 'shared' parameter, and pass <c>true</c>.
-  /// </remarks>
   public BinaryReader(Stream stream) : this(stream, true, true) { }
 
   /// <summary>Initializes this <see cref="BinaryReader"/> with the default buffer size, little-endianness, and the assumption that the
@@ -314,9 +275,6 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// </summary>
   /// <param name="stream">The stream from which data will be read.</param>
   /// <param name="ownStream">If true, the stream will be closed when the <see cref="BinaryReader"/> is disposed.</param>
-  /// <remarks>If the underlying stream will be accessed by any other classes while this reader is in use, you must use
-  /// an override that takes a 'shared' parameter, and pass <c>true</c>.
-  /// </remarks>
   public BinaryReader(Stream stream, bool ownStream) : this(stream, ownStream, true) { }
 
   /// <summary>Initializes this <see cref="BinaryReader"/> with the default buffer size and the
@@ -327,10 +285,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// <param name="littleEndian">Whether the data being read is little endian. This can be changed at any time using
   /// the <see cref="LittleEndian"/> property.
   /// </param>
-  /// <remarks>If the underlying stream will be accessed by any other classes while this reader is in use, you must use
-  /// an override that takes a 'shared' parameter, and pass <c>true</c>.
-  /// </remarks>
-  public BinaryReader(Stream stream, bool ownStream, bool littleEndian) : this(stream, ownStream, littleEndian, 0, false) { }
+  public BinaryReader(Stream stream, bool ownStream, bool littleEndian) : this(stream, ownStream, littleEndian, 0) { }
 
   /// <summary>Initializes this <see cref="BinaryReader"/>.</summary>
   /// <param name="stream">The stream from which data will be read. If the stream does its own buffering, it may be
@@ -344,13 +299,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// buffer size is usually sufficient, but if you know approximately how much data you'll be reading from the stream,
   /// you can tune the buffer size so that the <see cref="BinaryReader"/> does not read more data than is necessary.
   /// </param>
-  /// <param name="shared">Whether or not the stream will be accessed by other any other class while this reader is in
-  /// use. If true, the reader will ensure that the underlying stream is seeked to the correct position before each
-  /// read. You cannot pass a value of true for unseekable streams. Passing true also does not make this class safe for
-  /// simultaneous use by multiple threads. You'll have to synchronize that yourself.
-  /// </param>
-  public BinaryReader(Stream stream, bool ownStream, bool littleEndian, int bufferSize, bool shared)
-    : base(stream, ownStream, littleEndian, bufferSize, shared)
+  public BinaryReader(Stream stream, bool ownStream, bool littleEndian, int bufferSize) : base(stream, ownStream, littleEndian, bufferSize)
   {
     DefaultEncoding = Encoding.UTF8;
   }
@@ -400,15 +349,8 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   {
     get
     {
-      if(ExternalBuffer)
-      {
-        return tailIndex - startIndex;
-      }
-      else
-      {
-        EnsureStreamPositioned();
-        return BaseStream.Position - AvailableData;
-      }
+      if(ExternalBuffer) return tailIndex - startIndex;
+      else return BaseStream.Position - AvailableData;
     }
     set
     {
@@ -419,7 +361,6 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
       }
       else
       {
-        EnsureStreamPositioned();
         long dataEnd = BaseStream.Position, dataStart = dataEnd - AvailableData;
 
         // if the new position is within the range of data in our buffer, we can simply tweak our tail
@@ -431,7 +372,6 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
         {
           tailIndex = headIndex = 0;
           BaseStream.Position = value;
-          StoreStreamPosition();
         }
       }
     }
@@ -462,14 +402,12 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
       // if that wasn't enough either, we've exhausted the buffer and will read more in the loop below
       if(nbytes != 0)
       {
-        EnsureStreamPositioned();
         do
         {
           headIndex = BaseStream.Read(Buffer, 0, Buffer.Length);
           if(headIndex == 0) throw new EndOfStreamException();
           ReadDataInternal(ref ptr, ref nbytes, Math.Min(headIndex, nbytes));
         } while(nbytes != 0);
-        StoreStreamPosition();
       }
     }
   }
@@ -1024,134 +962,122 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     ReadInt64s((long*)array, count);
   }
 
-  /// <summary>Reads a value that was written with <see cref="BinaryWriter.WriteValueWithType"/>.</summary>
-  public object ReadValueWithType()
+  /// <summary>Reads a one-byte nullable boolean value from the stream in the format written by <see cref="BinaryWriter.Write(bool?)"/>.</summary>
+  /// <remarks>The value is read as 0=false, 1=true, &gt;1=null.</remarks>
+  public bool? ReadNullableBoolean()
   {
-    ValueType type = (ValueType)ReadByte();
-    object value;
-    if((type & ValueType.IsArray) == 0) // if it's not an array...
-    {
-      switch(type)
-      {
-        case ValueType.False: value = false; break;
-        case ValueType.True: value = true; break;
-        case ValueType.Byte: value = ReadByte(); break;
-        case ValueType.Char: value = ReadChar(); break;
-        case ValueType.DateTime: value = ReadDateTime(); break;
-        case ValueType.DBNull: value = DBNull.Value; break;
-        case ValueType.Decimal: value = ReadDecimal(); break;
-        case ValueType.Double: value = ReadDouble(); break;
-        case ValueType.Int16: value = ReadInt16(); break;
-        case ValueType.Int32: value = ReadEncodedInt32(); break;
-        case ValueType.Int64: value = ReadEncodedInt64(); break;
-        case ValueType.Null: value = null; break;
-        case ValueType.SByte: value = ReadSByte(); break;
-        case ValueType.Single: value = ReadSingle(); break;
-        case ValueType.String: value = ReadStringWithLength(); break;
-        case ValueType.UInt16: value = ReadUInt16(); break;
-        case ValueType.UInt32: value = ReadEncodedUInt32(); break;
-        case ValueType.UInt64: value = ReadEncodedUInt64(); break;
-        case ValueType.Guid: value = ReadGuid(); break;
-        case ValueType.TimeSpan: value = new TimeSpan(ReadInt64()); break;
-        case ValueType.DateTimeOffset:
-          value = new DateTimeOffset(ReadInt64(), new TimeSpan(ReadEncodedInt64() * TimeSpan.TicksPerMinute));
-          break;
-        case ValueType.XmlDuration:
-        {
-          int months = ReadEncodedInt32();
-          value = new XmlDuration(Math.Abs(months), (long)ReadEncodedUInt64(), months < 0);
-          break;
-        }
-        case ValueType.XmlQualifiedName: value = new XmlQualifiedName(ReadStringWithLength(), ReadStringWithLength()); break;
-        default: throw new InvalidDataException("Unrecognized type: " + type.ToString());
-      }
-    }
-    else // it's an array
-    {
-      int length = (int)ReadEncodedUInt32();
-      switch(type & ~ValueType.IsArray)
-      {
-        case ValueType.False:
-        {
-          bool[] array = new bool[length];
-          for(int i=0; length != 0; )
-          {
-            int byteValue = ReadByte();
-            for(int bits=8; bits != 0; byteValue >>= 1, bits--)
-            {
-              array[i++] = (byteValue & 1) != 0;
-              if(--length == 0) break;
-            }
-          }
-          value = array;
-          break;
-        }
-        case ValueType.Byte: value = ReadBytes(length); break;
-        case ValueType.Char: value = ReadChars(length); break;
-        case ValueType.DateTime: value = ReadDateTimes(length); break;
-        case ValueType.DBNull:
-        {
-          DBNull[] array = new DBNull[length];
-          for(int i=0; i<array.Length; i++) array[i] = DBNull.Value;
-          value = array;
-          break;
-        }
-        case ValueType.Decimal: value = ReadDecimals(length); break;
-        case ValueType.Double: value = ReadDoubles(length); break;
-        case ValueType.Int16: value = ReadInt16s(length); break;
-        case ValueType.Int32: value = ReadEncodedInt32s(length); break;
-        case ValueType.Int64: value = ReadEncodedInt64s(length); break;
-        case ValueType.SByte: value = ReadSBytes(length); break;
-        case ValueType.Single: value = ReadSingles(length); break;
-        case ValueType.String: value = ReadStringsWithLengths(length); break;
-        case ValueType.UInt16: value = ReadUInt16s(length); break;
-        case ValueType.UInt32: value = ReadEncodedUInt32s(length); break;
-        case ValueType.UInt64: value = ReadEncodedUInt64s(length); break;
-        case ValueType.Guid: value = ReadGuids(length); break;
-        case ValueType.TimeSpan:
-        {
-          TimeSpan[] array = new TimeSpan[length];
-          for(int i=0; i<array.Length; i++) array[i] = new TimeSpan(ReadInt64());
-          value = array;
-          break;
-        }
-        case ValueType.DateTimeOffset:
-        {
-          DateTimeOffset[] array = new DateTimeOffset[length];
-          for(int i=0; i<array.Length; i++)
-          {
-            array[i] = new DateTimeOffset(ReadInt64(), new TimeSpan(ReadEncodedInt64() * TimeSpan.TicksPerMinute));
-          }
-          value = array;
-          break;
-        }
-        case ValueType.XmlDuration:
-        {
-          XmlDuration[] array = new XmlDuration[length];
-          for(int i=0; i<array.Length; i++)
-          {
-            int months = ReadEncodedInt32();
-            array[i] = new XmlDuration(Math.Abs(months), (long)ReadEncodedUInt64(), months < 0);
-          }
-          value = array;
-          break;
-        }
-        case ValueType.XmlQualifiedName:
-        {
-          XmlQualifiedName[] array = new XmlQualifiedName[length];
-          for(int i=0; i<array.Length; i++)
-          {
-            string localName = ReadStringWithLength();
-            if(localName != null) array[i] = new XmlQualifiedName(localName, ReadStringWithLength());
-          }
-          value = array;
-          break;
-        }
-        default: throw new InvalidDataException("Unrecognized type: " + type.ToString());
-      }
-    }
+    byte v = ReadByte();
+    if(v > 1) return null;
+    else return v != 0;
+  }
 
-    return value;
+  /// <summary>Reads a nullable, signed byte value from the stream as a boolean potentially followed by a value.</summary>
+  [CLSCompliant(false)]
+  public sbyte? ReadNullableSByte()
+  {
+    if(!ReadBoolean()) return null;
+    else return ReadSByte();
+  }
+
+  /// <summary>Reads a nullable, unsigned byte value from the stream as a boolean potentially followed by a value.</summary>
+  public byte? ReadNullableByte()
+  {
+    if(!ReadBoolean()) return null;
+    else return ReadByte();
+  }
+
+  /// <summary>Reads a nullable character from the stream as a boolean potentially followed by a value, using the default encoding.</summary>
+  public char? ReadNullableChar()
+  {
+    if(!ReadBoolean()) return null;
+    else return ReadChar();
+  }
+
+  /// <summary>Reads a nullable character from the stream as a boolean potentially followed by a value, using the default encoding.</summary>
+  public char? ReadNullableChar(Encoding encoding)
+  {
+    if(!ReadBoolean()) return null;
+    else return ReadChar(encoding);
+  }
+
+  /// <summary>Reads a nullable <see cref="DateTime"/> value from the stream as a boolean potentially followed by a value.</summary>
+  public DateTime? ReadNullableDateTime()
+  {
+    if(!ReadBoolean()) return null;
+    else return ReadDateTime();
+  }
+
+  /// <summary>Reads a nullable <see cref="Guid"/> from the stream as a boolean potentially followed by a value.</summary>
+  public Guid? ReadNullableGuid()
+  {
+    if(!ReadBoolean()) return null;
+    else return ReadGuid();
+  }
+
+  /// <summary>Reads a nullable, signed two-byte integer from the stream as a boolean potentially followed by a value.</summary>
+  public short? ReadNullableInt16()
+  {
+    if(!ReadBoolean()) return null;
+    else return ReadInt16();
+  }
+
+  /// <summary>Reads a nullable, unsigned two-byte integer from the stream as a boolean potentially followed by a value.</summary>
+  [CLSCompliant(false)]
+  public ushort? ReadNullableUInt16()
+  {
+    if(!ReadBoolean()) return null;
+    else return ReadUInt16();
+  }
+
+  /// <summary>Reads a nullable, signed four-byte integer from the stream as a boolean potentially followed by a value.</summary>
+  public int? ReadNullableInt32()
+  {
+    if(!ReadBoolean()) return null;
+    else return ReadInt32();
+  }
+
+  /// <summary>Reads a nullable, unsigned four-byte integer from the stream as a boolean potentially followed by a value.</summary>
+  [CLSCompliant(false)]
+  public uint? ReadNullableUInt32()
+  {
+    if(!ReadBoolean()) return null;
+    else return ReadUInt32();
+  }
+
+  /// <summary>Reads a nullable, signed eight-byte integer from the stream as a boolean potentially followed by a value.</summary>
+  public long? ReadNullableInt64()
+  {
+    if(!ReadBoolean()) return null;
+    else return ReadInt64();
+  }
+
+  /// <summary>Reads a nullable, unsigned eight-byte integer from the stream as a boolean potentially followed by a value.</summary>
+  [CLSCompliant(false)]
+  public ulong? ReadNullableUInt64()
+  {
+    if(!ReadBoolean()) return null;
+    else return ReadUInt64();
+  }
+
+  /// <summary>Reads a nullable, four-byte float from the stream as a boolean potentially followed by a value.</summary>
+  public float? ReadNullableSingle()
+  {
+    if(!ReadBoolean()) return null;
+    else return ReadSingle();
+  }
+
+  /// <summary>Reads a nullable, eight-byte float from the stream as a boolean potentially followed by a value.</summary>
+  public double? ReadNullableDouble()
+  {
+    if(!ReadBoolean()) return null;
+    else return ReadDouble();
+  }
+
+  /// <summary>Reads a nullable <see cref="decimal"/> from the stream as a boolean potentially followed by a value.</summary>
+  public decimal? ReadNullableDecimal()
+  {
+    if(!ReadBoolean()) return null;
+    else return ReadDecimal();
   }
 
   /// <summary>Reads an array of four-byte floats from the stream.</summary>
@@ -1363,8 +1289,6 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
         availableContiguousSpace = Buffer.Length; // now we have a contiguous region the size of the whole buffer
       }
 
-      EnsureStreamPositioned();
-
       int toRead = availableContiguousSpace - headIndex; // fill the entire contiguous region
       do
       {
@@ -1377,8 +1301,6 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
         headIndex += read;
         toRead -= read;
       } while(toRead != 0);
-
-      StoreStreamPosition();
     }
   }
 
@@ -1466,9 +1388,6 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// <see cref="BinaryWriter"/> is disposed.
   /// </summary>
   /// <param name="stream">The stream to which data will be written.</param>
-  /// <remarks>If the underlying stream will be accessed by any other classes while this writer is in use, you must use
-  /// an override that takes a 'shared' parameter, and pass <c>true</c>.
-  /// </remarks>
   public BinaryWriter(Stream stream) : this(stream, true, true) { }
 
   /// <summary>Initializes this <see cref="BinaryWriter"/> with the default buffer size, little-endianness, and the
@@ -1476,9 +1395,6 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// </summary>
   /// <param name="stream">The stream to which data will be written.</param>
   /// <param name="ownStream">If true, the stream will be closed when the <see cref="BinaryWriter"/> is disposed.</param>
-  /// <remarks>If the underlying stream will be accessed by any other classes while this writer is in use, you must use
-  /// an override that takes a 'shared' parameter, and pass <c>true</c>.
-  /// </remarks>
   public BinaryWriter(Stream stream, bool ownStream) : this(stream, ownStream, true) { }
 
   /// <summary>Initializes this <see cref="BinaryWriter"/> with the default buffer size and the
@@ -1489,10 +1405,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// <param name="littleEndian">Whether the data being written is little endian. This can be changed at any time using
   /// the <see cref="LittleEndian"/> property.
   /// </param>
-  /// <remarks>If the underlying stream will be accessed by any other classes while this writer is in use, you must use
-  /// an override that takes a 'shared' parameter, and pass <c>true</c>.
-  /// </remarks>
-  public BinaryWriter(Stream stream, bool ownStream, bool littleEndian) : this(stream, ownStream, littleEndian, 0, false) { }
+  public BinaryWriter(Stream stream, bool ownStream, bool littleEndian) : this(stream, ownStream, littleEndian, 0) { }
 
   /// <summary>Initializes this <see cref="BinaryWriter"/>.</summary>
   /// <param name="stream">The stream to which data will be written. If the stream does its own buffering, it may be
@@ -1507,13 +1420,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   /// you can tune the buffer size so that the <see cref="BinaryWriter"/> does not allocate more memory than is
   /// necessary.
   /// </param>
-  /// <param name="shared">Whether or not the stream will be accessed by other any other class while this writer is in
-  /// use. If true, the writer will ensure that the underlying stream is seeked to the correct position before each
-  /// write. You cannot pass a value of true for unseekable streams. Passing true also does not make this class safe
-  /// for simultaneous use by multiple threads. You'll have to synchronize that yourself.
-  /// </param>
-  public BinaryWriter(Stream stream, bool ownStream, bool littleEndian, int bufferSize, bool shared)
-    : base(stream, ownStream, littleEndian, bufferSize, shared)
+  public BinaryWriter(Stream stream, bool ownStream, bool littleEndian, int bufferSize) : base(stream, ownStream, littleEndian, bufferSize)
   {
     DefaultEncoding = Encoding.UTF8;
   }
@@ -1575,12 +1482,31 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     Write(value ? (byte)1 : (byte)0);
   }
 
+  /// <summary>Writes a nullable boolean value to the stream as a single byte that can be read by
+  /// <see cref="BinaryReader.ReadNullableBoolean"/>.
+  /// </summary>
+  /// <remarks>The value is written as 0=false, 1=true, 2=null.</remarks>
+  public void Write(bool? value)
+  {
+    Write(!value.HasValue ? (byte)2 : value.GetValueOrDefault() ? (byte)1 : (byte)0);
+  }
+
+  /// <summary>Writes a single signed byte to the stream.</summary>
   [CLSCompliant(false)]
   public void Write(sbyte value)
   {
     Write((byte)value);
   }
 
+  /// <summary>Writes a nullable, signed byte to the stream as a boolean potentially followed by the value.</summary>
+  [CLSCompliant(false)]
+  public void Write(sbyte? value)
+  {
+    Write(value.HasValue);
+    if(value.HasValue) Write(value.GetValueOrDefault());
+  }
+
+  /// <summary>Writes a single byte to the stream.</summary>
   public void Write(byte value)
   {
     if(ExternalBuffer)
@@ -1589,6 +1515,13 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     }
     else if(Buffer.Length == writeIndex) FlushBuffer();
     BufferPtr[writeIndex++] = value;
+  }
+
+  /// <summary>Writes a nullable byte to the stream as a boolean potentially followed by the value.</summary>
+  public void Write(byte? value)
+  {
+    Write(value.HasValue);
+    if(value.HasValue) Write(value.GetValueOrDefault());
   }
 
   /// <summary>Writes a character to the stream, using the default encoding. Returns the number of bytes written to the
@@ -1612,10 +1545,30 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     return bytes;
   }
 
+  /// <summary>Writes a nullable character to the stream as a boolean potentially followed by the value, using the default encoding.</summary>
+  public void Write(char? value)
+  {
+    Write(value, DefaultEncoding);
+  }
+
+  /// <summary>Writes a nullable character to the stream as a boolean potentially followed by the value, using the given encoding.</summary>
+  public void Write(char? value, Encoding encoding)
+  {
+    Write(value.HasValue);
+    if(value.HasValue) Write(value.GetValueOrDefault(), encoding);
+  }
+
   /// <summary>Writes a signed two-byte integer to the stream.</summary>
   public void Write(short value)
   {
     Write((ushort)value);
+  }
+
+  /// <summary>Writes a nullable, signed two-byte integer to the stream as a boolean potentially followed by the value.</summary>
+  public void Write(short? value)
+  {
+    Write(value.HasValue);
+    if(value.HasValue) Write(value.GetValueOrDefault());
   }
 
   /// <summary>Writes an unsigned two-byte integer to the stream.</summary>
@@ -1629,6 +1582,14 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     writeIndex += sizeof(ushort);
   }
 
+  /// <summary>Writes a nullable, unsigned two-byte integer to the stream as a boolean potentially followed by the value.</summary>
+  [CLSCompliant(false)]
+  public void Write(ushort? value)
+  {
+    Write(value.HasValue);
+    if(value.HasValue) Write(value.GetValueOrDefault());
+  }
+
   /// <summary>Writes a signed four-byte integer to the stream.</summary>
   public void Write(int value)
   {
@@ -1639,11 +1600,27 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     writeIndex += sizeof(int);
   }
 
+  /// <summary>Writes a nullable, signed four-byte integer to the stream as a boolean potentially followed by the value.</summary>
+  public void Write(int? value)
+  {
+    Write(value.HasValue);
+    if(value.HasValue) Write(value.GetValueOrDefault());
+  }
+
   /// <summary>Writes an unsigned four-byte integer to the stream.</summary>
   [CLSCompliant(false)]
   public void Write(uint value)
   {
     Write((int)value);
+  }
+
+
+  /// <summary>Writes a nullable, unsigned four-byte integer to the stream as a boolean potentially followed by the value.</summary>
+  [CLSCompliant(false)]
+  public void Write(uint? value)
+  {
+    Write(value.HasValue);
+    if(value.HasValue) Write(value.GetValueOrDefault());
   }
 
   /// <summary>Writes a signed eight-byte integer to the stream.</summary>
@@ -1656,11 +1633,26 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     writeIndex += sizeof(long);
   }
 
+  /// <summary>Writes a nullable, signed eight-byte integer to the stream as a boolean potentially followed by the value.</summary>
+  public void Write(long? value)
+  {
+    Write(value.HasValue);
+    if(value.HasValue) Write(value.GetValueOrDefault());
+  }
+
   /// <summary>Writes an unsigned eight-byte integer to the stream.</summary>
   [CLSCompliant(false)]
   public void Write(ulong value)
   {
     Write((long)value);
+  }
+
+  /// <summary>Writes a nullable, unsigned eight-byte integer to the stream as a boolean potentially followed by the value.</summary>
+  [CLSCompliant(false)]
+  public void Write(ulong? value)
+  {
+    Write(value.HasValue);
+    if(value.HasValue) Write(value.GetValueOrDefault());
   }
 
   /// <summary>Writes a four-byte float to the stream.</summary>
@@ -1673,6 +1665,13 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     writeIndex += sizeof(float);
   }
 
+  /// <summary>Writes a nullable four-byte float to the stream as a boolean potentially followed by the value.</summary>
+  public void Write(float? value)
+  {
+    Write(value.HasValue);
+    if(value.HasValue) Write(value.GetValueOrDefault());
+  }
+
   /// <summary>Writes an eight-byte float to the stream.</summary>
   public void Write(double value)
   {
@@ -1681,6 +1680,13 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     else if(LittleEndian) IOH.WriteLEDouble(WritePtr, value);
     else IOH.WriteBEDouble(WritePtr, value);
     writeIndex += sizeof(double);
+  }
+
+  /// <summary>Writes a nullable eight-byte float to the stream as a boolean potentially followed by the value.</summary>
+  public void Write(double? value)
+  {
+    Write(value.HasValue);
+    if(value.HasValue) Write(value.GetValueOrDefault());
   }
 
   /// <summary>Writes a 13-byte <see cref="decimal"/> value to the stream.</summary>
@@ -1694,12 +1700,19 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     Write((byte)((scale>>16) | (scale>>24)));
   }
 
+  /// <summary>Writes a nullable <see cref="decimal"/> to the stream as a boolean potentially followed by the value.</summary>
+  public void Write(decimal? value)
+  {
+    Write(value.HasValue);
+    if(value.HasValue) Write(value.GetValueOrDefault());
+  }
+
   /// <summary>Writes an array of signed bytes to the stream.</summary>
   [CLSCompliant(false)]
   public void Write(sbyte[] data)
   {
     if(data == null) throw new ArgumentNullException();
-    fixed(sbyte* ptr=data) Write(ptr, data.Length);
+    Write(data, 0, data.Length);
   }
 
   /// <summary>Writes an array of signed bytes to the stream.</summary>
@@ -1722,7 +1735,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(byte[] data)
   {
     if(data == null) throw new ArgumentNullException();
-    fixed(byte* ptr=data) Write(ptr, data.Length);
+    Write(data, 0, data.Length);
   }
 
   /// <summary>Writes an array of bytes to the stream.</summary>
@@ -1836,6 +1849,13 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     Write((byte)dateTime.Kind);
   }
 
+  /// <summary>Writes a nullable <see cref="DateTime"/> to the stream as a boolean potentially followed by the value.</summary>
+  public void Write(DateTime? value)
+  {
+    Write(value.HasValue);
+    if(value.HasValue) Write(value.GetValueOrDefault());
+  }
+
   /// <summary>Writes an array of <see cref="DateTime"/> objects to the stream.</summary>
   public void Write(DateTime[] dateTimes)
   {
@@ -1859,6 +1879,13 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     WriteCore((byte*)&guid, 16);
   }
 
+  /// <summary>Writes a nullable <see cref="Guid"/> to the stream as a boolean potentially followed by the value.</summary>
+  public void Write(Guid? value)
+  {
+    Write(value.HasValue);
+    if(value.HasValue) Write(value.GetValueOrDefault());
+  }
+
   /// <summary>Writes an array of <see cref="Guid"/> objects to the stream.</summary>
   public void Write(Guid[] guids)
   {
@@ -1877,7 +1904,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(short[] data)
   {
     if(data == null) throw new ArgumentNullException();
-    fixed(short* ptr=data) Write(ptr, data.Length);
+    Write(data, 0, data.Length);
   }
 
   /// <summary>Writes an array of signed two-byte integers to the stream.</summary>
@@ -1899,7 +1926,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(ushort[] data)
   {
     if(data == null) throw new ArgumentNullException();
-    fixed(ushort* ptr=data) Write(ptr, data.Length);
+    Write(data, 0, data.Length);
   }
 
   /// <summary>Writes an array of unsigned two-byte integers to the stream.</summary>
@@ -1922,7 +1949,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(int[] data)
   {
     if(data == null) throw new ArgumentNullException();
-    fixed(int* ptr=data) Write(ptr, data.Length);
+    Write(data, 0, data.Length);
   }
 
   /// <summary>Writes an array of signed four-byte integers to the stream.</summary>
@@ -1945,7 +1972,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(uint[] data)
   {
     if(data == null) throw new ArgumentNullException();
-    fixed(uint* ptr=data) Write(ptr, data.Length);
+    Write(data, 0, data.Length);
   }
 
   /// <summary>Writes an array of unsigned four-byte integers to the stream.</summary>
@@ -1967,7 +1994,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(long[] data)
   {
     if(data == null) throw new ArgumentNullException();
-    fixed(long* ptr=data) Write(ptr, data.Length);
+    Write(data, 0, data.Length);
   }
 
   /// <summary>Writes an array of signed eight-byte integers to the stream.</summary>
@@ -1990,7 +2017,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(ulong[] data)
   {
     if(data == null) throw new ArgumentNullException();
-    fixed(ulong* ptr=data) Write(ptr, data.Length);
+    Write(data, 0, data.Length);
   }
 
   /// <summary>Writes an array of unsigned eight-byte integers to the stream.</summary>
@@ -2012,7 +2039,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(float[] data)
   {
     if(data == null) throw new ArgumentNullException();
-    fixed(float* ptr=data) Write(ptr, data.Length);
+    Write(data, 0, data.Length);
   }
 
   /// <summary>Writes an array of four-byte floats to the stream.</summary>
@@ -2034,7 +2061,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(double[] data)
   {
     if(data == null) throw new ArgumentNullException();
-    fixed(double* ptr=data) Write(ptr, data.Length);
+    Write(data, 0, data.Length);
   }
 
   /// <summary>Writes an array of eight-byte floats to the stream.</summary>
@@ -2056,7 +2083,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(decimal[] data)
   {
     if(data == null) throw new ArgumentNullException();
-    foreach(decimal value in data) Write(value);
+    Write(data, 0, data.Length);
   }
 
   /// <summary>Writes an array of 13-byte floats to the stream.</summary>
@@ -2066,26 +2093,34 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     for(int end=index+count; index<end; index++) Write(data[index]);
   }
 
-  /// <summary>Writes a string to the stream, using the default encoding. Returns the number of bytes written to the stream.</summary>
+  /// <summary>Writes a string to the stream, using the default encoding. Returns the number of bytes written to the stream.
+  /// This method does not accept null values. To write a nullable string, use <see cref="WriteStringWithLength(string)"/>.
+  /// </summary>
   public int Write(string str)
   {
     return Write(str, DefaultEncoding);
   }
 
-  /// <summary>Writes a string to the stream, with the given encoding. Returns the number of bytes written to the stream.</summary>
+  /// <summary>Writes a string to the stream, with the given encoding. Returns the number of bytes written to the stream.
+  /// This method does not accept null values. To write a nullable string, use <see cref="WriteStringWithLength(string,Encoding)"/>.
+  /// </summary>
   public int Write(string str, Encoding encoding)
   {
     if(str == null) throw new ArgumentNullException();
     fixed(char* chars=str) return Write(chars, str.Length, encoding);
   }
 
-  /// <summary>Writes a substring to the stream, using the default encoding. Returns the number of bytes written to the stream.</summary>
+  /// <summary>Writes a substring to the stream, using the default encoding. Returns the number of bytes written to the stream.
+  /// This method does not accept null values. To write a nullable string, use <see cref="WriteStringWithLength(string,int,int)"/>.
+  /// </summary>
   public int Write(string str, int index, int count)
   {
     return Write(str, index, count, DefaultEncoding);
   }
 
-  /// <summary>Writes a substring to the stream, using the given encoding. Returns the number of bytes written to the stream.</summary>
+  /// <summary>Writes a substring to the stream, using the given encoding. Returns the number of bytes written to the stream. This
+  /// method does not accept null values. To write a nullable string, use <see cref="WriteStringWithLength(string,int,int,Encoding)"/>.
+  /// </summary>
   public int Write(string str, int index, int count, Encoding encoding)
   {
     Utility.ValidateRange(str, index, count);
@@ -2112,284 +2147,6 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     }
 
     WriteCore((byte*)data, count, wordSize);
-  }
-
-  /// <summary>Writes an object to the stream. All built-in non-pointer primitive types are supported, plus <see cref="DateTime"/>,
-  /// <see cref="DateTimeOffset"/>, <see cref="DBNull"/>, <see cref="Decimal"/>, <see cref="Guid"/>, <see cref="string"/>,
-  /// <see cref="TimeSpan"/>, <see cref="XmlDuration"/>, <see cref="XmlQualifiedName"/>, and one-dimensional arrays of the previous types.
-  /// Null values are also supported. The format in which the object will be written is not specified, but it can be read with
-  /// <see cref="BinaryReader.ReadValueWithType"/>.
-  /// </summary>
-  public void WriteValueWithType(object value)
-  {
-    Type type = value == null ? null : value.GetType();
-    if(type == null || !type.IsArray) // if it's not an array...
-    {
-      switch(Type.GetTypeCode(type))
-      {
-        case TypeCode.Boolean:
-          Write((byte)((bool)value ? ValueType.True : ValueType.False));
-          break;
-        case TypeCode.Byte:
-          Write((byte)ValueType.Byte);
-          Write((byte)value);
-          break;
-        case TypeCode.Char:
-          Write((byte)ValueType.Char);
-          Write((char)value);
-          break;
-        case TypeCode.DateTime:
-          Write((byte)ValueType.DateTime);
-          Write((DateTime)value);
-          break;
-        case TypeCode.DBNull:
-          Write((byte)ValueType.DBNull);
-          break;
-        case TypeCode.Decimal:
-          Write((byte)ValueType.Decimal);
-          Write((decimal)value);
-          break;
-        case TypeCode.Double:
-          Write((byte)ValueType.Double);
-          Write((double)value);
-          break;
-        case TypeCode.Empty:
-          Write((byte)ValueType.Null);
-          break;
-        case TypeCode.Int16:
-          Write((byte)ValueType.Int16);
-          Write((short)value);
-          break;
-        case TypeCode.Int32:
-          Write((byte)ValueType.Int32);
-          WriteEncoded((int)value);
-          break;
-        case TypeCode.Int64:
-          Write((byte)ValueType.Int64);
-          WriteEncoded((long)value);
-          break;
-        case TypeCode.SByte:
-          Write((byte)ValueType.SByte);
-          Write((sbyte)value);
-          break;
-        case TypeCode.Single:
-          Write((byte)ValueType.Single);
-          Write((float)value);
-          break;
-        case TypeCode.String:
-          Write((byte)ValueType.String);
-          WriteStringWithLength((string)value);
-          break;
-        case TypeCode.UInt16:
-          Write((byte)ValueType.UInt16);
-          Write((ushort)value);
-          break;
-        case TypeCode.UInt32:
-          Write((byte)ValueType.UInt32);
-          WriteEncoded((uint)value);
-          break;
-        case TypeCode.UInt64:
-          Write((byte)ValueType.UInt64);
-          WriteEncoded((ulong)value);
-          break;
-        default:
-          if(type == typeof(Guid))
-          {
-            Write((byte)ValueType.Guid);
-            Write((Guid)value);
-          }
-          else if(type == typeof(TimeSpan))
-          {
-            Write((byte)ValueType.TimeSpan);
-            Write(((TimeSpan)value).Ticks);
-          }
-          else if(type == typeof(DateTimeOffset))
-          {
-            DateTimeOffset dto = (DateTimeOffset)value;
-            Write((byte)ValueType.DateTimeOffset);
-            Write(dto.DateTime.Ticks);
-            WriteEncoded(dto.Offset.Ticks / TimeSpan.TicksPerMinute); // the offset is in whole minutes
-          }
-          else if(type == typeof(XmlDuration))
-          {
-            XmlDuration xd = (XmlDuration)value;
-            int months = xd.TotalMonths;
-            if(xd.IsNegative) months = -months;
-            Write((byte)ValueType.XmlDuration);
-            WriteEncoded(months);
-            WriteEncoded((ulong)xd.Ticks);
-          }
-          else if(type == typeof(XmlQualifiedName))
-          {
-            XmlQualifiedName name = (XmlQualifiedName)value;
-            Write((byte)ValueType.XmlQualifiedName);
-            WriteStringWithLength(name.Name);
-            WriteStringWithLength(name.Namespace);
-          }
-          else
-          {
-            throw new ArgumentException("Unsupported type: " + type.FullName);
-          }
-          break;
-      }
-    }
-    else // it's an array
-    {
-      Array array = (Array)value;
-      if(array.Rank != 1) throw new ArgumentException("Multidimensional arrays are not supported.");
-      type = type.GetElementType();
-      switch(Type.GetTypeCode(type))
-      {
-        case TypeCode.Boolean:
-        {
-          Write((byte)(ValueType.False | ValueType.IsArray));
-          WriteEncoded((uint)array.Length);
-          bool[] boolArray = (bool[])value;
-          for(int i=0; i<array.Length; )
-          {
-            int byteValue = 0;
-            for(int bits=8, mask=1; bits != 0; mask <<= 1, bits--)
-            {
-              byteValue |= (boolArray[i] ? mask : 0);
-              if(++i == array.Length) break;
-            }
-            Write((byte)byteValue);
-          }
-          break;
-        }
-        case TypeCode.Byte:
-          Write((byte)(ValueType.Byte | ValueType.IsArray));
-          WriteEncoded((uint)array.Length);
-          Write((byte[])value);
-          break;
-        case TypeCode.Char:
-          Write((byte)(ValueType.Char | ValueType.IsArray));
-          WriteEncoded((uint)array.Length);
-          Write((char[])value);
-          break;
-        case TypeCode.DateTime:
-          Write((byte)(ValueType.DateTime | ValueType.IsArray));
-          WriteEncoded((uint)array.Length);
-          Write((DateTime[])value);
-          break;
-        case TypeCode.DBNull:
-          Write((byte)(ValueType.DBNull | ValueType.IsArray));
-          WriteEncoded((uint)array.Length);
-          break;
-        case TypeCode.Decimal:
-          Write((byte)(ValueType.Decimal | ValueType.IsArray));
-          WriteEncoded((uint)array.Length);
-          Write((decimal[])value);
-          break;
-        case TypeCode.Double:
-          Write((byte)(ValueType.Double | ValueType.IsArray));
-          WriteEncoded((uint)array.Length);
-          Write((double[])value);
-          break;
-        case TypeCode.Int16:
-          Write((byte)(ValueType.Int16 | ValueType.IsArray));
-          WriteEncoded((uint)array.Length);
-          Write((short[])value);
-          break;
-        case TypeCode.Int32:
-          Write((byte)(ValueType.Int32 | ValueType.IsArray));
-          WriteEncoded((uint)array.Length);
-          foreach(int intValue in (int[])value) WriteEncoded(intValue);
-          break;
-        case TypeCode.Int64:
-          Write((byte)(ValueType.Int64 | ValueType.IsArray));
-          WriteEncoded((uint)array.Length);
-          foreach(long intValue in (long[])value) WriteEncoded(intValue);
-          break;
-        case TypeCode.SByte:
-          Write((byte)(ValueType.SByte | ValueType.IsArray));
-          WriteEncoded((uint)array.Length);
-          Write((sbyte[])value);
-          break;
-        case TypeCode.Single:
-          Write((byte)(ValueType.Single | ValueType.IsArray));
-          WriteEncoded((uint)array.Length);
-          Write((float[])value);
-          break;
-        case TypeCode.String:
-          Write((byte)(ValueType.String | ValueType.IsArray));
-          WriteEncoded((uint)array.Length);
-          foreach(string str in (string[])value) WriteStringWithLength(str);
-          break;
-        case TypeCode.UInt16:
-          Write((byte)(ValueType.UInt16 | ValueType.IsArray));
-          WriteEncoded((uint)array.Length);
-          Write((ushort[])value);
-          break;
-        case TypeCode.UInt32:
-          Write((byte)(ValueType.UInt32 | ValueType.IsArray));
-          WriteEncoded((uint)array.Length);
-          foreach(uint intValue in (uint[])value) WriteEncoded(intValue);
-          break;
-        case TypeCode.UInt64:
-          Write((byte)(ValueType.UInt64 | ValueType.IsArray));
-          WriteEncoded((uint)array.Length);
-          foreach(ulong intValue in (ulong[])value) WriteEncoded(intValue);
-          break;
-        default:
-          if(type == typeof(Guid))
-          {
-            Write((byte)(ValueType.Guid | ValueType.IsArray));
-            WriteEncoded((uint)array.Length);
-            Write((Guid[])value);
-          }
-          else if(type == typeof(TimeSpan))
-          {
-            Write((byte)(ValueType.TimeSpan | ValueType.IsArray));
-            WriteEncoded((uint)array.Length);
-            foreach(TimeSpan timeSpan in (TimeSpan[])value) Write(timeSpan.Ticks);
-          }
-          else if(type == typeof(DateTimeOffset))
-          {
-            Write((byte)(ValueType.DateTimeOffset | ValueType.IsArray));
-            WriteEncoded((uint)array.Length);
-            foreach(DateTimeOffset dto in (DateTimeOffset[])value)
-            {
-              Write(dto.DateTime.Ticks);
-              WriteEncoded(dto.Offset.Ticks / TimeSpan.TicksPerMinute); // the offset is in whole minutes
-            }
-          }
-          else if(type == typeof(XmlDuration))
-          {
-            Write((byte)(ValueType.XmlDuration | ValueType.IsArray));
-            WriteEncoded((uint)array.Length);
-            foreach(XmlDuration xd in (XmlDuration[])value)
-            {
-              int months = xd.TotalMonths;
-              if(xd.IsNegative) months = -months;
-              WriteEncoded(months);
-              WriteEncoded((ulong)xd.Ticks);
-            }
-          }
-          else if(type == typeof(XmlQualifiedName))
-          {
-            Write((byte)(ValueType.XmlQualifiedName | ValueType.IsArray));
-            WriteEncoded((uint)array.Length);
-            foreach(XmlQualifiedName name in (XmlQualifiedName[])value)
-            {
-              if(name == null)
-              {
-                WriteStringWithLength(null);
-              }
-              else
-              {
-                WriteStringWithLength(name.Name);
-                WriteStringWithLength(name.Namespace);
-              }
-            }
-          }
-          else
-          {
-            throw new ArgumentException("Unsupported type: " + value.GetType().FullName);
-          }
-          break;
-      }
-    }
   }
 
   /// <summary>Writes a signed integer with a variable-length format, taking from one to five bytes.</summary>

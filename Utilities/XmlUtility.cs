@@ -827,6 +827,22 @@ public static class XmlElementExtensions
 }
 #endregion
 
+#region XmlNamespaceResolverExtensions
+/// <summary>Provides useful extensions to the <see cref="IXmlNamespaceResolver"/> class.</summary>
+public static class XmlNamespaceResolverExtensions
+{
+  /// <summary>Parses a qualified name (i.e. a name of the form <c>prefix:localName</c> or <c>namespaceUri:localName</c>) into an
+  /// <see cref="XmlQualifiedName"/> in the context of the current namespace resolver. This method also accepts local names.
+  /// </summary>
+  public static XmlQualifiedName ParseQualifiedName(this IXmlNamespaceResolver resolver, string qualifiedName)
+  {
+    if(resolver == null) throw new ArgumentNullException();
+    return string.IsNullOrEmpty(qualifiedName) ?
+      XmlQualifiedName.Empty : XmlUtility.ParseQualifiedName(qualifiedName, resolver.LookupNamespace);
+  }
+}
+#endregion
+
 #region XmlNodeExtensions
 /// <summary>Provides useful extensions to the <see cref="XmlNode"/> class.</summary>
 public static class XmlNodeExtensions
@@ -1261,6 +1277,17 @@ public static class XmlNodeExtensions
     return new XmlQualifiedName(node.LocalName, node.NamespaceURI);
   }
 
+  /// <summary>Returns true if the node contains any non-text children.</summary>
+  public static bool HasComplexContent(this XmlNode node)
+  {
+    if(node == null) throw new ArgumentNullException();
+    for(XmlNode child = node.FirstChild; child != null; child = child.NextSibling)
+    {
+      if(!child.IsTextNode()) return true;
+    }
+    return false;
+  }
+
   /// <summary>Determines whether the qualified name of the node equals the given qualified name.</summary>
   public static bool HasName(this XmlNode node, XmlQualifiedName qname)
   {
@@ -1280,6 +1307,39 @@ public static class XmlNodeExtensions
     return localName.OrdinalEquals(node.LocalName) && namespaceUri.OrdinalEquals(node.NamespaceURI);
   }
 
+  /// <summary>Returns true if the node contains text children and only text children. (This includes CDATA and whitespace.)
+  /// This method returns false for empty elements. Although intended to be called on elements, this method also works for
+  /// attributes, in which case it will return true if the attribute value is not empty.
+  /// </summary>
+  public static bool HasSimpleContent(this XmlNode node)
+  {
+    if(node == null) throw new ArgumentNullException();
+    bool hasText = false;
+    for(XmlNode child = node.FirstChild; child != null; child = child.NextSibling)
+    {
+      if(child.IsTextNode()) hasText = true;
+      else return false;
+    }
+    return hasText || node.NodeType == XmlNodeType.Attribute && !string.IsNullOrEmpty(node.Value);
+  }
+
+  /// <summary>Returns true if the node contains text children and only text children - this includes CDATA and whitespace - and at
+  /// least one of the children contains characters besides whitespace. This method returns false for empty elements.  Although intended
+  /// to be called on elements, this method also works for attributes, in which case it will return true if the attribute value is not
+  /// empty or whitespace.
+  /// </summary>
+  public static bool HasSimpleNonSpaceContent(this XmlNode node)
+  {
+    if(node == null) throw new ArgumentNullException();
+    bool hasText = false;
+    for(XmlNode child = node.FirstChild; child != null; child = child.NextSibling)
+    {
+      if(!child.IsTextNode()) return false;
+      else if(!StringUtility.IsNullOrSpace(child.Value)) hasText = true;
+    }
+    return hasText || node.NodeType == XmlNodeType.Attribute && !StringUtility.IsNullOrSpace(node.Value);
+  }
+
   /// <summary>Returns true if the attribute was unspecified or empty.</summary>
   public static bool IsAttributeEmpty(XmlAttribute attr)
   {
@@ -1290,6 +1350,17 @@ public static class XmlNodeExtensions
   public static bool IsAttributeEmpty(this XmlNode node, string attrName)
   {
     return IsAttributeEmpty(GetAttributeNode(node, attrName));
+  }
+
+  /// <summary>Returns true if the node represents some type of text content. (This returns true for <see cref="XmlNodeType.Text"/>,
+  /// <see cref="XmlNodeType.Whitespace"/>, <see cref="XmlNodeType.SignificantWhitespace"/>, and <see cref="XmlNodeType.CDATA"/>.)
+  /// </summary>
+  public static bool IsTextNode(this XmlNode node)
+  {
+    if(node == null) throw new ArgumentNullException();
+    XmlNodeType type = node.NodeType;
+    return type == XmlNodeType.Text || type == XmlNodeType.CDATA || type == XmlNodeType.SignificantWhitespace ||
+           type == XmlNodeType.Whitespace;
   }
 
   /// <summary>Parses an attribute whose value contains a whitespace-separated list of items into an array of strings containing
@@ -1314,11 +1385,8 @@ public static class XmlNodeExtensions
   public static XmlQualifiedName ParseQualifiedName(this XmlNode node, string qualifiedName)
   {
     if(node == null) throw new ArgumentNullException();
-    if(string.IsNullOrEmpty(qualifiedName)) return XmlQualifiedName.Empty;
-
-    int colon = qualifiedName.LastIndexOf(':');
-    string prefix = colon == -1 ? "" : qualifiedName.Substring(0, colon), ns = node.GetNamespaceOfPrefix(prefix);
-    return new XmlQualifiedName(colon == -1 ? qualifiedName : qualifiedName.Substring(colon+1), string.IsNullOrEmpty(ns) ? prefix : ns);
+    return string.IsNullOrEmpty(qualifiedName) ?
+      XmlQualifiedName.Empty : XmlUtility.ParseQualifiedName(qualifiedName, node.GetNamespaceOfPrefix);
   }
 
   /// <summary>Removes all the child nodes of the given node.</summary>
@@ -1713,6 +1781,49 @@ public static class XmlQualifiedNameExtensions
     }
     return string.IsNullOrEmpty(prefix) ? qname.Name : prefix + ":" + qname.Name;
   }
+
+  /// <summary>Converts an <see cref="XmlQualifiedName"/> into a <c>localName</c>, <c>prefix:localName</c> <c>namespaceUri:localName</c>
+  /// form valid in the context of the given namespace resolver.
+  /// </summary>
+  public static string ToString(this XmlQualifiedName qname, IXmlNamespaceResolver resolver)
+  {
+    if(qname == null || resolver == null) throw new ArgumentNullException();
+
+    // if qname is not actually a qualified name, we can't necessarily translate it
+    if(string.IsNullOrEmpty(qname.Namespace))
+    {
+      if(!string.IsNullOrEmpty(resolver.LookupNamespace(""))) // if simply using the local name wouldn't result in the same thing...
+      {
+        throw new ArgumentException("The qname has no namespace, and a default namespace has been set in the given context.");
+      }
+      return qname.Name;
+    }
+
+    string prefix = resolver.LookupPrefix(qname.Namespace);
+    if(prefix == null) prefix = qname.Namespace;
+    return string.IsNullOrEmpty(prefix) ? qname.Name : prefix + ":" + qname.Name;
+  }
+
+  /// <summary>Ensures that the given qualified name has a valid namespace URI and local name. Empty names are allowed.</summary>
+  /// <exception cref="ArgumentNullException">Thrown if <paramref name="qname"/> is null.</exception>
+  /// <exception cref="FormatException">Thrown if <paramref name="qname"/> does not have a valid format.</exception>
+  public static void Validate(this XmlQualifiedName qname)
+  {
+    if(qname == null) throw new ArgumentNullException();
+    try
+    {
+      if(!string.IsNullOrEmpty(qname.Namespace)) new Uri(qname.Namespace, UriKind.Absolute);
+      if(!string.IsNullOrEmpty(qname.Name)) XmlConvert.VerifyNCName(qname.Name);
+    }
+    catch(UriFormatException ex)
+    {
+      throw new FormatException("The QName " + qname.ToString() + " does not have a valid namespace URI. " + ex.Message);
+    }
+    catch(XmlException ex)
+    {
+      throw new FormatException("The QName " + qname.ToString() + " does not have a valid local name. " + ex.Message);
+    }
+  }
 }
 #endregion
 
@@ -2039,11 +2150,8 @@ public static class XmlReaderExtensions
   public static XmlQualifiedName ParseQualifiedName(this XmlReader reader, string qualifiedName)
   {
     if(reader == null) throw new ArgumentNullException();
-    if(string.IsNullOrEmpty(qualifiedName)) return XmlQualifiedName.Empty;
-
-    int colon = qualifiedName.LastIndexOf(':');
-    string prefix = colon == -1 ? "" : qualifiedName.Substring(0, colon), ns = reader.LookupNamespace(prefix);
-    return new XmlQualifiedName(colon == -1 ? qualifiedName : qualifiedName.Substring(colon+1), string.IsNullOrEmpty(ns) ? prefix : ns);
+    return string.IsNullOrEmpty(qualifiedName) ?
+      XmlQualifiedName.Empty : XmlUtility.ParseQualifiedName(qualifiedName, reader.LookupNamespace);
   }
 
   /// <summary>Calls <see cref="XmlReader.Read"/> until <see cref="XmlReader.NodeType"/> is no longer equal to
@@ -2509,14 +2617,28 @@ public static class XmlUtility
     return value;
   }
 
+  /// <summary>Parses a qualified name (i.e. a name of the form <c>prefix:localName</c> or <c>namespaceUri:localName</c>) into an
+  /// <see cref="XmlQualifiedName"/>, using the given function to resolve prefixes. This method also accepts local names.
+  /// </summary>
+  public static XmlQualifiedName ParseQualifiedName(string qualifiedName, Func<string,string> prefixToNamespace)
+  {
+    if(prefixToNamespace == null) throw new ArgumentNullException();
+    if(string.IsNullOrEmpty(qualifiedName)) return XmlQualifiedName.Empty;
+    int start, length, colon = qualifiedName.LastIndexOf(':');
+    StringUtility.Trim(qualifiedName, out start, out length);
+    string prefix = colon == -1 ? "" : qualifiedName.Substring(start, colon-start), ns = prefixToNamespace(prefix);
+    string localName = colon == -1 ? qualifiedName : qualifiedName.Substring(colon+1, start+length-(colon+1));
+    return new XmlQualifiedName(localName, string.IsNullOrEmpty(ns) ? prefix : ns);
+  }
+
   /// <summary>Tries to parse an <c>xs:boolean</c> value. Returns true if a boolean value was successfully parsed and false otherwise.</summary>
   public static bool TryParse(string boolStr, out bool value)
   {
     if(!string.IsNullOrEmpty(boolStr))
     {
       int start, length;
-      char c = boolStr[0];
-      if(boolStr.Trim(out start, out length)) c = boolStr[start];
+      StringUtility.Trim(boolStr, out start, out length);
+      char c = boolStr[start];
       if(length == 1)
       {
         value = c == '1';
@@ -2572,20 +2694,22 @@ public static class XmlUtility
     {
       if(InvariantCultureUtility.TryParse(floatStr, out value)) return true;
 
-      if(floatStr.Length == 3)
+      int start, length;
+      StringUtility.Trim(floatStr, out start, out length);
+      if(length == 3)
       {
-        if(floatStr.OrdinalEquals("NaN"))
+        if(string.Compare(floatStr, start, "NaN", 0, 3, StringComparison.Ordinal) == 0)
         {
           value = double.NaN;
           return true;
         }
-        else if(floatStr.OrdinalEquals("INF"))
+        else if(string.Compare(floatStr, start, "INF", 0, 3, StringComparison.Ordinal) == 0)
         {
           value = double.PositiveInfinity;
           return true;
         }
       }
-      else if(floatStr.Length == 4 && floatStr.OrdinalEquals("-INF"))
+      else if(length == 4 && string.Compare(floatStr, start, "-INF", 0, 4, StringComparison.Ordinal) == 0)
       {
         value = double.NegativeInfinity;
         return true;
@@ -2603,20 +2727,22 @@ public static class XmlUtility
     {
       if(InvariantCultureUtility.TryParse(floatStr, out value)) return true;
 
-      if(floatStr.Length == 3)
+      int start, length;
+      StringUtility.Trim(floatStr, out start, out length);
+      if(length == 3)
       {
-        if(floatStr.OrdinalEquals("NaN"))
+        if(string.Compare(floatStr, start, "NaN", 0, 3, StringComparison.Ordinal) == 0)
         {
           value = float.NaN;
           return true;
         }
-        else if(floatStr.OrdinalEquals("INF"))
+        else if(string.Compare(floatStr, start, "INF", 0, 3, StringComparison.Ordinal) == 0)
         {
           value = float.PositiveInfinity;
           return true;
         }
       }
-      else if(floatStr.Length == 4 && floatStr.OrdinalEquals("-INF"))
+      else if(length == 4 && string.Compare(floatStr, start, "-INF", 0, 4, StringComparison.Ordinal) == 0)
       {
         value = float.NegativeInfinity;
         return true;

@@ -7,7 +7,6 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{79B1B71F-1D9D-426E-93D3-0C4C3381CDDA}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>AdamMil.Security</RootNamespace>
     <AssemblyName>AdamMil.Security</AssemblyName>
     <FileUpgradeFlags>
@@ -17,7 +16,7 @@
     </UpgradeBackupLocation>
     <IsWebBootstrapper>false</IsWebBootstrapper>
     <SignAssembly>true</SignAssembly>
-    <AssemblyOriginatorKeyFile>AdamMil.snk</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>../AdamMil.snk</AssemblyOriginatorKeyFile>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <TargetFrameworkProfile>Client</TargetFrameworkProfile>
     <PublishUrl>publish\</PublishUrl>
@@ -46,7 +45,7 @@
     <DocumentationFile>bin\Debug\AdamMil.Security.XML</DocumentationFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <BaseAddress>25165824</BaseAddress>
-    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet>../../Analysis.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -58,9 +57,10 @@
     <DocumentationFile>bin\Release\AdamMil.Security.XML</DocumentationFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <BaseAddress>25165824</BaseAddress>
-    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet>../../Analysis.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="AssemblyInfo.cs" />
     <Compile Include="Exceptions.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="GPG.cs" />
@@ -69,7 +69,6 @@
     <Compile Include="Options.cs" />
     <Compile Include="PGPSystem.cs" />
     <Compile Include="Keys.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SecureLog.cs" />
     <Compile Include="SecureTypes.cs" />
     <Compile Include="Utilities.cs" />
@@ -99,9 +98,6 @@
       <Project>{29134637-6D08-432C-8161-9DEEE13C955D}</Project>
       <Name>AdamMil.Utilities</Name>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="AdamMil.snk" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Client.3.5">

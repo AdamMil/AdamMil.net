@@ -23,8 +23,10 @@ public class IOHTest
     Test(Int,   sizeof(int));
     Test(Long,  sizeof(long));
 
-    Test("Double", Double, *(long*)&Double, sizeof(double), false);
-    Test("Float", Float, *(uint*)&Float, sizeof(float), false);
+    Test("LEDouble", Double, *(long*)&Double, sizeof(double), false);
+    Test("LESingle", Float, *(uint*)&Float, sizeof(float), false);
+    Test("BEDouble", Double, *(long*)&Double, sizeof(double), true);
+    Test("BESingle", Float, *(uint*)&Float, sizeof(float), true);
   }
 
   static void Test(long value, int size)

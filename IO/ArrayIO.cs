@@ -192,7 +192,7 @@ public unsafe static partial class IOH
   }
 
   /// <summary>Reads a little-endian IEEE754 float (4 bytes) from a byte array.</summary>
-  public unsafe static float ReadLEFloat(byte[] buf, int index)
+  public unsafe static float ReadLESingle(byte[] buf, int index)
   {
     int v = buf[index]|(buf[index+1]<<8)|(buf[index+2]<<16)|(buf[index+3]<<24);
     return *(float*)&v;
@@ -211,13 +211,6 @@ public unsafe static partial class IOH
       int v = *buf|(buf[1]<<8)|(buf[2]<<16)|(buf[3]<<24);
       return *(float*)&v;
     }
-  }
-
-  /// <summary>Reads a little-endian IEEE754 double (8 bytes) from a byte array.</summary>
-  public unsafe static double ReadLESingle(byte[] buf, int index)
-  {
-    ulong v = ReadLE4U(buf, index) | ((ulong)ReadLE4U(buf, index+4)<<32);
-    return *(double*)&v;
   }
 
   /// <summary>Reads a little-endian IEEE754 double (8 bytes) from a byte array.</summary>
@@ -618,15 +611,15 @@ public unsafe static partial class IOH
   {
     if(BitConverter.IsLittleEndian)
     {
-      *(float*)buf = val;
-    }
-    else
-    {
       uint v = *(uint*)&val;
       *buf   = (byte)(v>>24);
       buf[1] = (byte)(v>>16);
       buf[2] = (byte)(v>>8);
       buf[3] = (byte)v;
+    }
+    else
+    {
+      *(float*)buf = val;
     }
   }
 
