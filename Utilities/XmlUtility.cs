@@ -492,21 +492,24 @@ public struct XmlDuration
         int years, months, days, hours, totalMonths;
         long mins;
         double seconds;
+        bool hadComponent = false;
 
-        if(!ParseGroup(m.Groups["y"], 178956970, out years) || !ParseGroup(m.Groups["mo"], int.MaxValue, out months) ||
-           !ParseGroup(m.Groups["d"], 10675199, out days))
+        if(!ParseGroup(m.Groups["y"], 178956970, ref hadComponent, out years) ||
+           !ParseGroup(m.Groups["mo"], int.MaxValue, ref hadComponent, out months) ||
+           !ParseGroup(m.Groups["d"], 10675199, ref hadComponent, out days))
         {
           goto failed;
         }
 
         Group g = m.Groups["h"];
         bool hadTimeComponent = g.Success;
-        if(!ParseGroup(g, 256204778, out hours)) goto failed;
+        if(!ParseGroup(g, 256204778, ref hadComponent, out hours)) goto failed;
 
         g = m.Groups["min"];
         hadTimeComponent |= g.Success;
         if(!g.Success) mins = 0;
         else if(!InvariantCultureUtility.TryParseExact(g.Value, out mins) || mins > 15372286728) goto failed;
+        else hadComponent = true;
 
         g = m.Groups["s"];
         hadTimeComponent |= g.Success;
@@ -519,6 +522,10 @@ public struct XmlDuration
         {
           goto failed;
         }
+        else
+        {
+          hadComponent = true;
+        }
 
         long longMonths = years*12 + months;
         totalMonths = (int)longMonths;
@@ -530,10 +537,9 @@ public struct XmlDuration
           goto failed; // fail if the ticks overflow
         }
 
-        // fail if no components were specified (at least one component is required)
-        if(ticks == 0 && totalMonths == 0) goto failed;
-        // fail if an empty time component was specified (as required by the standard)
-        if(!hadTimeComponent && m.Groups["time"].Success) goto failed;
+        // fail if no components were specified (at least one component is required) or if an empty time component was specified
+        // (which the standard says is illegal)
+        if(!hadComponent || !hadTimeComponent && m.Groups["time"].Success) goto failed;
 
         duration = new XmlDuration(totalMonths, ticks, m.Groups["n"].Success);
         return true;
@@ -593,10 +599,11 @@ public struct XmlDuration
     return new ArgumentOutOfRangeException("The result would be outside the range of XmlDuration.");
   }
 
-  static bool ParseGroup(Group group, int maxValue, out int value)
+  static bool ParseGroup(Group group, int maxValue, ref bool hadValue, out int value)
   {
     if(!group.Success) value = 0; // missing components are implicitly equal to zero
     else if(!InvariantCultureUtility.TryParseExact(group.Value, out value) || value > maxValue) return false;
+    else hadValue = true;
     return true;
   }
 
@@ -2625,7 +2632,7 @@ public static class XmlUtility
     if(prefixToNamespace == null) throw new ArgumentNullException();
     if(string.IsNullOrEmpty(qualifiedName)) return XmlQualifiedName.Empty;
     int start, length, colon = qualifiedName.LastIndexOf(':');
-    StringUtility.Trim(qualifiedName, out start, out length);
+    qualifiedName.Trim(out start, out length);
     string prefix = colon == -1 ? "" : qualifiedName.Substring(start, colon-start), ns = prefixToNamespace(prefix);
     string localName = colon == -1 ? qualifiedName : qualifiedName.Substring(colon+1, start+length-(colon+1));
     return new XmlQualifiedName(localName, string.IsNullOrEmpty(ns) ? prefix : ns);
@@ -2637,7 +2644,7 @@ public static class XmlUtility
     if(!string.IsNullOrEmpty(boolStr))
     {
       int start, length;
-      StringUtility.Trim(boolStr, out start, out length);
+      boolStr.Trim(out start, out length);
       char c = boolStr[start];
       if(length == 1)
       {
@@ -2695,7 +2702,7 @@ public static class XmlUtility
       if(InvariantCultureUtility.TryParse(floatStr, out value)) return true;
 
       int start, length;
-      StringUtility.Trim(floatStr, out start, out length);
+      floatStr.Trim(out start, out length);
       if(length == 3)
       {
         if(string.Compare(floatStr, start, "NaN", 0, 3, StringComparison.Ordinal) == 0)
@@ -2728,7 +2735,7 @@ public static class XmlUtility
       if(InvariantCultureUtility.TryParse(floatStr, out value)) return true;
 
       int start, length;
-      StringUtility.Trim(floatStr, out start, out length);
+      floatStr.Trim(out start, out length);
       if(length == 3)
       {
         if(string.Compare(floatStr, start, "NaN", 0, 3, StringComparison.Ordinal) == 0)

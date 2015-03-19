@@ -72,7 +72,7 @@ public static class GuidUtility
     if(str != null)
     {
       int start = 0, length = str.Length;
-      if(allowWhitespace) StringUtility.Trim(str, out start, out length);
+      if(allowWhitespace) str.Trim(out start, out length);
       if(length >= 32)
       {
         int end = start + length;
