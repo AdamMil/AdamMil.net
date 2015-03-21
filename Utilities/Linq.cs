@@ -21,7 +21,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using AdamMil.Collections;
 
 namespace AdamMil.Utilities
 {
@@ -76,6 +75,27 @@ public static class EnumerableExtensions
   public static IEnumerable<T> EmptyIfNull<T>(this IEnumerable<T> sequence)
   {
     return sequence == null ? Enumerable.Empty<T>() : sequence;
+  }
+
+  /// <summary>Recursively flattens a tree in prefix order (so that each item comes before its children).</summary>
+  /// <param name="root">The root of the tree to flatten.</param>
+  /// <param name="getChildren">A function that accepts a node in the tree (of <typeparamref name="T"/>) and produces a sequence containing
+  /// its children. A null sequence will be treated as empty.
+  /// </param>
+  public static IEnumerable<T> Flatten<T>(T root, Func<T, IEnumerable<T>> getChildren)
+  {
+    return Flatten(Enumerable.Repeat(root, 1), getChildren);
+  }
+
+  /// <summary>Recursively flattens a sequence in prefix order (so that each item comes before its children).</summary>
+  /// <param name="sequence">The sequence to flatten.</param>
+  /// <param name="getChildren">A function that accepts an item (of type <typeparamref name="T"/>) and produces a sequence containing its
+  /// children. A null sequence will be treated as empty.
+  /// </param>
+  public static IEnumerable<T> Flatten<T>(this IEnumerable<T> sequence, Func<T,IEnumerable<T>> getChildren)
+  {
+    if(sequence == null || getChildren == null) throw new ArgumentNullException();
+    return FlattenCore(sequence, getChildren);
   }
 
   /// <summary>Returns the maximum <see cref="DateTime"/> value from a sequence.</summary>
@@ -279,6 +299,13 @@ public static class EnumerableExtensions
     return items.OrderByDescending(Identity, new DelegateComparer<T>(comparison));
   }
 
+  /// <summary>Prepends a single item to a sequence.</summary>
+  public static IEnumerable<T> Prepend<T>(this IEnumerable<T> sequence, T value)
+  {
+    if(sequence == null) throw new ArgumentNullException();
+    return PrependCore(value, sequence);
+  }
+
   /// <summary>Returns a sequence of <see cref="KeyValuePair{K,V}"/> objects having the given items as the values and the indexes of
   /// those items as the keys.
   /// </summary>
@@ -464,6 +491,25 @@ public static class EnumerableExtensions
   {
     foreach(T item in sequence) yield return item;
     yield return value;
+  }
+
+  static IEnumerable<T> PrependCore<T>(T value, IEnumerable<T> sequence)
+  {
+    yield return value;
+    foreach(T item in sequence) yield return item;
+  }
+
+  static IEnumerable<T> FlattenCore<T>(IEnumerable<T> sequence, Func<T,IEnumerable<T>> getChildren)
+  {
+    foreach(T item in sequence)
+    {
+      yield return item;
+      IEnumerable<T> children = getChildren(item);
+      if(children != null)
+      {
+        foreach(T child in FlattenCore(children, getChildren)) yield return child;
+      }
+    }
   }
 
   static T Identity<T>(T value)

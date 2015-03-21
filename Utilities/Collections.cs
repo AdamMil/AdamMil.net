@@ -21,7 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 using System;
 using System.Collections.Generic;
 
-namespace AdamMil.Collections
+namespace AdamMil.Utilities
 {
 
 /// <summary>Implements useful extensions for .NET built-in collections.</summary>
@@ -222,4 +222,4 @@ public static partial class CollectionExtensions
   }
 }
 
-} // namespace AdamMil.Collections
+} // namespace AdamMil.Utilities
