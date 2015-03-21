@@ -137,6 +137,13 @@ public static class StringUtility
     return index >= substring.Length && string.Compare(str, index-substring.Length, substring, 0, substring.Length, comparisonType) == 0;
   }
 
+  /// <summary>Determines whether a string ends with a particular character.</summary>
+  public static bool EndsWith(this string str, char c)
+  {
+    if(str == null) throw new ArgumentNullException();
+    return str.Length != 0 && str[str.Length-1] == c;
+  }
+
   /// <summary>Returns true if the given string is not null but has a length of zero.</summary>
   public static bool IsEmpty(this string str)
   {
@@ -339,6 +346,13 @@ public static class StringUtility
     if(str == null || substring == null) throw new ArgumentNullException();
     if((uint)index > (uint)str.Length) throw new ArgumentOutOfRangeException();
     return str.Length - index >= substring.Length && string.Compare(str, index, substring, 0, substring.Length, comparisonType) == 0;
+  }
+
+  /// <summary>Determines whether a string ends with a particular character.</summary>
+  public static bool StartsWith(this string str, char c)
+  {
+    if(str == null) throw new ArgumentNullException();
+    return str.Length != 0 && str[0] == c;
   }
 
   /// <summary>Finds the region of the string within leading and trailing whitespace.</summary>
