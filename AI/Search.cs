@@ -161,7 +161,7 @@ public abstract class SearchBase
 public abstract class SearchBase<StateType, SolutionType> : SearchBase, ISearch<StateType, SolutionType>
 {
   /// <include file="documentation.xml" path="/AI/Search/ISearch/Search/summary"/>
-  /// <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*[@name != 'limiter']"/>
+  /// <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*[not(@name='limiter')]"/>
   public SearchResult Search(out SolutionType solution)
   {
     return Search(null, out solution);
@@ -169,7 +169,7 @@ public abstract class SearchBase<StateType, SolutionType> : SearchBase, ISearch<
 
   /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/summary"/>
   /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/param[@name='initialState']"/>
-  /// <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*[@name != 'limiter']"/>
+  /// <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*[not(@name='limiter')]"/>
   public SearchResult Search(StateType initialState, out SolutionType solution)
   {
     return Search(initialState, null, out solution);

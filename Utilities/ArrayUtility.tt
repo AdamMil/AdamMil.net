@@ -38,7 +38,7 @@ public static partial class ArrayUtility
   {
 		bool isGeneric = types[i] == "T";
     string type = types[i], typeParam = isGeneric ? "<T>" : "";#>
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+    /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
     <# if(!clsCompliant[i]) {#>
       [CLSCompliant(false)]
     <# } #>
@@ -47,7 +47,7 @@ public static partial class ArrayUtility
       FastCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+    /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
     <# if(!clsCompliant[i]) {#>
       [CLSCompliant(false)]
     <# } #>

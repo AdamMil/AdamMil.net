@@ -88,7 +88,7 @@ public class SecureTextBox : TextBox
     return GetPasswordStrength(true);
   }
 
-  /// <include file="documentation.xml" path="/UI/Helpers/GetPasswordStrength/*[@name != 'password']"/>
+  /// <include file="documentation.xml" path="/UI/Helpers/GetPasswordStrength/*[not(@name='password')]"/>
   public PasswordStrength GetPasswordStrength(bool assumeHumanInput)
   {
     return PGPUI.GetPasswordStrength(text, assumeHumanInput);

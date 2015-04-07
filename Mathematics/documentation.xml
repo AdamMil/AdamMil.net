@@ -326,11 +326,11 @@
       </Initialize>
       <Solve>
         <summary>Solves the system of linear equations using the given right-hand side values.</summary>
-        <!--include file="documentation.xml" path="/Math/LinearEquations/Solve/*[@name != 'inverse']"/-->
+        <include file="documentation.xml" path="/Math/LinearEquations/Solve/*[not(@name='inverse')]"/>
       </Solve>
       <Solve1>
         <summary>Solves the system of linear equations using the given right-hand side values.</summary>
-        <!--include file="documentation.xml" path="/Math/LinearEquations/Solve/*[@name != 'inverse' and @name != 'inPlace']"/-->
+        <include file="documentation.xml" path="/Math/LinearEquations/Solve/*[not(@name='inverse') and not(@name='inPlace')]"/>
       </Solve1>
     </ILinearEquationSolver>
 
