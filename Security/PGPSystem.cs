@@ -804,7 +804,7 @@ public abstract class PGPSystem
     SignAndEncrypt(sourceData, destination, signingOptions, null, outputOptions);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SignAndEncrypt/*[@name != 'outputOptions']"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignAndEncrypt/*[not(@name='outputOptions')]"/>
   public void SignAndEncrypt(Stream sourceData, Stream destination, SigningOptions signingOptions,
                                       EncryptionOptions encryptionOptions)
   {
@@ -1038,14 +1038,14 @@ public abstract class PGPSystem
   }
 
   /// <summary>Searches for the key with the given fingerprint, ID, or keyword in the default keyring.</summary>
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKey/param[@name != 'keyring']"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKey/param[not(@name='keyring')]"/>
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindKey/returns"/>
   public PrimaryKey FindKey(string keywordOrId, ListOptions options)
   {
     return FindKey(keywordOrId, null, options);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKey/*[@name != 'options']"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKey/*[not(@name='options')]"/>
   public PrimaryKey FindKey(string keywordOrId, Keyring keyring)
   {
     return FindKey(keywordOrId, keyring, ListOptions.Default);
@@ -1054,7 +1054,7 @@ public abstract class PGPSystem
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindKey/node()"/>
   public abstract PrimaryKey FindKey(string keywordOrId, Keyring keyring, ListOptions options);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKeys/*[@name != 'keyrings' and @name != 'includeDefaultKeyring']"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKeys/*[not(@name='keyrings') and not(@name='includeDefaultKeyring')]"/>
   /// <param name="keyring">The keyring to search, or null to search the default keyring.</param>
   public PrimaryKey[] FindKeys(string[] fingerprintsOrIds, Keyring keyring, ListOptions options)
   {

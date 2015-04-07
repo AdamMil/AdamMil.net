@@ -2535,6 +2535,20 @@ public static class XmlWriterExtensions
     writer.WriteEndElement();
   }
 
+  /// <summary>Writes the specified qualified name, using an appropriate prefix for its namespace.</summary>
+  public static void WriteQualifiedName(this XmlWriter writer, XmlQualifiedName qname)
+  {
+    if(writer == null || qname == null) throw new ArgumentNullException();
+    writer.WriteQualifiedName(qname.Name, qname.Namespace);
+  }
+
+  /// <summary>Writes the start of an attribute with the specified qualified name.</summary>
+  public static void WriteStartAttribute(this XmlWriter writer, XmlQualifiedName qname)
+  {
+    if(writer == null || qname == null) throw new ArgumentNullException();
+    writer.WriteStartAttribute(qname.Name, qname.Namespace);
+  }
+
   /// <summary>Writes a start tag with the specified qualified name.</summary>
   public static void WriteStartElement(this XmlWriter writer, XmlQualifiedName qname)
   {

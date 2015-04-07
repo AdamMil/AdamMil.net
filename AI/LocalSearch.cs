@@ -577,7 +577,7 @@ public class HillClimbingSearch<StateType>
   /// <summary>Initializes a new <see cref="HillClimbingSearch{S}"/> with up to 50 sideways moves, and no limit to the
   /// number of random restarts allowed.
   /// </summary>
-  /// <include file="documentation.xml" path="/AI/Search/HillClimbingSearch/*[@name != 'maxSidewaysMoves']"/>
+  /// <include file="documentation.xml" path="/AI/Search/HillClimbingSearch/*[not(@name='maxSidewaysMoves')]"/>
   public HillClimbingSearch(IClimbingSearchable<StateType> problem) : this(problem, 50, Infinite) { }
 
   /// <summary>Initializes a new <see cref="HillClimbingSearch{S}"/> with the given maximum number of sideways moves,
@@ -882,7 +882,7 @@ public class SimulatedAnnealingSearch<StateType>
   /// <summary>Initializes a new simulated annealing search with the given schedule, with tunneling disabled and
   /// quenching enabled.
   /// </summary>
-  /// <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/ConstructorD/*[@name != 'tunneler']"/>
+  /// <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/ConstructorD/*[not(@name='tunneler')]"/>
   public SimulatedAnnealingSearch(ILocallySearchable<StateType> problem, SimulatedAnnealingSearch.Schedule schedule)
     : this(problem, schedule, null, true) { }
 

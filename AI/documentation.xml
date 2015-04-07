@@ -281,7 +281,7 @@
     <LocalSearchBase>
       <Search>
         <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/summary"/>
-        <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*[@name != 'solution']"/>
+        <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*[not(@name='solution')]"/>
         <param name="initialSolution">
           The initial state used in the solution, and the value that will be updated with
           the final solution after the search completes.
@@ -295,7 +295,7 @@
           The maximum time the search is allowed to run, in milliseconds. If equal to
           <see cref="SearchBase.Infinite"/>, there is no time limit.
         </param>
-        <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*[@name != 'limiter']"/>
+        <include file="documentation.xml" path="/AI/Search/ISearch/SearchCommon/*[not(@name='limiter')]"/>
       </Search_Timeout>
 
       <Search_State_Limit>
@@ -336,13 +336,13 @@
           The maximum number of iterations to run the search. The search will finish early if a
           satisfactory state is found before the maximum number of iterations have been completed.
         </param>
-        <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/Constructor/*[@name != 'quench']"/>
+        <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/Constructor/*[not(@name='quench')]"/>
       </ConstructorI>
 
       <ConstructorD>
         <param name="schedule">The initial value of <see cref="Schedule"/>.</param>
         <param name="tunneler">The initial value of <see cref="Tunneler"/>.</param>
-        <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/Constructor/*[@name != 'quench']"/>
+        <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/Constructor/*[not(@name='quench')]"/>
       </ConstructorD>
 
       <Tunneling>

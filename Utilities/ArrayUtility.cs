@@ -28,12 +28,12 @@ namespace AdamMil.Utilities
 /// <summary>Provides utilities for array data types.</summary>
 public static partial class ArrayUtility
 {
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+    /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static void FastCopy(this byte[] source, byte[] dest, int length)    {
       FastCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+    /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static unsafe void FastCopy(this byte[] source, int sourceIndex, byte[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
 			if(length <= 10)
@@ -50,12 +50,12 @@ public static partial class ArrayUtility
 				}
 							}
     }
-      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+      /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static void FastCopy(this char[] source, char[] dest, int length)    {
       FastCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+    /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static unsafe void FastCopy(this char[] source, int sourceIndex, char[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
 			if(length <= 15)
@@ -72,12 +72,12 @@ public static partial class ArrayUtility
 				}
 							}
     }
-      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+      /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static void FastCopy(this double[] source, double[] dest, int length)    {
       FastCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+    /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static unsafe void FastCopy(this double[] source, int sourceIndex, double[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
 			if(length <= 20)
@@ -94,12 +94,12 @@ public static partial class ArrayUtility
 				}
 							}
     }
-      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+      /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static void FastCopy(this float[] source, float[] dest, int length)    {
       FastCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+    /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static unsafe void FastCopy(this float[] source, int sourceIndex, float[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
 			if(length <= 20)
@@ -116,12 +116,12 @@ public static partial class ArrayUtility
 				}
 							}
     }
-      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+      /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static void FastCopy(this int[] source, int[] dest, int length)    {
       FastCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+    /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static unsafe void FastCopy(this int[] source, int sourceIndex, int[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
 			if(length <= 15)
@@ -138,12 +138,12 @@ public static partial class ArrayUtility
 				}
 							}
     }
-      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+      /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static void FastCopy(this long[] source, long[] dest, int length)    {
       FastCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+    /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static unsafe void FastCopy(this long[] source, int sourceIndex, long[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
 			if(length <= 20)
@@ -160,13 +160,13 @@ public static partial class ArrayUtility
 				}
 							}
     }
-      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+      /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
           [CLSCompliant(false)]
         public static void FastCopy(this sbyte[] source, sbyte[] dest, int length)    {
       FastCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+    /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
           [CLSCompliant(false)]
         public static unsafe void FastCopy(this sbyte[] source, int sourceIndex, sbyte[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
@@ -184,12 +184,12 @@ public static partial class ArrayUtility
 				}
 							}
     }
-      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+      /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static void FastCopy(this short[] source, short[] dest, int length)    {
       FastCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+    /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static unsafe void FastCopy(this short[] source, int sourceIndex, short[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
 			if(length <= 14)
@@ -206,13 +206,13 @@ public static partial class ArrayUtility
 				}
 							}
     }
-      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+      /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
           [CLSCompliant(false)]
         public static void FastCopy(this uint[] source, uint[] dest, int length)    {
       FastCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+    /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
           [CLSCompliant(false)]
         public static unsafe void FastCopy(this uint[] source, int sourceIndex, uint[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
@@ -230,13 +230,13 @@ public static partial class ArrayUtility
 				}
 							}
     }
-      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+      /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
           [CLSCompliant(false)]
         public static void FastCopy(this ulong[] source, ulong[] dest, int length)    {
       FastCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+    /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
           [CLSCompliant(false)]
         public static unsafe void FastCopy(this ulong[] source, int sourceIndex, ulong[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
@@ -254,13 +254,13 @@ public static partial class ArrayUtility
 				}
 							}
     }
-      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+      /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
           [CLSCompliant(false)]
         public static void FastCopy(this ushort[] source, ushort[] dest, int length)    {
       FastCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+    /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
           [CLSCompliant(false)]
         public static unsafe void FastCopy(this ushort[] source, int sourceIndex, ushort[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
@@ -278,12 +278,12 @@ public static partial class ArrayUtility
 				}
 							}
     }
-      /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+      /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static void FastCopy<T>(this T[] source, T[] dest, int length) where T : class    {
       FastCopy(source, 0, dest, 0, length);
     }
 
-    /// <include file="documentation.xml" path="//Utilities/ArrayUtility/FastCopy/*"/>
+    /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static unsafe void FastCopy<T>(this T[] source, int sourceIndex, T[] dest, int destIndex, int length) where T : class    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
 			if(length <= 30)

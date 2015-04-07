@@ -150,7 +150,7 @@ public sealed class PriorityQueue<T> : ICloneable, IQueue<T>, IReadOnlyCollectio
   /// <summary>Shrinks the capacity to the actual number of elements in the priority queue.</summary>
   public void TrimExcess() { Capacity = count; }
 
-  /// <include file="documentation.xml" path="//Queue/TryDequeue/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Queue/TryDequeue/node()"/>
   public bool TryDequeue(out T item)
   {
     if(Count == 0)

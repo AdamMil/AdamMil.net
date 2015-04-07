@@ -70,14 +70,14 @@ namespace AdamMil.Collections
 /// </remarks>
 public class BloomFilter<T>
 {
-  /// <include file="documentation.xml" path="/Collections/BloomFilter/TuningConstructor/*[@name != 'hashProvider' and @name != 'maxHashCount']"/>
+  /// <include file="documentation.xml" path="/Collections/BloomFilter/TuningConstructor/*[not(@name='hashProvider') and not(@name='maxHashCount')]"/>
   public BloomFilter(int itemCount, float falsePositiveRate) : this(itemCount, falsePositiveRate, null, 0) { }
 
-  /// <include file="documentation.xml" path="/Collections/BloomFilter/TuningConstructor/*[@name != 'maxHashCount']"/>
+  /// <include file="documentation.xml" path="/Collections/BloomFilter/TuningConstructor/*[not(@name='maxHashCount')]"/>
   public BloomFilter(int itemCount, float falsePositiveRate, IMultiHashProvider<T> hashProvider)
     : this(itemCount, falsePositiveRate, hashProvider, 0) { }
 
-  /// <include file="documentation.xml" path="/Collections/BloomFilter/TuningConstructor/*[@name != 'hashProvider']"/>
+  /// <include file="documentation.xml" path="/Collections/BloomFilter/TuningConstructor/*[not(@name='hashProvider')]"/>
   public BloomFilter(int itemCount, float falsePositiveRate, int maxHashCount)
     : this(itemCount, falsePositiveRate, null, maxHashCount) { }
 
@@ -120,7 +120,7 @@ public class BloomFilter<T>
     this.hashCount    = (int)hashCount;
   }
 
-  /// <include file="documentation.xml" path="/Collections/BloomFilter/DirectConstructor/*[@name != 'hashProvider']"/>
+  /// <include file="documentation.xml" path="/Collections/BloomFilter/DirectConstructor/*[not(@name='hashProvider')]"/>
   public BloomFilter(int bitCount, int maxHashCount) : this(bitCount, maxHashCount, null) { }
 
   /// <include file="documentation.xml" path="/Collections/BloomFilter/DirectConstructor/node()"/>

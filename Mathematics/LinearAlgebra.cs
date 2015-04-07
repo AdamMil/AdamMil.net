@@ -114,14 +114,14 @@ namespace AdamMil.Mathematics.LinearAlgebra
     }
 
     /// <summary>Solves a system of linear equations.</summary>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/Solve/*[@name != 'inverse' and @name != 'tryInPlace']"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/Solve/*[not(@name='inverse') and not(@name='tryInPlace')]"/>
     public static Matrix Solve(Matrix coefficients, Matrix values)
     {
       return Solve(coefficients, values, false);
     }
 
     /// <summary>Solves a system of linear equations.</summary>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/Solve/*[@name != 'inverse']"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/Solve/*[not(@name='inverse')]"/>
     public static Matrix Solve(Matrix coefficients, Matrix values, bool tryInPlace)
     {
       Matrix inverse;
@@ -129,7 +129,7 @@ namespace AdamMil.Mathematics.LinearAlgebra
     }
 
     /// <summary>Solves a system of linear equations and returns the inverse matrix.</summary>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/Solve/*[@name != 'tryInPlace']"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/Solve/*[not(@name='tryInPlace')]"/>
     public static Matrix Solve(Matrix coefficients, Matrix values, out Matrix inverse)
     {
       return Solve(coefficients, values, out inverse, true, false);
@@ -1339,7 +1339,7 @@ namespace AdamMil.Mathematics.LinearAlgebra
     }
 
     /// <summary>Solves a system of linear equations using the <see cref="DefaultThreshold"/>.</summary>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Solve/*[not(self::summary) and @name != 'tryInPlace']"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Solve/*[not(self::summary) and not(@name='tryInPlace')]"/>
     /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/SolveRemarks/node()"/>
     public Matrix Solve(Matrix values)
     {
@@ -1347,7 +1347,7 @@ namespace AdamMil.Mathematics.LinearAlgebra
     }
 
     /// <summary>Solves a system of linear equations using the given threshold.</summary>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Solve/*[not(self::summary) and @name != 'tryInPlace']"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Solve/*[not(self::summary) and not(@name='tryInPlace')]"/>
     /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/SolveRemarks/node()"/>
     /// <seealso cref="DefaultThreshold"/>
     public Matrix Solve(Matrix values, double threshold)

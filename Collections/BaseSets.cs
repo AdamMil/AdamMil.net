@@ -81,7 +81,7 @@ public abstract class SetBase<T> : ICollection<T>
     Items.CopyTo(array, arrayIndex);
   }
 
-  /// <include file="documentation.xml" path="//Common/GetEnumerator/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Common/GetEnumerator/node()"/>
   public HashSet<T>.Enumerator GetEnumerator()
   {
     return Items.GetEnumerator();

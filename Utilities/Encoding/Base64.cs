@@ -9,13 +9,13 @@ namespace AdamMil.Utilities.Encodings
 /// </summary>
 public sealed class Base64Decoder : BinaryEncoder
 {
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/CanEncodeInPlace/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/BinaryEncoder/CanEncodeInPlace/node()"/>
   public override bool CanEncodeInPlace
   {
     get { return true; }
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/EncodePtr/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/BinaryEncoder/EncodePtr/node()"/>
   [CLSCompliant(false)]
   public unsafe override int Encode(byte* source, int sourceCount, byte* destination, int destinationCapacity, bool flush)
   {
@@ -64,7 +64,7 @@ public sealed class Base64Decoder : BinaryEncoder
     return (int)(destination - originalBytePtr);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Encode/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/BinaryEncoder/Encode/node()"/>
   public unsafe override int Encode(byte[] source, int sourceIndex, int sourceCount, byte[] destination, int destinationIndex,
                                     bool flush)
   {
@@ -78,7 +78,7 @@ public sealed class Base64Decoder : BinaryEncoder
     }
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCountPtr/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/BinaryEncoder/GetByteCountPtr/node()"/>
   [CLSCompliant(false)]
   public unsafe override int GetByteCount(byte* data, int count, bool simulateFlush)
   {
@@ -94,21 +94,21 @@ public sealed class Base64Decoder : BinaryEncoder
     return byteCount;
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCount/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/BinaryEncoder/GetByteCount/node()"/>
   public unsafe override int GetByteCount(byte[] data, int index, int count, bool simulateFlush)
   {
     Utility.ValidateRange(data, index, count);
     fixed(byte* bytePtr=data) return GetByteCount(bytePtr+index, count, simulateFlush);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetMaxBytes/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/BinaryEncoder/GetMaxBytes/node()"/>
   public override int GetMaxBytes(int unencodedByteCount)
   {
     int wholeChunks = unencodedByteCount/4, leftOver = unencodedByteCount&3;
     return wholeChunks*3 + (leftOver == 3 ? 2 : leftOver == 2 ? 1 : 0) + bufferChars;
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Reset/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/BinaryEncoder/Reset/node()"/>
   public override void Reset()
   {
     bufferChars = 0;
@@ -157,7 +157,7 @@ public sealed class Base64Encoder : BinaryEncoder
     this.wrapLinesAt = charactersPerLine;
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/EncodePtr/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/BinaryEncoder/EncodePtr/node()"/>
   [CLSCompliant(false)]
   public unsafe override int Encode(byte* source, int sourceCount, byte* destination, int destinationCapacity, bool flush)
   {
@@ -222,7 +222,7 @@ public sealed class Base64Encoder : BinaryEncoder
     return (int)(destination - originalDestPtr);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Encode/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/BinaryEncoder/Encode/node()"/>
   public unsafe override int Encode(byte[] source, int sourceIndex, int sourceCount, byte[] destination, int destinationIndex,
                                     bool flush)
   {
@@ -235,27 +235,27 @@ public sealed class Base64Encoder : BinaryEncoder
     }
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCountPtr/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/BinaryEncoder/GetByteCountPtr/node()"/>
   [CLSCompliant(false)]
   public unsafe override int GetByteCount(byte* data, int count, bool simulateFlush)
   {
     return GetByteCount(count, simulateFlush);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetByteCount/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/BinaryEncoder/GetByteCount/node()"/>
   public unsafe override int GetByteCount(byte[] data, int index, int count, bool simulateFlush)
   {
     Utility.ValidateRange(data, index, count);
     return GetByteCount(count, simulateFlush);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/GetMaxBytes/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/BinaryEncoder/GetMaxBytes/node()"/>
   public override int GetMaxBytes(int unencodedByteCount)
   {
     return GetByteCount(unencodedByteCount, true);
   }
 
-  /// <include file="documentation.xml" path="//Utilities/BinaryEncoder/Reset/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/BinaryEncoder/Reset/node()"/>
   public override void Reset()
   {
     byteBuffer.Clear();
