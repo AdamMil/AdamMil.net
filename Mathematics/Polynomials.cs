@@ -431,7 +431,8 @@ namespace AdamMil.Mathematics
       for(int i=0; i<coefficients.Length; i++)
       {
         double d = coefficients[i];
-        if(d != 0) hash ^= *(int*)&d ^ ((int*)&d)[1] ^ i; // +0 and -0 compare equally, so they mustn't lead to different hash codes
+        // +0 and -0 compare equally, so they mustn't lead to different hash codes
+        if(d != 0) hash ^= *(int*)&d ^ *((int*)&d+1) ^ (1<<(i&31));
       }
       return hash;
     }

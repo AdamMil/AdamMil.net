@@ -128,8 +128,8 @@ namespace AdamMil.Mathematics
       {
         for(int i=0; i<Length; i++)
         {
-          double d = dp[i];
-          if(d != 0) hash ^= *(int*)&d ^ ((int*)&d)[1] ^ i; // +0 and -0 compare equally, so they mustn't lead to different hash codes
+          // +0 and -0 compare equally, so they mustn't lead to different hash codes
+          if(dp[i] != 0) hash ^= *(int*)&dp[i] ^ *((int*)&dp[i]+1) ^ (1<<i);
         }
       }
       return hash;
@@ -521,8 +521,8 @@ namespace AdamMil.Mathematics
       {
         for(int i=0; i<Length; i++)
         {
-          double d = dp[i];
-          if(d != 0) hash ^= *(int*)&d ^ ((int*)&d)[1] ^ i; // +0 and -0 compare equally, so they mustn't lead to different hash codes
+          // +0 and -0 compare equally, so they mustn't lead to different hash codes
+          if(dp[i] != 0) hash ^= *(int*)&dp[i] ^ *((int*)&dp[i]+1) ^ (1<<i);
         }
       }
       return hash;
@@ -1027,12 +1027,12 @@ namespace AdamMil.Mathematics
     public unsafe override int GetHashCode()
     {
       int hash = 0;
-      fixed(double* pdata=data)
+      fixed(double* dp=data)
       {
         for(int i=0,length=Width*Height; i<length; i++)
         {
-          double d = pdata[i];
-          if(d != 0) hash ^= *(int*)&d ^ ((int*)&d)[1] ^ i; // +0 and -0 compare equally, so they mustn't lead to different hash codes
+          // +0 and -0 compare equally, so they mustn't lead to different hash codes
+          if(dp[i] != 0) hash ^= *(int*)&dp[i] ^ *((int*)&dp[i]+1) ^ (1<<(i&31));
         }
       }
       return hash;

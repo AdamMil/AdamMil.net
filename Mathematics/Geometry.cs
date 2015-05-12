@@ -943,7 +943,7 @@ public struct Vector2
   /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
   public unsafe override int GetHashCode()
   {
-    fixed(double* dp=&X) { int* p=(int*)dp; return *p ^ *(p+1) ^ *(p+2) ^ *(p+3); }
+    return X.GetHashCode() ^ Y.GetHashCode();
   }
   /// <summary>Converts this <see cref="Vector2"/> into an equivalent <see cref="Point2"/>.</summary>
   /// <returns>Returns a <see cref="Point2"/> with X and Y coordinates equal to the X and Y magnitudes of this
@@ -1048,7 +1048,7 @@ public struct Point2
   /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
   public unsafe override int GetHashCode()
   {
-    fixed(double* dp=&X) { int* p=(int*)dp; return *p ^ *(p+1) ^ *(p+2) ^ *(p+3); }
+    return X.GetHashCode() ^ Y.GetHashCode();
   }
   /// <summary>Converts this <see cref="Point2"/> into a human-readable string.</summary>
   /// <returns>A human-readable string representation of this <see cref="Point2"/>.</returns>
@@ -2587,7 +2587,7 @@ public struct Vector3
   /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
   public unsafe override int GetHashCode()
   {
-    fixed(double* dp=&X) { int* p=(int*)dp; return *p ^ *(p+1) ^ *(p+2) ^ *(p+3) ^ *(p+4) ^ *(p+5); }
+    return X.GetHashCode() ^ Y.GetHashCode() ^ Z.GetHashCode();
   }
   /// <summary>Converts this <see cref="Vector3"/> into an equivalent <see cref="Point3"/>.</summary>
   /// <returns>Returns a <see cref="Point3"/> with X, Y, and Z coordinates corresponding to the X, Y, and Z magnitudes
@@ -2665,7 +2665,7 @@ public struct Point3
   /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
   public unsafe override int GetHashCode()
   {
-    fixed(double* dp=&X) { int* p=(int*)dp; return *p ^ *(p+1) ^ *(p+2) ^ *(p+3) ^ *(p+4) ^ *(p+5); }
+    return X.GetHashCode() ^ Y.GetHashCode() ^ Z.GetHashCode();
   }
   /// <summary>Converts this <see cref="Point3"/> into a human-readable string.</summary>
   /// <returns>A human-readable string representation of this <see cref="Point3"/>.</returns>
@@ -2924,7 +2924,7 @@ public struct Quaternion
   /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
   public unsafe override int GetHashCode()
   {
-    fixed(double* dp=&W) { int* p=(int*)dp; return *p ^ *(p+1) ^ V.GetHashCode(); }
+    return V.GetHashCode() ^ W.GetHashCode();
   }
 
   /// <summary>Normalizes the <see cref="Quaternion"/> to a length of one.</summary>
