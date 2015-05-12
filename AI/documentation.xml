@@ -158,9 +158,7 @@
     <HillClimbingSearch>
       <Constructor>
         <param name="problem">The problem to be solved by hill-climbing search.</param>
-        <param name="maxSidewaysMoves">
-          The initial value of <see cref="MaxSidewaysMoves"/>.
-        </param>
+        <param name="maxSidewaysMoves">The initial value of <see cref="MaxSidewaysMoves"/>.</param>
       </Constructor>
     </HillClimbingSearch>
 

@@ -63,9 +63,9 @@ public class BloomFilterTest
 
         // if we want the unit test to fail only once per five runs on average if it's functioning normally, then the overall
         // probability of success should be 0.8. since we're doing 6+10+13*3 = 55 size/rate combinations, this means the chance
-        // of an individual combination succeeding should be 1-(1-0.8)/55 = .9964. this corresponds to about 2.69 standard
-        // deviations
-        const double allowedDeviation = 2.69;
+        // of an individual combination succeeding should be the 55th root of 0.8, or 0.996. this corresponds to about 2.66 standard
+        // deviations.
+        const double allowedDeviation = 2.66;
         System.Diagnostics.Debugger.Log(0, "",
           string.Format("{0} items: desired={1:f5}, actual={2} {3:f2}x ({4:f2} / {5:f2}[{6:f2}+{7:f2}] collisions)\n",
                         itemCount, desiredRate, actualRate, actualRate/desiredRate, collisions, expected+stddev*allowedDeviation,

@@ -28,12 +28,12 @@ using System;
 namespace AdamMil.Collections
 {
 
-/// <summary>Implements a Bloom filter, which is a space-efficient probabilistic set that supports three operations. You can add
+/// <summary>Implements a Bloom filter, which is a space-efficient probabilistic set that supports four operations. You can add
 /// an item to the set using <see cref="Add"/> and you can query whether an item might have been added to the set using
 /// <see cref="PossiblyContains"/>. False positives are possible, so that <see cref="PossiblyContains"/> may return true for an
 /// item that was never added, but false negatives are not possible, so if <see cref="PossiblyContains"/> returns false, then the
 /// item definitely was not added. It is not possible to remove individual items from the set or to count or enumerate the items
-/// within the set, but you can clear the set using <see cref="Clear"/>.
+/// within the set, but you can clear the set using <see cref="Clear"/> and union two sets using <see cref="UnionWith"/>.
 /// </summary>
 /// <remarks>
 /// Bloom filters are most efficient when the set of keys that will be added is very sparse with respect to the set of possible
@@ -54,18 +54,19 @@ namespace AdamMil.Collections
 /// </para>
 /// <para>Bloom filters have a size that is fixed when they are created. As more items are added to the set, the false positive
 /// rate increases. It is possible to tune the size of the Bloom filter to achieve an expected false positive rate for a given
-/// number of items. The <see cref="BloomFilter{T}(int,float)"/> constructor can assist with this.
+/// number of items. The <see cref="BloomFilter{T}(int,float)"/> constructor and its overrides can assist with this.
 /// </para>
 /// <para>
 /// The Bloom filter requires an <see cref="IMultiHashProvider{T}"/> to operate. By default it uses
 /// <see cref="MultiHashProvider{T}"/>, which works well for all integer types, <see cref="string"/>, <see cref="Decimal"/>,
 /// <see cref="Single"/>, <see cref="Double"/>, <see cref="Char"/>, <see cref="DateTime"/>, and <see cref="Guid"/> as well as
-/// nullable versions of those. For other types, it uses a generic hash algorithm that is only suitable up to a certain number of
-/// items that depends on the false positive rate. The generic algorithm hashes the hash code returned from
-/// <see cref="object.GetHashCode"/>, which is a poor idea but which works for relatively small filters.) For 0.025% false positives, it is
-/// usually suitable up to about 1 million items, assuming a high-quality <see cref="object.GetHashCode"/> implementation.
-/// At 0.25% false positives, it may be suitable up to about 10 million items. Beyond that, you will need to create your own hash provider,
-/// but it is a good idea to create one in any case to avoid the generic implementation.
+/// nullable versions of those. Any type that correctly implements <see cref="IMultiHashable"/> should also work well.
+/// For other types, it uses a generic hash algorithm that is only suitable up to a certain number of items that depends on the false
+/// positive rate. The generic algorithm hashes the hash code returned from <see cref="object.GetHashCode"/>, which is a poor idea but
+/// which works for small-to-medium filters.) For 0.025% false positives, it is usually suitable up to about 1 million items, assuming a
+/// high-quality <see cref="object.GetHashCode"/> implementation. At 0.25% false positives, it may be suitable up to about 10 million
+/// items. Beyond that, you will need to create your own hash provider, but it is a good idea to create one in any case to avoid the
+/// generic implementation.
 /// </para>
 /// </remarks>
 public class BloomFilter<T>
@@ -167,6 +168,20 @@ public class BloomFilter<T>
       if((bits[hash >> 5] & (1u << (int)(hash & 31))) == 0) return false;
     }
     return true; // all of the bits were set, so the item might have been added (or this may be a false positive)
+  }
+
+  /// <summary>Merges all of the items from another Bloom filter into this one, assuming the filters have the same configuration.</summary>
+  /// <param name="filter">A Bloom filter whose items will be added to this filter. The filters must have the same size, number of hash
+  /// functions, and hash provider.
+  /// </param>
+  /// <remarks>A typical use of this method is to create one Bloom filter per CPU core, fill them in parallel, and union the filters
+  /// together at the end to obtain the combined filter.
+  /// </remarks>
+  public void UnionWith(BloomFilter<T> filter)
+  {
+    if(filter == null) throw new ArgumentNullException();
+    if(bits.Length != filter.bits.Length || hashCount != filter.hashCount) throw new ArgumentException("The filters are not compatible.");
+    for(int i=0; i<bits.Length; i++) bits[i] |= filter.bits[i];
   }
 
   readonly uint[] bits;

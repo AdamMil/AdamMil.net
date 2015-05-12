@@ -577,18 +577,18 @@ public class HillClimbingSearch<StateType>
   /// <summary>Initializes a new <see cref="HillClimbingSearch{S}"/> with up to 50 sideways moves, and no limit to the
   /// number of random restarts allowed.
   /// </summary>
-  /// <include file="documentation.xml" path="/AI/Search/HillClimbingSearch/*[not(@name='maxSidewaysMoves')]"/>
+  /// <include file="documentation.xml" path="/AI/Search/HillClimbingSearch/Constructor/*[not(@name='maxSidewaysMoves')]"/>
   public HillClimbingSearch(IClimbingSearchable<StateType> problem) : this(problem, 50, Infinite) { }
 
   /// <summary>Initializes a new <see cref="HillClimbingSearch{S}"/> with the given maximum number of sideways moves,
   /// and no limit to the number of random restarts allowed.
   /// </summary>
-  /// <include file="documentation.xml" path="/AI/Search/HillClimbingSearch/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/HillClimbingSearch/Constructor/node()"/>
   public HillClimbingSearch(IClimbingSearchable<StateType> problem, int maxSidewaysMoves)
     : this(problem, maxSidewaysMoves, Infinite) { }
 
   /// <summary>Initializes a new <see cref="HillClimbingSearch{S}"/>.</summary>
-  /// <include file="documentation.xml" path="/AI/Search/HillClimbingSearch/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/HillClimbingSearch/Constructor/node()"/>
   /// <param name="maxRestarts">The initial value of <see cref="MaxRestarts"/>.</param>
   public HillClimbingSearch(IClimbingSearchable<StateType> problem, int maxSidewaysMoves, int maxRestarts) : base(problem)
   {

@@ -29,6 +29,23 @@ namespace AdamMil.Collections
 
 // TODO: it would be good to implement hash providers optimized for 64-bit platforms
 
+#region IMultiHashable
+/// <summary>An interface that allows a type to be hashed in multiple ways.</summary>
+/// <remarks>This interface is used by data structures that need to hash items using multiple hash functions. For instance, a
+/// data structure may desire to obtain two hashes for each item and combine the hashes somehow.
+/// </remarks>
+public interface IMultiHashable
+{
+  /// <summary>Gets a hash code for this value.</summary>
+  /// <param name="hashFunction">The number of the hash function to use. Each hash function should hash the object in a different way.
+  /// (Different hash functions may produce the same value sometimes, but that should be a rare coincidence.) This value may be any
+  /// number from 0 to <see cref="int.MaxValue"/>.
+  /// </param>
+  /// <returns>A hash code. Negative hash codes are supported.</returns>
+  int GetHashCode(int hashFunction);
+}
+#endregion
+
 #region IMultiHashProvider
 /// <summary>An interface for hashing an item in multiple ways.</summary>
 /// <remarks>This interface is used by data structures that need to hash items using multiple hash functions. For instance, a
@@ -184,17 +201,20 @@ public abstract class MultiHashProvider<T> : IMultiHashProvider<T>
             {
               provider = new GuidHashProvider();
             }
+            else if(typeof(IMultiHashable).IsAssignableFrom(typeof(T))) // if T implements IMultiHashable...
+            {
+              provider = Activator.CreateInstance(typeof(MultiHashableHashProvider<>).MakeGenericType(typeof(T)));
+            }
             else if(typeof(T).IsGenericType && !typeof(T).ContainsGenericParameters && // if T is some kind of Nullable<U>...
                     typeof(T).GetGenericTypeDefinition() == typeof(Nullable<>))
             {
-              Type hashType = typeof(NullableHashProvider<>).MakeGenericType(typeof(T).GetGenericArguments()[0]);
-              provider = Activator.CreateInstance(hashType);
+              provider = Activator.CreateInstance(typeof(NullableHashProvider<>).MakeGenericType(typeof(T).GetGenericArguments()[0]));
               break;
             }
             goto default;
           default:
           {
-            // this branch also works for integers <= 32 bits since their hashes can't collide without them being equal
+            // this branch also works for primitive value types <= 32 bits since their hashes can't collide without them being equal
             Type hashType = typeof(T).IsValueType ? typeof(GenericValueTypeHashProvider<>)
                                                   : typeof(GenericReferenceTypeHashProvider<>);
             provider = Activator.CreateInstance(hashType.MakeGenericType(typeof(T)));
@@ -272,7 +292,7 @@ sealed class DoubleHashProvider : MultiHashProvider<double>
     // we want +0 and -0 (IEEE floating point supports both) to hash to the same value, so we'll compare for equality with zero.
     // this also prevents the result from always being zero when the item has all bits zero
     return hashFunction == 0 ? item.GetHashCode() :
-           item == 0.0       ? (int)HashHelper.Hash4(hashFunction, 0) : (int)HashHelper.Hash8(hashFunction, &item);
+           item == 0.0       ? HashHelper.Hash4(hashFunction, 0) : HashHelper.Hash8(hashFunction, &item);
   }
 }
 #endregion
@@ -328,6 +348,21 @@ sealed class Int64HashProvider : MultiHashProvider<long>
 }
 #endregion
 
+#region MultiHashableHashProvider
+sealed class MultiHashableHashProvider<T> : IMultiHashProvider<T> where T : IMultiHashable
+{
+  public int HashCount
+  {
+    get { return int.MaxValue; }
+  }
+
+  public int GetHashCode(int hashFunction, T item)
+  {
+    return item != null ? item.GetHashCode(hashFunction) : hashFunction == 0 ? 0 : HashHelper.Hash4(hashFunction, 0);
+  }
+}
+#endregion
+
 #region NullableHashProvider
 sealed class NullableHashProvider<T> : MultiHashProvider<Nullable<T>> where T : struct
 {
@@ -337,8 +372,9 @@ sealed class NullableHashProvider<T> : MultiHashProvider<Nullable<T>> where T : 
     // or a hash of that, where 0xe7a03d9a is a randomly-chosen negative int)
     // TODO: why negative?
     return item.HasValue ?
-      hashFunction == 0 ? item.Value.GetHashCode() : MultiHashProvider<T>.Default.GetHashCode(hashFunction, item.Value) :
-      (int)(hashFunction == 0 ? unchecked((int)0xe7a03d9a) : HashHelper.Hash4(hashFunction, 0xe7a03d9a));
+      hashFunction == 0 ? item.GetValueOrDefault().GetHashCode() :
+                          MultiHashProvider<T>.Default.GetHashCode(hashFunction, item.GetValueOrDefault()) :
+      hashFunction == 0 ? unchecked((int)0xe7a03d9a) : HashHelper.Hash4(hashFunction, 0xe7a03d9a);
   }
 }
 #endregion
@@ -433,12 +469,20 @@ public sealed class ArrayHashProvider : MultiHashProvider<Array>
       hash = 0;
       string[] strings = array as string[];
       if(strings != null) // we have to special-case the non-blittable types that have custom MultiHashProvider implementations, because
-      {                   // the generic code below will only use the generic MultiHashProvider. (currently this is only string[])
+      {                   // the generic code below will only use the generic MultiHashProvider. this is string[] and IMultiHashable[]
         for(int i=0; i<strings.Length; i++) hash ^= MultiHashProvider<string>.Default.GetHashCode(hashFunction, strings[i]);
       }
       else
       {
-        for(int i=0; i<array.Length; i++) hash ^= MultiHashProvider<object>.Default.GetHashCode(hashFunction, array.GetValue(i));
+        IMultiHashable[] hashables = array as IMultiHashable[];
+        if(hashables != null)
+        {
+          for(int i=0; i<hashables.Length; i++) hash ^= hashables[i].GetHashCode(hashFunction);
+        }
+        else
+        {
+          for(int i=0; i<array.Length; i++) hash ^= MultiHashProvider<object>.Default.GetHashCode(hashFunction, array.GetValue(i));
+        }
       }
     }
     return hash;

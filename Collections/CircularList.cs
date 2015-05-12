@@ -461,6 +461,13 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
     OnModified();
   }
 
+  /// <summary>Adds an item to the end of the list. This is equivalent to calling <see cref="Add"/>.</summary>
+  /// <param name="item">The item to add.</param>
+  public void Append(T item)
+  {
+    Add(item);
+  }
+
   /// <summary>Removes all items from the list.</summary>
   public void Clear()
   {
@@ -517,6 +524,17 @@ public class CircularList<T> : IList<T>, IQueue<T>, IReadOnlyList<T>
 
       Array.Copy(this.array, sourceIndex, array, destIndex, count);
     }
+  }
+
+  /// <summary>Adds an item to the beginning of the list.</summary>
+  /// <param name="item">The item to add.</param>
+  public void Prepend(T item)
+  {
+    EnsureCapacity(count+1);
+    count++; // don't combine this with the above, because if EnsureCapacity() fails, we don't want 'count' to change
+    if(--tail < 0) tail += array.Length;
+    array[tail] = item;
+    OnModified();
   }
 
   /// <summary>Removes an item from the list.</summary>
