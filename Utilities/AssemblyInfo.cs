@@ -3,7 +3,7 @@ AdamMil.Utilities is a library providing generally useful utilities for
 .NET development.
 
 http://www.adammil.net/
-Copyright (C) 2010-2013 Adam Milazzo
+Copyright (C) 2010-2016 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -29,7 +29,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("Release")]
 #endif
 [assembly: AssemblyProduct("AdamMil.net")]
-[assembly: AssemblyCopyright("Copyright © Adam Milazzo 2010-2015")]
+[assembly: AssemblyCopyright("Copyright © Adam Milazzo 2010-2016")]
 
 [assembly: CLSCompliant(true)]
 [assembly: ComVisible(false)]

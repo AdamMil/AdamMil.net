@@ -3,7 +3,7 @@ AdamMil.Collections is a library that provides useful collection classes for
 the .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2007-2013 Adam Milazzo
+Copyright (C) 2007-2016 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -30,7 +30,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("Release")]
 #endif
 [assembly: AssemblyProduct("AdamMil.net")]
-[assembly: AssemblyCopyright("Copyright © Adam Milazzo 2007-2014")]
+[assembly: AssemblyCopyright("Copyright © Adam Milazzo 2007-2016")]
 
 [assembly: CLSCompliant(true)]
 [assembly: ComVisible(false)]

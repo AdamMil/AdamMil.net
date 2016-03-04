@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("Release")]
 #endif
 [assembly: AssemblyProduct("AdamMil.net")]
-[assembly: AssemblyCopyright("Copyright © Adam Milazzo 2007-2015")]
+[assembly: AssemblyCopyright("Copyright © Adam Milazzo 2007-2016")]
 
 [assembly: CLSCompliant(true)]
 [assembly: ComVisible(false)]
