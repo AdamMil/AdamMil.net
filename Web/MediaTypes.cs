@@ -3,7 +3,7 @@ AdamMil.Web is a library providing helpful classes for web development using
 the .NET Framework.
 
 http://www.adammil.net/
-Written 2015 by Adam Milazzo.
+Written 2015-2016 by Adam Milazzo.
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
