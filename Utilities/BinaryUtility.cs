@@ -184,7 +184,7 @@ public static class BinaryUtility
   /// <summary>Returns a 32-bit hash of the given data. <paramname name="hashFunction"/> can be specified to select the hash function.</summary>
   // this method is based off the hashing code in http://burtleburtle.net/bob/c/lookup3.c. the result is slightly less uniform than the
   // previous block cipher method i was using, but is substantially faster for large inputs
-  // TODO: it would be good to implement a hash method optimized for 64-bit platforms
+  // TODO: it would be good to implement a hash method optimized for 64-bit platforms. perhaps http://burtleburtle.net/bob/hash/spooky.html
   [CLSCompliant(false)]
   public unsafe static int Hash(int hashFunction, void* data, int length)
   {

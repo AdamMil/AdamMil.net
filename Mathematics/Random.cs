@@ -602,10 +602,10 @@ public sealed class ISAACRNG : RandomNumberGenerator
   /// <include file="documentation.xml" path="//Math/RNG/SeedSize/node()"/>
   public const int SeedSize = 256;
 
-  /// <summary>Initializes a new ISAAC random number generator with a seed based on the current time.</summary>
+  /// <summary>Initializes a new <see cref="ISAACRNG"/> with a seed based on the current time.</summary>
   public ISAACRNG() : this(MakeTimeBasedSeed()) { }
 
-  /// <summary>Initializes a new ISAAC random number generator with the given seed (from which up to 256 unsigned integers are
+  /// <summary>Initializes a new <see cref="ISAACRNG"/> with the given seed (from which up to 256 unsigned integers are
   /// used). If <paramref name="seed"/> is null, a constant, default seed will be used.
   /// </summary>
   [CLSCompliant(false)]
@@ -755,10 +755,10 @@ public sealed class KISSRNG : RandomNumberGenerator
   /// <include file="documentation.xml" path="//Math/RNG/SeedSize/node()"/>
   public const int SeedSize = 4;
 
-  /// <summary>Initializes a new KISS random number generator with a seed based on the current time.</summary>
+  /// <summary>Initializes a new <see cref="KISSRNG"/> with a seed based on the current time.</summary>
   public KISSRNG() : this(MakeTimeBasedSeed()) { }
 
-  /// <summary>Initializes a new KISS random number generator with the given seed (from which up to 4 unsigned integers are
+  /// <summary>Initializes a new <see cref="KISSRNG"/> with the given seed (from which up to 4 unsigned integers are
   /// used). If <paramref name="seed"/> is null or empty, a constant, default seed will be used. Note that zeroes in the seed
   /// array may be ignored.
   /// </summary>
@@ -903,10 +903,10 @@ public sealed class XorShift128RNG : RandomNumberGenerator
   /// <include file="documentation.xml" path="//Math/RNG/SeedSize/node()"/>
   public const int SeedSize = 4;
 
-  /// <summary>Initializes a new <see cref="AWCKISSRNG"/> random number generator with a seed based on the current time.</summary>
+  /// <summary>Initializes a new <see cref="XorShift128RNG"/> random number generator with a seed based on the current time.</summary>
   public XorShift128RNG() : this(MakeTimeBasedSeed()) { }
 
-  /// <summary>Initializes a new <see cref="AWCKISSRNG"/> random number generator with the given seed (from which up to 4
+  /// <summary>Initializes a new <see cref="XorShift128RNG"/> random number generator with the given seed (from which up to 4
   /// unsigned integers are used). If <paramref name="seed"/> is null or empty, a constant, default seed will be used. Note that
   /// the seed array should not contain all zeros.
   /// </summary>

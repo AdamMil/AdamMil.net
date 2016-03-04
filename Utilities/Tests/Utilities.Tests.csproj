@@ -59,6 +59,7 @@
     <Compile Include="GuidTests.cs" />
     <Compile Include="InvariantCultureTests.cs" />
     <Compile Include="LinqTests.cs" />
+    <Compile Include="NumberTests.cs" />
     <Compile Include="PathTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="StringTests.cs" />

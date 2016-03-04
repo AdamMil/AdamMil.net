@@ -1,9 +1,9 @@
 ﻿/*
-AdamMil.Utilities is a library providing generally useful utilities for
-.NET development.
+AdamMil.Web is a library providing helpful classes for web development using
+the .NET Framework.
 
 http://www.adammil.net/
-Copyright (C) 2010-2013 Adam Milazzo
+Written 2015 by Adam Milazzo.
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -21,15 +21,15 @@ using System;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyTitle("AdamMil.net Utilities")]
-[assembly: AssemblyDescription("A set of generally useful utilities for .NET development.")]
+[assembly: AssemblyTitle("AdamMil.net Web")]
+[assembly: AssemblyDescription("A collection of web development helper classes.")]
 #if DEBUG
 [assembly: AssemblyConfiguration("Debug")]
 #else
 [assembly: AssemblyConfiguration("Release")]
 #endif
 [assembly: AssemblyProduct("AdamMil.net")]
-[assembly: AssemblyCopyright("Copyright © Adam Milazzo 2010-2015")]
+[assembly: AssemblyCopyright("Copyright © Adam Milazzo 2015")]
 
 [assembly: CLSCompliant(true)]
 [assembly: ComVisible(false)]

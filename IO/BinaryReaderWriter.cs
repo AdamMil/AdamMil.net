@@ -649,6 +649,29 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     return new decimal(low, mid, high, isNegative, (byte)(scale & 0x7F));
   }
 
+  /// <summary>Reads an array of one-byte boolean values from the stream.</summary>
+  public bool[] ReadBooleans(int count)
+  {
+    bool[] data = new bool[count];
+    fixed(bool* ptr=data) Read(ptr, count);
+    return data;
+  }
+
+  /// <summary>Reads an array of one-byte boolean values from the stream.</summary>
+  public void ReadBooleans(bool[] array, int index, int count)
+  {
+    Utility.ValidateRange(array, index, count);
+    fixed(bool* ptr=array) Read(ptr+index, count);
+  }
+
+  /// <summary>Reads an array of one-byte boolean values from the stream.</summary>
+  [CLSCompliant(false)]
+  public void ReadBooleans(bool* array, int count)
+  {
+    if(count < 0) throw new ArgumentOutOfRangeException();
+    Read(array, count);
+  }
+
   /// <summary>Reads an array of bytes from the stream.</summary>
   public byte[] ReadBytes(int count)
   {

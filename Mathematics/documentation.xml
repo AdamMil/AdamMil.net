@@ -176,9 +176,12 @@
       <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="point"/> is not 0 or 1.</exception>
      </GetPoint>
      <Equals>
-      <summary>Determines whether the given object is a line equal to this one.</summary>
+      <summary>Determines whether the given object is a line exactly equal to this one.</summary>
       <param name="obj">An object to test for equality.</param>
       <returns>Returns true if <paramref name="obj"/> is a line and equals this one.</returns>
+     </Equals>
+     <Equals>
+      <summary>Determines whether the given line exactly equal to this one.</summary>
      </Equals>
      <Equals3>
       <summary>Determines whether the given line is equal to this one, within a given margin of error.</summary>
@@ -225,9 +228,12 @@
       </returns>
      </DotProduct>
      <Equals>
-      <summary>Determines whether the given object is a vector equal to this one.</summary>
+      <summary>Determines whether the given object is a vector exactly equal to this one.</summary>
       <param name="obj">An object to test for equality.</param>
       <returns>Returns true if <paramref name="obj"/> is a vector and equals this one.</returns>
+     </Equals>
+     <Equals>
+      <summary>Determines whether the given vector is exactly equal to this one.</summary>
      </Equals>
      <Equals3>
       <summary>Determines whether the given vector is equal to this one, within a given margin of error.</summary>

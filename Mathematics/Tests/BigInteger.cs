@@ -478,6 +478,7 @@ namespace AdamMil.Mathematics.Tests
       AssertEqual(-123, Integer.Parse("¤123.45-", inv)); // negative, currency
       AssertEqual(-5000000000, Integer.Parse("- 0x12a05F200")); // hexadecimal
       AssertEqual((ulong)uint.MaxValue+1, Integer.Parse("0x100000000")); // hexadecimal
+      AssertEqual(new Integer(9999999999999999999u)*10+9, Integer.Parse("99999999999999999999"));
 
       // test string formatting
       Integer tv = -12345;

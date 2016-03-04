@@ -129,6 +129,8 @@ namespace AdamMil.Mathematics.Tests
       Assert.IsFalse(FP107.NaN == FP107.NaN);
       Assert.IsFalse(Math.E == FP107.E);
       Assert.IsFalse(Math.PI == FP107.Pi);
+      Assert.AreEqual(FP107.NaN, FP107.NaN);
+      Assert.IsTrue(FP107.NaN.Equals(FP107.NaN));
 
       // test inequality
       Assert.IsTrue(FP107.One != FP107.Zero);
