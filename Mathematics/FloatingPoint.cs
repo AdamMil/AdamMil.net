@@ -51,7 +51,8 @@ namespace AdamMil.Mathematics
   /// be executed often, and the method that uses a <see cref="decimal"/> literal (1.1m in this case) is only suitable if the literal
   /// can be represented exactly by a <see cref="decimal"/> value. To discover the values needed by the <see cref="FromComponents"/>
   /// method, you can construct the approximation with any other method and pass the "S" format string to the <see cref="ToString(string)"/>
-  /// method. (See the <see cref="ToString(string)"/> documentation for more details.)
+  /// method. (See the <see cref="ToString(string)"/> documentation for more details.) The <see cref="GetComponents"/> method can also be
+  /// used to extract the components.
   /// </para>
   /// <para>
   /// Similar considerations apply when calling <see cref="FP107"/> methods that can take either a double or an <see cref="FP107"/> value.
@@ -249,6 +250,12 @@ namespace AdamMil.Mathematics
     public bool IsNegativeInfinity
     {
       get { return double.IsNegativeInfinity(hi); }
+    }
+
+    /// <summary>Determines whether the value is a number (i.e. not NaN or infinity).</summary>
+    public bool IsNumber
+    {
+      get { return hi.IsNumber(); }
     }
 
     /// <summary>Determines whether the value is positive.</summary>

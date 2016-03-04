@@ -63,6 +63,24 @@ public static class Math2D
     return (new Point2(end)-new Point2(start)).Angle;
   }
 
+  /// <summary>Calculates the inverse hyperbolic cosine of the given value.</summary>
+  public static double Acosh(double x)
+  {
+    return Math.Log(x + Math.Sqrt(x*x-1));
+  }
+
+  /// <summary>Calculates the inverse hyperbolic sine of the given value.</summary>
+  public static double Asinh(double x)
+  {
+    return Math.Log(x + Math.Sqrt(x*x+1));
+  }
+
+  /// <summary>Calculates the inverse hyperbolic tangent of the given value.</summary>
+  public static double Atanh(double x)
+  {
+    return Math.Log((x+1)/(x-1)) * 0.5;
+  }
+
   #region Contains
   /// <summary>Determines if one circle fully contains another.</summary>
   public static bool Contains(ref Circle outer, ref Circle inner)
@@ -842,6 +860,13 @@ public static class Math2D
     for(int end=start+length; start<end; start++) Rotate(ref vectors[start], sin, cos);
   }
   #endregion
+
+  internal static double Clamp1(double v)
+  {
+    if(v > 1) v = 1;
+    else if(v < -1) v =  -1;
+    return v;
+  }
 }
 #endregion
 
@@ -873,14 +898,14 @@ public struct Vector2
   /// <summary>Calculates and returns the angle of the vector.</summary>
   /// <value>The angle of the vector, in radians.</value>
   /// <remarks>An angle of zero points directly towards right (towards the positive side of the X axis). Other values
-  /// are radian offsets from there.
+  /// are radian offsets counterclockwise from there.
   /// </remarks>
   public double Angle
   {
     get
     {
-      double angle = Math.Acos(X/Length);
-      if(Y<0) angle = Math.PI*2-angle;
+      double angle = Math.Atan2(Y, X);
+      if(angle < 0) angle += Math.PI*2;
       return angle;
     }
   }
@@ -894,56 +919,53 @@ public struct Vector2
   /// <include file="documentation.xml" path="//Geometry/Vector/Length/node()"/>
   public double Length
   {
-    get { return System.Math.Sqrt(X*X+Y*Y); }
-    set { Normalize(value); }
+    get { return Math.Sqrt(X*X+Y*Y); }
+    set { this = GetNormal(value); }
   }
   /// <summary>Returns the length of this vector, squared.</summary>
   public double LengthSqr { get { return X*X+Y*Y; } }
   /// <include file="documentation.xml" path="//Geometry/Vector/Normal/node()"/>
   public Vector2 Normal { get { return this/Length; } }
-  /// <summary>Determines whether the vector is valid.</summary>
+  /// <summary>Determines whether the vector is not <see cref="Invalid"/>.</summary>
   /// <remarks>Invalid vectors are returned by some mathematical functions to signal that the function is undefined
   /// given the input. A vector returned by such a function can be tested for validity using this property.
   /// </remarks>
   public bool IsValid { get { return !double.IsNaN(X); } }
   /// <include file="documentation.xml" path="//Geometry/Vector/DotProduct/node()"/>
   public double DotProduct(Vector2 v) { return X*v.X + Y*v.Y; }
-  /// <include file="documentation.xml" path="//Geometry/Vector/Normalize/node()"/>
-  public void Normalize() { this/=Length; }
-  /// <include file="documentation.xml" path="//Geometry/Vector/Normalize2/node()"/>
-  public void Normalize(double length) { this *= length/Length; }
-  /// <summary>Returns a copy of this vector, normalized to the given length.</summary>
-  /// <remarks>Calling this method is invalid when the length of the vector is zero, since the vector would not be
-  /// pointing in any direction and could not possibly be scaled to the correct length.
-  /// </remarks>
-  public Vector2 Normalized(double length)
-  {
-    Vector2 vector = this;
-    vector.Normalize(length);
-    return vector;
-  }
-  /// <summary>Rotates this vector by the given number of radians.</summary>
-  /// <param name="angle">The angle to rotate by, in radians.</param>
-  public void Rotate(double angle) { this = Rotated(angle); }
-  /// <summary>Returns a copy of this vector, rotated by the given number of radians.</summary>
-  /// <param name="angle">The angle to rotate by, in radians.</param>
-  /// <returns>A new vector with the same magnitude as this one, and rotated by the given angle.</returns>
-  public Vector2 Rotated(double angle)
-  {
-    double sin = Math.Sin(angle), cos = Math.Cos(angle);
-    return new Vector2(X*cos-Y*sin, X*sin+Y*cos);
-  }
   /// <include file="documentation.xml" path="//Geometry/Vector/Equals/node()"/>
-  public override bool Equals(object obj) { return obj is Vector2 && (Vector2)obj==this; }
+  public override bool Equals(object obj) { return obj is Vector2 && Equals((Vector2)obj); }
+  /// <include file="documentation.xml" path="//Geometry/Vector/Equals2/node()"/>
+  public bool Equals(Vector2 other)
+  {
+    return X.Equals(other.X) && Y.Equals(other.Y);
+  }
   /// <include file="documentation.xml" path="//Geometry/Vector/Equals3/node()"/>
   public bool Equals(Vector2 vect, double epsilon)
   {
     return Math.Abs(vect.X-X)<=epsilon && Math.Abs(vect.Y-Y)<=epsilon;
   }
+  /// <summary>Returns the angle from this vector to the given vector, measured counterclockwise.</summary>
+  public double GetAngle(Vector2 v)
+  {
+    double angle = Math.Acos(Math2D.Clamp1(DotProduct(v)/(Length*v.Length)));
+    if(X*v.Y < Y*v.X) angle = Math.PI*2 - angle;
+    return angle;
+  }
+  /// <include file="documentation.xml" path="//Geometry/Vector/Normalize2/node()"/>
+  public Vector2 GetNormal(double length) { return this * (length/Length); }
   /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
   public unsafe override int GetHashCode()
   {
     return X.GetHashCode() ^ Y.GetHashCode();
+  }
+  /// <summary>Returns a copy of this vector, rotated by the given number of radians.</summary>
+  /// <param name="angle">The angle to rotate by, in radians.</param>
+  /// <returns>A new vector with the same magnitude as this one, and rotated by the given angle.</returns>
+  public Vector2 Rotate(double angle)
+  {
+    double sin = Math.Sin(angle), cos = Math.Cos(angle);
+    return new Vector2(X*cos-Y*sin, X*sin+Y*cos);
   }
   /// <summary>Converts this <see cref="Vector2"/> into an equivalent <see cref="Point2"/>.</summary>
   /// <returns>Returns a <see cref="Point2"/> with X and Y coordinates equal to the X and Y magnitudes of this
@@ -985,6 +1007,14 @@ public struct Vector2
 
   /// <summary>Returns a vector with zero for all components.</summary>
   public static readonly Vector2 Zero = new Vector2();
+  /// <summary>Returns a vector with an X component of 1.</summary>
+  public static readonly Vector2 X1 = new Vector2(1, 0);
+  /// <summary>Returns a vector with an Y component of 1.</summary>
+  public static readonly Vector2 Y1 = new Vector2(0, 1);
+  /// <summary>Returns a vector with an X component of -1.</summary>
+  public static readonly Vector2 XM1 = new Vector2(-1, 0);
+  /// <summary>Returns a vector with an Y component of -1.</summary>
+  public static readonly Vector2 YM1 = new Vector2(0, -1);
 
   /// <summary>The magnitude of this vector along the X axis.</summary>
   public double X;
@@ -1009,11 +1039,12 @@ public struct Point2
   /// <param name="y">The point's Y coordinate.</param>
   public Point2(double x, double y) { X=x; Y=y; }
 
-  /// <summary>Determines whether the point is valid.</summary>
+  /// <summary>Determines whether the point is not <see cref="Invalid"/>.</summary>
   /// <remarks>Invalid points are returned by some mathematical functions to signal that the function is undefined
   /// given the input. A point returned by such a function can be tested for validity using this property.
   /// </remarks>
   public bool IsValid { get { return !double.IsNaN(X); } }
+ 
   /// <include file="documentation.xml" path="//Geometry/Point/DistanceTo/node()"/>
   public double DistanceTo(Point2 point)
   {
@@ -1038,6 +1069,11 @@ public struct Point2
   /// <summary>Converts this point to a <see cref="System.Drawing.PointF"/>.</summary>
   /// <returns>A <see cref="System.Drawing.PointF"/> containing approximately the same coordinates.</returns>
   public SysPointF ToPointF() { return new SysPointF((float)X, (float)Y); }
+  /// <summary>Returns a vector with the same components as the coordinates of the point.</summary>
+  public Vector2 ToVector()
+  {
+    return new Vector2(X, Y);
+  }
   /// <include file="documentation.xml" path="//Geometry/Point/Equals/node()"/>
   public override bool Equals(object obj) { return obj is Point2 && (Point2)obj==this; }
   /// <include file="documentation.xml" path="//Geometry/Point/Equals3/node()"/>
@@ -1333,7 +1369,12 @@ public struct Line2
   /// </returns>
   public double WhichSide(Point2 point) { return Vector.CrossVector.DotProduct(point-Start); }
   /// <include file="documentation.xml" path="//Geometry/Line/Equals/node()"/>
-  public override bool Equals(object obj) { return obj is Line2 && (Line2)obj==this; }
+  public override bool Equals(object obj) { return obj is Line2 && Equals((Line2)obj); }
+  /// <include file="documentation.xml" path="//Geometry/Line/Equals2/node()"/>
+  public bool Equals(Line2 other)
+  {
+    return Start.Equals(other.Start) && Vector.Equals(other.Vector);
+  }
   /// <include file="documentation.xml" path="//Geometry/Line/Equals3/node()"/>
   public bool Equals(Line2 line, double epsilon)
   {
@@ -1444,7 +1485,13 @@ public struct Circle
   /// <summary>Determines whether the object is a <see cref="Circle"/> exactly equal to this one.</summary>
   public override bool Equals(object obj)
   {
-    return obj is Circle && this == (Circle)obj;
+    return obj is Circle && Equals((Circle)obj);
+  }
+
+  /// <summary>Determines given <see cref="Circle"/> is exactly equal to this one.</summary>
+  public bool Equals(Circle other)
+  {
+    return Center.Equals(other.Center) && Radius.Equals(other.Radius);
   }
 
   /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
@@ -2502,50 +2549,78 @@ public struct Vector3
   /// <param name="y">The magnitude along the Y axis.</param>
   /// <param name="z">The magnitude along the Z axis.</param>
   public Vector3(double x, double y, double z) { X=x; Y=y; Z=z; }
+  /// <summary>Initializes this vector from a 2D vector. The Z coordinate will be zero.</summary>
+  public Vector3(Vector2 v) { X=v.X; Y=v.Y; Z=0; }
   /// <summary>Initializes this vector from a <see cref="Point3"/>.</summary>
   /// <param name="pt">A <see cref="Point3"/>. The point's X, Y, and Z coordinates will become the corresponding
   /// X, Y, and Z magnitudes of the vector.
   /// </param>
   public Vector3(Point3 pt) { X=pt.X; Y=pt.Y; Z=pt.Z; }
 
+  /// <summary>Determines whether the vector is not <see cref="Invalid"/>.</summary>
+  public bool IsValid { get { return !double.IsNaN(X); } }
+
   /// <include file="documentation.xml" path="//Geometry/Vector/Length/node()"/>
   public double Length
   {
-    get { return System.Math.Sqrt(X*X+Y*Y+Z*Z); }
-    set { Normalize(value); }
+    get { return Math.Sqrt(X*X+Y*Y+Z*Z); }
+    set { this = GetNormal(value); }
   }
   /// <summary>Returns the length of this vector, squared.</summary>
   public double LengthSqr { get { return X*X+Y*Y+Z*Z; } }
   /// <include file="documentation.xml" path="//Geometry/Vector/Normal/node()"/>
-  public Vector3 Normal { get { return this/Length; } }
+  public Vector3 Normal { get { return this / Length; } }
   /// <summary>Returns the cross product of this vector with another vector.</summary>
   /// <param name="v">The other operand.</param>
   /// <returns>A <see cref="Vector3"/> perpendicular to both this vector and <paramref name="v"/>.</returns>
-  public Vector3 CrossProduct(Vector3 v) { return new Vector3(X*v.Z-Z*v.Y, Z*v.X-X*v.Z, X*v.Y-Y*v.X); }
+  public Vector3 CrossProduct(Vector3 v) { return new Vector3(Y*v.Z-Z*v.Y, Z*v.X-X*v.Z, X*v.Y-Y*v.X); }
   /// <include file="documentation.xml" path="//Geometry/Vector/DotProduct/node()"/>
   public double DotProduct(Vector3 v) { return X*v.X + Y*v.Y + Z*v.Z; }
-  /// <include file="documentation.xml" path="//Geometry/Vector/Normalize/node()"/>
-  public void Normalize() { this /= Length; }
-  /// <include file="documentation.xml" path="//Geometry/Vector/Normalize2/node()"/>
-  public void Normalize(double length) { this /= Length/length; }
-  /// <summary>Rotates this vector around the X axis.</summary>
-  /// <param name="angle">The angle to rotate by, in radians.</param>
-  public void RotateX(double angle) { this = RotatedX(angle); }
-  /// <summary>Rotates this vector around the Y axis.</summary>
-  /// <param name="angle">The angle to rotate by, in radians.</param>
-  public void RotateY(double angle) { this = RotatedY(angle); }
-  /// <summary>Rotates this vector around the Z axis.</summary>
-  /// <param name="angle">The angle to rotate by, in radians.</param>
-  public void RotateZ(double angle) { this = RotatedZ(angle); }
-  /// <summary>Rotates this vector around an arbitrary axis.</summary>
-  /// <param name="vector">The axis to rotate around. This should be a normalized vector.</param>
-  /// <param name="angle">The angle to rotate by, in radians.</param>
-  public void Rotate(Vector3 vector, double angle) { this = Rotated(vector, angle); }
+
+  /// <summary>Returns the angle from this vector to the given vector, within the plane that contains both. The angle will always be from
+  /// 0 to Pi. To obtain angles from 0 to 2Pi, use <see cref="GetAngle(Vector3,Vector3)"/> instead.
+  /// </summary>
+  public double GetAngle(Vector3 v)
+  {
+    return Math.Acos(Math2D.Clamp1(DotProduct(v)/(Length*v.Length)));
+  }
+
+  /// <summary>Returns the angle from this vector to the given vector, expressed as a clockwise rotation around the given up vector, which
+  /// should be orthogonal to the two vectors. This is different from simply using the dot product because the dot product doesn't account
+  /// for whether the angle is greater or less than 180 degrees. None of the vectors need to be normalized.
+  /// </summary>
+  public double GetAngle(Vector3 v, Vector3 up)
+  {
+    double angle = GetAngle(v);
+    if(up.DotProduct(CrossProduct(v)) < 0) angle = Math.PI*2 - angle;
+    return angle;
+  }
+
+  /// <include file="documentation.xml" path="//Geometry/Vector/Normalized2/node()"/>
+  public Vector3 GetNormal(double length) { return this * (length/Length); }
+
+  /// <summary>Returns a <see cref="Vector2"/> representing the portion of this vector that lies within the plane Z=0.</summary>
+  public Vector2 Project2D()
+  {
+    return new Vector2(X, Y);
+  }
+
+  /// <summary>Returns the portion of this vector that lies within the plane specified from the given plane normal.</summary>
+  public Vector3 PlaneProject(Vector3 planeNormal)
+  {
+    return this - VectorProject(planeNormal);
+  }
+
+  /// <summary>Returns the portion of this vector parallel to the given normal vector.</summary>
+  public Vector3 VectorProject(Vector3 dirNormal)
+  {
+    return dirNormal * DotProduct(dirNormal);
+  }
 
   /// <summary>Returns a copy of this vector, rotated around the X axis.</summary>
   /// <param name="angle">The angle to rotate by, in radians.</param>
   /// <returns>A copy of this vector, rotated around the X axis.</returns>
-  public Vector3 RotatedX(double angle)
+  public Vector3 RotateX(double angle)
   {
     double sin = Math.Sin(angle), cos = Math.Cos(angle);
     return new Vector3(X, Y*cos-Z*sin, Y*sin+Z*cos);
@@ -2553,7 +2628,7 @@ public struct Vector3
   /// <summary>Returns a copy of this vector, rotated around the Y axis.</summary>
   /// <param name="angle">The angle to rotate by, in radians.</param>
   /// <returns>A copy of this vector, rotated around the Y axis.</returns>
-  public Vector3 RotatedY(double angle)
+  public Vector3 RotateY(double angle)
   {
     double sin = Math.Sin(angle), cos = Math.Cos(angle);
     return new Vector3(Z*sin+X*cos, Y, Z*cos-X*sin);
@@ -2561,7 +2636,7 @@ public struct Vector3
   /// <summary>Returns a copy of this vector, rotated around the Z axis.</summary>
   /// <param name="angle">The angle to rotate by, in radians.</param>
   /// <returns>A copy of this vector, rotated around the Z axis.</returns>
-  public Vector3 RotatedZ(double angle)
+  public Vector3 RotateZ(double angle)
   {
     double sin = Math.Sin(angle), cos = Math.Cos(angle);
     return new Vector3(X*cos-Y*sin, X*sin+Y*cos, Z);
@@ -2570,14 +2645,19 @@ public struct Vector3
   /// <param name="vector">The axis to rotate around. This should be a normalized vector.</param>
   /// <param name="angle">The angle to rotate by, in radians.</param>
   /// <returns>A copy of this vector, rotated around the given axis.</returns>
-  public Vector3 Rotated(Vector3 vector, double angle)
+  public Vector3 Rotate(Vector3 vector, double angle)
   {
-    Quaternion a = new Quaternion(vector, angle), b = new Quaternion(this);
-    return (a*b*a.Conjugate).V;
+    double cos = Math.Cos(angle), sin = Math.Sin(angle);
+    return this*cos + vector.CrossProduct(this)*sin + vector*vector.DotProduct(this)*(1-cos); // Rodrigues' rotation formula
   }
 
   /// <include file="documentation.xml" path="//Geometry/Vector/Equals/node()"/>
-  public override bool Equals(object obj) { return obj is Vector3 && (Vector3)obj==this; }
+  public override bool Equals(object obj) { return obj is Vector3 && Equals((Vector3)obj); }
+  /// <include file="documentation.xml" path="//Geometry/Vector/Equals2/node()"/>
+  public bool Equals(Vector3 other)
+  {
+    return X.Equals(other.X) && Y.Equals(other.Y) && Z.Equals(other.Z);
+  }
   /// <include file="documentation.xml" path="//Geometry/Vector/Equals3/node()"/>
   public bool Equals(Vector3 vect, double epsilon)
   {
@@ -2622,8 +2702,23 @@ public struct Vector3
   /// <summary>Determines whether two vectors are not exactly equal.</summary>
   public static bool operator!=(Vector3 a, Vector3 b) { return a.X!=b.X || a.Y!=b.Y || a.Z!=b.Z; }
 
+  /// <summary>Returns a vector having <see cref="double.NaN"/> for all of the components.</summary>
+  public static readonly Vector3 Invalid = new Vector3(double.NaN, double.NaN, double.NaN);
+
   /// <summary>Returns a vector with zero for all components.</summary>
   public static readonly Vector3 Zero = new Vector3();
+  /// <summary>Returns a vector with an X value of 1.</summary>
+  public static readonly Vector3 X1 = new Vector3(1, 0, 0);
+  /// <summary>Returns a vector with an Y value of 1.</summary>
+  public static readonly Vector3 Y1 = new Vector3(0, 1, 0);
+  /// <summary>Returns a vector with an Z value of 1.</summary>
+  public static readonly Vector3 Z1 = new Vector3(0, 0, 1);
+  /// <summary>Returns a vector with an X value of -1.</summary>
+  public static readonly Vector3 XM1 = new Vector3(-1, 0, 0);
+  /// <summary>Returns a vector with an Y value of -1.</summary>
+  public static readonly Vector3 YM1 = new Vector3(0, -1, 0);
+  /// <summary>Returns a vector with an Z value of -1.</summary>
+  public static readonly Vector3 ZM1 = new Vector3(0, 0, -1);
 }
 #endregion
 
@@ -2637,6 +2732,7 @@ public struct Point3
   /// <param name="y">The point's Y coordinate.</param>
   /// <param name="z">The point's Z coordinate.</param>
   public Point3(double x, double y, double z) { X=x; Y=y; Z=z; }
+
   /// <include file="documentation.xml" path="//Geometry/Point/DistanceTo/node()"/>
   public double DistanceTo(Point3 point)
   {
@@ -2644,7 +2740,7 @@ public struct Point3
     return Math.Sqrt(xd*xd+yd*yd+zd*zd);
   }
   /// <include file="documentation.xml" path="//Geometry/Point/DistanceSquaredTo/node()"/>
-  public double DistanceCubedTo(Point3 point)
+  public double DistanceSquaredTo(Point3 point)
   {
     double xd=point.X-X, yd=point.Y-Y, zd=point.Z-Z;
     return xd*xd+yd*yd+zd*zd;
@@ -2667,6 +2763,13 @@ public struct Point3
   {
     return X.GetHashCode() ^ Y.GetHashCode() ^ Z.GetHashCode();
   }
+
+  /// <summary>Returns a vector with the same components as the coordinates of the point.</summary>
+  public Vector3 ToVector()
+  {
+    return new Vector3(X, Y, Z);
+  }
+
   /// <summary>Converts this <see cref="Point3"/> into a human-readable string.</summary>
   /// <returns>A human-readable string representation of this <see cref="Point3"/>.</returns>
   public override string ToString() { return string.Format("({0:f2},{1:f2},{2:f2})", X, Y, Z); }
@@ -2690,6 +2793,9 @@ public struct Point3
   public double Y;
   /// <summary>This point's Z coordinate.</summary>
   public double Z;
+
+  /// <summary>A point with all zero components.</summary>
+  public static readonly Point3 Empty = new Point3();
 }
 #endregion
 
@@ -2735,7 +2841,12 @@ public struct Line3
     return point==0 ? Start : End;
   }
   /// <include file="documentation.xml" path="//Geometry/Line/Equals/node()"/>
-  public override bool Equals(object obj) { return obj is Line3 && (Line3)obj==this; }
+  public override bool Equals(object obj) { return obj is Line3 && Equals((Line3)obj); }
+  /// <include file="documentation.xml" path="//Geometry/Line/Equals2/node()"/>
+  public bool Equals(Line3 other)
+  {
+    return Start.Equals(other.Start) && Vector.Equals(other.Vector);
+  }
   /// <include file="documentation.xml" path="//Geometry/Line/Equals3/node()"/>
   public bool Equals(Line3 line, double epsilon)
   {
@@ -2780,42 +2891,6 @@ public struct Line3
 }
 #endregion
 
-#region Plane
-/// <summary>This structure represents a plane.</summary>
-[Serializable]
-public struct Plane
-{
-  /// <summary>Determines whether the object is a <see cref="Plane"/> exactly equal to this one.</summary>
-  public override bool Equals(object obj)
-  {
-    return obj is Plane && this == (Plane)obj;
-  }
-
-  /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
-  public override int GetHashCode()
-  {
-    return Point.GetHashCode() ^ Normal.GetHashCode();
-  }
-
-  /// <summary>A point on the plane.</summary>
-  public Point3 Point;
-  /// <summary>A vector perpendicular to the plane.</summary>
-  public Vector3 Normal;
-
-  /// <summary>Determines whether two planes are exactly equal.</summary>
-  public static bool operator==(Plane a, Plane b)
-  {
-    return a.Point == b.Point && a.Normal == b.Normal;
-  }
-
-  /// <summary>Determines whether two planes are not exactly equal.</summary>
-  public static bool operator!=(Plane a, Plane b)
-  {
-    return a.Point != b.Point || a.Normal != b.Normal;
-  }
-}
-#endregion
-
 #region Sphere
 /// <summary>This structure represents a sphere.</summary>
 [Serializable]
@@ -2846,7 +2921,13 @@ public struct Sphere
   /// <summary>Determines whether the object is a <see cref="Sphere"/> exactly equal to this one.</summary>
   public override bool Equals(object obj)
   {
-    return obj is Sphere && this == (Sphere)obj;
+    return obj is Sphere && Equals((Sphere)obj);
+  }
+
+  /// <summary>Determines whether the given <see cref="Sphere"/> exactly equal to this one.</summary>
+  public bool Equals(Sphere other)
+  {
+    return Center.Equals(other.Center) && Radius.Equals(other.Radius);
   }
 
   /// <include file="documentation.xml" path="//Common/GetHashCode/node()"/>
@@ -2904,7 +2985,13 @@ public struct Quaternion
   public Quaternion Normal { get { return this/Length; } }
 
   /// <summary>Determines whether the object is a <see cref="Quaternion"/> exactly equal to this one.</summary>
-  public override bool Equals(object obj) { return obj is Quaternion && (Quaternion)obj==this; }
+  public override bool Equals(object obj) { return obj is Quaternion && Equals((Quaternion)obj); }
+
+  /// <summary>Determines whether the object is a <see cref="Quaternion"/> exactly equal to this one.</summary>
+  public bool Equals(Quaternion other)
+  {
+    return V.Equals(other.V) && W.Equals(other.W);
+  }
 
   /// <summary>Determines whether the object is a <see cref="Quaternion"/> approximately equal to this one.</summary>
   public bool Equals(Quaternion q, double epsilon) { return Math.Abs(W-q.W)<=epsilon && V.Equals(q.V, epsilon); }
@@ -2931,15 +3018,15 @@ public struct Quaternion
   public void Normalize() { this /= Length; }
 
   /// <summary>Normalizes the <see cref="Quaternion"/> to the given length.</summary>
-  public void Normalize(double length) { this /= Length/length; }
+  public void Normalize(double length) { this *= length/Length; }
 
   public Matrix3 ToMatrix3()
   {
     double xx=V.X*V.X, xy=V.X*V.Y, xz=V.X*V.Z, xw=V.X*W, yy=V.Y*V.Y, yz=V.Y*V.Z, yw=V.Y*W, zz=V.Z*V.Z, zw=V.Z*W;
     Matrix3 ret = new Matrix3();
-    ret.M00 = 1 - 2*(yy+zz); ret.M01 =     2*(xy-zw); ret.M02 =     2*(xz+yw);
-    ret.M10 =     2*(xy+zw); ret.M11 = 1 - 2*(xx+zz); ret.M12 =     2*(yz-xw);
-    ret.M20 =     2*(xz-yw); ret.M21 =     2*(yz+xw); ret.M22 = 1 - 2*(xx+yy);
+    ret.M00 = 1 - (yy+zz)*2; ret.M01 =     (xy-zw)*2; ret.M02 =     (xz+yw)*2;
+    ret.M10 =     (xy+zw)*2; ret.M11 = 1 - (xx+zz)*2; ret.M12 =     (yz-xw)*2;
+    ret.M20 =     (xz-yw)*2; ret.M21 =     (yz+xw)*2; ret.M22 = 1 - (xx+yy)*2;
     return ret;
   }
 
@@ -2947,9 +3034,9 @@ public struct Quaternion
   {
     double xx=V.X*V.X, xy=V.X*V.Y, xz=V.X*V.Z, xw=V.X*W, yy=V.Y*V.Y, yz=V.Y*V.Z, yw=V.Y*W, zz=V.Z*V.Z, zw=V.Z*W;
     Matrix4 ret = new Matrix4();
-    ret.M00 = 1 - 2*(yy+zz); ret.M01 =     2*(xy-zw); ret.M02 =     2*(xz+yw);
-    ret.M10 =     2*(xy+zw); ret.M11 = 1 - 2*(xx+zz); ret.M12 =     2*(yz-xw);
-    ret.M20 =     2*(xz-yw); ret.M21 =     2*(yz+xw); ret.M22 = 1 - 2*(xx+yy);
+    ret.M00 = 1 - (yy+zz)*2; ret.M01 =     (xy-zw)*2; ret.M02 =     (xz+yw)*2;
+    ret.M10 =     (xy+zw)*2; ret.M11 = 1 - (xx+zz)*2; ret.M12 =     (yz-xw)*2;
+    ret.M20 =     (xz-yw)*2; ret.M21 =     (yz+xw)*2; ret.M22 = 1 - (xx+yy)*2;
     ret.M33 = 1;
     return ret;
   }

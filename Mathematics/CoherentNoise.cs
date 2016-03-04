@@ -342,9 +342,6 @@ public sealed class CoherentNoise
     return sum * 32.69599590511519; // inexact, unscientific scaling factor
   }
 
-  /// <summary>Gets a <see cref="CoherentNoise"/> instance using the default seed.</summary>
-  public static readonly CoherentNoise Default = new CoherentNoise();
-
   readonly byte[] permutation;
 
   /// <summary>Applies a smoothing curve 6t^5-15t^4+10t^3 to the given value, which should be from 0 to 1.</summary>
@@ -413,6 +410,10 @@ public sealed class CoherentNoise
     22, 112, 196, 21, 125, 177, 219, 18, 51, 62, 59, 231, 178, 45, 29, 133, 95, 182, 100, 46, 135, 110, 157, 191,
     240, 37, 122, 1, 2, 186, 236, 128, 60, 65, 153
   };
+
+  // NOTE: this must be after declared 'defaultPermutation' because the constructor uses the default permutation
+  /// <summary>Gets a <see cref="CoherentNoise"/> instance using the default seed.</summary>
+  public static readonly CoherentNoise Default = new CoherentNoise();
 }
 
 } // namespace AdamMil.Mathematics.Random

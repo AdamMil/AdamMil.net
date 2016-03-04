@@ -175,6 +175,13 @@ public static partial class CollectionExtensions
     }
   }
 
+  /// <summary>Removes a set of items from a collection.</summary>
+  public static void RemoveRange<T>(this ICollection<T> collection, IEnumerable<T> itemsToRemove)
+  {
+    if(collection == null || itemsToRemove == null) throw new ArgumentNullException();
+    foreach(T item in itemsToRemove) collection.Remove(item);
+  }
+
   /// <summary>Removes a set of keys from a dictionary.</summary>
   public static void RemoveRange<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, IEnumerable<TKey> keysToRemove)
   {

@@ -487,7 +487,7 @@ namespace AdamMil.Mathematics
         if(index < 0) throw new ArgumentOutOfRangeException();
         return IsNegative; // then positive values are zero-extended and negative values are one-extended, emulating two's complement
       }
-      if(IsPositive) // if the value is positive (zero is handled above), we simply return the bit as-is
+      else if(IsPositive) // if the value is positive (zero is handled above), we simply return the bit as-is
       {
         return (data[index>>5] & (1u<<(index&31))) != 0;
       }
@@ -990,8 +990,7 @@ namespace AdamMil.Mathematics
       {
         if((uint)index >= (uint)int.MaxValue) throw new ArgumentOutOfRangeException(); // ensure 0 <= index < int.MaxValue
         if(value == IsNegative) return; // don't expand the array if we're setting the bit to the value it'd effectively be anyway
-        int newLength = GetElementCount(index+1); // if we're toggling a bit beyond the current end of the data, expand the array
-        ExpandArrayTo(newLength);
+        ExpandArrayTo(GetElementCount(index+1)); // if we're toggling a bit beyond the current end of the data, expand the array
         BitLength = index+1; // if the integer is negative this may not be the final bit length
       }
 
@@ -2024,18 +2023,17 @@ namespace AdamMil.Mathematics
     internal static Integer ParseDigits(byte[] digits, int digitCount)
     {
       Integer value = Integer.Zero;
-      for(int total=0; total<digitCount; ) // while there are digits left to parse...
+      for(int i=0; i<digitCount; ) // while there are digits left to parse...
       {
-        // parse digits in groups of 19, sticking them into a ulong to avoid as much Integer math as possible
-        ulong someDigits = 0;
-        int parsed = 0;
-        for(int count=Math.Min(19, digitCount-total); parsed<count; parsed++) someDigits = someDigits*10 + digits[parsed+total];
+        // parse up to 9 digits at a time, sticking them into a uint to avoid as much Integer math as possible. although we can parse more
+        // than 9 digits into a uint, 10^9 is the largest power of 10 that fits in a uint below
+        uint someDigits = 0;
+        int numDigits = Math.Min(9, digitCount-i);
+        for(int end=i+numDigits; i<end; i++) someDigits = someDigits*10 + digits[i];
 
-        // then combine the ulong value with the Integer
-        if(total != 0) value = value * Integer.Pow(10, parsed) + someDigits;
-        else value = someDigits;
-
-        total += parsed;
+        // then combine the digits with the Integer
+        value.UnsafeMultiply((uint)PowersOf10[numDigits]); // value = value * 10^numDigits + someDigits
+        value.UnsafeAdd(someDigits);
       }
       return value;
     }
@@ -3411,7 +3409,7 @@ namespace AdamMil.Mathematics
     {
       33, 26, 22, 20, 18, 17, 16, 15, 15, 14, 14, 13, 13, 13, 12, 12, 12, 12, 12, 11, 11, 11, 11, 11, 11, 11, 10, 10, 10
     };
-    static readonly ulong[] PowersOf10 = new ulong[20]
+    static readonly ulong[] PowersOf10 = new ulong[20] // PowersOf10[19] (10^19) is the largest power of 10 that fits in a ulong
     {
       1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000, 10000000000, 100000000000, 1000000000000, 10000000000000,
       100000000000000, 1000000000000000, 10000000000000000, 100000000000000000, 1000000000000000000, 10000000000000000000,

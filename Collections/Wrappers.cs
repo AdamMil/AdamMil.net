@@ -38,7 +38,7 @@ public abstract class ReadOnlyCollectionWrapperBase
 
 #region ReadOnlyCollectionWrapper
 /// <summary>Represents a read-only wrapper around a collection.</summary>
-public sealed class ReadOnlyCollectionWrapper<T> : ReadOnlyCollectionWrapperBase, IReadOnlyCollection<T>, ICollection<T>
+public class ReadOnlyCollectionWrapper<T> : ReadOnlyCollectionWrapperBase, IReadOnlyCollection<T>, ICollection<T>
 {
   /// <summary>Initializes a new <see cref="ReadOnlyCollectionWrapper{T}"/> around the given collection.</summary>
   public ReadOnlyCollectionWrapper(ICollection<T> collection)
@@ -127,7 +127,7 @@ public sealed class ReadOnlyCollectionWrapper<T> : ReadOnlyCollectionWrapperBase
 
 #region ReadOnlyDictionaryWrapper
 /// <summary>Represents a read-only wrapper around a dictionary.</summary>
-public sealed class ReadOnlyDictionaryWrapper<TKey, TValue>
+public class ReadOnlyDictionaryWrapper<TKey, TValue>
   : ReadOnlyCollectionWrapperBase, IReadOnlyDictionary<TKey, TValue>, IDictionary<TKey, TValue>
 {
   /// <summary>Initializes this <see cref="ReadOnlyDictionaryWrapper{TKey,TValue}"/> with the given dictionary.</summary>
@@ -295,7 +295,7 @@ public sealed class ReadOnlyDictionaryWrapper<TKey, TValue>
 
 #region ReadOnlyListWrapper
 /// <summary>Represents a read-only wrapper around a list.</summary>
-public sealed class ReadOnlyListWrapper<T> : ReadOnlyCollectionWrapperBase, IReadOnlyList<T>, IList<T>
+public class ReadOnlyListWrapper<T> : ReadOnlyCollectionWrapperBase, IReadOnlyList<T>, IList<T>
 {
   /// <summary>Initializes a new <see cref="ReadOnlyListWrapper{T}"/> around the given list.</summary>
   public ReadOnlyListWrapper(IList<T> list)

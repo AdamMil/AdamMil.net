@@ -599,7 +599,7 @@ namespace AdamMil.Utilities
 
     static void AddThread()
     {
-      Thread thread = new Thread(ThreadFunc) { Name = "HiA Worker Thread" };
+      Thread thread = new Thread(ThreadFunc) { Name = "Worker Thread" };
       threads.Add(thread);
       if(threads.Count == 1) firstThreadIsBusy = true; // if we just added the first thread, then indicate that it's busy
       thread.Start();

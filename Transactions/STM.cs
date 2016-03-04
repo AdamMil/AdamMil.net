@@ -72,7 +72,7 @@ public interface ISTMTransactionalValue
 /// <summary>Provides convenience methods for working with software transactional memory.</summary>
 public static class STM
 {
-  /// <include file="documentation.xml" path="/HiA/TX/STM/AddPostCommitAction/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/AddPostCommitAction/node()" />
   /// <exception cref="InvalidOperationException">Thrown if there is no current transaction.</exception>
   public static void AddPostCommitAction(Action postCommitAction)
   {
@@ -405,7 +405,7 @@ public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
     }
   }
 
-  /// <include file="documentation.xml" path="/HiA/TX/STM/AddPostCommitAction/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/AddPostCommitAction/node()" />
   public void AddPostCommitAction(Action postCommitAction)
   {
     if(postCommitAction == null) throw new ArgumentNullException();
