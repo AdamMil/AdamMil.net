@@ -372,38 +372,65 @@ public static class BinaryUtility
     return new string(chars);
   }
 
-  /// <summary>Converts the given byte value into a corresponding two-digit hex string.</summary>
+  /// <summary>Converts the given byte value into a corresponding two-digit uppercase hex string.</summary>
   public static string ToHex(byte value)
   {
-    return new string(new char[2] { HexChars[value >> 4], HexChars[value & 0xF] });
+    return ToHex(value, false);
   }
 
-  /// <summary>Converts the given binary data into a hex string.</summary>
+  /// <summary>Converts the given byte value into a corresponding two-digit hex string.</summary>
+  public static string ToHex(byte value, bool lowercase)
+  {
+    string hexChars = lowercase ? LHexChars : UHexChars;
+    return new string(new char[2] { hexChars[value >> 4], hexChars[value & 0xF] });
+  }
+
+  /// <summary>Converts the given binary data into an uppercase hex string.</summary>
   public static string ToHex(byte[] data)
   {
-    if(data == null) throw new ArgumentNullException();
-    return ToHex(data, 0, data.Length);
+    return ToHex(data, false);
   }
 
   /// <summary>Converts the given binary data into a hex string.</summary>
+  public static string ToHex(byte[] data, bool lowercase)
+  {
+    if(data == null) throw new ArgumentNullException();
+    return ToHex(data, 0, data.Length, lowercase);
+  }
+
+  /// <summary>Converts the given binary data into an uppercase hex string.</summary>
   public static string ToHex(byte[] data, int index, int length)
+  {
+    return ToHex(data, index, length, false);
+  }
+
+  /// <summary>Converts the given binary data into a hex string.</summary>
+  public static string ToHex(byte[] data, int index, int length, bool lowercase)
   {
     Utility.ValidateRange(data, index, length);
     char[] chars = new char[length * 2];
+    string hexChars = lowercase ? LHexChars : UHexChars;
     for(int end=index+length, o=0; index<end; index++)
     {
       byte value = data[index];
-      chars[o++] = HexChars[value >> 4];
-      chars[o++] = HexChars[value & 0xF];
+      chars[o++] = hexChars[value >> 4];
+      chars[o++] = hexChars[value & 0xF];
     }
     return new string(chars);
   }
 
-  /// <summary>Converts a nibble value (0-15) into the corresponding uppercase hex character.</summary>
+  /// <summary>Converts a nibble value (0-15) into the corresponding uppercase hex digit.</summary>
   public static char ToHexChar(byte nibble)
   {
     if(nibble >= 16) throw new ArgumentOutOfRangeException();
-    return HexChars[nibble & 0xF];
+    return UHexChars[nibble];
+  }
+
+  /// <summary>Converts a nibble value (0-15) into the corresponding hex digit.</summary>
+  public static char ToHexChar(byte nibble, bool lowercase)
+  {
+    if(nibble >= 16) throw new ArgumentOutOfRangeException();
+    return lowercase ? LHexChars[nibble] : UHexChars[nibble];
   }
 
   /// <summary>Attempts to parse a hex digit into its numeric value. Returns true if it was parsed successfully.</summary>
@@ -499,7 +526,7 @@ public static class BinaryUtility
     }
   }
 
-  const string HexChars = "0123456789ABCDEF";
+  const string LHexChars = "0123456789abcdef", UHexChars = "0123456789ABCDEF";
 }
 
 } // namespace AdamMil.Utilities
