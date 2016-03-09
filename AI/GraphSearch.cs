@@ -340,7 +340,7 @@ public abstract class SingleQueueSearchBase<StateType, ActionType> : GraphSearch
       // this proceeds much like standard search...
       if(EliminateDuplicateStates)
       {
-        limitHit = TryEnqueueNodes(leftFringe, leftNode, leftStates, false) || limitHit;
+        limitHit |= TryEnqueueNodes(leftFringe, leftNode, leftStates, false);
       }
       else if(leftNode.Depth >= DepthLimit)
       {
@@ -369,7 +369,7 @@ public abstract class SingleQueueSearchBase<StateType, ActionType> : GraphSearch
         return SearchResult.Success; // and return it
       }
 
-      limitHit = TryEnqueueNodes(rightFringe, rightNode, rightStates, true) || limitHit;
+      limitHit |= TryEnqueueNodes(rightFringe, rightNode, rightStates, true);
     }
 
     // if it gets here, we couldn't find a solution
@@ -406,10 +406,46 @@ public abstract class SingleQueueSearchBase<StateType, ActionType> : GraphSearch
         return SearchResult.Success;
       }
 
-      limitHit = TryEnqueueNodes(fringe, node, statesSeen, false) || limitHit;
+      limitHit |= TryEnqueueNodes(fringe, node, statesSeen, false);
     }
 
-    return limitHit ? SearchResult.LimitReached : SearchResult.Failed;
+     return limitHit ? SearchResult.LimitReached : SearchResult.Failed;
+  }
+
+  /// <summary>Given an initial state, returns a node representing it.</summary>
+  protected Node<StateType, ActionType> MakeNode(StateType initialState)
+  {
+    Node<StateType, ActionType> node = new Node<StateType, ActionType>();
+    node.State = initialState;
+    if(useHeuristic) node.HeuristicCost = Problem.GetHeuristic(initialState);
+    return node;
+  }
+
+  /// <summary>Adds the successors or predecessors of <paramref name="parent"/> to the <paramref name="fringe"/>,
+  /// assuming it doesn't exceed the depth limit and the paths to the new states are better than any existing paths.
+  /// </summary>
+  /// <param name="fringe">The queue to which the nodes will be added.</param>
+  /// <param name="parent">The parent of the given states.</param>
+  /// <param name="statesSeen">A dictionary mapping states to the best known path to that state, or null if
+  /// <see cref="GraphSearchBase{S,A}.EliminateDuplicateStates"/> is false.
+  /// </param>
+  /// <param name="reversed">If true, the predecessors of the node will be retrieved. If false, the successors.</param>
+  /// <returns>Returns true if the depth limit was hit.</returns>
+  protected bool TryEnqueueNodes(IQueue<Node<StateType, ActionType>> fringe, Node<StateType, ActionType> parent,
+                                 Dictionary<StateType, Node<StateType, ActionType>> statesSeen, bool reversed)
+  {
+    if(depthLimit == Infinite || parent.Depth < depthLimit)
+    {
+      foreach(Node<StateType, ActionType> child in GetNodes(parent, statesSeen, reversed))
+      {
+        fringe.Enqueue(child);
+      }
+      return false;
+    }
+    else
+    {
+      return true;
+    }
   }
 
   /// <summary>Throws an exception if the problem cannot be searched bidirectionally, either because the problem
@@ -522,33 +558,6 @@ public abstract class SingleQueueSearchBase<StateType, ActionType> : GraphSearch
     return node;
   }
 
-  /// <summary>Adds the successors or predecessors of <paramref name="parent"/> to the <paramref name="fringe"/>,
-  /// assuming it doesn't exceed the depth limit and the paths to the new states are better than any existing paths.
-  /// </summary>
-  /// <param name="fringe">The queue to which the nodes will be added.</param>
-  /// <param name="parent">The parent of the given states.</param>
-  /// <param name="statesSeen">A dictionary mapping states to the best known path to that state, or null if
-  /// <see cref="GraphSearchBase{S,A}.EliminateDuplicateStates"/> is false.
-  /// </param>
-  /// <param name="reversed">If true, the predecessors of the node will be retrieved. If false, the successors.</param>
-  /// <returns>Returns true if the depth limit was hit.</returns>
-  bool TryEnqueueNodes(IQueue<Node<StateType, ActionType>> fringe, Node<StateType, ActionType> parent,
-                       Dictionary<StateType, Node<StateType, ActionType>> statesSeen, bool reversed)
-  {
-    if(depthLimit == Infinite || parent.Depth < depthLimit)
-    {
-      foreach(Node<StateType, ActionType> child in GetNodes(parent, statesSeen, reversed))
-      {
-        fringe.Enqueue(child);
-      }
-      return false;
-    }
-    else
-    {
-      return true;
-    }
-  }
-
   /// <summary>The interface to the bidirectional problem. This is either equal to
   /// <see cref="GraphSearchBase{S,A}.Problem"/>, or null if the problem doesn't support bidirectional searching.
   /// </summary>
@@ -565,14 +574,6 @@ public abstract class SingleQueueSearchBase<StateType, ActionType> : GraphSearch
   {
     return node.PathCost < comparedTo.PathCost ||
            node.Depth < comparedTo.Depth && node.PathCost == comparedTo.PathCost;
-  }
-
-  /// <summary>Given an initial state, returns a node representing it.</summary>
-  static Node<StateType, ActionType> MakeNode(StateType initialState)
-  {
-    Node<StateType, ActionType> node = new Node<StateType, ActionType>();
-    node.State = initialState;
-    return node;
   }
 }
 #endregion
@@ -631,7 +632,7 @@ public sealed class BreadthFirstSearch<StateType, ActionType> : SingleQueueSearc
 public abstract class DepthBasedSearch<StateType, ActionType> : SingleQueueSearchBase<StateType, ActionType>
 {
   /// <summary>Initializes a new <see cref="DepthBasedSearch{S,A}"/>.</summary>
-  protected DepthBasedSearch(IGraphSearchable<StateType, ActionType> problem) : base(problem, false) { }
+  protected DepthBasedSearch(IGraphSearchable<StateType, ActionType> problem, bool usesHeuristic) : base(problem, usesHeuristic) { }
 
   /// <summary>Creates and returns a new stack.</summary>
   protected override IQueue<Node<StateType, ActionType>> CreateQueue()
@@ -647,8 +648,7 @@ public abstract class DepthBasedSearch<StateType, ActionType> : SingleQueueSearc
 public class DepthLimitedSearch<StateType, ActionType> : DepthBasedSearch<StateType, ActionType>
 {
   /// <summary>Initializes a new <see cref="DepthLimitedSearch{S,A}"/>.</summary>
-  public DepthLimitedSearch(IGraphSearchable<StateType, ActionType> problem, int depthLimit)
-    : base(problem)
+  public DepthLimitedSearch(IGraphSearchable<StateType, ActionType> problem, int depthLimit) : base(problem, false)
   {
     if(depthLimit < 0) throw new ArgumentOutOfRangeException("Depth limit must not be negative.");
     DepthLimit = depthLimit;
@@ -702,7 +702,7 @@ public sealed class GreedyBestFirstSearch<StateType, ActionType> : SingleQueueSe
 public sealed class IterativeDeepeningSearch<StateType, ActionType> : DepthBasedSearch<StateType, ActionType>
 {
   /// <summary>Initializes a new <see cref="IterativeDeepeningSearch{S,A}"/>.</summary>
-  public IterativeDeepeningSearch(IGraphSearchable<StateType, ActionType> problem) : base(problem) { }
+  public IterativeDeepeningSearch(IGraphSearchable<StateType, ActionType> problem) : base(problem, false) { }
 
   /// <include file="documentation.xml" path="/AI/Search/IBidirectionalGraphSearch/BidirectionalSearch_State/node()"/>
   public override SearchResult BidirectionalSearch(StateType initialState, SearchLimiter limiter,
@@ -744,7 +744,58 @@ public sealed class IterativeDeepeningSearch<StateType, ActionType> : DepthBased
 }
 #endregion
 
-// TODO: A* with partial expansion (http://www.ai.soc.i.kyoto-u.ac.jp/services/publications/00/00conf04.pdf)
+#region IterativeDeepeningAStarSearch
+/// <summary>A search that expands nodes depth-first up to a path-plus-heuristic cost limit that is gradually increased.</summary>
+/// <remarks>Iterative deepening A* search is complete and optimal, and is guaranteed to terminate if the search tree contains a solution.
+/// It has O(bd) space complexity and generally takes more time and less memory than A* search.
+/// </remarks>
+public sealed class IterativeDeepeningAStarSearch<StateType, ActionType> : DepthBasedSearch<StateType, ActionType>
+{
+  /// <summary>Initializes a new <see cref="IterativeDeepeningAStarSearch{S,A}"/>.</summary>
+  public IterativeDeepeningAStarSearch(IGraphSearchable<StateType, ActionType> problem) : base(problem, true) { }
+
+  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/node()"/>
+  public override SearchResult Search(StateType initialState, SearchLimiter limiter, out Node<StateType, ActionType> solution)
+  {
+    if(limiter != null) limiter.Start();
+    solution = new Node<StateType, ActionType>();
+
+    float costLimit = Problem.GetHeuristic(initialState);
+    while(true)
+    {
+      IQueue<Node<StateType, ActionType>> fringe = CreateQueue();
+      Dictionary<StateType, Node<StateType, ActionType>> statesSeen =
+        EliminateDuplicateStates ? new Dictionary<StateType, Node<StateType, ActionType>>() : null;
+      float newLimit = float.PositiveInfinity;
+      bool depthLimitHit = false;
+
+      fringe.Enqueue(MakeNode(initialState));
+
+      while(fringe.Count != 0)
+      {
+        if(limiter != null && limiter.LimitReached) return SearchResult.LimitReached;
+
+        Node<StateType, ActionType> node = fringe.Dequeue();
+        if(Problem.IsGoal(node.State))
+        {
+          solution = node;
+          return SearchResult.Success;
+        }
+        
+        float cost = node.PathCost + node.HeuristicCost;
+        if(cost <= costLimit) depthLimitHit |= TryEnqueueNodes(fringe, node, statesSeen, false);
+        else if(cost < newLimit) newLimit = cost; // the new limit is the lowest of those that exceeded the old limit
+      }
+
+      if(float.IsInfinity(newLimit)) return depthLimitHit ? SearchResult.LimitReached : SearchResult.Failed;
+      costLimit = newLimit;
+    }
+  }
+}
+#endregion
+
+// TODO: RBFS (recursive best-first search)
+// TODO: A* with partial expansion (http://www.ai.soc.i.kyoto-u.ac.jp/services/publications/00/00conf04.pdf)?
 // TODO: SMA* and SMAG* (http://www2.parc.com/isl/members/rzhou/papers/flairs02.ps.gz)
 
 // TODO: check documentation (first "complete" to "optimal"?)
