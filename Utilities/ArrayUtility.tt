@@ -32,11 +32,11 @@ public static partial class ArrayUtility
 {
 <#
   string[] types = new string[] { "byte", "char", "double", "float", "int", "long", "sbyte", "short", "uint", "ulong", "ushort", "T" };
-	int[] loopThresholds = new int[] { 10, 15, 20, 20, 15, 20, 10, 14, 17, 22, 15, 30 };
+  int[] loopThresholds = new int[] { 10, 15, 20, 20, 15, 20, 10, 14, 17, 22, 15, 30 };
   bool[] clsCompliant = new bool[] { true, true, true, true, true, true, false, true, false, false, false, true };
   for(int i=0; i<types.Length; i++)
   {
-		bool isGeneric = types[i] == "T";
+    bool isGeneric = types[i] == "T";
     string type = types[i], typeParam = isGeneric ? "<T>" : "";#>
     /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
     <# if(!clsCompliant[i]) {#>
@@ -54,23 +54,26 @@ public static partial class ArrayUtility
     public static unsafe void FastCopy<#=typeParam#>(this <#=type#>[] source, int sourceIndex, <#=type#>[] dest, int destIndex, int length)<# if(isGeneric) {#> where T : class<#}#>
     {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
-			if(length <= <#=loopThresholds[i]#>)
-			{
-				for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
-			}
-			else
-			{
-				<# if(isGeneric) { #>
-				Array.Copy(source, sourceIndex, dest, destIndex, length);
-				<# } else { #>
-	      if(source == null || dest == null) throw new ArgumentNullException();
-				if(sourceIndex+length > source.Length || destIndex+length > dest.Length) throw new ArgumentOutOfRangeException();
-				fixed(<#=type#>* psrc=source, pdest=dest)
-				{
-					Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(<#=type#>));
-				}
-				<# } #>
-			}
+      if(length <= <#=loopThresholds[i]#> && (source != dest || sourceIndex >= destIndex || (uint)(sourceIndex+length) <= (uint)destIndex))
+      {
+        for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
+      }
+      else
+      {
+        <# if(isGeneric) { #>
+        Array.Copy(source, sourceIndex, dest, destIndex, length);
+        <# } else { #>
+        if(source == null || dest == null) throw new ArgumentNullException();
+        if((uint)(sourceIndex+length) > (uint)source.Length || (uint)(destIndex+length) > (uint)dest.Length)
+        {
+          throw new ArgumentOutOfRangeException();
+        }
+        fixed(<#=type#>* psrc=source, pdest=dest)
+        {
+          Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(<#=type#>));
+        }
+        <# } #>
+      }
     }
   <#
   }
