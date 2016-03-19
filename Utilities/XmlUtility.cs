@@ -2682,7 +2682,7 @@ public static class XmlUtility
   }
 
   /// <summary>Tries to parse an <c>xs:date</c>, <c>xs:dateTime</c>, or <c>xs:datetimeoffset</c> value. <c>xs:datetimeoffset</c> values
-  /// will be converted returned in local time if the offset matches the local time offset, and will be converted into UTC otherwise.
+  /// will be returned in local time if the offset matches the local time offset, and will be converted into UTC otherwise.
   /// </summary>
   /// <returns>Returns true if the value was successfully parsed and false if not.</returns>
   public static bool TryParse(string dateStr, out DateTime dateTime)
@@ -2772,6 +2772,66 @@ public static class XmlUtility
 
     value = 0;
     return false;
+  }
+
+  /// <summary>Tries to parse an <c>xsi:byte</c> value.</summary>
+  [CLSCompliant(false)]
+  public static bool TryParse(string str, out sbyte value)
+  {
+    return sbyte.TryParse(str, NumberStyles.Integer, NumberFormatInfo.InvariantInfo, out value);
+  }
+
+  /// <summary>Tries to parse an <c>xsi:decimal</c> value.</summary>
+  public static bool TryParse(string str, out decimal value)
+  {
+    const NumberStyles style = NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign | NumberStyles.AllowLeadingWhite |
+                               NumberStyles.AllowTrailingWhite;
+    return decimal.TryParse(str, style, NumberFormatInfo.InvariantInfo, out value);
+  }
+
+  /// <summary>Tries to parse an <c>xsi:int</c> value.</summary>
+  public static bool TryParse(string str, out int value)
+  {
+    return int.TryParse(str, NumberStyles.Integer, NumberFormatInfo.InvariantInfo, out value);
+  }
+
+  /// <summary>Tries to parse an <c>xsi:long</c> value.</summary>
+  public static bool TryParse(string str, out long value)
+  {
+    return long.TryParse(str, NumberStyles.Integer, NumberFormatInfo.InvariantInfo, out value);
+  }
+
+  /// <summary>Tries to parse an <c>xsi:short</c> value.</summary>
+  public static bool TryParse(string str, out short value)
+  {
+    return short.TryParse(str, NumberStyles.Integer, NumberFormatInfo.InvariantInfo, out value);
+  }
+
+  /// <summary>Tries to parse an <c>xsi:unsignedByte</c> value.</summary>
+  public static bool TryParse(string str, out byte value)
+  {
+    return byte.TryParse(str, NumberStyles.AllowLeadingWhite | NumberStyles.AllowTrailingWhite, NumberFormatInfo.InvariantInfo, out value);
+  }
+
+  /// <summary>Tries to parse an <c>xsi:unsignedInt</c> value.</summary>
+  [CLSCompliant(false)]
+  public static bool TryParse(string str, out uint value)
+  {
+    return uint.TryParse(str, NumberStyles.AllowLeadingWhite | NumberStyles.AllowTrailingWhite, NumberFormatInfo.InvariantInfo, out value);
+  }
+
+  /// <summary>Tries to parse an <c>xsi:unsignedLong</c> value.</summary>
+  [CLSCompliant(false)]
+  public static bool TryParse(string str, out ulong value)
+  {
+    return ulong.TryParse(str, NumberStyles.AllowLeadingWhite|NumberStyles.AllowTrailingWhite, NumberFormatInfo.InvariantInfo, out value);
+  }
+
+  /// <summary>Tries to parse an <c>xsi:unsignedShort</c> value.</summary>
+  [CLSCompliant(false)]
+  public static bool TryParse(string str, out ushort value)
+  {
+    return ushort.TryParse(str, NumberStyles.AllowLeadingWhite|NumberStyles.AllowTrailingWhite, NumberFormatInfo.InvariantInfo, out value);
   }
 
   /// <summary>Tries to parse an <c>xs:date</c>, <c>xs:dateTime</c>, or <c>xs:datetimeoffset</c> value, preserving the time zone

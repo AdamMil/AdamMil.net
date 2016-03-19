@@ -178,7 +178,7 @@ public static class Unsafe
     // of memory, and often for large ones. the cpblk opcode seems unreliable in that it is faster sometimes, but much slower
     // other times. i don't understand that. RtlMoveMemory at least has consistent performance, and the code switches to it when
     // it would be advantageous to do so (as measured on my machine). the method is faster than Array.Copy only for small amounts of data.
-    // the ArrayUtility.SmallCopy() method exists to switch between this method and Array.Copy() based on measured thresholds
+    // the ArrayUtility.FastCopy() method exists to switch between this method and Array.Copy() based on measured thresholds
 
     // check if the blocks overlap. this doesn't check for all overlaps, only for overlaps that would impact the main copy algorithm (i.e.
     // when the source block comes starts before and overlaps the destination block in memory)

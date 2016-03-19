@@ -36,19 +36,22 @@ public static partial class ArrayUtility
     /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static unsafe void FastCopy(this byte[] source, int sourceIndex, byte[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
-			if(length <= 10)
-			{
-				for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
-			}
-			else
-			{
-					      if(source == null || dest == null) throw new ArgumentNullException();
-				if(sourceIndex+length > source.Length || destIndex+length > dest.Length) throw new ArgumentOutOfRangeException();
-				fixed(byte* psrc=source, pdest=dest)
-				{
-					Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(byte));
-				}
-							}
+      if(length <= 10 && (source != dest || sourceIndex >= destIndex || (uint)(sourceIndex+length) <= (uint)destIndex))
+      {
+        for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
+      }
+      else
+      {
+                if(source == null || dest == null) throw new ArgumentNullException();
+        if((uint)(sourceIndex+length) > (uint)source.Length || (uint)(destIndex+length) > (uint)dest.Length)
+        {
+          throw new ArgumentOutOfRangeException();
+        }
+        fixed(byte* psrc=source, pdest=dest)
+        {
+          Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(byte));
+        }
+              }
     }
       /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static void FastCopy(this char[] source, char[] dest, int length)    {
@@ -58,19 +61,22 @@ public static partial class ArrayUtility
     /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static unsafe void FastCopy(this char[] source, int sourceIndex, char[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
-			if(length <= 15)
-			{
-				for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
-			}
-			else
-			{
-					      if(source == null || dest == null) throw new ArgumentNullException();
-				if(sourceIndex+length > source.Length || destIndex+length > dest.Length) throw new ArgumentOutOfRangeException();
-				fixed(char* psrc=source, pdest=dest)
-				{
-					Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(char));
-				}
-							}
+      if(length <= 15 && (source != dest || sourceIndex >= destIndex || (uint)(sourceIndex+length) <= (uint)destIndex))
+      {
+        for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
+      }
+      else
+      {
+                if(source == null || dest == null) throw new ArgumentNullException();
+        if((uint)(sourceIndex+length) > (uint)source.Length || (uint)(destIndex+length) > (uint)dest.Length)
+        {
+          throw new ArgumentOutOfRangeException();
+        }
+        fixed(char* psrc=source, pdest=dest)
+        {
+          Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(char));
+        }
+              }
     }
       /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static void FastCopy(this double[] source, double[] dest, int length)    {
@@ -80,19 +86,22 @@ public static partial class ArrayUtility
     /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static unsafe void FastCopy(this double[] source, int sourceIndex, double[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
-			if(length <= 20)
-			{
-				for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
-			}
-			else
-			{
-					      if(source == null || dest == null) throw new ArgumentNullException();
-				if(sourceIndex+length > source.Length || destIndex+length > dest.Length) throw new ArgumentOutOfRangeException();
-				fixed(double* psrc=source, pdest=dest)
-				{
-					Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(double));
-				}
-							}
+      if(length <= 20 && (source != dest || sourceIndex >= destIndex || (uint)(sourceIndex+length) <= (uint)destIndex))
+      {
+        for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
+      }
+      else
+      {
+                if(source == null || dest == null) throw new ArgumentNullException();
+        if((uint)(sourceIndex+length) > (uint)source.Length || (uint)(destIndex+length) > (uint)dest.Length)
+        {
+          throw new ArgumentOutOfRangeException();
+        }
+        fixed(double* psrc=source, pdest=dest)
+        {
+          Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(double));
+        }
+              }
     }
       /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static void FastCopy(this float[] source, float[] dest, int length)    {
@@ -102,19 +111,22 @@ public static partial class ArrayUtility
     /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static unsafe void FastCopy(this float[] source, int sourceIndex, float[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
-			if(length <= 20)
-			{
-				for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
-			}
-			else
-			{
-					      if(source == null || dest == null) throw new ArgumentNullException();
-				if(sourceIndex+length > source.Length || destIndex+length > dest.Length) throw new ArgumentOutOfRangeException();
-				fixed(float* psrc=source, pdest=dest)
-				{
-					Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(float));
-				}
-							}
+      if(length <= 20 && (source != dest || sourceIndex >= destIndex || (uint)(sourceIndex+length) <= (uint)destIndex))
+      {
+        for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
+      }
+      else
+      {
+                if(source == null || dest == null) throw new ArgumentNullException();
+        if((uint)(sourceIndex+length) > (uint)source.Length || (uint)(destIndex+length) > (uint)dest.Length)
+        {
+          throw new ArgumentOutOfRangeException();
+        }
+        fixed(float* psrc=source, pdest=dest)
+        {
+          Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(float));
+        }
+              }
     }
       /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static void FastCopy(this int[] source, int[] dest, int length)    {
@@ -124,19 +136,22 @@ public static partial class ArrayUtility
     /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static unsafe void FastCopy(this int[] source, int sourceIndex, int[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
-			if(length <= 15)
-			{
-				for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
-			}
-			else
-			{
-					      if(source == null || dest == null) throw new ArgumentNullException();
-				if(sourceIndex+length > source.Length || destIndex+length > dest.Length) throw new ArgumentOutOfRangeException();
-				fixed(int* psrc=source, pdest=dest)
-				{
-					Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(int));
-				}
-							}
+      if(length <= 15 && (source != dest || sourceIndex >= destIndex || (uint)(sourceIndex+length) <= (uint)destIndex))
+      {
+        for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
+      }
+      else
+      {
+                if(source == null || dest == null) throw new ArgumentNullException();
+        if((uint)(sourceIndex+length) > (uint)source.Length || (uint)(destIndex+length) > (uint)dest.Length)
+        {
+          throw new ArgumentOutOfRangeException();
+        }
+        fixed(int* psrc=source, pdest=dest)
+        {
+          Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(int));
+        }
+              }
     }
       /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static void FastCopy(this long[] source, long[] dest, int length)    {
@@ -146,19 +161,22 @@ public static partial class ArrayUtility
     /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static unsafe void FastCopy(this long[] source, int sourceIndex, long[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
-			if(length <= 20)
-			{
-				for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
-			}
-			else
-			{
-					      if(source == null || dest == null) throw new ArgumentNullException();
-				if(sourceIndex+length > source.Length || destIndex+length > dest.Length) throw new ArgumentOutOfRangeException();
-				fixed(long* psrc=source, pdest=dest)
-				{
-					Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(long));
-				}
-							}
+      if(length <= 20 && (source != dest || sourceIndex >= destIndex || (uint)(sourceIndex+length) <= (uint)destIndex))
+      {
+        for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
+      }
+      else
+      {
+                if(source == null || dest == null) throw new ArgumentNullException();
+        if((uint)(sourceIndex+length) > (uint)source.Length || (uint)(destIndex+length) > (uint)dest.Length)
+        {
+          throw new ArgumentOutOfRangeException();
+        }
+        fixed(long* psrc=source, pdest=dest)
+        {
+          Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(long));
+        }
+              }
     }
       /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
           [CLSCompliant(false)]
@@ -170,19 +188,22 @@ public static partial class ArrayUtility
           [CLSCompliant(false)]
         public static unsafe void FastCopy(this sbyte[] source, int sourceIndex, sbyte[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
-			if(length <= 10)
-			{
-				for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
-			}
-			else
-			{
-					      if(source == null || dest == null) throw new ArgumentNullException();
-				if(sourceIndex+length > source.Length || destIndex+length > dest.Length) throw new ArgumentOutOfRangeException();
-				fixed(sbyte* psrc=source, pdest=dest)
-				{
-					Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(sbyte));
-				}
-							}
+      if(length <= 10 && (source != dest || sourceIndex >= destIndex || (uint)(sourceIndex+length) <= (uint)destIndex))
+      {
+        for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
+      }
+      else
+      {
+                if(source == null || dest == null) throw new ArgumentNullException();
+        if((uint)(sourceIndex+length) > (uint)source.Length || (uint)(destIndex+length) > (uint)dest.Length)
+        {
+          throw new ArgumentOutOfRangeException();
+        }
+        fixed(sbyte* psrc=source, pdest=dest)
+        {
+          Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(sbyte));
+        }
+              }
     }
       /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static void FastCopy(this short[] source, short[] dest, int length)    {
@@ -192,19 +213,22 @@ public static partial class ArrayUtility
     /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static unsafe void FastCopy(this short[] source, int sourceIndex, short[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
-			if(length <= 14)
-			{
-				for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
-			}
-			else
-			{
-					      if(source == null || dest == null) throw new ArgumentNullException();
-				if(sourceIndex+length > source.Length || destIndex+length > dest.Length) throw new ArgumentOutOfRangeException();
-				fixed(short* psrc=source, pdest=dest)
-				{
-					Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(short));
-				}
-							}
+      if(length <= 14 && (source != dest || sourceIndex >= destIndex || (uint)(sourceIndex+length) <= (uint)destIndex))
+      {
+        for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
+      }
+      else
+      {
+                if(source == null || dest == null) throw new ArgumentNullException();
+        if((uint)(sourceIndex+length) > (uint)source.Length || (uint)(destIndex+length) > (uint)dest.Length)
+        {
+          throw new ArgumentOutOfRangeException();
+        }
+        fixed(short* psrc=source, pdest=dest)
+        {
+          Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(short));
+        }
+              }
     }
       /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
           [CLSCompliant(false)]
@@ -216,19 +240,22 @@ public static partial class ArrayUtility
           [CLSCompliant(false)]
         public static unsafe void FastCopy(this uint[] source, int sourceIndex, uint[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
-			if(length <= 17)
-			{
-				for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
-			}
-			else
-			{
-					      if(source == null || dest == null) throw new ArgumentNullException();
-				if(sourceIndex+length > source.Length || destIndex+length > dest.Length) throw new ArgumentOutOfRangeException();
-				fixed(uint* psrc=source, pdest=dest)
-				{
-					Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(uint));
-				}
-							}
+      if(length <= 17 && (source != dest || sourceIndex >= destIndex || (uint)(sourceIndex+length) <= (uint)destIndex))
+      {
+        for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
+      }
+      else
+      {
+                if(source == null || dest == null) throw new ArgumentNullException();
+        if((uint)(sourceIndex+length) > (uint)source.Length || (uint)(destIndex+length) > (uint)dest.Length)
+        {
+          throw new ArgumentOutOfRangeException();
+        }
+        fixed(uint* psrc=source, pdest=dest)
+        {
+          Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(uint));
+        }
+              }
     }
       /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
           [CLSCompliant(false)]
@@ -240,19 +267,22 @@ public static partial class ArrayUtility
           [CLSCompliant(false)]
         public static unsafe void FastCopy(this ulong[] source, int sourceIndex, ulong[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
-			if(length <= 22)
-			{
-				for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
-			}
-			else
-			{
-					      if(source == null || dest == null) throw new ArgumentNullException();
-				if(sourceIndex+length > source.Length || destIndex+length > dest.Length) throw new ArgumentOutOfRangeException();
-				fixed(ulong* psrc=source, pdest=dest)
-				{
-					Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(ulong));
-				}
-							}
+      if(length <= 22 && (source != dest || sourceIndex >= destIndex || (uint)(sourceIndex+length) <= (uint)destIndex))
+      {
+        for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
+      }
+      else
+      {
+                if(source == null || dest == null) throw new ArgumentNullException();
+        if((uint)(sourceIndex+length) > (uint)source.Length || (uint)(destIndex+length) > (uint)dest.Length)
+        {
+          throw new ArgumentOutOfRangeException();
+        }
+        fixed(ulong* psrc=source, pdest=dest)
+        {
+          Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(ulong));
+        }
+              }
     }
       /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
           [CLSCompliant(false)]
@@ -264,19 +294,22 @@ public static partial class ArrayUtility
           [CLSCompliant(false)]
         public static unsafe void FastCopy(this ushort[] source, int sourceIndex, ushort[] dest, int destIndex, int length)    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
-			if(length <= 15)
-			{
-				for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
-			}
-			else
-			{
-					      if(source == null || dest == null) throw new ArgumentNullException();
-				if(sourceIndex+length > source.Length || destIndex+length > dest.Length) throw new ArgumentOutOfRangeException();
-				fixed(ushort* psrc=source, pdest=dest)
-				{
-					Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(ushort));
-				}
-							}
+      if(length <= 15 && (source != dest || sourceIndex >= destIndex || (uint)(sourceIndex+length) <= (uint)destIndex))
+      {
+        for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
+      }
+      else
+      {
+                if(source == null || dest == null) throw new ArgumentNullException();
+        if((uint)(sourceIndex+length) > (uint)source.Length || (uint)(destIndex+length) > (uint)dest.Length)
+        {
+          throw new ArgumentOutOfRangeException();
+        }
+        fixed(ushort* psrc=source, pdest=dest)
+        {
+          Unsafe.Copy(psrc+sourceIndex, pdest+destIndex, length*sizeof(ushort));
+        }
+              }
     }
       /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static void FastCopy<T>(this T[] source, T[] dest, int length) where T : class    {
@@ -286,14 +319,14 @@ public static partial class ArrayUtility
     /// <include file="documentation.xml" path="/Utilities/ArrayUtility/FastCopy/*"/>
         public static unsafe void FastCopy<T>(this T[] source, int sourceIndex, T[] dest, int destIndex, int length) where T : class    {
       if((sourceIndex|destIndex|length) < 0) throw new ArgumentOutOfRangeException();
-			if(length <= 30)
-			{
-				for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
-			}
-			else
-			{
-								Array.Copy(source, sourceIndex, dest, destIndex, length);
-							}
+      if(length <= 30 && (source != dest || sourceIndex >= destIndex || (uint)(sourceIndex+length) <= (uint)destIndex))
+      {
+        for(int i=0; i<length; i++) dest[destIndex+i] = source[sourceIndex+i];
+      }
+      else
+      {
+                Array.Copy(source, sourceIndex, dest, destIndex, length);
+              }
     }
   }
 

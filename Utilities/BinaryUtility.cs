@@ -479,7 +479,9 @@ public static class BinaryUtility
     {
       bytes = null;
 
-      byte[] data = new byte[(hexString.Length+1)/2]; // assume the hex string does not contain more than one non-hex character
+      // assume the hex string does not contain more than one non-hex character. this gives us the correct length if the string contains
+      // no non-hex characters, which should be a common case
+      byte[] data = new byte[(hexString.Length+1)/2];
       int octet = -1, length = 0;
       for(int i=0; i<hexString.Length; i++)
       {
@@ -491,24 +493,19 @@ public static class BinaryUtility
         else if(char.IsWhiteSpace(c) && allowEmbeddedWhiteSpace) continue;
         else return false;
 
-        if(octet == -1)
+        if(octet < 0)
         {
           octet = value;
         }
         else
         {
-          if(length == data.Length)
-          {
-            byte[] newArray = new byte[length*2];
-            Array.Copy(data, newArray, length);
-            data = newArray;
-          }
+          if(length == data.Length) data = Utility.EnlargeArray(data, length, 1);
           data[length++] = (byte)((octet << 4) | value);
           octet = -1;
         }
       }
 
-      if(octet != -1) return false;
+      if(octet >= 0) return false;
 
       bytes = data.Trim(length);
       return true;
