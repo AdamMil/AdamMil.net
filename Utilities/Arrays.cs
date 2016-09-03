@@ -544,6 +544,7 @@ public static class ArrayExtensions
 #endregion
 
 #region ArrayUtility
+/// <summary>Contains useful methods for dealing with arrays.</summary>
 public static partial class ArrayUtility
 {
   /// <summary>Concatenates two arrays and returns the result. Source arrays that are null will be treated as empty. If all source arrays

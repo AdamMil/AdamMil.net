@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using AdamMil.Utilities;
 
 namespace AdamMil.IO
 {
@@ -62,7 +63,7 @@ public unsafe static partial class IOH
   public static int ReadLE4(byte* buf)
   {
     if(BitConverter.IsLittleEndian) return *(int*)buf;
-    else return (int)(*buf|(buf[1]<<8)|(buf[2]<<16)|(buf[3]<<24));
+    else return (int)BinaryUtility.ByteSwap(*(uint*)buf);
   }
 
   /// <summary>Reads a big-endian integer (4 bytes) from a byte array.</summary>
@@ -75,14 +76,14 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static int ReadBE4(byte* buf)
   {
-    if(BitConverter.IsLittleEndian) return (int)((*buf<<24)|(buf[1]<<16)|(buf[2]<<8)|buf[3]);
+    if(BitConverter.IsLittleEndian) return (int)BinaryUtility.ByteSwap(*(uint*)buf);
     else return *(int*)buf;
   }
 
   /// <summary>Reads a little-endian long (8 bytes) from a byte array.</summary>
   public static long ReadLE8(byte[] buf, int index)
   {
-    return ReadLE4U(buf, index)|((long)ReadLE4(buf, index+4)<<32);
+    return ReadLE4U(buf, index) | ((long)ReadLE4(buf, index+4)<<32);
   }
 
   /// <summary>Reads a little-endian long (8 bytes) from a byte array.</summary>
@@ -90,7 +91,7 @@ public unsafe static partial class IOH
   public static long ReadLE8(byte* buf)
   {
     if(BitConverter.IsLittleEndian) return *(long*)buf;
-    else return ReadLE4U(buf)|((long)ReadLE4(buf+4)<<32);
+    else return (long)(BinaryUtility.ByteSwap(*(uint*)buf) | ((ulong)BinaryUtility.ByteSwap(*(uint*)(buf+4)) << 32));
   }
 
   /// <summary>Reads a big-endian long (8 bytes) from a byte array.</summary>
@@ -103,7 +104,7 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static long ReadBE8(byte* buf)
   {
-    if(BitConverter.IsLittleEndian) return ((long)ReadBE4(buf)<<32)|ReadBE4U(buf+4);
+    if(BitConverter.IsLittleEndian) return (long)(((ulong)BinaryUtility.ByteSwap(*(uint*)buf) << 32) | BinaryUtility.ByteSwap(*(uint*)(buf+4)));
     else return *(long*)buf;
   }
 
@@ -116,7 +117,7 @@ public unsafe static partial class IOH
   public static ushort ReadLE2U(byte* buf)
   {
     if(BitConverter.IsLittleEndian) return *(ushort*)buf;
-    else return (ushort)(*buf|(buf[1]<<8));
+    else return BinaryUtility.ByteSwap(*(ushort*)buf);
   }
 
   /// <summary>Reads a big-endian unsigned short (2 bytes) from a byte array.</summary>
@@ -127,7 +128,7 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static ushort ReadBE2U(byte* buf)
   {
-    if(BitConverter.IsLittleEndian) return (ushort)((*buf<<8)|buf[1]);
+    if(BitConverter.IsLittleEndian) return BinaryUtility.ByteSwap(*(ushort*)buf);
     else return *(ushort*)buf;
   }
 
@@ -143,7 +144,7 @@ public unsafe static partial class IOH
   public static uint ReadLE4U(byte* buf)
   {
     if(BitConverter.IsLittleEndian) return *(uint*)buf;
-    else return (uint)(*buf|(buf[1]<<8)|(buf[2]<<16)|(buf[3]<<24));
+    else return BinaryUtility.ByteSwap(*(uint*)buf);
   }
 
   /// <summary>Reads a big-endian unsigned integer (4 bytes) from a byte array.</summary>
@@ -157,7 +158,7 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static uint ReadBE4U(byte* buf)
   {
-    if(BitConverter.IsLittleEndian) return (uint)((*buf<<24)|(buf[1]<<16)|(buf[2]<<8)|buf[3]);
+    if(BitConverter.IsLittleEndian) return BinaryUtility.ByteSwap(*(uint*)buf);
     else return *(uint*)buf;
   }
 
@@ -173,7 +174,7 @@ public unsafe static partial class IOH
   public static ulong ReadLE8U(byte* buf)
   {
     if(BitConverter.IsLittleEndian) return *(ulong*)buf;
-    else return ReadLE4U(buf)|((ulong)ReadLE4U(buf+4)<<32);
+    else return BinaryUtility.ByteSwap(*(uint*)buf) | ((ulong)BinaryUtility.ByteSwap(*(uint*)(buf+4)) << 32);
   }
 
   /// <summary>Reads a big-endian unsigned long (8 bytes) from a byte array.</summary>
@@ -187,7 +188,7 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static ulong ReadBE8U(byte* buf)
   {
-    if(BitConverter.IsLittleEndian) return ((ulong)ReadBE4U(buf)<<32)|ReadBE4U(buf+4);
+    if(BitConverter.IsLittleEndian) return ((ulong)BinaryUtility.ByteSwap(*(uint*)buf) << 32) | BinaryUtility.ByteSwap(*(uint*)(buf+4));
     else return *(ulong*)buf;
   }
 
@@ -208,7 +209,7 @@ public unsafe static partial class IOH
     }
     else
     {
-      int v = *buf|(buf[1]<<8)|(buf[2]<<16)|(buf[3]<<24);
+      uint v = BinaryUtility.ByteSwap(*(uint*)buf);
       return *(float*)&v;
     }
   }
@@ -248,7 +249,7 @@ public unsafe static partial class IOH
   {
     if(BitConverter.IsLittleEndian)
     {
-      int v = (*buf<<24)|(buf[1]<<16)|(buf[2]<<8)|buf[3];
+      uint v = BinaryUtility.ByteSwap(*(uint*)buf);
       return *(float*)&v;
     }
     else
@@ -292,15 +293,8 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static void WriteLE2(byte* buf, short val)
   {
-    if(BitConverter.IsLittleEndian)
-    {
-      *(short*)buf = val;
-    }
-    else
-    {
-      *buf   = (byte)val;
-      buf[1] = (byte)(val>>8);
-    }
+    if(BitConverter.IsLittleEndian) *(short*)buf = val;
+    else *(ushort*)buf = BinaryUtility.ByteSwap((ushort)val);
   }
 
   /// <summary>Writes a big-endian short (2 bytes) to a byte array.</summary>
@@ -314,15 +308,8 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static void WriteBE2(byte* buf, short val)
   {
-    if(BitConverter.IsLittleEndian)
-    {
-      *buf   = (byte)(val>>8);
-      buf[1] = (byte)val;
-    }
-    else
-    {
-      *(short*)buf = val;
-    }
+    if(BitConverter.IsLittleEndian) *(ushort*)buf = BinaryUtility.ByteSwap((ushort)val);
+    else *(short*)buf = val;
   }
 
   /// <summary>Writes a little-endian integer (4 bytes) to a byte array.</summary>
@@ -338,17 +325,8 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static void WriteLE4(byte* buf, int val)
   {
-    if(BitConverter.IsLittleEndian)
-    {
-      *(int*)buf = val;
-    }
-    else
-    {
-      *buf   = (byte)val;
-      buf[1] = (byte)(val>>8);
-      buf[2] = (byte)(val>>16);
-      buf[3] = (byte)(val>>24);
-    }
+    if(BitConverter.IsLittleEndian) *(int*)buf = val;
+    else *(uint*)buf = BinaryUtility.ByteSwap((uint)val);
   }
 
   /// <summary>Writes a big-endian integer (4 bytes) to a byte array.</summary>
@@ -364,17 +342,8 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static void WriteBE4(byte* buf, int val)
   {
-    if(BitConverter.IsLittleEndian)
-    { 
-      *buf   = (byte)(val>>24);
-      buf[1] = (byte)(val>>16);
-      buf[2] = (byte)(val>>8);
-      buf[3] = (byte)val;
-    }
-    else
-    {
-      *(int*)buf = val;
-    }
+    if(BitConverter.IsLittleEndian) *(uint*)buf = BinaryUtility.ByteSwap((uint)val);
+    else *(int*)buf = val;
   }
 
   /// <summary>Writes a little-endian long (8 bytes) to a byte array.</summary>
@@ -394,8 +363,8 @@ public unsafe static partial class IOH
     }
     else
     {
-      WriteLE4(buf, (int)val);
-      WriteLE4(buf+4, (int)(val>>32));
+      *(uint*)buf     = BinaryUtility.ByteSwap(*((uint*)&val+1));
+      *(uint*)(buf+4) = BinaryUtility.ByteSwap(*(uint*)&val);
     }
   }
 
@@ -412,8 +381,8 @@ public unsafe static partial class IOH
   {
     if(BitConverter.IsLittleEndian)
     {
-      WriteBE4(buf, (int)(val>>32));
-      WriteBE4(buf+4, (int)val);
+      *(uint*)buf     = BinaryUtility.ByteSwap(*((uint*)&val+1));
+      *(uint*)(buf+4) = BinaryUtility.ByteSwap(*(uint*)&val);
     }
     else
     {
@@ -433,15 +402,8 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static void WriteLE2U(byte* buf, ushort val)
   {
-    if(BitConverter.IsLittleEndian)
-    {
-      *(ushort*)buf = val;
-    }
-    else
-    {
-      *buf   = (byte)val;
-      buf[1] = (byte)(val>>8);
-    }
+    if(BitConverter.IsLittleEndian) *(ushort*)buf = val;
+    else *(ushort*)buf = BinaryUtility.ByteSwap(val);
   }
 
   /// <summary>Writes a big-endian unsigned short (2 bytes) to a byte array.</summary>
@@ -456,15 +418,8 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static void WriteBE2U(byte* buf, ushort val)
   {
-    if(BitConverter.IsLittleEndian)
-    {
-      *buf   = (byte)(val>>8);
-      buf[1] = (byte)val;
-    }
-    else
-    {
-      *(ushort*)buf = val;
-    }
+    if(BitConverter.IsLittleEndian) *(ushort*)buf = BinaryUtility.ByteSwap(val);
+    else *(ushort*)buf = val;
   }
 
   /// <summary>Writes a little-endian unsigned integer (4 bytes) to a byte array.</summary>
@@ -481,17 +436,8 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static void WriteLE4U(byte* buf, uint val)
   {
-    if(BitConverter.IsLittleEndian)
-    {
-      *(uint*)buf = val;
-    }
-    else
-    {
-      *buf   = (byte)val;
-      buf[1] = (byte)(val>>8);
-      buf[2] = (byte)(val>>16);
-      buf[3] = (byte)(val>>24);
-    }
+    if(BitConverter.IsLittleEndian) *(uint*)buf = val;
+    else *(uint*)buf = BinaryUtility.ByteSwap(val);
   }
 
   /// <summary>Writes a big-endian unsigned integer (4 bytes) to a byte array.</summary>
@@ -508,17 +454,8 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public static void WriteBE4U(byte* buf, uint val)
   {
-    if(BitConverter.IsLittleEndian)
-    {
-      *buf   = (byte)(val>>24);
-      buf[1] = (byte)(val>>16);
-      buf[2] = (byte)(val>>8);
-      buf[3] = (byte)val;
-    }
-    else
-    {
-      *(uint*)buf = val;
-    }
+    if(BitConverter.IsLittleEndian) *(uint*)buf = BinaryUtility.ByteSwap(val);
+    else *(uint*)buf = val;
   }
 
   /// <summary>Writes a little-endian unsigned long (8 bytes) to a byte array.</summary>
@@ -539,8 +476,8 @@ public unsafe static partial class IOH
     }
     else
     {
-      WriteLE4U(buf, (uint)val);
-      WriteLE4U(buf+4, (uint)(val>>32));
+      *(uint*)buf     = BinaryUtility.ByteSwap(*((uint*)&val+1));
+      *(uint*)(buf+4) = BinaryUtility.ByteSwap(*(uint*)&val);
     }
   }
 
@@ -558,8 +495,8 @@ public unsafe static partial class IOH
   {
     if(BitConverter.IsLittleEndian)
     {
-      WriteBE4U(buf, (uint)(val>>32));
-      WriteBE4U(buf+4, (uint)val);
+      *(uint*)buf     = BinaryUtility.ByteSwap(*((uint*)&val+1));
+      *(uint*)(buf+4) = BinaryUtility.ByteSwap(*(uint*)&val);
     }
     else
     {
@@ -581,18 +518,8 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public unsafe static void WriteLESingle(byte* buf, float val)
   {
-    if(BitConverter.IsLittleEndian)
-    {
-      *(float*)buf = val;
-    }
-    else
-    {
-      uint v = *(uint*)&val;
-      *buf   = (byte)v;
-      buf[1] = (byte)(v>>8);
-      buf[2] = (byte)(v>>16);
-      buf[3] = (byte)(v>>24);
-    }
+    if(BitConverter.IsLittleEndian) *(float*)buf = val;
+    else *(uint*)buf = BinaryUtility.ByteSwap(*(uint*)&val);
   }
 
   /// <summary>Writes a big-endian IEEE754 float (4 bytes) to a byte array.</summary>
@@ -609,18 +536,8 @@ public unsafe static partial class IOH
   [CLSCompliant(false)]
   public unsafe static void WriteBESingle(byte* buf, float val)
   {
-    if(BitConverter.IsLittleEndian)
-    {
-      uint v = *(uint*)&val;
-      *buf   = (byte)(v>>24);
-      buf[1] = (byte)(v>>16);
-      buf[2] = (byte)(v>>8);
-      buf[3] = (byte)v;
-    }
-    else
-    {
-      *(float*)buf = val;
-    }
+    if(BitConverter.IsLittleEndian) *(uint*)buf = BinaryUtility.ByteSwap(*(uint*)&val);
+    else *(float*)buf = val;
   }
 
   /// <summary>Writes a little-endian IEEE754 double (8 bytes) to a byte array.</summary>
@@ -641,9 +558,8 @@ public unsafe static partial class IOH
     }
     else
     {
-      ulong v = *(ulong*)&val;
-      WriteLE4U(buf, (uint)v);
-      WriteLE4U(buf+4, (uint)(v>>32));
+      *(uint*)buf     = BinaryUtility.ByteSwap(*((uint*)&val+1));
+      *(uint*)(buf+4) = BinaryUtility.ByteSwap(*(uint*)&val);
     }
   }
 
@@ -661,9 +577,8 @@ public unsafe static partial class IOH
   {
     if(BitConverter.IsLittleEndian)
     {
-      ulong v = *(ulong*)&val;
-      WriteBE4U(buf, (uint)(v>>32));
-      WriteBE4U(buf+4, (uint)v);
+      *(uint*)buf     = BinaryUtility.ByteSwap(*((uint*)&val+1));
+      *(uint*)(buf+4) = BinaryUtility.ByteSwap(*(uint*)&val);
     }
     else
     {

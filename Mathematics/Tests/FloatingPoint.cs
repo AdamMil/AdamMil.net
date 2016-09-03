@@ -25,9 +25,11 @@ namespace AdamMil.Mathematics.Tests
       TestRawDecomposition(float.NegativeInfinity, true, 255, 0);
       TestRawDecomposition(float.PositiveInfinity, false, 255, 0);
       TestRawDecomposition(0f, false, 0, 0);
+      TestDecomposition(0d, false, -1074, 0);
       TestDecomposition(double.Epsilon, false, -1074, 1);
       TestDecomposition(double.MaxValue, false, 971, (1UL<<53)-1);
       TestDecomposition(double.MinValue, true, 971, (1UL<<53)-1);
+      TestDecomposition(0f, false, -149, 0);
       TestDecomposition(float.Epsilon, false, -149, 1);
       TestDecomposition(float.MaxValue, false, 104, (1u<<24)-1);
       TestDecomposition(float.MinValue, true, 104, (1u<<24)-1);
@@ -50,13 +52,23 @@ namespace AdamMil.Mathematics.Tests
       Assert.AreEqual(IEEE754.RawComposeSingle(false, 254, 0), IEEE754.ComposeSingle(false, 127, 1));
       Assert.AreEqual(IEEE754.MaxSingleInt+2, IEEE754.ComposeSingle(false, 0, IEEE754.MaxSingleInt+2));
 
-      // make sure Compose rejects invalid values
+      // make sure Compose rejects invalid values by default
       TestHelpers.TestException<ArgumentOutOfRangeException>(delegate { IEEE754.ComposeDouble(false, 0, IEEE754.MaxDoubleInt+1); });
       TestHelpers.TestException<ArgumentOutOfRangeException>(delegate { IEEE754.ComposeDouble(false, -1075, 1); });
       TestHelpers.TestException<ArgumentOutOfRangeException>(delegate { IEEE754.ComposeDouble(false, 1024, 1); });
       TestHelpers.TestException<ArgumentOutOfRangeException>(delegate { IEEE754.ComposeSingle(false, 0, IEEE754.MaxSingleInt+1); });
       TestHelpers.TestException<ArgumentOutOfRangeException>(delegate { IEEE754.ComposeSingle(false, -150, 1); });
       TestHelpers.TestException<ArgumentOutOfRangeException>(delegate { IEEE754.ComposeSingle(false, 128, 1); });
+
+      // but see that it allows some of them if we specify allowOutOfRange == true
+      TestHelpers.TestException<ArgumentOutOfRangeException>(delegate { IEEE754.ComposeDouble(false, 0, IEEE754.MaxDoubleInt+1, true); });
+      TestHelpers.TestException<ArgumentOutOfRangeException>(delegate { IEEE754.ComposeSingle(false, 0, IEEE754.MaxSingleInt+1, true); });
+      Assert.AreEqual(0, IEEE754.ComposeDouble(false, -1075, 1, true));
+      Assert.AreEqual(0, IEEE754.ComposeSingle(false, -150, 1, true));
+      Assert.AreEqual(double.PositiveInfinity, IEEE754.ComposeDouble(false, 1024, 1, true));
+      Assert.AreEqual(double.NegativeInfinity, IEEE754.ComposeDouble(true, 1024, 1, true));
+      Assert.AreEqual(float.PositiveInfinity, IEEE754.ComposeSingle(false, 128, 1, true));
+      Assert.AreEqual(float.NegativeInfinity, IEEE754.ComposeSingle(true, 128, 1, true));
 
       // test AdjustExponent
       Assert.AreEqual(2, IEEE754.AdjustExponent(1, 1));
@@ -84,7 +96,7 @@ namespace AdamMil.Mathematics.Tests
     [Test]
     public void FP107_Comparisons()
     {
-      #pragma warning disable 1718
+      #pragma warning disable 1718 // comparison to the same value
 
       // test flags
       Assert.IsTrue(FP107.NaN.IsNaN);
@@ -189,6 +201,35 @@ namespace AdamMil.Mathematics.Tests
     }
 
     [Test]
+    public void FP107_Composition()
+    {
+      // make sure Compose/Decompose can round trip various kinds of values
+      TestDecomposition(FP107.Zero, false, 1, 0);
+      TestDecomposition((FP107)double.Epsilon, false, -1074, 1);
+      TestDecomposition(FP107.MaxValue, false, 917, (Integer.Pow(2, 107)-1) & ~Integer.Pow(2, 53));
+      TestDecomposition(FP107.MinValue, true, 917, (Integer.Pow(2, 107)-1) & ~Integer.Pow(2, 53));
+      TestDecomposition(FP107.Pi);
+      TestDecomposition(FP107.GoldenRatio);
+
+      // make sure Compose can normalize values, fix exponents, etc.
+      Assert.AreEqual((FP107)0, FP107.Compose(false, 100, 0));
+      Assert.AreEqual((FP107)1, FP107.Compose(false, 0, 1));
+      Assert.AreEqual((FP107)2, FP107.Compose(false, 0, 2));
+      Assert.AreEqual((FP107)2, FP107.Compose(false, 1, 1));
+      Assert.AreEqual((FP107)0, FP107.Compose(false, -5000, 0));
+      Assert.AreEqual((FP107)0, FP107.Compose(false, 5000, 0));
+
+      // make sure Compose rejects invalid values by default
+      TestHelpers.TestException<ArgumentOutOfRangeException>(delegate { FP107.Compose(false, -1075, 1); });
+      TestHelpers.TestException<ArgumentOutOfRangeException>(delegate { FP107.Compose(false, 1024, 1); });
+
+      // but see that it allows some of them if we specify allowOutOfRange == true
+      Assert.AreEqual((FP107)0, FP107.Compose(false, -1075, 1, true));
+      Assert.AreEqual(FP107.PositiveInfinity, FP107.Compose(false, 1024, 1, true));
+      Assert.AreEqual(FP107.NegativeInfinity, FP107.Compose(true, 1024, 1, true));
+    }
+
+    [Test]
     public void FP107_Conversions()
     {
       // test conversions to/from integer, double, and float
@@ -217,9 +258,14 @@ namespace AdamMil.Mathematics.Tests
       Assert.AreEqual((float)Math.PI, (float)FP107.Pi);
 
       // test conversions to/from decimal
-      Assert.AreEqual(-3.141592653589793238462643383m, ((IConvertible)(-FP107.Pi)).ToDecimal(null));
+      Assert.AreEqual(-3.141592653589793238462643383m, (decimal)-FP107.Pi);
       Assert.AreEqual(FP107.FromDecimalApproximation(12345.6789), (FP107)12345.6789m);
       Assert.AreEqual(FP107.FromDecimalApproximation(-12345.6789), new FP107(-12345.6789m));
+
+      // test miscellaneous conversions
+      Assert.AreEqual('A', ((IConvertible)(FP107)65.6).ToChar(null));
+      Assert.AreEqual((Integer)65, ((IConvertible)(FP107)65.6).ToType(typeof(Integer), null));
+      Assert.AreEqual((Rational)65.25, ((IConvertible)(FP107)65.25).ToType(typeof(Rational), null));
 
       // test conversions to/from string
       CultureInfo inv = CultureInfo.InvariantCulture;
@@ -274,24 +320,27 @@ namespace AdamMil.Mathematics.Tests
       Assert.AreEqual("-3.1415926535897932384626433832795", npi.ToString("G", inv));
       Assert.AreEqual("-3.14", npi.ToString("N", inv));
       Assert.AreEqual("-314.16 %", npi.ToString("P", inv));
-      Assert.AreEqual("-3.1415926535897932384626433832795", npi.ToString("R", inv));
-      Assert.AreEqual("C00921FB54442D18:BCA1A62633145C07", npi.ToString("X", inv));
-      Assert.AreEqual("c00921fb54442d18:bca1a62633145c07", npi.ToString("x", inv));
-      Assert.AreEqual("1E+5", new FP107(1e5).ToString(inv));
-      Assert.AreEqual("1E+5", new FP107(1e5).ToString("G", inv));
-      Assert.AreEqual("100000", new FP107(1e5).ToString("F", inv));
-      Assert.AreEqual("1,000,000", new FP107(1e6).ToString("N", inv));
-      Assert.AreEqual("¤1,000,000", new FP107(1e6).ToString("C", inv));
+      TestFormatRoundTrip(npi, "-3.1415926535897932384626433832795", "R", inv);
+      TestFormatRoundTrip(npi, "C00921FB54442D18:BCA1A62633145C07", "X", inv);
+      TestFormatRoundTrip(npi, "c00921fb54442d18:bca1a62633145c07", "x", inv);
+      TestFormatRoundTrip(new FP107(1e5), "1E+5", null, inv);
+      TestFormatRoundTrip(new FP107(1e5), "1E+5", "G", inv);
+      TestFormatRoundTrip(new FP107(1e5), "100000", "F", inv);
+      TestFormatRoundTrip(new FP107(1e6), "1,000,000", "N", inv);
+      TestFormatRoundTrip(new FP107(1e6), "¤1,000,000", "C", inv);
       Assert.AreEqual("-3.14159E+2", (npi*100).ToString("E5", inv));
       Assert.AreEqual("0", new FP107(-0d).ToString(inv));
-      Assert.AreEqual("-0", new FP107(-0d).ToString("R", inv));
-      Assert.AreEqual("[3.1415926535897931, 1.2246467991473532E-16]", FP107.Pi.ToString("S"));
-      Assert.AreEqual(Math.PI.ToString("R", inv), ((FP107)Math.PI).ToString("S"));
+      TestFormatRoundTrip(new FP107(-0d), "-0", "R", inv);
+      Assert.AreEqual("[3.1415926535897931, 1.2246467991473532E-16]", FP107.Pi.ToString("S", inv));
+      Assert.AreEqual(Math.PI.ToString("R", inv), ((FP107)Math.PI).ToString("S", inv));
 
       // test rounding
       Assert.AreEqual("1", new FP107(1.5 - IEEE754.DoublePrecision).ToString("F0", inv));
       Assert.AreEqual("2", new FP107(1.5).ToString("F0", inv));
       Assert.AreEqual("2", new FP107(1.5 + IEEE754.DoublePrecision).ToString("F0", inv));
+      Assert.AreEqual("-2", new FP107(-1.5 - IEEE754.DoublePrecision).ToString("F0", inv));
+      Assert.AreEqual("-2", new FP107(-1.5).ToString("F0", inv));
+      Assert.AreEqual("-1", new FP107(-1.5 + IEEE754.DoublePrecision).ToString("F0", inv));
       Assert.AreEqual("2", new FP107(2.5).ToString("F0", inv));
       Assert.AreEqual("3", new FP107(2.5 + IEEE754.DoublePrecision*2).ToString("F0", inv));
       Assert.AreEqual("4", new FP107(3.5).ToString("F0", inv));
@@ -318,8 +367,10 @@ namespace AdamMil.Mathematics.Tests
       nfi.PerMilleSymbol = "pml";
       nfi.NegativeSign   = "minus";
       nfi.PositiveSign   = "plus";
+      nfi.NaNSymbol      = "nope";
       TestFormatRoundTrip(5, "$/=5", "C", nfi);
       TestFormatRoundTrip(FP107.FromDecimalApproximation(-0.05), "minus5 pct", "P", nfi);
+      TestFormatRoundTrip(FP107.NaN, "nope", null, nfi);
       Assert.AreEqual(new FP107(5), FP107.Parse("5 plus", nfi));
       Assert.AreEqual(new FP107(-5), FP107.Parse("5 minus", nfi));
       Assert.AreEqual(FP107.FromDecimalApproximation(-.005), FP107.Parse("5 pmlminus", nfi));
@@ -491,6 +542,16 @@ namespace AdamMil.Mathematics.Tests
       TestRemainder(-1000, -1000, double.PositiveInfinity); // a % infinity = a
       TestRemainder(-1000, -1000, double.NegativeInfinity); // a % infinity = a
       Assert.AreEqual(FP107.Parse(".42331082513074800310235591192684", inv), FP107.Pi % FP107.E); // high precision
+
+      // test increment and decrement
+      FP107 v = -2.5;
+      Assert.AreEqual((FP107)(-1.5), ++v);
+      Assert.AreEqual((FP107)(-0.5), ++v);
+      Assert.AreEqual((FP107)0.5, ++v);
+      Assert.AreEqual((FP107)1.5, ++v);
+      Assert.AreEqual((FP107)0.5, --v);
+      Assert.AreEqual((FP107)(-0.5), --v);
+      Assert.AreEqual((FP107)(-1.5), --v);
     }
 
     [Test]
@@ -510,6 +571,7 @@ namespace AdamMil.Mathematics.Tests
       Assert.AreEqual((FP107)2, new FP107(1.25).Ceiling());
       Assert.AreEqual((FP107)2, new FP107(1.75).Ceiling());
       Assert.AreEqual((FP107)2, new FP107(2).Ceiling());
+      Assert.AreEqual((FP107)0, new FP107(0).Ceiling());
       Assert.AreEqual((FP107)(-1), new FP107(-1).Ceiling());
       Assert.AreEqual((FP107)(-1), new FP107(-1.25).Ceiling());
       Assert.AreEqual((FP107)(-1), new FP107(-1.75).Ceiling());
@@ -527,6 +589,7 @@ namespace AdamMil.Mathematics.Tests
       Assert.AreEqual((FP107)1, new FP107(1.25).Floor());
       Assert.AreEqual((FP107)1, new FP107(1.75).Floor());
       Assert.AreEqual((FP107)2, new FP107(2).Floor());
+      Assert.AreEqual((FP107)0, new FP107(0).Floor());
       Assert.AreEqual((FP107)(-1), new FP107(-1).Floor());
       Assert.AreEqual((FP107)(-2), new FP107(-1.25).Floor());
       Assert.AreEqual((FP107)(-2), new FP107(-1.75).Floor());
@@ -552,6 +615,7 @@ namespace AdamMil.Mathematics.Tests
       Assert.AreEqual((FP107)2, new FP107(1.75).Round());
       Assert.AreEqual((FP107)2, new FP107(2).Round());
       Assert.AreEqual((FP107)2, new FP107(2.5).Round());
+      Assert.AreEqual((FP107)0, new FP107(0).Round());
       Assert.AreEqual((FP107)(-1), new FP107(-1).Round());
       Assert.AreEqual((FP107)(-1), new FP107(-1.25).Round());
       Assert.AreEqual((FP107)(-2), new FP107(-1.5).Round());
@@ -589,11 +653,21 @@ namespace AdamMil.Mathematics.Tests
 
       // test the Random function. it's hard to test a random function, but we can at least make sure it isn't obviously broken
       Random.RandomNumberGenerator rng = Random.RandomNumberGenerator.CreateDefault();
+      FP107 sum = 0, min = 1, max = 0;
       for(int i=0; i<100; i++)
       {
         FP107 value = FP107.Random(rng);
+        sum += value;
+        min = FP107.Min(min, value);
+        max = FP107.Max(max, value);
         Assert.IsTrue(value >= 0 && value < 1);
       }
+      Assert.IsTrue(sum >= 41 && sum <= 59); // there's about a 99.13% chance that the average will lie between 0.41 and 0.59
+      Assert.IsTrue(min <= 0.055 && max >= (1-0.055)); // there's about a 99.3% chance that both min and max will lie within 0.055 of the edge
+
+      // test the Square function
+      Assert.AreEqual(FP107.Pi*FP107.Pi, FP107.Pi.Square());
+      Assert.AreEqual(FP107.Pi*FP107.Pi, (-FP107.Pi).Square());
 
       // test the Truncate function
       Assert.AreEqual((FP107)1, new FP107(1).Truncate());
@@ -1013,7 +1087,7 @@ namespace AdamMil.Mathematics.Tests
       return FP107.Abs(1 - a/b);
     }
 
-    static FP107 RelativeError2(FP107 a, FP107 b, double epsilon=0)
+    static FP107 RelativeError(FP107 a, FP107 b, double epsilon=0)
     {
       if(a.IsZero) a = epsilon;
       if(b.IsZero) b = epsilon;
@@ -1070,6 +1144,27 @@ namespace AdamMil.Mathematics.Tests
       Assert.AreEqual(expectedExponent, exponent);
       Assert.AreEqual(expectedMantissa, mantissa);
       Assert.AreEqual(value, IEEE754.ComposeSingle(negative, exponent, mantissa));
+    }
+
+    static void TestDecomposition(FP107 value)
+    {
+      bool negative;
+      int exponent;
+      Integer mantissa;
+      value.Decompose(out negative, out exponent, out mantissa);
+      Assert.AreEqual(value, FP107.Compose(negative, exponent, mantissa));
+    }
+
+    static void TestDecomposition(FP107 value, bool expectedNegative, int expectedExponent, Integer expectedMantissa)
+    {
+      bool negative;
+      int exponent;
+      Integer mantissa;
+      value.Decompose(out negative, out exponent, out mantissa);
+      Assert.AreEqual(expectedNegative, negative);
+      Assert.AreEqual(expectedExponent, exponent);
+      Assert.AreEqual(expectedMantissa, mantissa);
+      Assert.AreEqual(value, FP107.Compose(negative, exponent, mantissa));
     }
 
     static void TestDivide(FP107 expectedQuotient, double a, double b)

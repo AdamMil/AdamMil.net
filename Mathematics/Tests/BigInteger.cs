@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Globalization;
 using System.IO;
+using AdamMil.Mathematics.Random;
 using AdamMil.Tests;
 using AdamMil.Utilities;
 using NUnit.Framework;
@@ -366,6 +367,19 @@ namespace AdamMil.Mathematics.Tests
       Assert.IsTrue(-999999999999 >= nbig);
 
       #pragma warning restore 1718
+
+      Assert.AreEqual(med, Integer.Min(med, big));
+      Assert.AreEqual(med, Integer.Min(big, med));
+      Assert.AreEqual(big, Integer.Max(med, big));
+      Assert.AreEqual(big, Integer.Max(big, med));
+      Assert.AreEqual(nbig, Integer.Min(nmed, nbig));
+      Assert.AreEqual(nbig, Integer.Min(nbig, nmed));
+      Assert.AreEqual(nmed, Integer.Max(nmed, nbig));
+      Assert.AreEqual(nmed, Integer.Max(nbig, nmed));
+      Assert.AreEqual(nmed, Integer.Min(med, nmed));
+      Assert.AreEqual(med, Integer.Max(med, nmed));
+      Assert.AreEqual(Integer.Zero, Integer.Min(med, Integer.Zero));
+      Assert.AreEqual(Integer.Zero, Integer.Max(nmed, Integer.Zero));
     }
 
     [Test]
@@ -444,6 +458,7 @@ namespace AdamMil.Mathematics.Tests
       Assert.AreEqual(1000000000000uL, (ulong)new Integer(1000000000000));
       Assert.AreEqual(1000000000000L, (ulong)new Integer(1000000000000));
       Assert.AreEqual(-1000000000000L, (long)new Integer(-1000000000000));
+      Assert.AreEqual('A', (char)(Integer)65);
 
       // test truncation
       Assert.AreEqual(unchecked((byte)1000), (byte)new Integer(1000));
@@ -465,6 +480,8 @@ namespace AdamMil.Mathematics.Tests
       Assert.IsFalse(((IConvertible)Integer.Zero).ToBoolean(null));
       Assert.IsTrue(((IConvertible)Integer.One).ToBoolean(null));
       Assert.AreEqual((char)50000, ((IConvertible)new Integer(50000)).ToChar(null));
+      Assert.AreEqual((FP107)50000, ((IConvertible)new Integer(50000)).ToType(typeof(FP107), null));
+      Assert.AreEqual((Rational)50000, ((IConvertible)new Integer(50000)).ToType(typeof(Rational), null));
 
       // test conversions from string
       CultureInfo inv = CultureInfo.InvariantCulture;
@@ -707,29 +724,39 @@ namespace AdamMil.Mathematics.Tests
       AssertEqual(Integer.Zero, Integer.Zero.Abs());
 
       // pow
-      AssertEqual(Integer.Zero, Integer.Pow(0, 1));
-      AssertEqual(Integer.One, Integer.Pow(0, 0));
-      AssertEqual(Integer.One, Integer.Pow(-1, 0));
-      AssertEqual(Integer.One, Integer.Pow(1, 0));
-      AssertEqual(Integer.One, Integer.Pow(1, 5));
-      AssertEqual(Integer.One, Integer.Pow(1, -5));
-      AssertEqual(Integer.One, Integer.Pow(-1, -4));
-      AssertEqual(Integer.One, Integer.Pow(-1, 0));
-      AssertEqual(Integer.One, Integer.Pow(-1, 2));
-      AssertEqual(Integer.MinusOne, Integer.Pow(-1, -3));
-      AssertEqual(Integer.MinusOne, Integer.Pow(-1, 3));
-      AssertEqual(-5, Integer.Pow(-5, 1));
+      TestPow(Integer.Zero, 0, 1);
+      TestPow(Integer.One, 0, 0);
+      TestPow(Integer.One, -1, 0);
+      TestPow(Integer.One, 1, 0);
+      TestPow(Integer.One, 1, 1);
+      TestPow(Integer.One, 1, 5);
+      TestPow(Integer.One, 1, -5);
+      TestPow(Integer.One, -1, -4);
+      TestPow(Integer.One, -1, 0);
+      TestPow(Integer.MinusOne, -1, 1);
+      TestPow(Integer.One, -1, 2);
+      TestPow(Integer.MinusOne, -1, -3);
+      TestPow(Integer.MinusOne, -1, 3);
+      TestPow(-5, -5, 1);
       ulong p = 1;
-      for(int i=0; i<64; p *= 2, i++) AssertEqual(p, Integer.Pow(2, i));
+      for(int i=0; i<64; p *= 2, i++) TestPow(p, 2, i);
       p = 1;
-      for(int i=0; i<20; p *= 10, i++) AssertEqual(p, Integer.Pow(10, i));
+      for(int i=0; i<20; p *= 10, i++) TestPow(p, 10, i);
       p = 1;
-      for(int i=0; i<15; p *= 17, i++) AssertEqual(p, Integer.Pow(17, i));
+      for(int i=0; i<15; p *= 17, i++) TestPow(p, 17, i);
       AssertEqual(Integer.Pow(10, 24), Integer.Pow(10, 12).Square());
-      AssertEqual(Integer.Pow(10, 50), Integer.Pow(10, 25).Square());
-      AssertEqual(9, Integer.Pow(-3, 2));
-      AssertEqual(-27, Integer.Pow(-3, 3));
+      AssertEqual(Integer.Pow((Integer)10, 50), Integer.Pow((Integer)10, 25).Square());
+      TestPow(9, -3, 2);
+      TestPow(-27, -3, 3);
       TestHelpers.TestException<ArgumentOutOfRangeException>(delegate { Integer.Pow(0, -1); });
+
+      // factorial
+      TestHelpers.TestException<ArgumentOutOfRangeException>(() => Integer.Factorial(-1));
+      Assert.AreEqual(Integer.One, Integer.Factorial(0));
+      Assert.AreEqual(Integer.One, Integer.Factorial(1));
+      Assert.AreEqual((Integer)2, Integer.Factorial(2));
+      Assert.AreEqual((Integer)3628800, Integer.Factorial(10));
+      Assert.AreEqual(Integer.Parse("815915283247897734345611269596115894272000000000"), Integer.Factorial(40));
 
       // unsafe set
       a = Integer.Zero;
@@ -782,6 +809,12 @@ namespace AdamMil.Mathematics.Tests
       TestShift(500, 100);
       TestShift(500000000000, 32);
       TestShift(500000000000000000, 40);
+      // bug repros
+      Integer v = Integer.Parse("1928657918278122135283204037422016534337210548224");
+      v.UnsafeRightShift(52);
+      Assert.AreEqual(Integer.Parse("428248085499598948385370009144694"), v);
+      v.UnsafeLeftShift(52);
+      Assert.AreEqual(Integer.Parse("1928657918278122135283204037422016534337210548224"), v);
 
       TestNot(0);
       TestNot(1);
@@ -839,6 +872,31 @@ namespace AdamMil.Mathematics.Tests
         TestSetBit(i, 32);
         TestSetBit(i, 33);
       }
+
+      Assert.AreEqual(0, Integer.Zero.CountTrailingZeros());
+      Assert.AreEqual(20, Integer.Pow(2, 20).CountTrailingZeros());
+      Assert.AreEqual(0, (Integer.Pow(2, 20)-1).CountTrailingZeros());
+      Assert.AreEqual(8, Integer.Factorial(10).CountTrailingZeros());
+      Assert.AreEqual(42, (Integer.Factorial(10) << 34).CountTrailingZeros());
+    }
+
+    [Test]
+    public void T05_Random()
+    {
+      RandomNumberGenerator rng = RandomNumberGenerator.CreateDefault();
+      Integer limit = Integer.Pow(2, 40), sum = 0, min = limit, max = 0;
+      for(int i=0; i<100; i++)
+      {
+        Integer value = Integer.Random(rng, 40);
+        sum += value;
+        min = Integer.Min(min, value);
+        max = Integer.Max(max, value);
+        Assert.GreaterOrEqual(value, Integer.Zero);
+        Assert.Less(value, limit);
+      }
+
+      Assert.IsTrue(sum >= 54975581388750-8796093022208 && sum <= 54975581388750+8796093022208); // ~99.5% chance
+      Assert.IsTrue(min <= Integer.Pow(2, 36) && max >= limit - Integer.Pow(2, 36)); // ~99.7% chance
     }
 
     static void AssertEqual(int expected, Integer value)
@@ -1312,6 +1370,12 @@ namespace AdamMil.Mathematics.Tests
       Integer value = negative ? -1 : 1;
       Assert.AreEqual(pattern, value.ToString("P", nfi));
       Assert.AreEqual(value, Integer.Parse(pattern, nfi));
+    }
+
+    static void TestPow(Integer expected, int value, int power)
+    {
+      Assert.AreEqual(expected, Integer.Pow(value, power));
+      Assert.AreEqual(expected, Integer.Pow((Integer)value, power));
     }
 
     static void TestSetBit(long a, int bit)

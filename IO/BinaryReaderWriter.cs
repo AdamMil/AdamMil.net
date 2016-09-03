@@ -133,60 +133,31 @@ public unsafe abstract class PinnedBuffer : IDisposable
   /// <param name="data">A pointer to the data.</param>
   /// <param name="words">The number of two-byte words to swap.</param>
   [CLSCompliant(false)]
-  protected static void SwapEndian2(byte* data, int words)
+  protected static void SwapEndian2(void* data, int words)
   {
-    byte* end = data + words*sizeof(ushort);
-    for(; data != end; data += sizeof(ushort))
-    {
-      byte t  = data[0];
-      data[0] = data[1];
-      data[1] = t;
-    }
+    for(ushort* p = (ushort*)data, end = p + words; p < end; p++) *p = BinaryUtility.ByteSwap(*p);
   }
 
   /// <summary>Swaps the byte order of each doubleword in the given data.</summary>
   /// <param name="data">A pointer to the data.</param>
   /// <param name="dwords">The number of four-byte doublewords to swap.</param>
   [CLSCompliant(false)]
-  protected static void SwapEndian4(byte* data, int dwords)
+  protected static void SwapEndian4(void* data, int dwords)
   {
-    byte* end = data + dwords*sizeof(uint);
-    for(; data != end; data += sizeof(uint))
-    {
-      byte t  = data[0];
-      data[0] = data[3];
-      data[3] = t;
-
-      t       = data[1];
-      data[1] = data[2];
-      data[2] = t;
-    }
+    for(uint* p = (uint*)data, end = p + dwords; p < end; p++) *p = BinaryUtility.ByteSwap(*p);
   }
 
   /// <summary>Swaps the byte order of each quadword in the given data.</summary>
   /// <param name="data">A pointer to the data.</param>
   /// <param name="qwords">The number of eight-byte quadwords to swap.</param>
   [CLSCompliant(false)]
-  protected static void SwapEndian8(byte* data, int qwords)
+  protected static void SwapEndian8(void* data, int qwords)
   {
-    byte* end = data + qwords*sizeof(ulong);
-    for(; data != end; data += sizeof(ulong))
+    for(uint* p = (uint*)data, end = p + qwords*2; p < end; p += 2)
     {
-      byte t  = data[0];
-      data[0] = data[7];
-      data[7] = t;
-
-      t       = data[1];
-      data[1] = data[6];
-      data[6] = t;
-
-      t       = data[2];
-      data[2] = data[5];
-      data[5] = t;
-
-      t       = data[3];
-      data[3] = data[4];
-      data[4] = t;
+      uint t = BinaryUtility.ByteSwap(p[0]);
+      p[0]   = BinaryUtility.ByteSwap(p[1]);
+      p[1]   = t;
     }
   }
 
@@ -653,7 +624,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public bool[] ReadBooleans(int count)
   {
     bool[] data = new bool[count];
-    fixed(bool* ptr=data) Read(ptr, count);
+    if(count != 0) fixed(bool* ptr=data) Read(ptr, count);
     return data;
   }
 
@@ -661,7 +632,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public void ReadBooleans(bool[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(bool* ptr=array) Read(ptr+index, count);
+    if(count != 0) fixed(bool* ptr=array) Read(ptr+index, count);
   }
 
   /// <summary>Reads an array of one-byte boolean values from the stream.</summary>
@@ -677,7 +648,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
     byte[] data = new byte[count];
-    fixed(byte* ptr=data) Read(ptr, count);
+    if(count != 0) fixed(byte* ptr=data) Read(ptr, count);
     return data;
   }
 
@@ -685,7 +656,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public void ReadBytes(byte[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(byte* ptr=array) Read(ptr, count);
+    if(count != 0) fixed(byte* ptr=array) Read(ptr, count);
   }
 
   /// <summary>Reads an array of signed bytes from the stream.</summary>
@@ -694,7 +665,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
     sbyte[] data = new sbyte[count];
-    fixed(sbyte* ptr=data) Read(ptr, count);
+    if(count != 0) fixed(sbyte* ptr=data) Read(ptr, count);
     return data;
   }
 
@@ -703,7 +674,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public void ReadSBytes(sbyte[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(sbyte* ptr=array) Read(ptr, count);
+    if(count != 0) fixed(sbyte* ptr=array) Read(ptr, count);
   }
 
   /// <summary>Reads an array of two-byte characters from the stream using the given encoding.</summary>
@@ -717,7 +688,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
     char[] chars = new char[count];
-    fixed(char* charPtr=chars) ReadChars(charPtr, count, encoding);
+    if(count != 0) fixed(char* charPtr=chars) ReadChars(charPtr, count, encoding);
     return chars;
   }
 
@@ -731,7 +702,8 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public int ReadChars(char[] array, int index, int count, Encoding encoding)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(char* ptr=array) return ReadChars(ptr+index, count, encoding);
+    if(count == 0) return 0; // zero-length arrays yield a null-pointer when fixed, so avoid passing a null pointer
+    else fixed(char* ptr=array) return ReadChars(ptr+index, count, encoding);
   }
 
   /// <summary>Reads a number of two-byte characters from the stream. Returns the number of bytes read from the stream.</summary>
@@ -838,14 +810,14 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public unsafe void ReadGuids(Guid[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(Guid* ptr=array) Read((void*)(ptr+index), count*16L);
+    if(count != 0) fixed(Guid* ptr=array) Read((void*)(ptr+index), count*16L);
   }
 
   /// <summary>Reads an array of signed two-byte integers from the stream.</summary>
   public short[] ReadInt16s(int count)
   {
     short[] data = new short[count];
-    fixed(short* ptr=data) ReadInt16s(ptr, count);
+    if(count != 0) fixed(short* ptr=data) ReadInt16s(ptr, count);
     return data;
   }
 
@@ -853,7 +825,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public void ReadInt16s(short[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(short* ptr=array) ReadInt16s(ptr+index, count);
+    if(count != 0) fixed(short* ptr=array) ReadInt16s(ptr+index, count);
   }
 
   /// <summary>Reads an array of signed two-byte integers from the stream.</summary>
@@ -868,7 +840,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public ushort[] ReadUInt16s(int count)
   {
     ushort[] data = new ushort[count];
-    fixed(ushort* ptr=data) ReadUInt16s(ptr, count);
+    if(count != 0) fixed(ushort* ptr=data) ReadUInt16s(ptr, count);
     return data;
   }
 
@@ -877,7 +849,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public void ReadUInt16s(ushort[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(ushort* ptr=array) ReadUInt16s(ptr+index, count);
+    if(count != 0) fixed(ushort* ptr=array) ReadUInt16s(ptr+index, count);
   }
 
   /// <summary>Reads an array of unsigned two-byte integers from the stream.</summary>
@@ -893,7 +865,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public int[] ReadInt32s(int count)
   {
     int[] data = new int[count];
-    fixed(int* ptr=data) ReadInt32s(ptr, count);
+    if(count != 0) fixed(int* ptr=data) ReadInt32s(ptr, count);
     return data;
   }
 
@@ -901,7 +873,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public void ReadInt32s(int[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(int* ptr=array) ReadInt32s(ptr+index, count);
+    if(count != 0) fixed(int* ptr=array) ReadInt32s(ptr+index, count);
   }
 
   /// <summary>Reads an array of signed four-byte integers from the stream.</summary>
@@ -918,7 +890,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public uint[] ReadUInt32s(int count)
   {
     uint[] data = new uint[count];
-    fixed(uint* ptr=data) ReadUInt32s(ptr, count);
+    if(count != 0) fixed(uint* ptr=data) ReadUInt32s(ptr, count);
     return data;
   }
 
@@ -927,7 +899,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public void ReadUInt32s(uint[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(uint* ptr=array) ReadUInt32s(ptr+index, count);
+    if(count != 0) fixed(uint* ptr=array) ReadUInt32s(ptr+index, count);
   }
 
   /// <summary>Reads an array of unsigned four-byte integers from the stream.</summary>
@@ -941,7 +913,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public long[] ReadInt64s(int count)
   {
     long[] data = new long[count];
-    fixed(long* ptr=data) ReadInt64s(ptr, count);
+    if(count != 0) fixed(long* ptr=data) ReadInt64s(ptr, count);
     return data;
   }
 
@@ -949,7 +921,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public void ReadInt64s(long[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(long* ptr=array) ReadInt64s(ptr+index, count);
+    if(count != 0) fixed(long* ptr=array) ReadInt64s(ptr+index, count);
   }
 
   /// <summary>Reads an array of signed eight-byte integers from the stream.</summary>
@@ -966,7 +938,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public ulong[] ReadUInt64s(int count)
   {
     ulong[] data = new ulong[count];
-    fixed(ulong* ptr=data) ReadUInt64s(ptr, count);
+    if(count != 0) fixed(ulong* ptr=data) ReadUInt64s(ptr, count);
     return data;
   }
 
@@ -975,7 +947,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public void ReadUInt64s(ulong[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(ulong* ptr=array) ReadUInt64s(ptr+index, count);
+    if(count != 0) fixed(ulong* ptr=array) ReadUInt64s(ptr+index, count);
   }
 
   /// <summary>Reads an array of unsigned eight-byte integers from the stream.</summary>
@@ -1107,7 +1079,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public float[] ReadSingles(int count)
   {
     float[] data = new float[count];
-    fixed(float* ptr=data) ReadSingles(ptr, count);
+    if(count != 0) fixed(float* ptr=data) ReadSingles(ptr, count);
     return data;
   }
 
@@ -1115,7 +1087,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public void ReadSingles(float[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(float* ptr=array) ReadSingles(ptr+index, count);
+    if(count != 0) fixed(float* ptr=array) ReadSingles(ptr+index, count);
   }
 
   /// <summary>Reads an array of unsigned four-byte integers from the stream.</summary>
@@ -1129,7 +1101,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public double[] ReadDoubles(int count)
   {
     double[] data = new double[count];
-    fixed(double* ptr=data) ReadDoubles(ptr, count);
+    if(count != 0) fixed(double* ptr=data) ReadDoubles(ptr, count);
     return data;
   }
 
@@ -1137,7 +1109,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public void ReadDoubles(double[] array, int index, int count)
   {
     Utility.ValidateRange(array, index, count);
-    fixed(double* ptr=array) ReadDoubles(ptr+index, count);
+    if(count != 0) fixed(double* ptr=array) ReadDoubles(ptr+index, count);
   }
 
   /// <summary>Reads an array of unsigned eight-byte integers from the stream.</summary>
@@ -1333,7 +1305,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   [CLSCompliant(false)]
   protected void MakeSystemEndian2(void* data, int nwords)
   {
-    if(LittleEndian != BitConverter.IsLittleEndian) SwapEndian2((byte*)data, nwords);
+    if(LittleEndian != BitConverter.IsLittleEndian) SwapEndian2(data, nwords);
   }
 
   /// <summary>Ensures that the data, which must consist of four-byte integers, has system endianness.</summary>
@@ -1342,7 +1314,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   [CLSCompliant(false)]
   protected void MakeSystemEndian4(void* data, int dwords)
   {
-    if(LittleEndian != BitConverter.IsLittleEndian) SwapEndian4((byte*)data, dwords);
+    if(LittleEndian != BitConverter.IsLittleEndian) SwapEndian4(data, dwords);
   }
 
   /// <summary>Ensures that the data, which must consist of eight-byte integers, has system endianness.</summary>
@@ -1351,7 +1323,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   [CLSCompliant(false)]
   protected void MakeSystemEndian8(void* data, int qwords)
   {
-    if(LittleEndian != BitConverter.IsLittleEndian) SwapEndian8((byte*)data, qwords);
+    if(LittleEndian != BitConverter.IsLittleEndian) SwapEndian8(data, qwords);
   }
 
   /// <summary>Ensures that the given number of bytes are available in a contiguous form in the buffer, returns a
@@ -1743,7 +1715,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(sbyte[] data, int index, int count)
   {
     Utility.ValidateRange(data, index, count);
-    fixed(sbyte* ptr=data) Write(ptr+index, count);
+    if(count != 0) fixed(sbyte* ptr=data) Write(ptr+index, count);
   }
 
   /// <summary>Writes an array of bytes to the stream.</summary>
@@ -1765,7 +1737,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(byte[] data, int index, int count)
   {
     Utility.ValidateRange(data, index, count);
-    fixed(byte* ptr=data) Write(ptr+index, count);
+    if(count != 0) fixed(byte* ptr=data) Write(ptr+index, count);
   }
 
   /// <summary>Writes an array of bytes to the stream.</summary>
@@ -1808,7 +1780,8 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public int Write(char[] chars, int index, int count, Encoding encoding)
   {
     Utility.ValidateRange(chars, index, count);
-    fixed(char* charPtr=chars) return Write(charPtr+index, count, encoding);
+    if(count == 0) return 0; // zero-length arrays yield a null-pointer when fixed, so avoid passing a null pointer
+    else fixed(char* charPtr=chars) return Write(charPtr+index, count, encoding);
   }
 
   /// <summary>Writes an array of characters to the stream, using the default encoding. Returns the number of bytes written to
@@ -1920,7 +1893,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public unsafe void Write(Guid[] guids, int index, int count)
   {
     Utility.ValidateRange(guids, index, count);
-    fixed(Guid* ptr=guids) WriteCore((byte*)(ptr+index), count*16L);
+    if(count != 0) fixed(Guid* ptr=guids) WriteCore((byte*)(ptr+index), count*16L);
   }
 
   /// <summary>Writes an array of signed two-byte integers to the stream.</summary>
@@ -1934,7 +1907,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(short[] data, int index, int count)
   {
     Utility.ValidateRange(data, index, count);
-    fixed(short* ptr=data) Write(ptr+index, count);
+    if(count != 0) fixed(short* ptr=data) Write(ptr+index, count);
   }
 
   /// <summary>Writes an array of signed two-byte integers to the stream.</summary>
@@ -1957,7 +1930,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(ushort[] data, int index, int count)
   {
     Utility.ValidateRange(data, index, count);
-    fixed(ushort* ptr=data) Write(ptr+index, count);
+    if(count != 0) fixed(ushort* ptr=data) Write(ptr+index, count);
   }
 
   /// <summary>Writes an array of unsigned two-byte integers to the stream.</summary>
@@ -1979,7 +1952,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(int[] data, int index, int count)
   {
     Utility.ValidateRange(data, index, count);
-    fixed(int* ptr=data) Write(ptr+index, count);
+    if(count != 0) fixed(int* ptr=data) Write(ptr+index, count);
   }
 
   /// <summary>Writes an array of signed four-byte integers to the stream.</summary>
@@ -2003,7 +1976,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(uint[] data, int index, int count)
   {
     Utility.ValidateRange(data, index, count);
-    fixed(uint* ptr=data) Write(ptr+index, count);
+    if(count != 0) fixed(uint* ptr=data) Write(ptr+index, count);
   }
 
   /// <summary>Writes an array of unsigned four-byte integers to the stream.</summary>
@@ -2024,7 +1997,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(long[] data, int index, int count)
   {
     Utility.ValidateRange(data, index, count);
-    fixed(long* ptr=data) Write(ptr+index, count);
+    if(count != 0) fixed(long* ptr=data) Write(ptr+index, count);
   }
 
   /// <summary>Writes an array of signed eight-byte integers to the stream.</summary>
@@ -2048,7 +2021,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(ulong[] data, int index, int count)
   {
     Utility.ValidateRange(data, index, count);
-    fixed(ulong* ptr=data) Write(ptr+index, count);
+    if(count != 0) fixed(ulong* ptr=data) Write(ptr+index, count);
   }
 
   /// <summary>Writes an array of unsigned eight-byte integers to the stream.</summary>
@@ -2069,7 +2042,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(float[] data, int index, int count)
   {
     Utility.ValidateRange(data, index, count);
-    fixed(float* ptr=data) Write(ptr+index, count);
+    if(count != 0) fixed(float* ptr=data) Write(ptr+index, count);
   }
 
   /// <summary>Writes an array of four-byte floats to the stream.</summary>
@@ -2091,7 +2064,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public void Write(double[] data, int index, int count)
   {
     Utility.ValidateRange(data, index, count);
-    fixed(double* ptr=data) Write(ptr+index, count);
+    if(count != 0) fixed(double* ptr=data) Write(ptr+index, count);
   }
 
   /// <summary>Writes an array of eight-byte floats to the stream.</summary>
@@ -2130,7 +2103,8 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public int Write(string str, Encoding encoding)
   {
     if(str == null) throw new ArgumentNullException();
-    fixed(char* chars=str) return Write(chars, str.Length, encoding);
+    if(str.Length == 0) return 0; // zero-length arrays yield a null-pointer when fixed, so avoid passing a null pointer
+    else fixed(char* chars=str) return Write(chars, str.Length, encoding);
   }
 
   /// <summary>Writes a substring to the stream, using the default encoding. Returns the number of bytes written to the stream.
@@ -2147,7 +2121,8 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   public int Write(string str, int index, int count, Encoding encoding)
   {
     Utility.ValidateRange(str, index, count);
-    fixed(char* chars=str) return Write(chars+index, count, encoding);
+    if(count == 0) return 0; // zero-length arrays yield a null-pointer when fixed, so avoid passing a null pointer
+    else fixed(char* chars=str) return Write(chars+index, count, encoding);
   }
 
   /// <summary>Writes data from the given region of memory to the stream.</summary>
@@ -2280,20 +2255,23 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     Utility.ValidateRange(str, index, length);
     if(encoding == null) throw new ArgumentNullException();
 
-    int spaceNeeded = encoding.GetMaxByteCount(length);
-    if(spaceNeeded <= StackAllocThreshold)
+    if(length != 0) // zero-length arrays yield a null-pointer when fixed, so avoid passing a null pointer
     {
-      byte* buffer = stackalloc byte[spaceNeeded];
-      fixed(char* chars=str) spaceNeeded = encoding.GetBytes(chars+index, length, buffer, spaceNeeded);
-      WriteEncoded(spaceNeeded);
-      WriteCore(buffer, spaceNeeded);
-    }
-    else
-    {
-      fixed(char* chars=str)
+      int spaceNeeded = encoding.GetMaxByteCount(length);
+      if(spaceNeeded <= StackAllocThreshold)
       {
-        WriteEncoded(encoding.GetByteCount(chars+index, length));
-        Write(chars+index, length, encoding);
+        byte* buffer = stackalloc byte[spaceNeeded];
+        fixed(char* chars=str) spaceNeeded = encoding.GetBytes(chars+index, length, buffer, spaceNeeded);
+        WriteEncoded(spaceNeeded);
+        WriteCore(buffer, spaceNeeded);
+      }
+      else
+      {
+        fixed(char* chars=str)
+        {
+          WriteEncoded(encoding.GetByteCount(chars+index, length));
+          Write(chars+index, length, encoding);
+        }
       }
     }
   }

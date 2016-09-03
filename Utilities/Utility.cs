@@ -148,6 +148,7 @@ public static class Utility
   [CLSCompliant(false)]
   public static uint RoundUpToPowerOfTwo(uint value)
   {
+    if(value > 0x80000000) throw new ArgumentOutOfRangeException();
     value--;
     value |= (value >> 1);
     value |= (value >> 2);
@@ -169,6 +170,7 @@ public static class Utility
   [CLSCompliant(false)]
   public static ulong RoundUpToPowerOfTwo(ulong value)
   {
+    if(value > 0x8000000000000000) throw new ArgumentOutOfRangeException();
     value--;
     value |= (value >> 1);
     value |= (value >> 2);

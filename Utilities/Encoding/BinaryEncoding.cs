@@ -74,7 +74,7 @@ public abstract class UnsafeBinaryEncoder : BinaryEncoder
     fixed(byte* srcBase=source, destBase=destination)
     {
       byte dummy;
-      return Encode(srcBase == null ? &dummy : srcBase+sourceIndex, sourceCount, // pointers are when arrays are empty
+      return Encode(srcBase == null ? &dummy : srcBase+sourceIndex, sourceCount, // pointers are null when arrays are empty
                     destBase == null ? &dummy : destBase+destinationIndex, destination.Length-destinationIndex, flush);
     }
   }

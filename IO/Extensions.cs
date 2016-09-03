@@ -116,35 +116,30 @@ public unsafe static partial class StreamExtensions
   public static unsafe long LongRead(this Stream stream, byte[] buffer, long index, long length)
   {
     if(stream == null || buffer == null) throw new ArgumentNullException();
-    if(index < 0 || length < 0 || (ulong)(index + length) > (ulong)buffer.LongLength) throw new ArgumentOutOfRangeException();
+    long end = index + length;
+    if(index < 0 || length < 0 || (ulong)end > (ulong)buffer.LongLength) throw new ArgumentOutOfRangeException();
 
-    if(buffer.LongLength <= int.MaxValue) // if the array actually fits in 2GB-1 bytes, then use the 32-bit function instead
+    if(end <= 0x80000000) // if the array segment fits in 2GB-1 bytes, then use the 32-bit function instead
     {
       return stream.FullRead(buffer, (int)index, (int)length);
     }
     else // otherwise, we actually need to access a portion of the array beyond 2GB-1 bytes
     {
       // we assume that the read is safe on 32-bit systems because otherwise it wouldn't have been possible to construct an array >= 2GB
-      long bytesRead = 0;
+      long i = index;
       if(length != 0)
       {
-        // we have to use a temporary buffer because Stream.Read() only supports 32-bit offsets. we also have to use unsafe code
-        // to copy the data because Array.Copy() only supports 32-bit offsets too.
-        // use a fairly large buffer to reduce the number of calls to RtlMoveMemory() in Unsafe.Copy()
+        // we have to use a temporary buffer because Stream.Read() only supports 32-bit offsets
         byte[] block = new byte[(int)Math.Min(length, 64*1024)];
-        fixed(byte* pBuffer=buffer, pBlock=block)
+        while(i < end)
         {
-          while(bytesRead < length)
-          {
-            int read = stream.FullRead(buffer, 0, buffer.Length); // read a full buffer to reduce the number of Unsafe.Copy() calls
-            if(read == 0) break;
-            Unsafe.Copy(pBlock, pBuffer + index, read);
-            index     += read;
-            bytesRead += read;
-          }
+          int read = stream.Read(block, 0, block.Length);
+          if(read == 0) break;
+          Array.Copy(block, 0, buffer, i, read);
+          i += read;
         }
       }
-      return bytesRead;
+      return i - index;
     }
   }
 

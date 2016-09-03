@@ -22,6 +22,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using AdamMil.IO;
+using AdamMil.Mathematics.Random;
 using AdamMil.Utilities;
 
 // TODO: switch to unsafe code (if it's faster)
@@ -33,46 +34,51 @@ namespace AdamMil.Mathematics
   // NOTE: we don't derive from IEquatable<int>, IEquatable<long>, etc. because that assumes our GetHashCode implementation matches that of
   // the runtime for those types, which may not be the case. IComparable<int>, etc. don't really seem useful either...
   [Serializable]
-  public struct Integer : ICloneable, IComparable, IComparable<Integer>, IConvertible, IEquatable<Integer>, IFormattable
+  public struct Integer : ICloneable, IComparable, IComparable<Integer>, IConvertible, IEquatable<Integer>, IFormattable, IComparable<long>
   {
     /// <summary>Initializes a new <see cref="Integer"/> value from the given <see cref="int"/> value.</summary>
     public Integer(int value)
     {
-      uint uValue;
-      if(value > 0)
-      {
-        uValue = (uint)value;
-        info   = 0;
-      }
-      else if(value < 0)
-      {
-        uValue = (uint)-value; // this is correct even if value == int.MinValue
-        info   = SignBit;
-      }
-      else
+      if(value == 0)
       {
         data = null;
         info = 0;
-        return;
       }
-
-      data  = new uint[] { uValue };
-      info |= (uint)ComputeBitLength(uValue);
+      else
+      {
+        uint uValue = value > 0 ? (uint)value : (uint)-value;
+        if(uValue == 1) // literal 1 values are common, so avoid the allocation if we can
+        {
+          data = One.data;
+          info = value > 0 ? 1 : SignBit|1;
+        }
+        else
+        {
+          data = new uint[] { uValue };
+          info = (uint)ComputeBitLength(uValue);
+          if(value < 0) info |= SignBit;
+        }
+      }
     }
 
     /// <summary>Initializes a new <see cref="Integer"/> value from the given <see cref="uint"/> value.</summary>
     [CLSCompliant(false)]
     public Integer(uint value)
     {
-      if(value != 0)
-      {
-        data = new uint[] { value };
-        info = (uint)ComputeBitLength(value);
-      }
-      else
+      if(value == 0)
       {
         data = null;
         info = 0;
+      }
+      else if(value == 1) // literal 1 values are common, so avoid the allocation if we can
+      {
+        data = One.data;
+        info = 1;
+      }
+      else
+      {
+        data = new uint[] { value };
+        info = (uint)ComputeBitLength(value);
       }
     }
 
@@ -420,6 +426,19 @@ namespace AdamMil.Mathematics
       return 0;
     }
 
+    /// <summary>Counts the number of trailing zero bits in the binary representation of the integer.</summary>
+    /// <remarks>This method returns zero if the value is zero.</remarks>
+    public int CountTrailingZeros()
+    {
+      return CountTrailingZeros(this);
+    }
+
+    /// <summary>Divides this value by the given divisor, returns the quotient, and stores the remainder in <paramref name="remainder"/>.</summary>
+    public Integer DivRem(Integer divisor, out Integer remainder)
+    {
+      return DivRem(this, divisor, out remainder);
+    }
+
     /// <summary>Determines whether this <see cref="Integer"/> equals the given object. If the object is not an <see cref="Integer"/>,
     /// false will be returned.
     /// </summary>
@@ -542,6 +561,12 @@ namespace AdamMil.Mathematics
       return hash;
     }
 
+    /// <summary>Returns this value raised to the given power.</summary>
+    public Integer Pow(int power)
+    {
+      return Pow(this, power);
+    }
+
     /// <summary>Saves this value to a <see cref="BinaryWriter"/>. The value can be recreated using the
     /// <see cref="Integer(BinaryReader)"/> constructor.
     /// </summary>
@@ -655,12 +680,8 @@ namespace AdamMil.Mathematics
       }
       else
       {
-        // generate the digits in reverse order by repeatedly dividing by 10
-        Integer value = Abs(Clone()); // clone the value so we can divide in-place
-        var digits = new System.Collections.Generic.List<byte>(GetElementCount()*10);
-        do digits.Add((byte)value.UnsafeDivide(10u)); while(!value.IsZero);
-        digits.Reverse(); // then reverse the digits to put them in the right order
-        return NumberFormat.FormatNumber(digits.ToArray(), digits.Count, IsNegative, nums, formatType, desiredPrecision, -1, capitalize);
+        byte[] digits = GetDigits(this);
+        return NumberFormat.FormatNumber(digits, digits.Length, IsNegative, nums, formatType, desiredPrecision, -1, capitalize);
       }
     }
 
@@ -875,8 +896,8 @@ namespace AdamMil.Mathematics
     /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
     public void UnsafeLeftShift(int shift)
     {
-      if(shift >= 0) UnsafeLeftShift((uint)shift);
-      else UnsafeRightShift((uint)-shift);
+      if(shift > 0) UnsafeLeftShift((uint)shift);
+      else if(shift < 0) UnsafeRightShift((uint)-shift);
     }
 
     /// <summary>Multiplies this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be corrupted.</summary>
@@ -917,8 +938,8 @@ namespace AdamMil.Mathematics
     /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
     public void UnsafeRightShift(int shift)
     {
-      if(shift >= 0) UnsafeRightShift((uint)shift);
-      else UnsafeLeftShift((uint)-shift);
+      if(shift > 0) UnsafeRightShift((uint)shift);
+      else if(shift < 0) UnsafeLeftShift((uint)-shift);
     }
 
     /// <summary>Replaces this <see cref="Integer"/> in place with the remainder after dividing by the given value. If this integer shares
@@ -1679,6 +1700,14 @@ namespace AdamMil.Mathematics
       return (byte)(int)value;
     }
 
+    /// <summary>Provides an explicit conversion from <see cref="Integer"/> to <see cref="char"/>. This method will not throw an
+    /// exception; the <see cref="Integer"/> will simply be truncated.
+    /// </summary>
+    public static explicit operator char(Integer value)
+    {
+      return (char)(int)value;
+    }
+
     /// <summary>Provides an explicit conversion from <see cref="Integer"/> to <see cref="double"/>. This method will not throw an
     /// exception; if the <see cref="Integer"/> is too large to be represented, <see cref="double.PositiveInfinity"/> or
     /// <see cref="double.NegativeInfinity"/> will be returned.
@@ -1768,6 +1797,26 @@ namespace AdamMil.Mathematics
       else return value;
     }
 
+    /// <summary>Counts the number of trailing zero bits in the binary representation of the integer.</summary>
+    /// <remarks>This method returns zero if the value is zero.</remarks>
+    public static int CountTrailingZeros(Integer value)
+    {
+      int count = 0;
+      if(value.data != null)
+      {
+        for(int i=0; i<value.data.Length; i++)
+        {
+          if(value.data[i] != 0)
+          {
+            count += BinaryUtility.CountTrailingZeros(value.data[i]);
+            break;
+          }
+          count += 32;
+        }
+      }
+      return count;
+    }
+
     /// <summary>Divides one <see cref="Integer"/> value by another and returns its quotient and remainder.</summary>
     public static Integer DivRem(Integer dividend, Integer divisor, out Integer remainder)
     {
@@ -1775,6 +1824,101 @@ namespace AdamMil.Mathematics
       Integer quotient = new Integer(DivideMagnitudes(dividend, divisor, out rem), dividend.IsNegative ^ divisor.IsNegative, false);
       remainder = new Integer(rem, dividend.IsNegative, false);
       return quotient;
+    }
+
+    /// <summary>Computes the factorial of the given number.</summary>
+    public static Integer Factorial(int n)
+    {
+      if(n < 0) throw new ArgumentOutOfRangeException();
+      if(n == 0) return One;
+      Integer i = n; // TODO: is there a better algorithm?
+      while(--n > 1) i.UnsafeMultiply((uint)n);
+      return i;
+    }
+
+    /// <summary>Returns the greatest common factor of two integers.</summary>
+    [CLSCompliant(false)]
+    public static unsafe Integer GreatestCommonFactor(Integer a, Integer b)
+    {
+      // take a fast path if we can
+      if((a.info|b.info) <= 32) return NumberTheory.GreatestCommonFactor(a.ToUInt32Fast(), b.ToUInt32Fast());
+      if((a.info|b.info) <= 64) return NumberTheory.GreatestCommonFactor(a.ToUInt64Fast(), b.ToUInt64Fast());
+
+      // because division is especially slow for bigints, we'll use the binary GCD algorithm, which allows us to do in-place operations
+      if(a.IsNegative) a = -a;
+      if(b.IsNegative) b = -b;
+      a = a.Clone(); // clone the values so we can perform unsafe operations on them
+      b = b.Clone();
+      int powers = 0;
+      while(!a.IsZero && !b.IsZero)
+      {
+        if(!a.IsEven) // if a is odd...
+        {
+          if(b.IsEven) // if b is even, then GCF(a,b) is not divisible by two, so divide b by two
+          {
+            b.UnsafeRightShift(1);
+          }
+          else if(a.CompareTo(b) >= 0) // otherwise, both are odd. since gcf(a,b) divides a-b, we can replace the larger value with
+          {                            // abs(a-b), but since that must be even (because a and b are odd), we can also divide it by two
+            a -= b; // replace a with abs(a-b)
+            a.UnsafeRightShift(1); // and divide it by 2
+          }
+          else
+          {
+            b -= a; // replace b with abs(a-b)
+            b.UnsafeRightShift(1);
+          }
+        }
+        else // a is even...
+        {
+          a.UnsafeRightShift(1); // there are two cases. 1) b is odd, so two is not in the GCF and we can divide a by two, or 2) b is even,
+          if(b.IsEven)           // so both are divisible by two and thus two is in the GCF, in which case we divide both by two and keep
+          {                      // track of the extra power of two. so either way we divide a by two
+            b.UnsafeRightShift(1);
+            powers++;
+          }
+        }
+
+        if((a.info|b.info) <= 64) // switch to faster code ASAP
+        {
+          a = NumberTheory.GreatestCommonFactor(a.ToUInt64Fast(), b.ToUInt64Fast());
+          a.UnsafeLeftShift(powers);
+          return a;
+        }
+      }
+
+      // at this point one (or both) is zero, and the GCD is the remaining non-zero value (if any) times the power of two extracted above
+      if(a.IsZero)
+      {
+        b.UnsafeLeftShift(powers);
+        return b;
+      }
+      else
+      {
+        a.UnsafeLeftShift(powers);
+        return a;
+      }
+    }
+
+    /// <summary>Returns the least common multiple of two integers, as a nonnegative value.</summary>
+    public static Integer LeastCommonMultiple(Integer a, Integer b)
+    {
+      if((a.info | b.info) == 0) return Zero; // LCM(0,0) = 0
+      return Abs(a / GreatestCommonFactor(a, b) * b);
+    }
+
+    /// <summary>Returns the greater of two <see cref="Integer"/> values.</summary>
+    public static Integer Max(Integer a, Integer b)
+    {
+      if(a >= b) return a;
+      else return b;
+    }
+
+    /// <summary>Returns the lesser of two <see cref="Integer"/> values.</summary>
+    public static Integer Min(Integer a, Integer b)
+    {
+      if(a <= b) return a;
+      else return b;
     }
 
     /// <summary>Parses an <see cref="Integer"/> value formatted according to the current culture.</summary>
@@ -1804,9 +1948,10 @@ namespace AdamMil.Mathematics
     /// <summary>Returns the given value raised to the given power.</summary>
     public static Integer Pow(int value, int power)
     {
-      if(power <= 0)
+      if(power <= 1)
       {
         if(power == 0 || value == 1) return One; // x^0 == 1 and 1^y == 1 regardless of x or y
+        else if(power == 1) return value;
         else if(value == -1) return (power&1) == 0 ? One : MinusOne; // -1^y is -1 when y is odd and 1 otherwise, regardless of y's sign
         else if(value != 0) return Zero; // x^y truncates to zero when abs(x) > 1 and y < 0
         else throw new ArgumentOutOfRangeException(); // exception when 0^y and y < 0
@@ -1873,6 +2018,51 @@ namespace AdamMil.Mathematics
       return result;
     }
 
+    /// <summary>Returns the given value raised to the given power.</summary>
+    public static Integer Pow(Integer value, int power)
+    {
+      if(value.BitLength <= 31) return Pow((int)value, power); // if 'value' fits in an int, take a faster path
+
+      if(power <= 1) // handle nonpositive powers (assuming 'value' is large)
+      {
+        if(power == 1) return value;
+        else if(power == 0) return One; // x^0 == 1
+        else return Zero; // x^y truncates to zero when abs(x) > 1 and y < 0
+      }
+
+      bool negative = value.IsNegative;
+      if(negative)
+      {
+        value = -value;
+        if((power & 1) == 0) negative = false; // only odd values with odd powers cause odd results
+      }
+
+      // compute the result by repeated squaring
+      Integer result = One;
+      while(true)
+      {
+        if((power & 1) != 0) result *= value;
+        power >>= 1;
+        if(power == 0) break;
+        value = value.Square();
+      }
+
+      if(negative) result = -result;
+      return result;
+    }
+
+    /// <summary>Generates a random nonnegative <see cref="Integer"/> up to the given bit length.</summary>
+    public static Integer Random(RandomNumberGenerator rng, int maxBits)
+    {
+      if(rng == null) throw new ArgumentNullException();
+      if((uint)maxBits > uint.MaxValue/8) throw new ArgumentOutOfRangeException();
+      if(maxBits == 0) return Zero;
+      uint[] data = new uint[((uint)maxBits+31)/32];
+      for(int i = 0; i < data.Length-1; i++) data[i] = rng.NextUInt32();
+      data[data.Length-1] = (maxBits & 31) == 0 ? rng.NextUInt32() : rng.NextBits(maxBits & 31);
+      return new Integer(data, false);
+    }
+
     /// <summary>Attempts to parse an <see cref="Integer"/> value formatted according to the current culture and returns true if the
     /// parse was successful.
     /// </summary>
@@ -1899,7 +2089,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>An <see cref="Integer"/> value equal to negative one.</summary>
-    public static readonly Integer MinusOne = new Integer(-1);
+    public static readonly Integer MinusOne = new Integer(new uint[] { 1 }, SignBit|1);
     /// <summary>An <see cref="Integer"/> value equal to one.</summary>
     public static readonly Integer One = new Integer(MinusOne.data, 1); // use the same array for One and MinusOne (see CloneIfNecessary)
     /// <summary>An <see cref="Integer"/> value equal to zero.</summary>
@@ -1997,7 +2187,8 @@ namespace AdamMil.Mathematics
 
     object IConvertible.ToType(Type conversionType, IFormatProvider provider)
     {
-      if(conversionType == typeof(FP107)) return (FP107)this;
+      if(conversionType == typeof(FP107)) return new FP107(this);
+      else if(conversionType == typeof(Rational)) return new Rational(this);
       else return MathHelpers.DefaultConvertToType(this, conversionType, provider);
     }
 
@@ -2019,6 +2210,17 @@ namespace AdamMil.Mathematics
     }
     #endregion
 
+    /// <summary>Returns the digits of the number's decimal representation.</summary>
+    internal static byte[] GetDigits(Integer value)
+    {
+      // generate the digits in reverse order by repeatedly dividing by 10
+      value = Abs(value.Clone()); // clone the value so we can divide in-place
+      var digits = new System.Collections.Generic.List<byte>(value.GetElementCount()*10);
+      do digits.Add((byte)value.UnsafeDivide(10u)); while(!value.IsZero);
+      digits.Reverse(); // then reverse the digits to put them in the right order
+      return digits.ToArray();
+    }
+
     /// <summary>Converts an array of decimal digits into a <see cref="Integer"/> value.</summary>
     internal static Integer ParseDigits(byte[] digits, int digitCount)
     {
@@ -2036,6 +2238,81 @@ namespace AdamMil.Mathematics
         value.UnsafeAdd(someDigits);
       }
       return value;
+    }
+
+    internal static bool TryParse(string str, NumberStyles style, IFormatProvider provider, out Integer value, out Exception ex)
+    {
+      ex    = null;
+      value = default(Integer);
+      if(str == null)
+      {
+        ex = new ArgumentNullException();
+        return false;
+      }
+
+      // skip leading and trailing whitespace if it's allowed
+      int start = 0, end = str.Length;
+      if((style & NumberStyles.AllowLeadingWhite) != 0)
+      {
+        while(start < str.Length && char.IsWhiteSpace(str[start])) start++;
+      }
+      if((style & NumberStyles.AllowTrailingWhite) != 0)
+      {
+        while(end != 0 && char.IsWhiteSpace(str[end-1])) end--;
+      }
+
+      NumberFormatInfo nums = NumberFormatInfo.GetInstance(provider);
+      CultureInfo culture = provider == null ? CultureInfo.CurrentCulture : provider as CultureInfo;
+      bool negative = false;
+
+      // parse the number out of hexadecimal format if we can
+      if((style & NumberStyles.HexNumber) != 0 && end-start >= 3) // if the number is long enough to be in hexadecimal format...
+      {
+        int i = start;
+        if(str.StartsAt(i, nums.NegativeSign))
+        {
+          negative = true;
+          i += nums.NegativeSign.Length;
+          while(i < str.Length && char.IsWhiteSpace(str[i])) i++;
+        }
+        if(end-start >= 3 && str[i] == '0' && char.ToUpperInvariant(str[i+1]) == 'X') // if it starts with 0x...
+        {
+          bool hexadecimalFormat = true;
+          i += 2;
+          for(int j=i; j<end; j++) // check if it really is hexadecimal format
+          {
+            if(!BinaryUtility.IsHex(str[j])) { hexadecimalFormat = false; break; }
+          }
+          if(hexadecimalFormat)
+          {
+            uint[] data = new uint[((end-i)+7)/8]; // 8 nibbles per uint, rounded up
+            for(int di=0; di<data.Length; end -= 8, di++)
+            {
+              uint word = 0;
+              for(int j=Math.Max(i, end-8); j < end; j++) word = (word<<4) | BinaryUtility.ParseHex(str[j]);
+              data[di] = word;
+            }
+            value = new Integer(data, negative, false);
+            return true;
+          }
+        }
+      }
+
+      // try to parse the digits out of the string
+      int digitCount, exponent;
+      byte[] digits = NumberFormat.ParseSignificantDigits(str, start, end, style, nums, out digitCount, out exponent, out negative);
+      if(digits == null)
+      {
+        ex = new FormatException();
+        return false;
+      }
+
+      // we've got a valid set of digits, so parse them and scale them by the exponent
+      value = Integer.ParseDigits(digits, digitCount);
+      if(exponent < 0) value /= Pow(10, -exponent);
+      else if(exponent > 0) value *= Pow(10, exponent);
+      if(negative) value = -value;
+      return true;
     }
 
     void CloneIfNecessary() // this assumes One.data == MinusOne.data and we have no other built-in non-zero values
@@ -2884,7 +3161,7 @@ namespace AdamMil.Mathematics
       else
       {
         ulong remainder = 0;
-        for(int i=a.Length-1; i >= 0; i--)
+        for(int i=GetElementCount(aBitLength)-1; i >= 0; i--)
         {
           remainder = (remainder<<32) | a[i];
           Debug.Assert(i < result.Length || remainder/b == 0);
@@ -2910,15 +3187,20 @@ namespace AdamMil.Mathematics
 
     static uint[] DivideMagnitudes(Integer a, Integer b, out uint[] remainder)
     {
-      if(b.IsZero) throw new DivideByZeroException();
+      if(b.BitLength <= 1) // if abs(b) is 0 or 1...
+      {
+        if(b.IsZero) throw new DivideByZeroException();
+        remainder = null; // n / 1 == n
+        return a.data;
+      }
 
       int cmp = a.CompareMagnitudes(b);
-      if(cmp < 0)
+      if(cmp < 0) // smaller / larger = 0 r smaller
       {
         remainder = a.data;
         return null;
       }
-      else if(cmp == 0)
+      else if(cmp == 0) // n/n == 1
       {
         remainder = null;
         return One.data;
@@ -2937,7 +3219,7 @@ namespace AdamMil.Mathematics
         {
           // left-shift the remainder by the amount needed to make rembits == b.BitLength (but at least shift by one)
           int shift = Math.Max(1, Math.Min(bit+1, b.BitLength-rembits));
-          LeftShift(rem, rembits, (uint)shift, rem);
+          if(rembits != 0) LeftShift(rem, rembits, (uint)shift, rem);
           // then copy the numerator bits into the space we just created
           bit -= shift-1;
           BitCopy(a.data, bit, rem, 0, shift);
@@ -3020,35 +3302,54 @@ namespace AdamMil.Mathematics
 
     static void LeftShift(uint[] data, int bitLength, uint shift, uint[] result)
     {
-      Debug.Assert(shift <= (uint)int.MaxValue+1);
+      Debug.Assert(bitLength != 0 && shift <= (uint)int.MaxValue+1);
+      int dcount = GetElementCount(bitLength);
       if(shift == 0)
       {
-        if(data != result) data.FastCopy(result, GetElementCount(bitLength));
+        if(data != result) data.FastCopy(result, dcount);
       }
       else
       {
-        int whole = (int)(shift >> 5), part = (int)(shift & 31), count = (int)((uint)bitLength + shift);
-        if(count < 0) throw new OverflowException();
-        count = GetElementCount(count);
+        int whole = (int)(shift >> 5), part = (int)(shift & 31), rcount = (int)((uint)bitLength + shift), offset;
+        if(rcount < 0) throw new OverflowException();
+        rcount = GetElementCount(rcount);
 
         if(part == 0) // if we're just shifting entire elements...
         {
-          for(int i=whole; i<count; i++) result[i] = data[i-whole];
+          for(int i=whole; i<rcount; i++) result[i] = data[i-whole];
+          offset = whole;
         }
-        else
+        else // otherwise, we have to combine adjacent elements
         {
-          int comp = 32 - part;
-          uint carry = 0;
-          for(int i=0, end=GetElementCount(bitLength); i<end; i++)
+          int comp = 32 - part, i = dcount-1;
+          offset = rcount - dcount;
+          if(offset == whole)
           {
-            uint value = data[i];
-            result[i+whole] = (value << part) | carry;
-            carry = value >> comp;
+            uint pvalue = i != 0 ? data[i-1] : 0, value = data[i];
+            while(true)
+            {
+              result[i+offset] = (value << part) | (pvalue >> comp);
+              value = pvalue;
+              if(--i > 0) pvalue = data[i-1];
+              else if(i == 0) pvalue = 0;
+              else break;
+            }
           }
-          if(carry != 0) result[count-1] = carry;
+          else
+          {
+            uint pvalue = data[i], value = 0;
+            while(true)
+            {
+              result[i+offset] = (value << part) | (pvalue >> comp);
+              value = pvalue;
+              if(i > 0) pvalue = data[--i];
+              else if(i == 0) { i--; pvalue = 0; }
+              else break;
+            }
+          }
         }
 
-        // then fill the empty space with zero bits (we do it last so we can shift in place)
+        // then fill the empty space with zero bits
         if(data == result)
         {
           for(int i=0; i<whole; i++) result[i] = 0;
@@ -3093,15 +3394,16 @@ namespace AdamMil.Mathematics
 
     static uint[] MultiplyMagnitudes(Integer a, Integer b)
     {
-      if(a.IsZero || b.IsZero) return null;
-      else if(a.BitLength == 1) return b.data; // if a.Abs() == 1
-      else if(b.BitLength == 1) return a.data; // if b.Abs() == 1
+      if(b.BitLength == 1) return a.data;
+      else if(a.BitLength == 1) return b.data;
+      else if(b.BitLength <= 32) return MultiplyMagnitudes(a, b.ToUInt32Fast());
+      else if(a.BitLength <= 32) return MultiplyMagnitudes(b, a.ToUInt32Fast());
 
       int maxBitLength = a.BitLength + b.BitLength;
       if(maxBitLength < 0) throw new OverflowException();
       uint[] result = new uint[GetElementCount(maxBitLength)];
 
-      for(int ori=0, ai=0; ai<a.data.Length; ori++, ai++)
+      for(int ori=0, be=b.GetElementCount(), ai=0; ai<a.data.Length; ori++, ai++)
       {
         if(a.data[ai] == 0) continue;
 
@@ -3132,7 +3434,7 @@ namespace AdamMil.Mathematics
       else
       {
         ulong remainder = 0;
-        for(int i=a.Length-1; i >= 0; i--) remainder = ((remainder<<32) | a[i]) % b;
+        for(int i=GetElementCount(aBitLength)-1; i >= 0; i--) remainder = ((remainder<<32) | a[i]) % b;
         return (uint)remainder;
       }
     }
@@ -3160,20 +3462,26 @@ namespace AdamMil.Mathematics
       }
       else
       {
-        int whole = (int)(shift >> 5), part = (int)(shift & 31), count = GetElementCount((int)((uint)bitLength-shift));
+        int whole = (int)(shift >> 5), part = (int)(shift & 31), rcount = GetElementCount((int)((uint)bitLength-shift));
         if(part == 0) // if we're just shifting entire elements...
         {
-          for(int i=0; i<count; i++) result[i] = data[i+whole];
+          for(int i=0; i<rcount; i++) result[i] = data[i+whole];
         }
         else
         {
-          int comp = 32 - part, dataCount = GetElementCount(bitLength);
-          uint carry = dataCount > count+whole ? data[count+whole] << comp : 0;
-          for(int i=count-1; i >= 0; i--)
+          int comp = 32 - part, dcount = GetElementCount(bitLength), i = whole;
+          uint value = data[i], nvalue = i+1 < dcount ? data[i+1] : 0;
+          for(int end = i+rcount; i<end; )
           {
-            uint value = data[i+whole];
-            result[i] = (value >> part) | carry;
-            carry = value << comp;
+            result[i-whole] = (value >> part) | (nvalue << comp);
+            value = nvalue;
+            i++;
+            nvalue = i+1 < dcount ? data[i+1] : 0;
+          }
+
+          if(data == result) // if we're shifting in-place, zero out the remaining elements
+          {
+            for(i -= whole; i<dcount; i++) result[i] = 0;
           }
         }
       }
@@ -3326,82 +3634,6 @@ namespace AdamMil.Mathematics
         if(!capitalize) c = char.ToLowerInvariant(c);
         sb.Append(c);
       }
-    }
-
-    static bool TryParse(string str, NumberStyles style, IFormatProvider provider, out Integer value, out Exception ex)
-    {
-      ex    = null;
-      value = default(Integer);
-      if(str == null)
-      {
-        ex = new ArgumentNullException();
-        return false;
-      }
-
-      // skip leading and trailing whitespace if it's allowed
-      int start = 0, end = str.Length;
-      if((style & NumberStyles.AllowLeadingWhite) != 0)
-      {
-        while(start < str.Length && char.IsWhiteSpace(str[start])) start++;
-      }
-      if((style & NumberStyles.AllowTrailingWhite) != 0)
-      {
-        while(end != 0 && char.IsWhiteSpace(str[end-1])) end--;
-      }
-
-      NumberFormatInfo nums = NumberFormatInfo.GetInstance(provider);
-      CultureInfo culture = provider == null ? CultureInfo.CurrentCulture : provider as CultureInfo;
-      bool negative = false;
-
-      // parse the number out of hexadecimal format if we can
-      if((style & NumberStyles.HexNumber) != 0 && end-start >= 3) // if the number is long enough to be in hexadecimal format...
-      {
-        int i = start;
-        if(str.StartsWith(nums.NegativeSign, false, culture))
-        {
-          negative = true;
-          i += nums.NegativeSign.Length;
-          while(i < str.Length && char.IsWhiteSpace(str[i])) i++;
-        }
-        if(end-start >= 3 && str[i] == '0' && char.ToUpperInvariant(str[i+1]) == 'X') // if it starts with 0x...
-        {
-          bool hexadecimalFormat = true;
-          i += 2;
-          for(int j=i; j<end; j++) // check if it really is hexadecimal format
-          {
-            if(!BinaryUtility.IsHex(str[j])) { hexadecimalFormat = false; break; }
-          }
-          if(hexadecimalFormat)
-          {
-            uint[] data = new uint[((end-i)+7)/8]; // 8 nibbles per uint, rounded up
-            for(int di=0; di<data.Length; end -= 8, di++)
-            {
-              uint word = 0;
-              for(int j=Math.Max(i, end-8); j < end; j++) word = (word<<4) | BinaryUtility.ParseHex(str[j]);
-              data[di] = word;
-            }
-            value = new Integer(data, negative, false);
-            return true;
-          }
-        }
-      }
-
-      // try to parse the digits out of the string
-      int digitCount, exponent;
-      byte[] digits = NumberFormat.ParseSignificantDigits(str, start, end, style, nums, out digitCount, out exponent, out negative);
-      if(digits == null)
-      {
-        ex = new FormatException();
-        return false;
-      }
-
-      // we've got a valid set of digits, so parse them and scale them by the exponent
-      value = Integer.ParseDigits(digits, digitCount);
-      if(exponent < 0) value /= Pow(10, -exponent);
-      else if(exponent > 0) value *= Pow(10, exponent);
-      if(negative) value = -value;
-      ex = null;
-      return true;
     }
 
     // SmallExponents[i] is the largest power that i+3 can be raised to while being represented exactly by a double
