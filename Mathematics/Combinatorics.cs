@@ -81,31 +81,23 @@ public static class Permutations
 public static class Combinations
 {
   /// <summary>Calculates the binomial coefficient, which is the number of ways to choose k items from n possibilities.</summary>
-  public static long CountCombinations(int nChosen, int nPossibilities)
+  public static Integer CountCombinations(int nChosen, int nPossibilities)
   {
     if(nChosen < 1 || nPossibilities < 1 || nChosen > nPossibilities) throw new ArgumentOutOfRangeException();
 
     // this is the binomial coefficient, which is the number of ways to choose k items from n possibilities and is
     // equal to n! / ((n-k)!k!)
-    long count = nPossibilities;
-    while(--nChosen != 0) count *= --nPossibilities;
+    Integer count = (uint)nPossibilities;
+    for(int n = nChosen-1; n != 0; n--) count.UnsafeMultiply((uint)--nPossibilities);
+    for(; nChosen > 1; nChosen--) count.UnsafeDivide((uint)nChosen);
     return count;
   }
 
-  /// <summary>Calculates the factorial of the given number, which is also the number of ways that a number of items
-  /// may be permuted.
-  /// </summary>
-  public static long Factorial(int n)
+  /// <summary>Calculates the number of ways that a number of items may be permuted, which is equal to its factorial.</summary>
+  public static Integer CountPermutations(int n)
   {
-    if(n < 0) throw new ArgumentOutOfRangeException();
-    if(n == 0) return 1;
-
-    long factorial = n;
-    if(n > 1)
-    {
-      while(--n != 1) checked { factorial *= n; }
-    }
-    return factorial;
+    if(n < 1) throw new ArgumentOutOfRangeException();
+    return Integer.Factorial(n);
   }
 }
 

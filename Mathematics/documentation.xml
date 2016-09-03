@@ -74,7 +74,7 @@
       <remarks>
         This method cannot always achieve full 107-bit precision, although it is often close. The relative error is typically around 5e-32, but
         ranges from 5e-33 to 6e-31 through most of the range. With values near the extremes of the range (above 1e300 or so in magnitude) and
-        atypical roots, the relative error may rise to about 1e-25 or more.
+        with atypical roots, the relative error may rise to about 1e-25 or more.
         It's more accurate when finding lesser roots (e.g. square root or cube root) than greater roots (e.g. 11th root).
       </remarks>
     </RootRemarks>
@@ -563,6 +563,25 @@
       </Minimize1D>
     </Minimize>
   </Optimization>
+
+  <Rational>
+    <UnsimplifiedRemarks>
+      <remarks>
+        Normally, rational arithmetic simplifies the result to obtain a canonical form. This avoids exponential growth in the
+        sizes of the numerator and denominator, but the simplification step is quite slow, usually taking as much time as quite a few
+        arithmetic operations. Some algorithms can gain a significant performance boost by delaying simplification until the end, or only
+        performing it periodically. You can manually simplify a rational by calling <see cref="Simplify()"/>.
+        <note type="caution">
+          Many internal algorithms assume that the rational value is simplified. In particular, comparison functions
+          (such as <see cref="Equals(Rational)"/>), operators (such as &lt; or &gt;), and properties (such as <see cref="IsInteger"/>) will
+          fail, among others (although you can use <see cref="UnsimplifiedCompare"/>). Some properties and methods guaranteed to be safe
+          are: <see cref="IsPositive"/>, <see cref="IsNegative"/>, <see cref="IsZero"/>, <see cref="Sign"/>, <see cref="Abs()"/>,
+          <see cref="Inverse()"/>, <see cref="Round()"/>, <see cref="Simplify()"/>, <see cref="ToContinuedFraction"/>,
+          <see cref="ToString()"/> <see cref="Truncate()"/>, and all methods whose name starts with "Unsimplified" (such as this method).
+        </note>
+      </remarks>
+    </UnsimplifiedRemarks>
+  </Rational>
 
   <RNG>
     <SeedSize>The number of uints that should be used to used to seed the random number generator.</SeedSize>

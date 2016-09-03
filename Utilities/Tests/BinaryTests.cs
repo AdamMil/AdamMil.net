@@ -1,4 +1,5 @@
-﻿using AdamMil.Tests;
+﻿using System.Text;
+using AdamMil.Tests;
 using NUnit.Framework;
 
 namespace AdamMil.Utilities.Tests
@@ -31,6 +32,32 @@ public class BinaryTests
         Assert.AreEqual(CountBits(f)+CountBits(b), BinaryUtility.CountBits(((ulong)f<<32)|b));
       }
     }
+  }
+
+  [Test]
+  public void T03_TestCRC32()
+  {
+    const string dogString = "The quick brown fox jumps over the lazy dog";
+    byte[] checkBytes = Encoding.ASCII.GetBytes("123456789"), dogBytes = Encoding.ASCII.GetBytes(dogString);
+    Assert.AreEqual(0, CRC32.Default.Compute(new byte[0]));
+    Assert.AreEqual(unchecked((int)0xcbf43926), CRC32.Default.Compute(checkBytes));
+    Assert.AreEqual(0x414fa339, CRC32.Default.Compute(dogBytes));
+    Assert.AreEqual(0x414fa339, CRC32.Default.Compute(Encoding.ASCII.GetBytes(" " + dogString), 1, dogString.Length)); // test a misaligned pointer
+    Assert.AreEqual(0x414fa339, CRC32.Default.Compute(dogBytes, 21, dogBytes.Length-21, CRC32.Default.Compute(dogBytes, 0, 21))); // test continuing a CRC
+    Assert.AreEqual(unchecked((int)0xe3069283), CRC32.CRC32C.Compute(checkBytes));
+    Assert.AreEqual(0x22620404, CRC32.CRC32C.Compute(dogBytes));
+  }
+
+  [Test]
+  public void T04_TestByteSwaps()
+  {
+    Assert.AreEqual(unchecked((short)0x8967), BinaryUtility.ByteSwap((short)0x6789));
+    Assert.AreEqual((ushort)0x3412, BinaryUtility.ByteSwap((ushort)0x1234));
+    Assert.AreEqual(unchecked((int)0x89674523), BinaryUtility.ByteSwap((int)0x23456789));
+    Assert.AreEqual((uint)0x78563412, BinaryUtility.ByteSwap((uint)0x12345678));
+    Assert.AreEqual(unchecked((int)0x89674523), BinaryUtility.ByteSwap((int)0x23456789));
+    Assert.AreEqual(unchecked((long)0xEFCDAB9078563412), BinaryUtility.ByteSwap((long)0x1234567890ABCDEF));
+    Assert.AreEqual((ulong)0xEFCDAB9078563412, BinaryUtility.ByteSwap((ulong)0x1234567890ABCDEF));
   }
 
   static int CountBits(uint v)

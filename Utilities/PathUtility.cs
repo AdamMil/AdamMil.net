@@ -166,8 +166,8 @@ public static class PathUtility
     return GetTempFileNameWithExtension(directory, Path.GetExtension(fileName));
   }
 
-  /// <summary>Normalizes a path by converting it to upper case, normalizing directory separator
-  /// characters, and removing a trailing slash if there is one.
+  /// <summary>Normalizes a path by converting it to upper case (except on Unix-like systems), normalizing directory separator characters,
+  /// and removing a trailing slash if there is one.
   /// </summary>
   public static string NormalizePath(string path)
   {
@@ -177,8 +177,13 @@ public static class PathUtility
       // it doesn't change the way Windows handles it.
       if(path.StartsWith(@"\??\", StringComparison.Ordinal)) path = path.Substring(4);
 
-      path = Path.GetFullPath(path).ToUpperInvariant()
-                 .Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+      path = Path.GetFullPath(path);
+      // TODO: this is just a heuristic, since Unix operating systems can mount case-insensitive file systems and so can Mac OS X
+      if(Environment.OSVersion.Platform != PlatformID.Unix) path = path.ToUpperInvariant();
+      if(Path.AltDirectorySeparatorChar != Path.DirectorySeparatorChar)
+      {
+        path = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+      }
 
       // strip off a trailing slash if there is one
       if(path.Length != 0 && path[path.Length-1] == Path.DirectorySeparatorChar)

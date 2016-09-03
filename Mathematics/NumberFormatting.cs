@@ -28,6 +28,31 @@ namespace AdamMil.Mathematics
 
 static class NumberFormat
 {
+  public static decimal DigitsToDecimal(byte[] digits, int decimalPlace, bool negative)
+  {
+    if(decimalPlace <= -29) return 0m; // if there are at least 29 leading fractional zeros, it must round to zero
+    else if(decimalPlace > 28) throw new OverflowException(); // if it's at least 10^29 in magnitude, there's definitely an overflow
+
+    // round to at most 28 digits by pretending that all digits are in the fraction (start == 0)
+    int start = 0, dummy = 0, digitCount = NumberFormat.RoundDigits(digits, ref start, false, ref dummy, 28);
+    decimalPlace += start; // take into account any shifting in the decimal place done by RoundDigits
+    Integer mantissa = Integer.ParseDigits(digits, digitCount);
+    if(decimalPlace > 28 || mantissa.BitLength > 96) throw new OverflowException();
+
+    int ilo=0, imid=0, ihi=0;
+    if(!mantissa.IsZero)
+    {
+      uint[] bits = mantissa.GetBits();
+      ilo = (int)bits[0];
+      if(mantissa.BitLength > 32)
+      {
+        imid = (int)bits[1];
+        if(mantissa.BitLength > 64) ihi = (int)bits[2];
+      }
+    }
+    return new decimal(ilo, imid, ihi, negative, (byte)(digitCount - decimalPlace));
+  }
+
   public static string FormatNumber(byte[] digits, int decimalPlace, bool isNegative, NumberFormatInfo nums, char formatType,
                                     int desiredPrecision, int defaultPrecision, bool capitalize)
   {
@@ -104,6 +129,18 @@ static class NumberFormat
     AddNumber(sb, digits, digitCount, decimalPlace, exponentialFormat, exponent, formatType, nums, capitalize, groupDigits);
     AddTrailingNumberSymbols(sb, isNegative, nums, formatType);
     return sb.ToString();
+  }
+
+  public static int GetDefaultPrecision(NumberFormatInfo nums, char formatType)
+  {
+    switch(formatType)
+    {
+      case 'C': return nums.CurrencyDecimalDigits;
+      case 'D': return 0;
+      case 'F': case 'N': return nums.NumberDecimalDigits;
+      case 'P': return nums.PercentDecimalDigits;
+      default: return -1; // unspecified or unknown for this format
+    }
   }
 
   public static bool ParseFormatString(string format, char defaultType, out char formatType, out int desiredPrecision, out bool capitalize)
@@ -359,21 +396,23 @@ static class NumberFormat
 
   public static int RoundDigits(byte[] digits, ref int decimalPlace, bool exponentialFormat, ref int exponent, int desiredPrecision)
   {
-    int digitCount = digits.Length, fractionDigits = digits.Length - decimalPlace, roundOff = fractionDigits - desiredPrecision;
+    int digitCount = digits.Length; // ignore trailing zeros
+    while(digitCount-1 > 0 && digits[digitCount-1] == 0) digitCount--;
+    int fractionDigits = digitCount - decimalPlace, roundOff = fractionDigits - desiredPrecision;
     if(roundOff > 0) // if rounding is needed...
     {
-      if(roundOff <= digits.Length)
+      if(roundOff <= digitCount)
       {
-        int i, roundIndex = digits.Length - roundOff;
+        int i, roundIndex = digitCount - roundOff;
         bool roundUp = digits[roundIndex] > 5;
         if(digits[roundIndex] == 5) // if we're not sure if we need to round up...
         {
-          for(i=roundIndex+1; i<digits.Length; i++)
+          for(i=roundIndex+1; i<digitCount; i++)
           {
             if(digits[i] != 0) { roundUp = true; break; }
           }
           // if all the remaining digits were zeros, round to even
-          if(i == digits.Length) roundUp = roundIndex == 0 || (digits[roundIndex-1] & 1) == 1;
+          if(i == digitCount) roundUp = roundIndex == 0 || (digits[roundIndex-1] & 1) == 1;
         }
 
         digitCount -= roundOff;
@@ -391,15 +430,16 @@ static class NumberFormat
             // since it actually represents the previous digit now, change the exponent or decimal place
             if(exponentialFormat) exponent++;
             else decimalPlace++;
-            if(roundOff == digits.Length) digitCount++;
+            if(digitCount == 0) digitCount++;
           }
         }
 
         // after rounding, we may have trailing zeros in the fraction. remove them
         for(i=digitCount-1; i >= 0 && digits[i] == 0; i--) digitCount--;
+        roundOff = 0; // no digits left to round. (avoid going into the 'if' block below)
       }
 
-      if(roundOff > digits.Length || digitCount == 0) // if there are more leading fractional zeros than desired digits...
+      if(roundOff > digitCount || digitCount == 0) // if there are more leading fractional zeros than desired digits...
       {
         digits[0]    = 0; // then the whole number should round to zero
         decimalPlace = digitCount = 1; // just set decimalPlace and not exponent because this can't happen with exponential notation
@@ -470,6 +510,10 @@ static class NumberFormat
   static void AddNumber(StringBuilder sb, byte[] digits, int digitCount, int decimalPlace, bool exponentialFormat, int exponent,
                         char formatType, NumberFormatInfo nums, bool capitalize, bool groupDigits)
   {
+    // skip leading zeros besides the first
+    int start = 0;
+    while(start < digits.Length && start < decimalPlace-1 && digits[start] == 0) start++;
+
     // if grouping is enabled and there are any whole digits, break the digits up into groups
     string groupSeparator = null;
     List<int> groupIndexes = null; // indexes of digits within the whole part before which group separators should be inserted
@@ -499,7 +543,7 @@ static class NumberFormat
       else
       {
         groupIndexes = new List<int>();
-        int i, count = 0; // the number of digits examined so far
+        int i, count = start; // the number of digits examined so far
         // go through all groups until we reach the last one or until we run out of digits to group
         for(i=0; i<groupSizes.Length-1 && decimalPlace-count > groupSizes[i]; i++)
         {
@@ -530,7 +574,7 @@ static class NumberFormat
 
     // now add the significant digits
     int groupIndex = 0;
-    for(int i=0; i<digitCount; i++)
+    for(int i=start; i<digitCount; i++)
     {
       if(i == decimalPlace)
       {

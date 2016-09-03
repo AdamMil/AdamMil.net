@@ -236,16 +236,7 @@ sealed class ByteArrayHashProvider : MultiHashProvider<byte[]>
 {
   public unsafe override int GetHashCode(int hashFunction, byte[] array)
   {
-    int hash;
-    if(array == null)
-    {
-      hash = HashHelper.Hash4(hashFunction, 0);
-    }
-    else
-    {
-      fixed(byte* pArray=array) hash = BinaryUtility.Hash(hashFunction, pArray, array.Length);
-    }
-    return hash;
+    return BinaryUtility.Hash(hashFunction, array);
   }
 }
 #endregion
@@ -390,7 +381,7 @@ sealed class StringHashProvider : MultiHashProvider<string>
     }
     else if(string.IsNullOrEmpty(item))
     {
-      // use an arbitrary number for empty strings to differentiate them from null strings, as both are common cases
+      // use an arbitrary non-zero value for empty strings to differentiate them from null strings, as both are common cases
       return HashHelper.Hash4(hashFunction, item == null ? 0 : 0x8E5211CC);
     }
     else

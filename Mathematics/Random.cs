@@ -121,32 +121,52 @@ public abstract class RandomNumberGenerator
   }
 
   /// <summary>Fills a region of an array with random bytes.</summary>
+  /// <remarks>The default implementation passes the array to <see cref="GenerateBytes(void*,int)"/>.</remarks>
+  public virtual unsafe void GenerateBytes(byte[] bytes, int index, int count)
+  {
+    Utility.ValidateRange(bytes, index, count);
+    fixed(byte* pBytes = bytes) GenerateBytes(pBytes+index, count);
+  }
+
+  /// <summary>Fills a region of memory with random bytes.</summary>
+  /// <param name="pBytes">A pointer to the memory region to fill.</param>
+  /// <param name="count">The number of bytes to fill.</param>
   /// <remarks>The default implementation generates 32-bit integers with <see cref="NextUInt32"/> and uses them to fill up to
   /// four bytes at a time within the array.
   /// </remarks>
-  public virtual void GenerateBytes(byte[] bytes, int index, int count)
+  [CLSCompliant(false)]
+  public virtual unsafe void GenerateBytes(void* pBytes, int count)
   {
-    Utility.ValidateRange(bytes, index, count);
-
-    int chunks = count/4; // do as many bytes as we can in 4-byte chunks
-    for(; chunks != 0; index += 4, chunks--)
-    {
-      uint chunk = NextUInt32();
-      bytes[index]   = (byte)chunk;
-      bytes[index+1] = (byte)(chunk >> 8);
-      bytes[index+2] = (byte)(chunk >> 16);
-      bytes[index+3] = (byte)(chunk >> 24);
-    }
-
-    count &= 3; // get the number of remaining bytes
     if(count != 0)
     {
-      uint chunk = NextBits(count*8);
-      do
+      if(pBytes == null) throw new ArgumentNullException();
+      if(count < 0) throw new ArgumentOutOfRangeException();
+
+      // first, align the pointer
+      byte* p = (byte*)pBytes;
+      if(((int)p & 3) != 0) // if it's misaligned...
       {
-        bytes[index++] = (byte)chunk;
-        chunk >>= 8;
-      } while(--count != 0);
+        uint chunk = NextBits(Math.Min(count, (4-((int)p&3))) * 8);
+        do
+        {
+          *p++ = (byte)chunk;
+          chunk >>= 8;
+        } while(--count != 0 && ((int)p & 3) != 0);
+      }
+
+      int chunks = count / 4; // do as many bytes as we can in 4-byte chunks
+      for(; chunks != 0; p += 4, chunks--) *(uint*)p = NextUInt32();
+
+      count &= 3; // get the number of remaining bytes
+      if(count != 0)
+      {
+        uint chunk = NextBits(count*8);
+        do
+        {
+          *p++ = (byte)chunk;
+          chunk >>= 8;
+        } while(--count != 0);
+      }
     }
   }
 

@@ -23,8 +23,6 @@ using System.Globalization;
 using AdamMil.IO;
 using AdamMil.Utilities;
 
-// TODO: add tests for compose/decompose
-
 namespace AdamMil.Mathematics
 {
   #region FP107
@@ -81,7 +79,7 @@ namespace AdamMil.Mathematics
   // double.
   //
   // The data type has the following invariants:
-  // if hi = 0, then lo = 0
+  // abs(hi) >= abs(lo)
   // if hi has a fractional part, then -0.5 < lo < 0.5
   // if lo is a non-zero integer, then hi is a non-zero integer
   //
@@ -324,28 +322,7 @@ namespace AdamMil.Mathematics
     /// <summary>Returns the smallest integer greater than or equal to this value.</summary>
     public FP107 Ceiling()
     {
-      // case:       hi:  lo:   val:   f(hi): f(lo):  f(lo)+f(hi):  f(val): adj:
-      // zero+zero   0    0     0      0      0       0             0       0
-      // int+int     10   2     12     10     2       12            12      0
-      // int+zero    10   0     10     10     0       10            10      0
-      // int-int     10  -2     8      10    -2       8             8       0
-      // int+frac    10   2.3   12.3   10     3       13            13      0
-      // int-frac    10  -2.3   7.7    10    -2       8             8       0
-      // frac+frac   1.2  0.03  1.23   2      1       3             2      -1
-      // frac+zero   1.2  0     1.2    2      0       2             2       0
-      // frac-frac   1.2 -0.03  1.17   2      0       2             2       0
-      // -int+int   -10   2    -8     -10     2      -8            -8       0
-      // -int+zero  -10   0    -10    -10     0      -10           -10      0
-      // -int-int   -10  -2    -12    -10    -2      -12           -12      0
-      // -int+frac  -10   2.3  -7.7   -10     3      -7            -7       0
-      // -int-frac  -10  -2.3  -12.3  -10    -2      -12           -12      0
-      // -frac+frac -1.2  0.03 -1.17  -1      1       0            -1      -1
-      // -frac+zero -1.2  0    -1.2   -1      0      -1            -1       0
-      // -frac-frac -1.2 -0.03 -1.23  -1      0      -1            -1       0
-      // synopsis: subtract 1 when hi and low have fractions and lo is positive
-      double chi = Math.Ceiling(hi), clo = Math.Ceiling(lo);
-      if(chi != hi && clo != lo && lo > 0) clo--;
-      return new FP107(chi, clo); // renormalize because clo could have changed magnitude substantially relative to chi
+      return Ceiling(this);
     }
 
     /// <summary>Compares this value to another, returning a negative number if it's less, a positive number if it's greater, and zero
@@ -380,7 +357,7 @@ namespace AdamMil.Mathematics
       IEEE754.RawDecompose(hi, out negative, out exponent, out rawMantissa);
       if(exponent == 0) exponent++; // if the number is denormalized (or zero) the actual exponent is one greater
       else if(exponent != (1<<IEEE754.DoubleExponentBits)-1) rawMantissa |= 1UL << IEEE754.DoubleMantissaBits; // add the hidden bit if normal
-      else
+      else // the value is NaN or infinity
       {
         mantissa = default(Integer);
         return false;
@@ -441,28 +418,7 @@ namespace AdamMil.Mathematics
     /// <summary>Returns the largest integer less than or equal to this value.</summary>
     public FP107 Floor()
     {
-      // case:       hi:  lo:   val:   f(hi): f(lo):  f(lo)+f(hi):  f(val): adj:
-      // zero+zero   0    0     0      0      0       0             0       0
-      // int+int     10   2     12     10     2       12            12      0
-      // int+zero    10   0     10     10     0       10            10      0
-      // int-int     10  -2     8      10    -2       8             8       0
-      // int+frac    10   2.3   12.3   10     2       12            12      0
-      // int-frac    10  -2.3   7.7    10    -3       7             7       0
-      // frac+frac   1.2  0.03  1.23   1      0       1             1       0
-      // frac+zero   1.2  0     1.2    1      0       1             1       0
-      // frac-frac   1.2 -0.03  1.17   1     -1       0             1       1
-      // -int+int   -10   2    -8     -10     2      -8            -8       0
-      // -int+zero  -10   0    -10    -10     0      -10           -10      0
-      // -int-int   -10  -2    -12    -10    -2      -12           -12      0
-      // -int+frac  -10   2.3  -7.7   -10     2      -8            -8       0
-      // -int-frac  -10  -2.3  -12.3  -10    -3      -13           -13      0
-      // -frac+frac -1.2  0.03 -1.17  -2      0      -2            -2       0
-      // -frac+zero -1.2  0    -1.2   -2      0      -2            -2       0
-      // -frac-frac -1.2 -0.03 -1.23  -2     -1      -3            -2       1
-      // synopsis: add 1 when hi and low have fractions and lo is negative
-      double fhi = Math.Floor(hi), flo = Math.Floor(lo);
-      if(fhi != hi && flo != lo && lo < 0) flo++;
-      return new FP107(fhi, flo); // renormalize because clo could have changed magnitude substantially relative to chi
+      return Floor(this);
     }
 
     /// <summary>Returns the internal components of the <see cref="FP107"/> value. This method is intended to be used with the
@@ -480,14 +436,14 @@ namespace AdamMil.Mathematics
       return hi.GetHashCode() ^ lo.GetHashCode();
     }
 
-    /// <summary>Computes the natural logarithm of this value and returns it.</summary>
+    /// <summary>Returns the natural logarithm of this value.</summary>
     /// <include file="documentation.xml" path="/Math/FP107/LogRemarks/node()"/>
     public FP107 Log()
     {
       return Log(this);
     }
 
-    /// <summary>Computes the base-10 logarithm of this value and returns it.</summary>
+    /// <summary>Returns the base-10 logarithm of this value.</summary>
     /// <include file="documentation.xml" path="/Math/FP107/Log10Remarks/node()"/>
     public FP107 Log10()
     {
@@ -516,30 +472,7 @@ namespace AdamMil.Mathematics
     /// <summary>Rounds this value to the nearest integer and returns the result.</summary>
     public FP107 Round()
     {
-      // the only special case that concerns us is when hi has a fraction of +/-0.5 and
-      // lo has a fraction and hi rounds to even when it should have rounded to odd:
-      // hi =  1.5, lo < 0 (rounds to 2 rather than 1), hi =  2.5, lo > 0 (rounds to 2 rather than 3),
-      // hi = -1.5, lo > 0 (rounds to -2 rather than -1), hi = -2.5, lo < 0 (rounds to -2 rather than -3)
-      double rhi = Math.Round(hi), rlo = Math.Round(lo);
-      if(rhi != hi) // if hi had a fraction...
-      {
-        double hi2 = hi*2; // check for 0.5 by doubling it and seeing if it's an integer
-        if(hi2 == Math.Truncate(hi2)) // and it ended with .5...
-        {
-          int iv = (int)hi;
-          if(lo > 0) // if lo was positive, we may need to add one to the result
-          {
-            // if the whole part of hi was even and positive, or odd and negative, add one
-            if((iv & 1) == 0 ? hi > 0 : hi < 0) return new FP107(rhi, rlo+1);
-          }
-          else if(lo < 0) // if lo was negative, we may need to subtract one
-          {
-            // if the whole part of hi was even and negative, or odd and positive, add one
-            if((iv & 1) == 0 ? hi < 0 : hi > 0) return new FP107(rhi, rlo-1);
-          }
-        }
-      }
-      return new FP107(rhi, rlo, false);
+      return Round(this);
     }
 
     /// <summary>Saves this value to a <see cref="BinaryWriter"/>. The value can be recreated using the
@@ -683,22 +616,7 @@ namespace AdamMil.Mathematics
     /// <summary>Returns the value, truncated towards zero.</summary>
     public FP107 Truncate()
     {
-      double thi = Math.Truncate(hi), tlo = Math.Truncate(lo);
-      // if hi wasn't an integer or lo was, then any fraction in lo can't affect the overall result because it would
-      // be dominated by the fraction in hi. but if hi was an integer and lo wasn't, it may change the result
-      if(thi == hi && tlo != lo) // if hi was an integer and lo wasn't (and the value isn't NaN)...
-      {
-        if(hi > 0) // if hi was a positive integer and lo had a negative fraction, the overall result should be one less.
-        {          // (e.g. hi = thi = 120, lo = -3.4, tlo = -3, hi + lo = 116.6, truncate(116.6) == 116, but thi + tlo = 117)
-          if(lo < 0) return new FP107(thi, tlo-1); // subtract from tlo rather than thi because the fact that it had a fraction guarantees
-        }                                          // that it will change. also, renormalize because thi may be able to incorporate the 1
-        else // if hi was a negative integer and lo had a positive fraction, the overall result should be one greater.
-        {    // (e.g. hi = thi = -120, lo = 3.4, tlo = 3, hi + lo = -116.6, truncate(-116.6) == -116, but thi + tlo = -117)
-             // it's impossible for hi to be zero because it can only be zero if lo is zero in which case we wouldn't be here
-          if(lo > 0) return new FP107(thi, tlo+1);
-        }
-      }
-      return new FP107(thi, tlo, false);
+      return Truncate(this);
     }
 
     #region Arithmetic operators
@@ -708,6 +626,18 @@ namespace AdamMil.Mathematics
       value.hi = -value.hi;
       value.lo = -value.lo;
       return value;
+    }
+
+    /// <summary>Increments an <see cref="FP107"/> value.</summary>
+    public static FP107 operator++(FP107 value)
+    {
+      return value + 1d;
+    }
+
+    /// <summary>Decrements an <see cref="FP107"/> value.</summary>
+    public static FP107 operator--(FP107 value)
+    {
+      return value - 1d;
     }
 
     /// <summary>Adds two <see cref="FP107"/> values.</summary>
@@ -753,7 +683,7 @@ namespace AdamMil.Mathematics
       return new FP107(qhi, (slo-r.lo+a.lo+shi)/b.hi);
     }
 
-    /// <summary>Divides one <see cref="FP107"/> value by another and produces the remainder.</summary>
+    /// <summary>Divides one <see cref="FP107"/> value by another and returns the remainder.</summary>
     public static FP107 operator%(FP107 a, FP107 b)
     {
       if(a.IsInfinity) return NaN;
@@ -788,7 +718,7 @@ namespace AdamMil.Mathematics
       return a / new FP107(b);
     }
 
-    /// <summary>Divides an <see cref="FP107"/> value by a double-precision floating-point value and produces the remainder.</summary>
+    /// <summary>Divides an <see cref="FP107"/> value by a double-precision floating-point value and returns the remainder.</summary>
     public static FP107 operator%(FP107 a, double b)
     {
       return a % new FP107(b);
@@ -818,7 +748,7 @@ namespace AdamMil.Mathematics
       return a / new FP107(b);
     }
 
-    /// <summary>Divides an <see cref="FP107"/> value by a 32-bit signed integer value and produces the remainder.</summary>
+    /// <summary>Divides an <see cref="FP107"/> value by a 32-bit signed integer value and returns the remainder.</summary>
     public static FP107 operator%(FP107 a, int b)
     {
       return a % new FP107(b);
@@ -852,7 +782,7 @@ namespace AdamMil.Mathematics
       return a / new FP107(b);
     }
 
-    /// <summary>Divides an <see cref="FP107"/> value by a 32-bit unsigned integer value and produces the remainder.</summary>
+    /// <summary>Divides an <see cref="FP107"/> value by a 32-bit unsigned integer value and returns the remainder.</summary>
     [CLSCompliant(false)]
     public static FP107 operator%(FP107 a, uint b)
     {
@@ -883,7 +813,7 @@ namespace AdamMil.Mathematics
       return a / new FP107(b);
     }
 
-    /// <summary>Divides an <see cref="FP107"/> value by a 64-bit signed integer value and produces the remainder.</summary>
+    /// <summary>Divides an <see cref="FP107"/> value by a 64-bit signed integer value and returns the remainder.</summary>
     public static FP107 operator%(FP107 a, long b)
     {
       return a % new FP107(b);
@@ -917,7 +847,7 @@ namespace AdamMil.Mathematics
       return a / new FP107(b);
     }
 
-    /// <summary>Divides an <see cref="FP107"/> value by a 64-bit unsigned integer value and produces the remainder.</summary>
+    /// <summary>Divides an <see cref="FP107"/> value by a 64-bit unsigned integer value and returns the remainder.</summary>
     [CLSCompliant(false)]
     public static FP107 operator%(FP107 a, ulong b)
     {
@@ -951,7 +881,7 @@ namespace AdamMil.Mathematics
       return new FP107(a) / b;
     }
 
-    /// <summary>Divides a double-precision floating-point value by an <see cref="FP107"/> value and produces the remainder.</summary>
+    /// <summary>Divides a double-precision floating-point value by an <see cref="FP107"/> value and returns the remainder.</summary>
     public static FP107 operator%(double a, FP107 b)
     {
       return new FP107(a) % b;
@@ -981,7 +911,7 @@ namespace AdamMil.Mathematics
       return new FP107(a) / b;
     }
 
-    /// <summary>Divides a 32-bit signed integer value by an <see cref="FP107"/> value and produces the remainder.</summary>
+    /// <summary>Divides a 32-bit signed integer value by an <see cref="FP107"/> value and returns the remainder.</summary>
     public static FP107 operator%(int a, FP107 b)
     {
       return new FP107(a) % b;
@@ -1015,7 +945,7 @@ namespace AdamMil.Mathematics
       return new FP107(a) / b;
     }
 
-    /// <summary>Divides a 32-bit unsigned integer value by an <see cref="FP107"/> value and produces the remainder.</summary>
+    /// <summary>Divides a 32-bit unsigned integer value by an <see cref="FP107"/> value and returns the remainder.</summary>
     [CLSCompliant(false)]
     public static FP107 operator%(uint a, FP107 b)
     {
@@ -1046,7 +976,7 @@ namespace AdamMil.Mathematics
       return new FP107(a) / b;
     }
 
-    /// <summary>Divides a 64-bit signed integer value by an <see cref="FP107"/> value and produces the remainder.</summary>
+    /// <summary>Divides a 64-bit signed integer value by an <see cref="FP107"/> value and returns the remainder.</summary>
     public static FP107 operator%(long a, FP107 b)
     {
       return new FP107(a) % b;
@@ -1080,7 +1010,7 @@ namespace AdamMil.Mathematics
       return new FP107(a) / b;
     }
 
-    /// <summary>Divides a 64-bit unsigned integer value by an <see cref="FP107"/> value and produces the remainder.</summary>
+    /// <summary>Divides a 64-bit unsigned integer value by an <see cref="FP107"/> value and returns the remainder.</summary>
     [CLSCompliant(false)]
     public static FP107 operator%(ulong a, FP107 b)
     {
@@ -1561,6 +1491,24 @@ namespace AdamMil.Mathematics
       return (float)value.hi;
     }
 
+    /// <summary>Provides an explicit conversion from an <see cref="FP107"/> value to <see cref="decimal"/>.</summary>
+    public static explicit operator decimal(FP107 value)
+    {
+      // decompose the value into a sign, exponent, and mantissa
+      Integer mantissa;
+      int exponent;
+      bool negative;
+      if(!value.Decompose(out negative, out exponent, out mantissa))
+      {
+        throw new InvalidCastException("The FP107 value is NaN or Infinity.");
+      }
+
+      // now convert the exponent and mantissa into decimal digits
+      int decimalPlace;
+      byte[] digits = GetSignificantDigits(value.hi, exponent, -mantissa.BitLength - (IEEE754.DoubleBias-2), mantissa, out decimalPlace);
+      return NumberFormat.DigitsToDecimal(digits, decimalPlace, negative);
+    }
+
     /// <summary>Provides an explicit conversion from an <see cref="FP107"/> value to a 32-bit signed integer.</summary>
     public static explicit operator int(FP107 value)
     {
@@ -1607,7 +1555,7 @@ namespace AdamMil.Mathematics
       else return new FP107(-value.hi, -value.lo, false); // it's negative
     }
 
-    /// <summary>Computes the arccosine of the given value.</summary>
+    /// <summary>Returns the arccosine of the given value.</summary>
     public static FP107 Acos(FP107 value)
     {
       FP107 abs = value.Abs();
@@ -1626,7 +1574,7 @@ namespace AdamMil.Mathematics
       }
     }
 
-    /// <summary>Computes the hyperbolic arccosine of the given value.</summary>
+    /// <summary>Returns the hyperbolic arccosine of the given value.</summary>
     /// <remarks>This method loses precision when the value is close to 1.</remarks>
     public static FP107 Acosh(FP107 value)
     {
@@ -1648,7 +1596,7 @@ namespace AdamMil.Mathematics
       return new FP107(Add(ihi, c, out ilo2), ilo + ilo2, true);
     }
 
-    /// <summary>Computes the arcsine of the given value.</summary>
+    /// <summary>Returns the arcsine of the given value.</summary>
     public static FP107 Asin(FP107 value)
     {
       FP107 abs = value.Abs();
@@ -1667,7 +1615,7 @@ namespace AdamMil.Mathematics
       }
     }
 
-    /// <summary>Computes the hyperbolic arcsine of the given value.</summary>
+    /// <summary>Returns the hyperbolic arcsine of the given value.</summary>
     /// <remarks>This method loses precision when the value is close to 0.</remarks>
     public static FP107 Asinh(FP107 value)
     {
@@ -1675,13 +1623,13 @@ namespace AdamMil.Mathematics
       return Log(value + Sqrt(value.Square() + 1d));
     }
 
-    /// <summary>Computes the arctangent of the given value.</summary>
+    /// <summary>Returns the arctangent of the given value.</summary>
     public static FP107 Atan(FP107 value)
     {
       return Atan2(value, One);
     }
 
-    /// <summary>Computes the angle whose tangent equals <paramref name="y"/>/<paramref name="x"/>.</summary>
+    /// <summary>Returns the angle whose tangent equals <paramref name="y"/>/<paramref name="x"/>.</summary>
     public static FP107 Atan2(FP107 y, FP107 x)
     {
       // first, get all the special cases out of the way
@@ -1742,11 +1690,38 @@ namespace AdamMil.Mathematics
       return result;
     }
 
-    /// <summary>Computes the hyperbolic arctangent of the given value.</summary>
+    /// <summary>Returns the hyperbolic arctangent of the given value.</summary>
     public static FP107 Atanh(FP107 value)
     {
       if(value.Abs() >= 1d) return NaN;
       else return Log((1d + value) / (1d - value)).ScaleByPowerOfTwo(0.5);
+    }
+
+    /// <summary>Returns the smallest integer greater than or equal to the given value.</summary>
+    public static FP107 Ceiling(FP107 value)
+    {
+      // case:       hi:  lo:   val:   f(hi): f(lo):  f(lo)+f(hi):  f(val): adj:
+      // zero+zero   0    0     0      0      0       0             0       0
+      // int+int     10   2     12     10     2       12            12      0
+      // int+zero    10   0     10     10     0       10            10      0
+      // int-int     10  -2     8      10    -2       8             8       0
+      // int+frac    10   2.3   12.3   10     3       13            13      0
+      // int-frac    10  -2.3   7.7    10    -2       8             8       0
+      // frac+frac   1.2  0.03  1.23   2      1       3             2      -1
+      // frac+zero   1.2  0     1.2    2      0       2             2       0
+      // frac-frac   1.2 -0.03  1.17   2      0       2             2       0
+      // -int+int   -10   2    -8     -10     2      -8            -8       0
+      // -int+zero  -10   0    -10    -10     0      -10           -10      0
+      // -int-int   -10  -2    -12    -10    -2      -12           -12      0
+      // -int+frac  -10   2.3  -7.7   -10     3      -7            -7       0
+      // -int-frac  -10  -2.3  -12.3  -10    -2      -12           -12      0
+      // -frac+frac -1.2  0.03 -1.17  -1      1       0            -1      -1
+      // -frac+zero -1.2  0    -1.2   -1      0      -1            -1       0
+      // -frac-frac -1.2 -0.03 -1.23  -1      0      -1            -1       0
+      // synopsis: subtract 1 when hi and low have fractions and lo is positive
+      double chi = Math.Ceiling(value.hi), clo = Math.Ceiling(value.lo);
+      if(chi != value.hi && clo != value.lo && value.lo > 0) clo--;
+      return new FP107(chi, clo); // renormalize because clo could have changed magnitude substantially relative to chi
     }
 
     /// <summary>Composes an <see cref="FP107"/> value from an exponent and mantissa, where the magnitude of the value equals
@@ -1754,7 +1729,21 @@ namespace AdamMil.Mathematics
     /// </summary>
     public static FP107 Compose(bool negative, int exponent, Integer mantissa)
     {
-      FP107 value = Compose(exponent, mantissa, true);
+      FP107 value = Compose(exponent, mantissa, false, true);
+      if(negative) value = -value;
+      return value;
+    }
+
+    /// <summary>Composes an <see cref="FP107"/> value from an exponent and mantissa, where the magnitude of the value equals
+    /// <paramref name="mantissa"/> * 2^<paramref name="exponent"/>.
+    /// </summary>
+    /// <remarks>If the value is out of range and <paramref name="allowOutOfRange"/> is true, 0 or infinity will be returned, as
+    /// appropriate. Otherwise, an exception will be thrown. An exception will be thrown in any case if the mantissa cannot be represented
+    /// exactly.
+    /// </remarks>
+    public static FP107 Compose(bool negative, int exponent, Integer mantissa, bool allowOutOfRange)
+    {
+      FP107 value = Compose(exponent, mantissa, allowOutOfRange, true);
       if(negative) value = -value;
       return value;
     }
@@ -1932,6 +1921,33 @@ namespace AdamMil.Mathematics
       return sum;
     }
 
+    /// <summary>Returns the largest integer less than or equal to the given value.</summary>
+    public static FP107 Floor(FP107 value)
+    {
+      // case:       hi:  lo:   val:   f(hi): f(lo):  f(lo)+f(hi):  f(val): adj:
+      // zero+zero   0    0     0      0      0       0             0       0
+      // int+int     10   2     12     10     2       12            12      0
+      // int+zero    10   0     10     10     0       10            10      0
+      // int-int     10  -2     8      10    -2       8             8       0
+      // int+frac    10   2.3   12.3   10     2       12            12      0
+      // int-frac    10  -2.3   7.7    10    -3       7             7       0
+      // frac+frac   1.2  0.03  1.23   1      0       1             1       0
+      // frac+zero   1.2  0     1.2    1      0       1             1       0
+      // frac-frac   1.2 -0.03  1.17   1     -1       0             1       1
+      // -int+int   -10   2    -8     -10     2      -8            -8       0
+      // -int+zero  -10   0    -10    -10     0      -10           -10      0
+      // -int-int   -10  -2    -12    -10    -2      -12           -12      0
+      // -int+frac  -10   2.3  -7.7   -10     2      -8            -8       0
+      // -int-frac  -10  -2.3  -12.3  -10    -3      -13           -13      0
+      // -frac+frac -1.2  0.03 -1.17  -2      0      -2            -2       0
+      // -frac+zero -1.2  0    -1.2   -2      0      -2            -2       0
+      // -frac-frac -1.2 -0.03 -1.23  -2     -1      -3            -2       1
+      // synopsis: add 1 when hi and low have fractions and lo is negative
+      double fhi = Math.Floor(value.hi), flo = Math.Floor(value.lo);
+      if(fhi != value.hi && flo != value.lo && value.lo < 0) flo++;
+      return new FP107(fhi, flo); // renormalize because clo could have changed magnitude substantially relative to chi
+    }
+
     /// <summary>This method is intended to be used with the <see cref="GetComponents"/> method or the "S" <see cref="ToString(string)"/>
     /// format to construct an <see cref="FP107"/> value from literals specified in source code. When used with the "S" format string, if
     /// the string value was "[foo, bar]", you can reconstruct the <see cref="FP107"/> value with source code
@@ -1947,7 +1963,7 @@ namespace AdamMil.Mathematics
 
     /// <summary>Given a double-precision floating-point value, returns an <see cref="FP107"/> value that is the closest approximation to
     /// one of the decimal values to which the original floating-point value was also a closest approximation. In effect, it returns an
-    /// <see cref="FP107"/> value that prints the same value.
+    /// <see cref="FP107"/> value that has the same printed value.
     /// </summary>
     /// <remarks>This method is intended as a convenience when inputting constant values in source code, because while
     /// <c>(FP107)0.01 == 0.01</c>, <c>((FP107)0.01).ToString() != 0.01.ToString()</c>. On the other hand,
@@ -1955,9 +1971,10 @@ namespace AdamMil.Mathematics
     /// while the double-precision value <c>0.01</c> is the closest 53-bit approximation to the real number 0.01, it is not the closest
     /// 107-bit approximation, so the resulting <see cref="FP107"/> value will not print nicely, and will not be the most accurate value
     /// for calculations.
-    /// <note type="caution">This method is very slow - slower than parsing the same number from a string - so you should avoid calling
-    /// it often. One alterative is to use the <see cref="FromComponents"/> method to construct a value from components. The first
-    /// component will be equal or approximately equal to the decimal value, so source readability is somewhat maintained.
+    /// <note type="caution">This method is very slow - slower than parsing the same number from a string (assuming you have the string
+    /// already) - so you should avoid calling it often. One alterative is to use the <see cref="FromComponents"/> method to construct a
+    /// value from components. The first component will be equal or approximately equal to the decimal value, so source readability is
+    /// somewhat maintained.
     /// </note>
     /// </remarks>
     public static FP107 FromDecimalApproximation(double value)
@@ -1985,7 +2002,7 @@ namespace AdamMil.Mathematics
       return approxValue;
     }
 
-    /// <summary>Computes the natural logarithm of the given value and returns it.</summary>
+    /// <summary>Returns the natural logarithm of the given value.</summary>
     /// <include file="documentation.xml" path="/Math/FP107/LogRemarks/node()"/>
     public static FP107 Log(FP107 value)
     {
@@ -1996,7 +2013,7 @@ namespace AdamMil.Mathematics
       return root + value*Exp(-root) - 1d; // refine using Newton iteration
     }
 
-    /// <summary>Computes logarithm of the given value using the given base and returns it.</summary>
+    /// <summary>Computes logarithm of the given value using the given base.</summary>
     /// <include file="documentation.xml" path="/Math/FP107/LogRemarks/node()"/>
     public static FP107 Log(FP107 value, FP107 logBase)
     {
@@ -2031,7 +2048,7 @@ namespace AdamMil.Mathematics
       }
     }
 
-    /// <summary>Computes the base-10 logarithm of the given value and returns it.</summary>
+    /// <summary>Returns the base-10 logarithm of the given value.</summary>
     /// <include file="documentation.xml" path="/Math/FP107/Log10Remarks/node()"/>
     public static FP107 Log10(FP107 value)
     {
@@ -2070,14 +2087,14 @@ namespace AdamMil.Mathematics
     /// <summary>Returns the greater of two <see cref="FP107"/> values. If either value is NaN, the result is undefined.</summary>
     public static FP107 Max(FP107 a, FP107 b)
     {
-      if(a > b) return a;
+      if(a >= b) return a;
       else return b;
     }
 
     /// <summary>Returns the lesser of two <see cref="FP107"/> values. If either value is NaN, the result is undefined.</summary>
     public static FP107 Min(FP107 a, FP107 b)
     {
-      if(a < b) return a;
+      if(a <= b) return a;
       else return b;
     }
 
@@ -2220,7 +2237,7 @@ namespace AdamMil.Mathematics
       return new FP107(hi, lo); 
     }
 
-    /// <summary>Returns a root of the value (e.g. square root, cube root, etc).</summary>
+    /// <summary>Returns a root of a value (e.g. square root, cube root, etc).</summary>
     /// <include file="documentation.xml" path="/Math/FP107/RootRemarks/node()"/>
     public static FP107 Root(FP107 value, int root)
     {
@@ -2237,6 +2254,35 @@ namespace AdamMil.Mathematics
       double est = Math.Exp(-Math.Log(abs.hi) / root); // compute an initial estimate to the inverse
       FP107 inv = est + est * (1d - abs*Pow(est, root)) / (double)root; // refine it with Newton's method
       return (value.IsNegative ? -1 : 1) / inv; // invert the inverse to get the result
+    }
+
+    /// <summary>Rounds the given value to the nearest integer and returns it.</summary>
+    public static FP107 Round(FP107 value)
+    {
+      // the only special case that concerns us is when hi has a fraction of +/-0.5 and
+      // lo has a fraction and hi rounds to even when it should have rounded to odd:
+      // hi =  1.5, lo < 0 (rounds to 2 rather than 1), hi =  2.5, lo > 0 (rounds to 2 rather than 3),
+      // hi = -1.5, lo > 0 (rounds to -2 rather than -1), hi = -2.5, lo < 0 (rounds to -2 rather than -3)
+      double rhi = Math.Round(value.hi), rlo = Math.Round(value.lo);
+      if(rhi != value.hi) // if hi had a fraction...
+      {
+        double hi2 = value.hi*2; // check for 0.5 by doubling it and seeing if it's an integer
+        if(hi2 == Math.Truncate(hi2)) // and it ended with .5...
+        {
+          int iv = (int)value.hi;
+          if(value.lo > 0) // if lo was positive, we may need to add one to the result
+          {
+            // if the whole part of hi was even and positive, or odd and negative, add one
+            if((iv & 1) == 0 ? value.hi > 0 : value.hi < 0) return new FP107(rhi, rlo+1);
+          }
+          else if(value.lo < 0) // if lo was negative, we may need to subtract one
+          {
+            // if the whole part of hi was even and negative, or odd and positive, add one
+            if((iv & 1) == 0 ? value.hi < 0 : value.hi > 0) return new FP107(rhi, rlo-1);
+          }
+        }
+      }
+      return new FP107(rhi, rlo, false);
     }
 
     /// <summary>Returns the sine of the given value.</summary>
@@ -2448,6 +2494,27 @@ namespace AdamMil.Mathematics
       return (exp - inv) / (exp + inv);
     }
 
+    /// <summary>Returns the value, truncated towards zero.</summary>
+    public FP107 Truncate(FP107 value)
+    {
+      double thi = Math.Truncate(value.hi), tlo = Math.Truncate(value.lo);
+      // if hi wasn't an integer or lo was, then any fraction in lo can't affect the overall result because it would
+      // be dominated by the fraction in hi. but if hi was an integer and lo wasn't, it may change the result
+      if(thi == value.hi && tlo != value.lo) // if hi was an integer and lo wasn't (and the value isn't NaN)...
+      {
+        if(value.hi > 0) // if hi was a positive integer and lo had a negative fraction, the overall result should be one less.
+        {                // (e.g. hi = thi = 120, lo = -3.4, tlo = -3, hi + lo = 116.6, truncate(116.6) == 116, but thi + tlo = 117)
+          if(value.lo < 0) return new FP107(thi, tlo-1); // subtract from tlo rather than thi because the fact the fraction guarantees it
+        }                                                // will change. also, renormalize because thi may be able to incorporate the 1
+        else // if hi was a negative integer and lo had a positive fraction, the overall result should be one greater.
+        {    // (e.g. hi = thi = -120, lo = 3.4, tlo = 3, hi + lo = -116.6, truncate(-116.6) == -116, but thi + tlo = -117)
+          // it's impossible for hi to be zero because it can only be zero if lo is zero in which case we wouldn't be here
+          if(value.lo > 0) return new FP107(thi, tlo+1);
+        }
+      }
+      return new FP107(thi, tlo, false);
+    }
+
     /// <summary>Attempts to parse a high-precision floating-point value formatted according to the current culture and returns true if the
     /// parse was successful.
     /// </summary>
@@ -2482,9 +2549,17 @@ namespace AdamMil.Mathematics
     public static readonly FP107 One = new FP107(1, 0, false);
     /// <summary>An <see cref="FP107"/> value equal to negative one.</summary>
     public static readonly FP107 MinusOne = new FP107(-1, 0, false);
-    /// <summary>The largest, finite, positive <see cref="FP107"/> value that can be represented.</summary>
+    /// <summary>The largest, finite, positive <see cref="FP107"/> value that can be represented in practice.</summary>
+    /// <remarks>While it's theoretically possible to represent a slightly larger value, it's difficult or impossible to construct with
+    /// any arithmetic operation, and nearly any operation upon it, even ones that should be "safe", results in overflow to infinity.
+    /// Therefore, this is the largest value that can be encountered in practice.
+    /// </remarks>
     public static readonly FP107 MaxValue = new FP107(double.MaxValue, double.MaxValue/(1L<<54), false);
-    /// <summary>The largest, finite, negative <see cref="FP107"/> value that can be represented.</summary>
+    /// <summary>The largest, finite, negative <see cref="FP107"/> value that can be represented in practice.</summary>
+    /// <remarks>While it's theoretically possible to represent a slightly larger value, it's difficult or impossible to construct with
+    /// any arithmetic operation, and nearly any operation upon it, even ones that should be "safe", results in overflow to infinity.
+    /// Therefore, this is the largest value that can be encountered in practice.
+    /// </remarks>
     public static readonly FP107 MinValue = new FP107(double.MinValue, double.MinValue/(1L<<54), false);
     /// <summary>An <see cref="FP107"/> value representing positive infinity.</summary>
     /// <remarks>To check if a value is infinite, use <see cref="IsInfinity"/> or <see cref="IsPositiveInfinity"/> rather than comparing
@@ -2536,7 +2611,7 @@ namespace AdamMil.Mathematics
 
     bool IConvertible.ToBoolean(IFormatProvider provider)
     {
-      return hi != 0 || lo != 0;
+      return !IsZero;
     }
 
     byte IConvertible.ToByte(IFormatProvider provider)
@@ -2546,7 +2621,7 @@ namespace AdamMil.Mathematics
 
     char IConvertible.ToChar(IFormatProvider provider)
     {
-      throw new InvalidCastException("Cannot convert from FP107 to char.");
+      return checked((char)hi);
     }
 
     DateTime IConvertible.ToDateTime(IFormatProvider provider)
@@ -2556,39 +2631,7 @@ namespace AdamMil.Mathematics
 
     decimal IConvertible.ToDecimal(IFormatProvider provider)
     {
-      // decompose the value into a sign, exponent, and mantissa
-      Integer mantissa;
-      int exponent;
-      bool negative;
-      if(!Decompose(out negative, out exponent, out mantissa))
-      {
-        throw new InvalidCastException("The FP107 value is NaN or Infinity.");
-      }
-
-      // now convert the exponent and mantissa into decimal digits
-      int decimalPlace, start = 0;
-      byte[] digits = GetSignificantDigits(hi, exponent, -mantissa.BitLength - (IEEE754.DoubleBias-2), mantissa, out decimalPlace);
-      if(decimalPlace <= -29) return 0m; // if there are at least 29 leading fractional zeros, it must round to zero
-      else if(decimalPlace > 28) throw new OverflowException(); // if it's at least 10^29 in magnitude, there's definitely an overflow
-
-      // round to at most 28 digits by pretending that all digits are in the fraction (start == 0)
-      int digitCount = NumberFormat.RoundDigits(digits, ref start, false, ref exponent, 28);
-      decimalPlace += start; // take into account any shifting in the decimal place done by RoundDigits
-      mantissa = Integer.ParseDigits(digits, digitCount);
-      if(decimalPlace > 28 || mantissa.BitLength > 96) throw new OverflowException();
-
-      int ilo=0, imid=0, ihi=0;
-      if(!mantissa.IsZero)
-      {
-        uint[] bits = mantissa.GetBits();
-        ilo = (int)bits[0];
-        if(mantissa.BitLength > 32)
-        {
-          imid = (int)bits[1];
-          if(mantissa.BitLength > 64) ihi = (int)bits[2];
-        }
-      }
-      return new decimal(ilo, imid, ihi, negative, (byte)(28-decimalPlace));
+      return (decimal)this;
     }
 
     double IConvertible.ToDouble(IFormatProvider provider)
@@ -2623,7 +2666,8 @@ namespace AdamMil.Mathematics
 
     object IConvertible.ToType(Type conversionType, IFormatProvider provider)
     {
-      if(conversionType == typeof(Integer)) return new Integer(this);
+      if(conversionType == typeof(Rational)) return new Rational(this);
+      else if(conversionType == typeof(Integer)) return new Integer(this);
       else return MathHelpers.DefaultConvertToType(this, conversionType, provider);
     }
 
@@ -2643,7 +2687,7 @@ namespace AdamMil.Mathematics
     }
     #endregion
 
-    /// <summary>Computes the cosine of the value, assuming its magnitude is no greater than Pi/32.</summary>
+    /// <summary>Returns the cosine of the value, assuming its magnitude is no greater than Pi/32.</summary>
     static FP107 CosReduced(FP107 value)
     {
       if(value.IsZero) return One;
@@ -2711,7 +2755,7 @@ namespace AdamMil.Mathematics
         {
           Integer half = d - r; // round it to even
           if(r > half || !b2mantissa.IsEven && r == half) GetSuccessor(hnmax, nmax, ref b2exponent, ref b2mantissa);
-          return Compose(b2exponent, b2mantissa, false); // and create an FP107 from it
+          return Compose(b2exponent, b2mantissa, true, false); // and create an FP107 from it
         }
         else if(b2mantissa < hnmax) // otherwise, if the base-2 mantissa is too small (i.e. it's not normalized)...
         {
@@ -2914,14 +2958,24 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Returns an <see cref="FP107"/> value constructed from a base-2 mantissa and exponent.</summary>
-    static FP107 Compose(int exponent, Integer mantissa, bool exact)
+    static FP107 Compose(int exponent, Integer mantissa, bool allowOutOfRange, bool exact)
     {
       const int MantissaSize = IEEE754.DoubleMantissaBits+1; // the size of the mantissas for hi and lo
       const int MinExponent = 1-IEEE754.DoubleBiasToInt, MaxExponent = (1<<IEEE754.DoubleExponentBits)-2-IEEE754.DoubleBiasToInt;
-      if(exponent > MaxExponent) return FP107.PositiveInfinity;
+      if(mantissa.IsZero) exponent = 0; // if the mantissa is zero, make sure any exponent is allowed
+
+      if(exponent > MaxExponent)
+      {
+        if(allowOutOfRange) return FP107.PositiveInfinity;
+        throw new ArgumentOutOfRangeException("The exponent is out of range.");
+      }
 
       int bitLength = mantissa.BitLength, maxLength = Math.Min(MantissaSize, exponent - (MinExponent-bitLength));
-      if(maxLength <= 0) return FP107.Zero; // if the exponent would have to be reduced below the minimum, return zero
+      if(maxLength <= 0)
+      {
+        if(allowOutOfRange) return FP107.Zero; // if the exponent would have to be reduced below the minimum, return zero
+        throw new ArgumentOutOfRangeException("The exponent is out of range.");
+      }
 
       // construct the mantissa for the high value
       Integer hiMantissa = mantissa; // start out with the whole mantissa
@@ -2932,7 +2986,11 @@ namespace AdamMil.Mathematics
       {
         hiMantissa >>= bitLength - maxLength; // take only the first 'maxLength' bits
         hiExponent  += bitLength - maxLength;
-        if(hiExponent > MaxExponent) return FP107.PositiveInfinity;
+        if(hiExponent > MaxExponent)
+        {
+          if(allowOutOfRange) return FP107.PositiveInfinity;
+          throw new ArgumentOutOfRangeException("The exponent is out of range.");
+        }
 
         // we want to round up if the matissa is odd and the next bit is set and the mantissa isn't all 1's
         if(!hiMantissa.IsEven && mantissa.GetBit(bitLength-(maxLength+1)) && hiMantissa != Integer.Pow(2, maxLength)-1)
@@ -2973,7 +3031,7 @@ namespace AdamMil.Mathematics
         }
       }
 
-      double hi = IEEE754.ComposeDouble(false, hiExponent, hiMantissa.ToUInt64());
+      double hi = IEEE754.ComposeDouble(false, hiExponent, hiMantissa.ToUInt64(), allowOutOfRange);
       return new FP107(hi, lo);
     }
 
@@ -3158,7 +3216,7 @@ namespace AdamMil.Mathematics
         }
 
         if(tries == MaxTries) value = FindNearestFloat(exponent, mantissa); // if too many iterations, give up and use another method
-        else if(refined) value = Compose(b2exponent, b2mantissa, false); // otherwise, reconstruct 'value' if we changed it
+        else if(refined) value = Compose(b2exponent, b2mantissa, true, false); // otherwise, reconstruct 'value' if we changed it
         return value;
       }
     }
@@ -3231,7 +3289,7 @@ namespace AdamMil.Mathematics
       }
     }
 
-    /// <summary>Computes the sine of the value, assuming its magnitude is no greater than Pi/32.</summary>
+    /// <summary>Returns the sine of the value, assuming its magnitude is no greater than Pi/32.</summary>
     static FP107 SinReduced(FP107 value)
     {
       if(value.IsZero) return Zero;
@@ -3287,7 +3345,7 @@ namespace AdamMil.Mathematics
 
     static bool TryParse(string str, NumberStyles style, IFormatProvider provider, out FP107 value, out Exception ex)
     {
-      ex    = null;
+      ex = null;
       value = default(FP107);
       if(str == null)
       {
@@ -3306,7 +3364,7 @@ namespace AdamMil.Mathematics
         while(end != 0 && char.IsWhiteSpace(str[end-1])) end--;
       }
 
-      // parse the number out of hexadecimal format (AAAAAAAAAAAAAAAAxBBBBBBBBBBBBBBBB) if we can
+      // parse the number out of hexadecimal format (AAAAAAAAAAAAAAAA:BBBBBBBBBBBBBBBB) if we can
       if(end-start == 33 && str[start+16] == ':') // if the number might be in hexadecimal format...
       {
         bool hexadecimalFormat = true;
@@ -3326,21 +3384,19 @@ namespace AdamMil.Mathematics
       NumberFormatInfo nums = NumberFormatInfo.GetInstance(provider);
 
       // check for +/- infinity and NaN
-      Func<string, string, bool> areEqual; // use culture-specific string comparison if provider refers to a specific culture
-      CultureInfo culture = provider == null ? CultureInfo.CurrentCulture : provider as CultureInfo;
-      if(culture == null) areEqual = (a, b) => string.Compare(a, start, b, 0, b.Length, StringComparison.OrdinalIgnoreCase) == 0;
-      else areEqual = (a, b) => culture.CompareInfo.Compare(a, start, end-start, b, 0, b.Length, CompareOptions.IgnoreCase) == 0;
-      if(end-start == nums.NaNSymbol.Length && areEqual(str, nums.NaNSymbol))
+      CultureInfo culture = provider as CultureInfo ?? CultureInfo.CurrentCulture;
+      Func<string, bool> equals = s => end-start == s.Length && string.Compare(str, start, s, 0, s.Length, true, culture) == 0;
+      if(equals(nums.NaNSymbol))
       {
         value = FP107.NaN;
         return true;
       }
-      else if(end-start == nums.PositiveInfinitySymbol.Length && areEqual(str, nums.PositiveInfinitySymbol))
+      else if(equals(nums.PositiveInfinitySymbol))
       {
         value = FP107.PositiveInfinity;
         return true;
       }
-      else if(end-start == nums.NegativeInfinitySymbol.Length && areEqual(str, nums.NegativeInfinitySymbol))
+      else if(equals(nums.NegativeInfinitySymbol))
       {
         value = FP107.NegativeInfinity;
         return true;
@@ -3391,7 +3447,6 @@ namespace AdamMil.Mathematics
       // success
       done:
       if(negative) value = -value; // set the sign
-      ex = null;
       return true;
     }
 
@@ -3462,9 +3517,9 @@ namespace AdamMil.Mathematics
     public const int DoubleExponentBits = 11;
     /// <summary>The number of bits in the single-precision floating-point exponent.</summary>
     public const int SingleExponentBits = 8;
-    /// <summary>The number of bits in the double-precision floating-point mantissa, excluding the hidden bit.</summary>
+    /// <summary>The number of bits in the double-precision floating-point mantissa, excluding the implicit leading bit.</summary>
     public const int DoubleMantissaBits = 52;
-    /// <summary>The number of bits in the single-precision floating-point mantissa, excluding the hidden bit.</summary>
+    /// <summary>The number of bits in the single-precision floating-point mantissa, excluding the implicit leading bit.</summary>
     public const int SingleMantissaBits = 23;
     /// <summary>The smallest double-precision floating-point number that, when added to 1.0, produces a result not equal to 1.0.</summary>
     public const double DoublePrecision = 2.2204460492503131e-16;
@@ -3564,9 +3619,23 @@ namespace AdamMil.Mathematics
     /// </summary>
     /// <remarks>The exponent and mantissa will be normalized if possible. To construct a denormalized value, use
     /// <see cref="RawComposeDouble(bool,int,ulong)"/>.
-    /// </remarks>unsa  
+    /// </remarks>
     [CLSCompliant(false)]
-    public static unsafe double ComposeDouble(bool negative, int exponent, ulong mantissa)
+    public static double ComposeDouble(bool negative, int exponent, ulong mantissa)
+    {
+      return ComposeDouble(negative, exponent, mantissa, false);
+    }
+
+    /// <summary>Composes an IEEE 754 double-precision floating-point value from sign, exponent, and mantissa values. The value will be
+    /// equal to <paramref name="mantissa"/> * 2^<paramref name="exponent"/>. This method cannot be used to construct
+    /// <see cref="double.NaN"/> values.
+    /// </summary>
+    /// <remarks>If the value is out of range and <paramref name="allowOutOfRange"/> is true, 0 or infinity will be returned, as
+    /// appropriate. Otherwise, an exception will be thrown. The exponent and mantissa will be normalized if possible. To construct a
+    /// denormalized value, use <see cref="RawComposeDouble(bool,int,ulong)"/>.
+    /// </remarks>
+    [CLSCompliant(false)]
+    public static unsafe double ComposeDouble(bool negative, int exponent, ulong mantissa, bool allowOutOfRange)
     {
       if(mantissa >= MaxDoubleInt) // if the mantissa is too large to be inserted directly into the double...
       {
@@ -3579,7 +3648,11 @@ namespace AdamMil.Mathematics
       }
 
       exponent += DoubleBiasToInt; // bias the exponent
-      if(exponent <= 0 && mantissa != 0) throw new ArgumentOutOfRangeException("The exponent is out of range for the mantissa."); // small
+      if(exponent <= 0 && mantissa != 0) // if the value is too small to be represented...
+      {
+        if(allowOutOfRange) return 0;
+        throw new ArgumentOutOfRangeException("The exponent is out of range for the mantissa.");
+      }
 
       if((mantissa & (1UL<<DoubleMantissaBits)) != 0) // if the value is normalized...
       {
@@ -3605,6 +3678,7 @@ namespace AdamMil.Mathematics
 
       if((uint)exponent > (1u<<DoubleExponentBits)-2) // disallow exponents that are too large
       {
+        if(allowOutOfRange) return negative ? double.NegativeInfinity : double.PositiveInfinity;
         throw new ArgumentOutOfRangeException("The exponent is out of range for the mantissa.");
       }
 
@@ -3624,6 +3698,20 @@ namespace AdamMil.Mathematics
     [CLSCompliant(false)]
     public static unsafe float ComposeSingle(bool negative, int exponent, uint mantissa)
     {
+      return ComposeSingle(negative, exponent, mantissa, false);
+    }
+
+    /// <summary>Composes an IEEE 754 singe-precision floating-point value from sign, exponent, and mantissa values. The value will be
+    /// equal to <paramref name="mantissa"/> * 2^<paramref name="exponent"/>. This method cannot be used to construct
+    /// <see cref="double.NaN"/> values.
+    /// </summary>
+    /// <remarks>If the value is out of range and <paramref name="allowOutOfRange"/> is true, 0 or infinity will be returned, as
+    /// appropriate. Otherwise, an exception will be thrown. The exponent and mantissa will be normalized if possible. To construct a
+    /// denormalized value, use <see cref="RawComposeSingle(bool,int,uint)"/>.
+    /// </remarks>
+    [CLSCompliant(false)]
+    public static unsafe float ComposeSingle(bool negative, int exponent, uint mantissa, bool allowOutOfRange)
+    {
       if(mantissa >= MaxSingleInt) // if the mantissa is too large to be inserted directly into the float...
       {
         // see if we can shift it into range without losing precision. don't bother shifting more than 8 bits because we'd just have to
@@ -3635,7 +3723,11 @@ namespace AdamMil.Mathematics
       }
 
       exponent += SingleBiasToInt; // bias the exponent
-      if(exponent <= 0 && mantissa != 0) throw new ArgumentOutOfRangeException("The exponent is out of range for the mantissa."); // small
+      if(exponent <= 0 && mantissa != 0) // if the value is too small to represent
+      {
+        if(allowOutOfRange) return 0;
+        throw new ArgumentOutOfRangeException("The exponent is out of range for the mantissa.");
+      }
 
       if((mantissa & (1u<<SingleMantissaBits)) != 0) // if the value is normalized...
       {
@@ -3661,6 +3753,7 @@ namespace AdamMil.Mathematics
 
       if((uint)exponent > (1u<<SingleExponentBits)-2) // disallow exponents that are too large
       {
+        if(allowOutOfRange) return negative ? float.NegativeInfinity : float.PositiveInfinity;
         throw new ArgumentOutOfRangeException("The exponent is out of range for the mantissa.");
       }
 
@@ -3681,14 +3774,14 @@ namespace AdamMil.Mathematics
     {
       int biasedExponent;
       RawDecompose(value, out negative, out biasedExponent, out mantissa);
-      if(biasedExponent == (1<<DoubleExponentBits)-1)
+
+      if(biasedExponent == 0) biasedExponent++; // if the number is denormalized (or zero) the actual exponent is one greater
+      else if(biasedExponent != (1<<DoubleExponentBits)-1) mantissa |= 1UL<<DoubleMantissaBits; // otherwise, add the hidden one bit
+      else // the number is NaN or infinity
       {
         exponent = 0;
         return false;
       }
-
-      if(biasedExponent == 0) biasedExponent++; // if the number is denormalized (or zero) the actual exponent is one greater
-      else mantissa |= 1UL<<DoubleMantissaBits; // otherwise, the mantissa has a hidden one bit
 
       exponent = biasedExponent - DoubleBiasToInt; // unbias the exponent
       return true;
@@ -3705,14 +3798,14 @@ namespace AdamMil.Mathematics
     {
       int biasedExponent;
       RawDecompose(value, out negative, out biasedExponent, out mantissa);
-      if(biasedExponent == (1<<SingleExponentBits)-1)
+
+      if(biasedExponent == 0) biasedExponent++; // if the number is denormalized (or zero) the actual exponent is one greater
+      else if(biasedExponent != (1<<SingleExponentBits)-1) mantissa |= 1U<<SingleMantissaBits; // otherwise, add the hidden one bit
+      else
       {
         exponent = 0;
         return false;
       }
-
-      if(biasedExponent == 0) biasedExponent++; // if the number is denormalized (or zero) the actual exponent is one greater
-      else mantissa |= 1U<<SingleMantissaBits; // otherwise, the mantissa has a hidden one bit
 
       exponent = biasedExponent - SingleBiasToInt; // unbias the exponent
       return true;

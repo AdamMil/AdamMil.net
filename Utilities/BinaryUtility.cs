@@ -25,6 +25,7 @@ using System.Security.Cryptography;
 namespace AdamMil.Utilities
 {
 
+#region BinaryUtility
 /// <summary>Provides utilities for working with bytes and arrays of bytes.</summary>
 public static class BinaryUtility
 {
@@ -42,6 +43,45 @@ public static class BinaryUtility
     Utility.ValidateRange(a, aIndex, length);
     Utility.ValidateRange(b, bIndex, length);
     fixed(byte* pA=a, pB=b) return Unsafe.AreEqual(pA+aIndex, pB+bIndex, length);
+  }
+
+  /// <summary>Swaps the bytes in the value, converting big-endian values to little-endian and vice versa.</summary>
+  public static int ByteSwap(int value)
+  {
+    return (int)ByteSwap((uint)value);
+  }
+
+  /// <summary>Swaps the bytes in the value, converting big-endian values to little-endian and vice versa.</summary>
+  [CLSCompliant(false)]
+  public static uint ByteSwap(uint value)
+  {
+    return (value>>24) | ((value>>8) & 0xFF00) | ((value<<8) & 0xFF0000) | (value<<24);
+  }
+
+  /// <summary>Swaps the bytes in the value, converting big-endian values to little-endian and vice versa.</summary>
+  public static long ByteSwap(long value)
+  {
+    return (long)ByteSwap((ulong)value);
+  }
+
+  /// <summary>Swaps the bytes in the value, converting big-endian values to little-endian and vice versa.</summary>
+  [CLSCompliant(false)]
+  public static ulong ByteSwap(ulong value)
+  {
+    return ((ulong)ByteSwap((uint)value)<<32) | ByteSwap((uint)(value>>32));
+  }
+
+  /// <summary>Swaps the bytes in the value, converting big-endian values to little-endian and vice versa.</summary>
+  public static short ByteSwap(short value)
+  {
+    return (short)ByteSwap((ushort)value);
+  }
+
+  /// <summary>Swaps the bytes in the value, converting big-endian values to little-endian and vice versa.</summary>
+  [CLSCompliant(false)]
+  public static ushort ByteSwap(ushort value)
+  {
+    return (ushort)((value>>8) | (value<<8));
   }
 
   /// <summary>Returns the number of one bits in the value.</summary>
@@ -158,14 +198,7 @@ public static class BinaryUtility
   /// <summary>Returns a 32-bit hash of the given array, which can be null.</summary>
   public unsafe static int Hash(int hashFunction, byte[] data)
   {
-    if(data == null)
-    {
-      return unchecked((int)0x9e3eff0b) + hashFunction;
-    }
-    else
-    {
-      fixed(byte* pData=data) return Hash(hashFunction, pData, data.Length);
-    }
+    fixed(byte* pData=data) return Hash(hashFunction, pData, data != null ? 0 : data.Length);
   }
 
   /// <summary>Returns a 32-bit hash of the given data. <paramname name="hashFunction"/> can be specified to select the hash function.</summary>
@@ -188,16 +221,17 @@ public static class BinaryUtility
   [CLSCompliant(false)]
   public unsafe static int Hash(int hashFunction, void* data, int length)
   {
-    if(data == null) throw new ArgumentNullException();
     if(length < 0) throw new ArgumentOutOfRangeException();
+    else if(length > 0 && data == null) throw new ArgumentNullException();
 
+    byte* pData = (byte*)data;
     uint a, b, c;
     a = b = c = 0x9e3eff0b + (uint)hashFunction;
-    for(; length > 12; data = (byte*)data+12, length -= 12)
+    for(; length > 12; pData = (byte*)pData+12, length -= 12)
     {
-      a += *(uint*)data;
-      b += *((uint*)data+1);
-      c += *((uint*)data+2);
+      a += *(uint*)pData;
+      b += *((uint*)pData+1);
+      c += *((uint*)pData+2);
       a -= c; a ^= (c<<4)  | (c>>28); c += b;
       b -= a; b ^= (a<<6)  | (a>>26); a += c;
       c -= b; c ^= (b<<8)  | (b>>24); b += a;
@@ -206,24 +240,29 @@ public static class BinaryUtility
       c -= b; c ^= (b<<4)  | (b>>28); b += a;
     }
 
-    if(length >= 8)
+    if(length >= 4)
     {
-      a += *(uint*)data;
-      b += *((uint*)data+1);
-      if(length > 8) c += Read((byte*)data+8, (uint)length-8);
-    }
-    else if(length >= 4)
-    {
-      a += *(uint*)data;
-      if(length > 4) b += Read((byte*)data+4, (uint)length-4);
-    }
-    else if(length != 0)
-    {
-      a += Read((byte*)data, (uint)length);
+      a += *(uint*)pData;
+      if(length >= 8)
+      {
+        b += *((uint*)pData+1);
+        c += Read((byte*)pData+8, (uint)length-8);
+      }
+      else
+      {
+        b += Read((byte*)pData+4, (uint)length-4);
+      }
     }
     else
     {
-      return (int)c; // skip the final mixing step if there's no data left
+      if(length != 0)
+      {
+        a += Read((byte*)pData, (uint)length);
+      }
+      else
+      {
+        return (int)c; // skip the final mixing step if there's no data left
+      }
     }
 
     c = (c^b) - ((b<<14) | (b>>18));
@@ -516,6 +555,7 @@ public static class BinaryUtility
   {
     switch(length)
     {
+      case 0: return 0;
       case 1: return *data;
       case 2: return *(ushort*)data;
       case 3: return *(ushort*)data | (uint)(data[2]<<16);
@@ -525,6 +565,143 @@ public static class BinaryUtility
 
   const string LHexChars = "0123456789abcdef", UHexChars = "0123456789ABCDEF";
 }
+#endregion
+
+#region CRC32
+/// <summary>Computes a 32-bit cyclic redundancy check using a configurable polynomial.</summary>
+/// <remarks>For hashing, <see cref="BinaryUtility.Hash(byte[])"/> and its overrides are preferable to this class, because they're about 4x
+/// as fast, support multiple hash functions, and are designed for hashing. This class is recommended when you must generate checksum
+/// values to match a particular standard, such as the PNG standard. This class uses and generates little-endian (reversed) CRC values,
+/// regardless of machine architecture, and inverts the bits of the CRC, as this is the most common form. As a result, it cannot currently
+/// support all known 32-bit CRCs, but it supports the most common ones.
+/// </remarks>
+// TODO: support big-endian (non-reversed) CRCs and different initialization and final XOR values, so we can support other well-known
+// 32-bit CRCs such as CRC-32Q, CRC-32/BZIP2, and CRC-32/MPEG-2
+public sealed class CRC32
+{
+  /// <summary>The CRC-32C polynomial (0x82F63B78) used by iSCSI, Ext4, etc. A <see cref="CRC32"/> object initialized with this polynomial
+  /// is accessible from the <see cref="CRC32C"/> member.
+  /// </summary>
+  public const int CRC32CPolynomial = unchecked((int)0x82F63B78);
+  /// <summary>The standard polynomial (0xEDB88320) used by Ethernet, PNG, gzip, etc. A <see cref="CRC32"/> object initialized with this
+  /// polynomial is accessible from the <see cref="Default"/> member.
+  /// </summary>
+  public const int StandardPolynomial = unchecked((int)0xEDB88320);
+
+  /// <summary>Initializes a CRC-32 calculator with the standard polynomial (0xEDB88320) used by Ethernet, PNG, etc.</summary>
+  /// <remarks>This class initializes a table when constructed, which can take significant time. Therefore, the object should be
+  /// reused if multiple CRC values need to be computed, and you should use the built-in CRC object <see cref="Default"/> instead if
+  /// possible.
+  /// </remarks>
+  public CRC32() : this(StandardPolynomial) { }
+
+  /// <summary>Initializes a CRC-32 calculator with the given polynomial. The polynomial should be specified in reverse form, so that the
+  /// standard polynomial used by Ethernet, PNG, etc. is 0xEDB88320 and the CRC-32C polynomial used by iSCSI, etc. is 0x82F63B78. (These
+  /// two constants are available from <see cref="StandardPolynomial"/> and <see cref="CRC32CPolynomial"/> respectively.)
+  /// </summary>
+  /// <remarks>This class initializes a table when constructed, which can take significant time. Therefore, the object should be
+  /// reused if multiple CRC values need to be computed, and you should use the built-in CRC objects <see cref="Default"/> and
+  /// <see cref="CRC32C"/> if possible.
+  /// </remarks>
+  public CRC32(int polynomial)
+  {
+    // compute a table that allows us to read data 4 bytes a time
+    for(uint i=0; i<256; i++) // the first 256 entries are the standard Sarwate table
+    {
+      uint crc = i;
+      for(int j=0; j<8; j++) crc = (crc >> 1) ^ (uint)(-(int)(crc & 1) & polynomial); // -(crc&1) & p == (crc&1) != 0 ? p : 0
+      table[i] = crc;
+    }
+    for(uint i=0; i<256; i++) // the other 768 entries use the "slicing-by-4" technique apparently invented at Intel
+    {
+      uint v = table[i];
+      table[i+256] = v = (v>>8) ^ table[v & 0xFF];
+      table[i+512] = v = (v>>8) ^ table[v & 0xFF];
+      table[i+768] = v = (v>>8) ^ table[v & 0xFF];
+    }
+  }
+
+  /// <summary>Computes the CRC of the given array.</summary>
+  public int Compute(byte[] data)
+  {
+    if(data == null) throw new ArgumentNullException();
+    return Compute(data, 0, data.Length, 0);
+  }
+
+  /// <summary>Computes the CRC of the given array segment.</summary>
+  public int Compute(byte[] data, int index, int length)
+  {
+    return Compute(data, index, length, 0);
+  }
+
+  /// <summary>Computes the CRC of the given array segment, continuing the CRC of a previous chunk of data.</summary>
+  public unsafe int Compute(byte[] data, int index, int length, int previousCRC)
+  {
+    Utility.ValidateRange(data, index, length);
+    // zero-length arrays yield a null-pointer when fixed, so check for a length of zero to avoid an ArgumentNullException
+    if(length == 0) return previousCRC;
+    else fixed(byte* pData=data) return Compute(pData+index, length, previousCRC);
+  }
+
+  /// <summary>Computes the CRC of the given data.</summary>
+  [CLSCompliant(false)]
+  public unsafe int Compute(void* data, int length)
+  {
+    return Compute(data, length, 0);
+  }
+
+  /// <summary>Computes the CRC of the given chunk of data, continuing the CRC of a previous chunk of data.</summary>
+  [CLSCompliant(false)]
+  public unsafe int Compute(void* data, int length, int previousCRC)
+  {
+    if(data == null) throw new ArgumentNullException();
+    if(length < 0) throw new ArgumentOutOfRangeException();
+    uint crc = (uint)~previousCRC;
+    if(length != 0)
+    {
+      fixed(uint* pTable=this.table)
+      {
+        byte* pData = (byte*)data;
+        // first align the read pointer to a 4-byte boundary
+        while(((uint)pData & 3) != 0 && --length >= 0) crc = (crc>>8) ^ pTable[(crc&0xFF) ^ *pData++];
+        // now read data in 4-byte chunks
+        for(byte* pEnd = pData + (length & ~3); pData < pEnd; pData += 4)
+        {
+          if(BitConverter.IsLittleEndian) crc ^= *(uint*)pData;
+          else crc ^= BinaryUtility.ByteSwap(*(uint*)pData); // byte-swap the data on big-endian architectures
+          crc  = pTable[crc>>24] ^ pTable[((crc>>16) & 0xFF) + 256] ^ pTable[((crc>>8) & 0xFF) + 512] ^ pTable[(crc & 0xFF) + 768];
+        }
+        length &= 3;
+        while(--length >= 0) crc = (crc>>8) ^ pTable[(crc&0xFF) ^ *pData++];
+      }
+    }
+    return (int)~crc;
+  }
+
+  readonly uint[] table = new uint[1024];
+
+  /// <summary>Gets a <see cref="CRC32"/> object initialized with the <see cref="CRC32CPolynomial"/>.</summary>
+  public static CRC32 CRC32C
+  {
+    get
+    {
+      if(_crc32c == null) _crc32c = new CRC32(CRC32CPolynomial);
+      return _crc32c;
+    }
+  }
+
+  /// <summary>Gets a <see cref="CRC32"/> object initialized with the <see cref="StandardPolynomial"/>.</summary>
+  public static CRC32 Default
+  {
+    get
+    {
+      if(_default == null) _default = new CRC32();
+      return _default;
+    }
+  }
+
+  static CRC32 _default, _crc32c;
+}
+#endregion
 
 } // namespace AdamMil.Utilities
-

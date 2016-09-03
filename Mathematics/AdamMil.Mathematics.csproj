@@ -58,9 +58,11 @@
     <Compile Include="Matrices.cs" />
     <Compile Include="Helpers.cs" />
     <Compile Include="NumberFormatting.cs" />
+    <Compile Include="NumberTheory.cs" />
     <Compile Include="Optimization.cs" />
     <Compile Include="Polynomials.cs" />
     <Compile Include="Random.cs" />
+    <Compile Include="Rational.cs" />
     <Compile Include="RectanglePacker.cs" />
     <Compile Include="RootFinding.cs" />
     <Compile Include="Vector.cs" />

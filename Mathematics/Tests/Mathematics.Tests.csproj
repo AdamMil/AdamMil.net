@@ -60,11 +60,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BigInteger.cs" />
+    <Compile Include="Combinatorics.cs" />
     <Compile Include="FloatingPoint.cs" />
     <Compile Include="LinearAlgebra.cs" />
+    <Compile Include="NumberTheory.cs" />
     <Compile Include="Optimization.cs" />
     <Compile Include="Polynomials.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Rational.cs" />
     <Compile Include="RootFinding.cs" />
   </ItemGroup>
   <ItemGroup>
