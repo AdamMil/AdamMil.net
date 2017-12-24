@@ -583,6 +583,76 @@
     </UnsimplifiedRemarks>
   </Rational>
 
+  <ReedSolomon>
+    <Check>
+      <summary>Checks whether a data block is probably uncorrupted.</summary>
+      <param name="source">The array containing the data block, in the form returned by <see cref="Encode(byte[],int,int,byte[],int)"/></param>
+      <param name="srcIndex">The index within <paramref name="source"/> at which the data block begins</param>
+      <param name="length">The length of the encoded data block, including the error-correction symbols</param>
+      <returns>
+        Returns true if the data block is probably uncorrupted, and false if it is definitely corrupted. A return value of false
+        does not necessarily imply that the data cannot be corrected by the Reed-Solomon code, only that corrections are needed. A return
+        value of true does not guarantee that the original data can be recovered, but it is very likely. (It is possible but very unlikely
+        that a block can be corrupted in just the right way so that it looks like a different, valid block from the original.)
+      </returns>
+    </Check>
+    <DecodeInt>
+      <summary>Decodes a data block, correcting any errors if possible.</summary>
+      <param name="source">The data block to decode</param>
+      <param name="srcIndex">The index within <paramref name="source"/> at which the data block begins</param>
+      <param name="length">The length of the encoded data block, including the error-correction symbols</param>
+      <param name="destination">The destination array where the original data will be written</param>
+      <param name="destIndex">The index within <paramref name="destination"/> at which the data block will be written</param>
+      <param name="errorPositions">
+        An array containing the indexes within <paramref name="source"/> containing errors, relative to the
+        beginning of the data block, or null if the locations of errors are not known. Not all error locations must be provided, but the
+        more are provided, the more errors can be corrected. For example, if the second byte is in error, you would pass a position of 1,
+        not a position of <paramref name="srcIndex"/>+1.
+      </param>
+      <param name="allErrorsKnown">
+        If true, all error locations are assumed to be known and passed within <paramref name="errorPositions"/>. This speeds up the
+        decoding, because the error locations do not need to be found, but if additional errors exist they may not be detected.
+        If false, a search step will be used to find the error locations, which can find errors in addition to those provided in
+        <paramref name="errorPositions"/>. The default is false.
+      </param>
+      <returns>
+        Returns the number of bytes decoded if the data was decoded successfully, or -1 if the data was not decoded successfully. If
+        decoding was successful, the number of bytes decoded will equal <paramref name="length"/>-<see cref="EccLength"/>.
+      </returns>
+      <remarks>
+        This method can correct up to <see cref="EccLength"/>/2 errors. If the locations of errors are known, you can correct up
+        to <see cref="EccLength"/> errors by using the <see cref="Decode(byte[],int,int,byte[],int,int[],bool)"/> method instead. A true
+        return value does not guarantee that the original data has been recovered, only that the data block does not appear corrupted. (It
+        is possible, albeit very unlikely, that a data block is corrupted into a different but valid data block.)
+      </remarks>
+    </DecodeInt>
+    <DecodeBytes>
+      <summary>Decodes a data block, correcting any errors if possible, and returns the decoded data.</summary>
+      <param name="source">The data block to decode</param>
+      <param name="srcIndex">The index within <paramref name="source"/> at which the data block begins</param>
+      <param name="length">The length of the encoded data block, including the error-correction symbols</param>
+      <param name="errorPositions">
+        An array containing the indexes within <paramref name="source"/> containing errors, relative to the
+        beginning of the data block, or null if the locations of errors are not known. Not all error locations must be provided, but the
+        more are provided, the more errors can be corrected. For example, if the second byte is in error, you would pass a position of 1,
+        not a position of <paramref name="srcIndex"/>+1.
+      </param>
+      <param name="allErrorsKnown">
+        If true, all error locations are assumed to be known and passed within <paramref name="errorPositions"/>. This speeds up the
+        decoding, because the error locations do not need to be found, but if additional errors exist they may not be detected.
+        If false, a search step will be used to find the error locations, which can find errors in addition to those provided in
+        <paramref name="errorPositions"/>. The default is false.
+      </param>
+      <returns>Returns the decoded data from the data block, or null if the data block could not be decoded.</returns>
+      <remarks>
+        This method can correct up to <see cref="EccLength"/>/2 errors if no error locations are known, or up to
+        <see cref="EccLength"/> errors if all error locations are known, or some number in between if some error locations are known.
+        A non-null return value does not guarantee that the original data has been recovered, only that the data block does not appear
+        corrupted. (It is possible, albeit very unlikely, that a data block is corrupted into a different but valid data block.)
+      </remarks>
+    </DecodeBytes>
+  </ReedSolomon>
+  
   <RNG>
     <SeedSize>The number of uints that should be used to used to seed the random number generator.</SeedSize>
     <LoadStateCore>

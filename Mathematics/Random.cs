@@ -312,10 +312,10 @@ public abstract class RandomNumberGenerator
   /// </note></remarks>
   public virtual unsafe double NextDouble()
   {
-    ulong n;
+    double n;
     *(uint*)&n     = NextUInt32(); // adapted from http://www.cs.ucl.ac.uk/staff/d.jones/GoodPracticeRNG.pdf
     *((uint*)&n+1) = NextBits(20) | (1023u<<20);
-    return *(double*)&n - 1;
+    return n - 1;
   }
 
   /// <summary>Generates and returns a random float greater than or equal to zero and less than one.</summary>

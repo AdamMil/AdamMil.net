@@ -47,10 +47,19 @@
     <NoWarn>419</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Drawing" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="AssemblyInfo.cs" />
     <Compile Include="BigInteger.cs" />
     <Compile Include="Combinatorics.cs" />
     <Compile Include="CoherentNoise.cs" />
+    <Compile Include="ErrorCorrectionCodes.cs" />
+    <Compile Include="FiniteFields.cs" />
     <Compile Include="Functions.cs" />
     <Compile Include="Geometry.cs" />
     <Compile Include="FloatingPoint.cs" />
@@ -66,13 +75,6 @@
     <Compile Include="RectanglePacker.cs" />
     <Compile Include="RootFinding.cs" />
     <Compile Include="Vector.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Core">
-      <RequiredTargetFramework>3.5</RequiredTargetFramework>
-    </Reference>
-    <Reference Include="System.Drawing" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="documentation.xml" />
