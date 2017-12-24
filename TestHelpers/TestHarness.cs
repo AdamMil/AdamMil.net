@@ -8,13 +8,20 @@ namespace AdamMil.Tests
 {
   public static class TestHarness
   {
-    [MethodImpl(MethodImplOptions.NoInlining)] // prevent GetCallingAssembly from being moved outside RunAll
-    public static void RunAll()
+    public static int Main()
     {
-      RunAll(Assembly.GetCallingAssembly());
+      if(RunAll(Assembly.GetCallingAssembly())) return 0;
+      Console.ReadLine();
+      return 1;
     }
 
-    public static void RunAll(Assembly assembly)
+    [MethodImpl(MethodImplOptions.NoInlining)] // prevent GetCallingAssembly from being moved outside RunAll
+    public static bool RunAll()
+    {
+      return RunAll(Assembly.GetCallingAssembly());
+    }
+
+    public static bool RunAll(Assembly assembly)
     {
       if(assembly == null) throw new ArgumentNullException();
 
@@ -33,6 +40,7 @@ namespace AdamMil.Tests
       bool success = true;
       foreach(Type type in types) success &= RunFixture(type);
       Console.WriteLine(success ? "ALL TESTS PASSED" : "ERRORS OCCURRED");
+      return success;
     }
 
     public static bool RunFixture(Type fixtureType)

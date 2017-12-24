@@ -61,6 +61,8 @@
   <ItemGroup>
     <Compile Include="BigInteger.cs" />
     <Compile Include="Combinatorics.cs" />
+    <Compile Include="ErrorCorrectionCodes.cs" />
+    <Compile Include="FiniteFields.cs" />
     <Compile Include="FloatingPoint.cs" />
     <Compile Include="LinearAlgebra.cs" />
     <Compile Include="NumberTheory.cs" />

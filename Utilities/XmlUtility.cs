@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -990,6 +991,39 @@ public static class XmlNodeExtensions
     return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlDuration.Parse(attrValue);
   }
 
+  /// <summary>Returns the value of the named attribute as an enum value of type <typeparamref name="T"/>, or the default (zero) value
+  /// if the attribute was unspecified or empty. The enum value will be matched case-insensitively.
+  /// </summary>
+  public static T GetEnumAttribute<T>(this XmlNode node, string attrName) where T : struct
+  {
+    return GetEnumAttribute<T>(node, attrName, default(T), true);
+  }
+
+  /// <summary>Returns the value of the named attribute as an enum value of type <typeparamref name="T"/>, or the given default value if
+  /// the attribute was unspecified or empty. The enum value will be matched case-insensitively.
+  /// </summary>
+  public static T GetEnumAttribute<T>(this XmlNode node, string attrName, T defaultValue) where T : struct
+  {
+    return GetEnumAttribute<T>(node, attrName, defaultValue, true);
+  }
+
+  /// <summary>Returns the value of the named attribute as an enum value of type <typeparamref name="T"/>, or the default (zero) value if
+  /// the attribute was unspecified or empty. The enum value will be matched case-insensitively if <paramref name="ignoreCase"/> is true.
+  /// </summary>
+  public static T GetEnumAttribute<T>(this XmlNode node, string attrName, bool ignoreCase) where T : struct
+  {
+    return GetEnumAttribute<T>(node, attrName, default(T), ignoreCase);
+  }
+
+  /// <summary>Returns the value of the named attribute as an enum value of type <typeparamref name="T"/>, or the given default value if
+  /// the attribute was unspecified or empty. The enum value will be matched case-insensitively if <paramref name="ignoreCase"/> is true.
+  /// </summary>
+  public static T GetEnumAttribute<T>(this XmlNode node, string attrName, T defaultValue, bool ignoreCase) where T : struct
+  {
+    string attrValue = GetAttributeValue(node, attrName);
+    return string.IsNullOrEmpty(attrValue) ? defaultValue : (T)Enum.Parse(typeof(T), attrValue, ignoreCase);
+  }
+
   /// <summary>Returns the value of the named attribute as a <see cref="Guid"/>, or <see cref="Guid.Empty" />
   /// if the attribute was unspecified or empty.
   /// </summary>
@@ -1243,6 +1277,31 @@ public static class XmlNodeExtensions
   {
     string attrValue = GetAttributeValue(node, attrName);
     return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToUInt64(attrValue);
+  }
+
+  /// <summary>Enumerates the children of type <see cref="XmlNodeType.Element"/>.</summary>
+  public static IEnumerable<XmlElement> EnumerateChildElements(this XmlNode node)
+  {
+    if(node == null) throw new ArgumentNullException();
+    for(XmlElement elem = node.GetFirstChildElement(); elem != null; elem = elem.GetNextSiblingElement()) yield return elem;
+  }
+
+  /// <summary>Returns the first child node of type <see cref="XmlNodeType.Element"/>, or null if there is no such child node.</summary>
+  public static XmlElement GetChildElement(this XmlNode node, XmlQualifiedName name)
+  {
+    if(node == null || name == null) throw new ArgumentNullException();
+    XmlElement child = node.GetFirstChildElement();
+    while(child != null && child.HasName(name)) child = child.GetNextSiblingElement();
+    return child;
+  }
+
+  /// <summary>Returns the first child node of type <see cref="XmlNodeType.Element"/>, or null if there is no such child node.</summary>
+  public static XmlElement GetChildElement(this XmlNode node, string localName)
+  {
+    if(node == null || string.IsNullOrEmpty(localName)) throw new ArgumentNullException();
+    XmlElement child = node.GetFirstChildElement();
+    while(child != null && child.LocalName != localName) child = child.GetNextSiblingElement();
+    return child;
   }
 
   /// <summary>Returns the first child node of type <see cref="XmlNodeType.Element"/>, or null if there is no such child node.</summary>
@@ -1942,6 +2001,39 @@ public static class XmlReaderExtensions
   {
     string attrValue = GetAttributeValue(reader, attrName);
     return string.IsNullOrEmpty(attrValue) ? defaultValue : XmlConvert.ToDouble(attrValue);
+  }
+
+  /// <summary>Returns the value of the named attribute as an enum value of type <typeparamref name="T"/>, or the default (zero) value
+  /// if the attribute was unspecified or empty. The enum value will be matched case-insensitively.
+  /// </summary>
+  public static T GetEnumAttribute<T>(this XmlReader reader, string attrName) where T : struct
+  {
+    return GetEnumAttribute<T>(reader, attrName, default(T), true);
+  }
+
+  /// <summary>Returns the value of the named attribute as an enum value of type <typeparamref name="T"/>, or the given default value if
+  /// the attribute was unspecified or empty. The enum value will be matched case-insensitively.
+  /// </summary>
+  public static T GetEnumAttribute<T>(this XmlReader reader, string attrName, T defaultValue) where T : struct
+  {
+    return GetEnumAttribute<T>(reader, attrName, defaultValue, true);
+  }
+
+  /// <summary>Returns the value of the named attribute as an enum value of type <typeparamref name="T"/>, or the default (zero) value if
+  /// the attribute was unspecified or empty. The enum value will be matched case-insensitively if <paramref name="ignoreCase"/> is true.
+  /// </summary>
+  public static T GetEnumAttribute<T>(this XmlReader reader, string attrName, bool ignoreCase) where T : struct
+  {
+    return GetEnumAttribute<T>(reader, attrName, default(T), ignoreCase);
+  }
+
+  /// <summary>Returns the value of the named attribute as an enum value of type <typeparamref name="T"/>, or the given default value if
+  /// the attribute was unspecified or empty. The enum value will be matched case-insensitively if <paramref name="ignoreCase"/> is true.
+  /// </summary>
+  public static T GetEnumAttribute<T>(this XmlReader reader, string attrName, T defaultValue, bool ignoreCase) where T : struct
+  {
+    string attrValue = GetAttributeValue(reader, attrName);
+    return string.IsNullOrEmpty(attrValue) ? defaultValue : (T)Enum.Parse(typeof(T), attrValue, ignoreCase);
   }
 
   /// <summary>Returns the value of the named attribute as a <see cref="Guid"/>, or <see cref="Guid.Empty" />

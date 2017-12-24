@@ -42,7 +42,7 @@ namespace AdamMil.Mathematics
   /// will evaluate to true, the floating-point value is only an approximation of 1.1, and actually equals 4953959590107546 * 2^-52 =
   /// 1.100000000000000088817841970012523233890533447265625.
   /// </para>
-  /// <para>To get the a <see cref="Rational"/> value exactly equal to 1.1, any of the following can be used instead, in order from fastest
+  /// <para>To get a <see cref="Rational"/> value exactly equal to 1.1, any of the following can be used instead, in order from fastest
   /// to slowest: <c>x = Rational.FromComponents(11, 10)</c>, <c>x = new Rational(11, 10)</c>, <c>x = (Rational)1.1m</c>,
   /// <c>x = Rational.Parse("1.1", CultureInfo.InvariantCulture)</c>, or <c>x = Rational.FromDecimalApproximation(1.1)</c>. The first is
   /// very fast. The last is especially slow slow and should not be executed often, and the method that uses a <see cref="decimal"/>
@@ -470,6 +470,7 @@ namespace AdamMil.Mathematics
 
     /// <summary>Returns the given root (e.g. square root, cube root, etc) of this value.</summary>
     /// <param name="root">The root to compute. Two is the square root, three is the cube root, etc.</param>
+    /// <param name="digits">The number of decimal digits of precision to which the root should be calculated</param>
     public Rational Root(int root, int digits)
     {
       return Root(this, root, digits);

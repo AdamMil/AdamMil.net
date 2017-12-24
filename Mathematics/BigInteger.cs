@@ -34,7 +34,7 @@ namespace AdamMil.Mathematics
   // NOTE: we don't derive from IEquatable<int>, IEquatable<long>, etc. because that assumes our GetHashCode implementation matches that of
   // the runtime for those types, which may not be the case. IComparable<int>, etc. don't really seem useful either...
   [Serializable]
-  public struct Integer : ICloneable, IComparable, IComparable<Integer>, IConvertible, IEquatable<Integer>, IFormattable, IComparable<long>
+  public struct Integer : ICloneable, IComparable, IComparable<Integer>, IConvertible, IEquatable<Integer>, IFormattable
   {
     /// <summary>Initializes a new <see cref="Integer"/> value from the given <see cref="int"/> value.</summary>
     public Integer(int value)
