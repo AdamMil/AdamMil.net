@@ -312,7 +312,7 @@
             that the result will not have a magnitude equal to any operand. In the example above, <c>b *= a</c> would be safe if you know
             that neither operand equals 1 or -1. (Zero values never share internal storage.)
           </para>
-          <para>Finally, don't rely on unsafe operations to do the operation in-place. Sometimes they may have to allocate new storage.</para>
+          <para>Finally, don't assume unsafe operations always do the operation in-place. Sometimes they have to allocate new storage.</para>
         </note>
       </remarks>
     </UnsafeOps>

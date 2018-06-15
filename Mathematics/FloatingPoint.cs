@@ -2440,7 +2440,7 @@ namespace AdamMil.Mathematics
     {
       if(value.IsPositive)
       {
-        // the usual method is to Newton's method to solve x^2 = a. we represent it as a function with a zero at the answer:
+        // the usual method is to use Newton's method to solve x^2 = a. we represent it as a function with a zero at the answer:
         // f(x) = x^2 - a, which has a derivative f'(x) = 2x. and then Newton's method is x1 = x0 - f(x0)/f'(x0), yielding an iteration of
         // x1 ~= x0 - (x0^2-a)/2x0. thus if x ~= sqrt(a), then x - (x^2-a)/2x is an approximation that's twice as good
         //

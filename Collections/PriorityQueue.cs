@@ -98,7 +98,6 @@ public sealed class PriorityQueue<T> : ICloneable, IQueue<T>, IReadOnlyCollectio
   }
 
   /// <summary>Removes and returns the element in the queue with the highest priority.</summary>
-  /// <returns>The element in the queue with the highest priority.</returns>
   /// <exception cref="InvalidOperationException">Thrown if the collection is empty.</exception>
   public T Dequeue()
   {
@@ -329,7 +328,7 @@ public sealed class PriorityQueue<T> : ICloneable, IQueue<T>, IReadOnlyCollectio
   }
 
   T[] array;
-  IComparer<T> cmp;
+  readonly IComparer<T> cmp;
   int count, version;
 }
 

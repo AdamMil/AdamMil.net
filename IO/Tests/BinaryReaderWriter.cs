@@ -41,6 +41,8 @@ public class BinaryReaderWriterTest
         w.Write(new byte[] { 1, 2, 3 });
         w.Write(dt1);
         w.Write(new DateTime[] { dt2, dt1 });
+        w.WriteAdjustableDateTime(dt1);
+        w.WriteAdjustableDateTimes(new DateTime[] { dt2, dt1 });
         w.Write(3.14159m);
         w.Write(new decimal[] { 2000.77777m, -10000000000000.55m });
         w.Write(Math.PI);
@@ -74,6 +76,8 @@ public class BinaryReaderWriterTest
         TestHelpers.AssertArrayEquals(r.ReadBytes(3), new byte[] { 1, 2, 3 });
         Assert.AreEqual(dt1, r.ReadDateTime());
         TestHelpers.AssertArrayEquals(r.ReadDateTimes(2), new DateTime[] { dt2, dt1 });
+        Assert.AreEqual(dt1, r.ReadAdjustableDateTime());
+        TestHelpers.AssertArrayEquals(r.ReadAdjustableDateTimes(2), new DateTime[] { dt2, dt1 });
         Assert.AreEqual(3.14159m, r.ReadDecimal());
         TestHelpers.AssertArrayEquals(r.ReadDecimals(2), new decimal[] { 2000.77777m, -10000000000000.55m });
         Assert.AreEqual(Math.PI, r.ReadDouble());

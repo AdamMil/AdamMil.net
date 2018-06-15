@@ -295,7 +295,7 @@ namespace AdamMil.Mathematics
     public int BitLength
     {
       get { return (int)(info & 0x7FFFFFFF); }
-      set { info = value == 0 ? 0 : info & SignBit | (uint)value; }
+      private set { info = value == 0 ? 0 : info & SignBit | (uint)value; }
     }
 
     /// <summary>Determines whether this <see cref="Integer"/> value is even. Zero is considered even.</summary>
@@ -331,8 +331,7 @@ namespace AdamMil.Mathematics
     /// <summary>Returns an <see cref="Integer"/> value with the same magnitude and a non-negative sign.</summary>
     public Integer Abs()
     {
-      if(IsNegative) return new Integer(data, info ^ SignBit);
-      else return this;
+      return new Integer(data, info & ~SignBit);
     }
 
     /// <summary>Returns a new <see cref="Integer"/> with the same value but whose internal storage is newly allocated, allowing it to be
@@ -1793,8 +1792,7 @@ namespace AdamMil.Mathematics
     /// <summary>Returns the absolute value of the given <see cref="Integer"/>.</summary>
     public static Integer Abs(Integer value)
     {
-      if(value.IsNegative) return new Integer(value.data, value.info ^ SignBit);
-      else return value;
+      return new Integer(value.data, value.info & ~SignBit);
     }
 
     /// <summary>Counts the number of trailing zero bits in the binary representation of the integer.</summary>
@@ -3403,18 +3401,18 @@ namespace AdamMil.Mathematics
       if(maxBitLength < 0) throw new OverflowException();
       uint[] result = new uint[GetElementCount(maxBitLength)];
 
-      for(int ori=0, be=b.GetElementCount(), ai=0; ai<a.data.Length; ori++, ai++)
+      for(int ae=a.GetElementCount(), be=b.GetElementCount(), ai=0; ai<ae; ai++)
       {
         if(a.data[ai] == 0) continue;
 
         ulong carry = 0;
-        for(int ri=ori, bi=0; bi<b.data.Length; ri++, bi++)
+        for(int ri=ai, bi=0; bi<be; ri++, bi++)
         {
           carry += (ulong)a.data[ai] * b.data[bi] + result[ri];
           result[ri] = (uint)carry;
           carry >>= 32;
         }
-        if(carry != 0) result[ori+b.data.Length] = (uint)carry;
+        if(carry != 0) result[ai+be] = (uint)carry;
       }
       return result;
     }

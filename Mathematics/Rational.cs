@@ -45,7 +45,7 @@ namespace AdamMil.Mathematics
   /// <para>To get a <see cref="Rational"/> value exactly equal to 1.1, any of the following can be used instead, in order from fastest
   /// to slowest: <c>x = Rational.FromComponents(11, 10)</c>, <c>x = new Rational(11, 10)</c>, <c>x = (Rational)1.1m</c>,
   /// <c>x = Rational.Parse("1.1", CultureInfo.InvariantCulture)</c>, or <c>x = Rational.FromDecimalApproximation(1.1)</c>. The first is
-  /// very fast. The last is especially slow slow and should not be executed often, and the method that uses a <see cref="decimal"/>
+  /// very fast. The last is especially slow and should not be executed often, and the method that uses a <see cref="decimal"/>
   /// literal (1.1m in this case) is only suitable if the value can be represented exactly by a <see cref="decimal"/> value.
   /// </para>
   /// <para>
@@ -97,7 +97,8 @@ namespace AdamMil.Mathematics
 
     /// <summary>Initializes a new <see cref="Rational"/> value from a floating-point value.</summary>
     /// <remarks>The rational will be exactly equal to the floating-point value, but this may not be what you want since floating-point
-    /// numbers are usually approximations of decimal numbers.
+    /// numbers are usually approximations of decimal numbers. You can use the <see cref="Approximate(int)"/> method to produce a nearby
+    /// simpler number.
     /// </remarks>
     public Rational(double value)
     {
@@ -128,7 +129,8 @@ namespace AdamMil.Mathematics
 
     /// <summary>Initializes a new <see cref="Rational"/> value from a floating-point value.</summary>
     /// <remarks>The rational will be exactly equal to the floating-point value, but this may not be what you want since floating-point
-    /// numbers are usually approximations of decimal numbers.
+    /// numbers are usually approximations of decimal numbers. You can use the <see cref="Approximate(int)"/> method to produce a nearby
+    /// simpler number.
     /// </remarks>
     public Rational(FP107 value)
     {
@@ -159,7 +161,7 @@ namespace AdamMil.Mathematics
     public Rational(decimal value) : this(value, true) { }
 
     /// <summary>Initializes a new <see cref="Rational"/> value from a decimal value, with an option to skip simplification.</summary>
-    /// <remarks>Normally, you should use the <see cref="Rational(FP107)"/> constructor instead, but this constructor may be useful with
+    /// <remarks>Normally, you should use the <see cref="Rational(decimal)"/> constructor instead, but this constructor may be useful with
     /// unsimplified operations.
     /// <include file="documentation.xml" path="/Rational/UnsimplifiedRemarks/remarks/node()"/>
     /// </remarks>
@@ -1191,7 +1193,7 @@ namespace AdamMil.Mathematics
       return i;
     }
 
-    /// <summary>This method used to construct a <see cref="Rational"/> from the <see cref="Numerator"/> and <see cref="Denominator"/>
+    /// <summary>This method is used to construct a <see cref="Rational"/> from the <see cref="Numerator"/> and <see cref="Denominator"/>
     /// obtained from an existing <see cref="Rational"/>.
     /// </summary>
     /// <param name="numerator">The numerator of the ratio, which must not share any factors with <paramref name="denominator"/>.</param>
@@ -1199,7 +1201,7 @@ namespace AdamMil.Mathematics
     /// <paramref name="numerator"/>.
     /// </param>
     /// <remarks>This method differs from the <see cref="Rational(Integer,Integer)"/> constructor in that the values are not checked for
-    /// sign or range, and are not divided by their greatest common factor. You must do those yourself.
+    /// sign or range, and are not divided by their greatest common factor. You must do those yourself if necessary.
     /// </remarks>
     public static Rational FromComponents(Integer numerator, Integer denominator)
     {
@@ -1229,7 +1231,7 @@ namespace AdamMil.Mathematics
     public static Rational FromContinuedFraction(IList<int> continuedFraction, int maxTerms)
     {
       if(continuedFraction == null) throw new ArgumentNullException();
-      if(maxTerms <= 0) throw new ArgumentOutOfRangeException();
+      if(maxTerms <= 0) throw new ArgumentOutOfRangeException("There must be at least one coefficient.");
       if(maxTerms > continuedFraction.Count) maxTerms = continuedFraction.Count;
 
       // to convert a continued fraction to a number, you start at the end (x = c[N-1]) and for each preceding term, you set x = c[i] + 1/x
