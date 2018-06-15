@@ -439,6 +439,17 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     }
   }
 
+  /// <summary>Reads a <see cref="DateTime"/> object from the binary reader with automatic time zone adjustment.
+  /// The value is assumed to have been written with <see cref="BinaryWriter.WriteAdjustableDateTime(DateTime)"/>.
+  /// </summary>
+  /// <remarks>If the value is based on the local time zone, it will be automatically adjusted to the new local time zone when
+  /// deserialized. (For instance, 3PM serialized in PST may become 6PM when deserialized in EST.) Times based on UTC are unaffected.
+  /// </remarks>
+  public DateTime ReadAdjustableDateTime()
+  {
+    return DateTime.FromBinary(ReadInt64());
+  }
+
   /// <summary>Reads a one-byte boolean value from the stream.</summary>
   public bool ReadBoolean()
   {
@@ -486,7 +497,8 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// </summary>
   public DateTime ReadDateTime()
   {
-    return new DateTime(ReadInt64(), (DateTimeKind)ReadByte());
+    ulong value = ReadUInt64();
+    return new DateTime((long)(value>>2), (DateTimeKind)(value&3));
   }
 
   /// <summary>Reads a variable-length signed integer from the stream.</summary>
@@ -737,6 +749,27 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     return totalRead;
   }
 
+  /// <summary>Reads an array of <see cref="DateTime"/> objects from the stream with automatic time zone adjustment.</summary>
+  /// <remarks>If a value is based on the local time zone, it will be automatically adjusted to the new local time zone when
+  /// deserialized. (For instance, 3PM serialized in PST may become 6PM when deserialized in EST.) Times based on UTC are unaffected.
+  /// </remarks>
+  public DateTime[] ReadAdjustableDateTimes(int count)
+  {
+    DateTime[] data = new DateTime[count];
+    ReadAdjustableDateTimes(data, 0, count);
+    return data;
+  }
+
+  /// <summary>Reads an array of <see cref="DateTime"/> objects from the stream with automatic time zone adjustment.</summary>
+  /// <remarks>If a value is based on the local time zone, it will be automatically adjusted to the new local time zone when
+  /// deserialized. (For instance, 3PM serialized in PST may become 6PM when deserialized in EST.) Times based on UTC are unaffected.
+  /// </remarks>
+  public void ReadAdjustableDateTimes(DateTime[] array, int index, int count)
+  {
+    Utility.ValidateRange(array, index, count);
+    for(int end=index+count; index < end; index++) array[index] = ReadAdjustableDateTime();
+  }
+
   /// <summary>Reads an array of <see cref="DateTime"/> objects from the stream.</summary>
   public DateTime[] ReadDateTimes(int count)
   {
@@ -955,6 +988,18 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   public void ReadUInt64s(ulong* array, int count)
   {
     ReadInt64s((long*)array, count);
+  }
+
+  /// <summary>Reads a nullable <see cref="DateTime"/> object from the binary reader with automatic time zone adjustment.
+  /// The value is assumed to have been written with <see cref="BinaryWriter.WriteAdjustableDateTime(DateTime?)"/>.
+  /// </summary>
+  /// <remarks>If the value is based on the local time zone, it will be automatically adjusted to the new local time zone when
+  /// deserialized. (For instance, 3PM serialized in PST may become 6PM when deserialized in EST.) Times based on UTC are unaffected.
+  /// </remarks>
+  public DateTime? ReadNullableAdjustableDateTime()
+  {
+    if(!ReadBoolean()) return null;
+    else return ReadAdjustableDateTime();
   }
 
   /// <summary>Reads a one-byte nullable boolean value from the stream in the format written by <see cref="BinaryWriter.Write(bool?)"/>.</summary>
@@ -1836,13 +1881,13 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     return spaceNeeded;
   }
 
-  /// <summary>Writes a <see cref="DateTime"/> to the stream as an sequence of 9 bytes. The <see cref="DateTime"/> may later be
+  /// <summary>Writes a <see cref="DateTime"/> to the stream as a sequence of 8 bytes. The <see cref="DateTime"/> may later be
   /// read with <see cref="BinaryReader.ReadDateTime"/>.
   /// </summary>
   public void Write(DateTime dateTime)
   {
-    Write(dateTime.Ticks);
-    Write((byte)dateTime.Kind);
+    // Ticks requires 62 bits and Kind requires 2 bits, so the whole thing can be packed into 64 bits
+    Write(((ulong)dateTime.Ticks << 2) | (uint)dateTime.Kind);
   }
 
   /// <summary>Writes a nullable <see cref="DateTime"/> to the stream as a boolean potentially followed by the value.</summary>
@@ -1866,7 +1911,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     for(int end = index+count; index < end; index++) Write(dateTimes[index]);
   }
 
-  /// <summary>Writes a <see cref="Guid"/> to the stream as an sequence of 16 bytes. The <see cref="Guid"/> may later be read
+  /// <summary>Writes a <see cref="Guid"/> to the stream as a sequence of 16 bytes. The <see cref="Guid"/> may later be read
   /// with <see cref="BinaryReader.ReadGuid"/>.
   /// </summary>
   public unsafe void Write(Guid guid)
@@ -2145,6 +2190,51 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     }
 
     WriteCore((byte*)data, count, wordSize);
+  }
+
+  /// <summary>Writes a <see cref="DateTime"/> value with automatic time zone adjustment. This takes 8 bytes.</summary>
+  /// <remarks>If the value is based on the local time zone, it will be automatically adjusted to the new local time zone when
+  /// deserialized. (For instance, 3PM serialized in PST may become 6PM when deserialized in EST.) Times based on UTC are unaffected.
+  /// The value can be deserialized with <see cref="BinaryReader.ReadAdjustableDateTime"/>.
+  /// </remarks>
+  public void WriteAdjustableDateTime(DateTime value)
+  {
+    Write(value.ToBinary());
+  }
+
+  /// <summary>Writes a nullable <see cref="DateTime"/> value as a boolean potentially followed by the value, with automatic time zone
+  /// adjustment.
+  /// </summary>
+  /// <remarks>If the value is based on the local time zone, it will be automatically adjusted to the new local time zone when
+  /// deserialized. (For instance, 3PM serialized in PST may become 6PM when deserialized in EST.) Times based on UTC are unaffected.
+  /// The value can be deserialized with <see cref="BinaryReader.ReadNullableAdjustableDateTime"/>.
+  /// </remarks>
+  public void WriteAdjustableDateTime(DateTime? value)
+  {
+    Write(value.HasValue);
+    if(value.HasValue) WriteAdjustableDateTime(value.GetValueOrDefault());
+  }
+
+  /// <summary>Writes an array of <see cref="DateTime"/> objects to the stream with automatic time zone adjustment.</summary>
+  /// <remarks>If a value is based on the local time zone, it will be automatically adjusted to the new local time zone when
+  /// deserialized. (For instance, 3PM serialized in PST may become 6PM when deserialized in EST.) Times based on UTC are unaffected.
+  /// The values can be deserialized with <see cref="BinaryReader.ReadAdjustableDateTimes"/>.
+  /// </remarks>
+  public void WriteAdjustableDateTimes(DateTime[] dateTimes)
+  {
+    if(dateTimes == null) throw new ArgumentNullException();
+    WriteAdjustableDateTimes(dateTimes, 0, dateTimes.Length);
+  }
+
+  /// <summary>Writes an array of <see cref="DateTime"/> objects to the stream with automatic time zone adjustment.</summary>
+  /// <remarks>If a value is based on the local time zone, it will be automatically adjusted to the new local time zone when
+  /// deserialized. (For instance, 3PM serialized in PST may become 6PM when deserialized in EST.) Times based on UTC are unaffected.
+  /// The values can be deserialized with <see cref="BinaryReader.ReadAdjustableDateTimes"/>.
+  /// </remarks>
+  public void WriteAdjustableDateTimes(DateTime[] dateTimes, int index, int count)
+  {
+    Utility.ValidateRange(dateTimes, index, count);
+    for(int end = index+count; index < end; index++) WriteAdjustableDateTime(dateTimes[index]);
   }
 
   /// <summary>Writes a signed integer with a variable-length format, taking from one to five bytes.</summary>
