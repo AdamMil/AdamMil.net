@@ -3,7 +3,7 @@ AdamMil.Mathematics is a library that provides some useful mathematics classes
 for the .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2007-2016 Adam Milazzo
+Copyright (C) 2007-2019 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -32,7 +32,7 @@ namespace AdamMil.Mathematics.RootFinding
 #region RootBracket
 /// <summary>Represents an interval in which a root of a one-dimensional function is assumed to exist.</summary>
 [Serializable]
-public struct RootBracket
+public struct RootBracket : IEquatable<RootBracket>
 {
   /// <summary>Initializes a new <see cref="RootBracket"/> with the given lower and upper bounds for the function argument.</summary>
   public RootBracket(double min, double max)
@@ -40,6 +40,30 @@ public struct RootBracket
     if(min > max) throw new ArgumentException("The minimum must be less than or equal to the maximum.");
     Min = min;
     Max = max;
+  }
+
+  /// <summary>Gets the center value within the bracket.</summary>
+  public double Middle
+  {
+    get { return (Min + Max) * 0.5; }
+  }
+
+  /// <inheritdoc/>
+  public bool Equals(RootBracket other)
+  {
+    return Min == other.Min && Max == other.Max;
+  }
+
+  /// <inheritdoc/>
+  public override bool Equals(object obj)
+  {
+    return obj is RootBracket && Equals((RootBracket)obj);
+  }
+
+  /// <inheritdoc/>
+  public override int GetHashCode()
+  {
+    return Min.GetHashCode() ^ Max.GetHashCode();
   }
 
   /// <summary>Converts the interval into a readable string.</summary>
@@ -50,8 +74,15 @@ public struct RootBracket
 
   /// <summary>Gets or sets the lower bound for the function argument.</summary>
   public double Min;
+
   /// <summary>Gets or sets the upper bound for the function argument.</summary>
   public double Max;
+
+  /// <summary>Returns true if two brackets are equal.</summary>
+  public static bool operator==(RootBracket a, RootBracket b) { return a.Equals(b); }
+
+  /// <summary>Returns true if two brackets are unequal.</summary>
+  public static bool operator!=(RootBracket a, RootBracket b) { return !a.Equals(b); }
 }
 #endregion
 

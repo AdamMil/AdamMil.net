@@ -59,6 +59,7 @@
     <Compile Include="Combinatorics.cs" />
     <Compile Include="CoherentNoise.cs" />
     <Compile Include="ErrorCorrectionCodes.cs" />
+    <Compile Include="Financial.cs" />
     <Compile Include="FiniteFields.cs" />
     <Compile Include="Functions.cs" />
     <Compile Include="Geometry.cs" />

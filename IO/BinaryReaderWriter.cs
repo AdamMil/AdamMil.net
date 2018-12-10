@@ -29,10 +29,6 @@ using AdamMil.Utilities;
 namespace AdamMil.IO
 {
 
-// TODO: make sure BinaryReader has a way to avoid reading more data than requested (like the .NET
-// BinaryReader does - so it works better with non-seekable streams)
-// TODO: make sure these work with non-seekable streams
-
 #region PinnedBuffer
 /// <summary>This class supports the <see cref="BinaryReader"/> and <see cref="BinaryWriter"/> classes and is not
 /// intended to be used directly. This class manages a constantly-pinned buffer. This class in not safe for use by
@@ -186,15 +182,15 @@ public abstract class BinaryReaderWriterBase : PinnedBuffer
   internal BinaryReaderWriterBase(Stream stream, bool ownStream, bool littleEndian, int bufferSize) : base(bufferSize)
   {
     if(stream == null) throw new ArgumentNullException();
-    this.stream       = stream;
-    this.ownStream    = ownStream;
-    this.littleEndian = littleEndian;
+    this.stream    = stream;
+    this.ownStream = ownStream;
+    LittleEndian = littleEndian;
   }
 
   internal BinaryReaderWriterBase(byte[] array, int index, int length, bool littleEndian) : base(array)
   {
     Utility.ValidateRange(array, index, length);
-    this.littleEndian = littleEndian;
+    LittleEndian = littleEndian;
   }
 
   /// <summary>Returns a reference to the underlying stream.</summary>
@@ -207,11 +203,7 @@ public abstract class BinaryReaderWriterBase : PinnedBuffer
   /// <remarks>If the endianness of the data does not match the endianness of the system, the bytes will be swapped as
   /// necessary. The default is true.
   /// </remarks>
-  public bool LittleEndian
-  {
-    get { return littleEndian; }
-    set { littleEndian = value; }
-  }
+  public bool LittleEndian { get; set; }
 
   /// <inheritdoc/>
   protected override void Dispose(bool manualDispose)
@@ -222,7 +214,6 @@ public abstract class BinaryReaderWriterBase : PinnedBuffer
 
   readonly Stream stream;
   readonly bool ownStream;
-  bool littleEndian;
 }
 #endregion
 
@@ -316,6 +307,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
   /// mitigated by reducing the size of the buffer so that less data is thrown away, although seek performance must be balanced
   /// with read performance.
   /// </remarks>
+  /// <exception cref="NotSupportedException">Thrown if the reader is based on a stream and the stream is not seekable.</exception>
   public long Position
   {
     get
@@ -360,8 +352,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
 
     // attempt to satisfy the request with the contiguous data starting from the tail
     ReadDataInternal(ref ptr, ref nbytes, Math.Min(ContiguousData, nbytes));
-
-    if(nbytes != 0)
+    if(nbytes != 0) // if more data was requested...
     {
       if(ExternalBuffer) throw new EndOfStreamException(); // if the buffer is external, there's no more data
 
@@ -375,7 +366,8 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
       {
         do
         {
-          headIndex = BaseStream.Read(Buffer, 0, Buffer.Length);
+          // avoid reading too much from a non-seekable stream
+          headIndex = BaseStream.Read(Buffer, 0, BaseStream.CanSeek ? Buffer.Length : Math.Min(Buffer.Length, nbytes));
           if(headIndex == 0) throw new EndOfStreamException();
           ReadDataInternal(ref ptr, ref nbytes, Math.Min(headIndex, nbytes));
         } while(nbytes != 0);
@@ -1202,31 +1194,29 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     else return encoding.GetString(ReadBytes(nbytes)); // otherwise, read it into a temporary array
   }
 
-  /// <summary>Reads a string that was written by <see cref="BinaryWriter.WriteStringWithLength"/>.</summary>
-  /// <remarks>The string is stored as a variable-length integer holding the length, followed by that many bytes encoding the
-  /// characters. A null string is represented with a length of -1.
-  /// </remarks>
-  public string ReadStringWithLength()
+  /// <summary>Reads a string that was written by <see cref="BinaryWriter.WriteNullableString"/> or
+  /// <see cref="BinaryReader.WriteStringWithLength"/>.
+  /// </summary>
+  public string ReadNullableString()
   {
-    return ReadStringWithLength(DefaultEncoding);
+    return ReadNullableString(DefaultEncoding);
   }
 
-  /// <summary>Reads a string that was written by <see cref="BinaryWriter.WriteStringWithLength"/>.</summary>
-  /// <remarks>The string is stored as a variable-length integer holding the length, followed by that many bytes encoding the
-  /// characters. A null string is represented with a length of -1.
-  /// </remarks>
-  public string ReadStringWithLength(Encoding encoding)
+  /// <summary>Reads a string that was written by <see cref="BinaryWriter.WriteNullableString"/> or
+  /// <see cref="BinaryReader.WriteStringWithLength"/>.
+  /// </summary>
+  public string ReadNullableString(Encoding encoding)
   {
-    int nbytes = ReadEncodedInt32();
-    return nbytes == -1 ? null : ReadString(nbytes, encoding);
+    uint length = ReadEncodedUInt32();
+    return length == 0 ? null : ReadString((int)(length-1), encoding);
   }
 
-  /// <summary>Reads a number of strings. The strings are assumed to have been written with <see cref="BinaryWriter.WriteStringWithLength(string)" />.</summary>
-  public string[] ReadStringsWithLengths(int count)
+  /// <summary>Reads a number of strings. The strings are assumed to have been written with <see cref="BinaryWriter.WriteNullableString(string)" />.</summary>
+  public string[] ReadNullableStrings(int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
     string[] values = new string[count];
-    for(int i=0; i<values.Length; i++) values[i] = ReadStringWithLength();
+    for(int i=0; i<values.Length; i++) values[i] = ReadNullableString();
     return values;
   }
 
@@ -1237,13 +1227,17 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
     int advance = Math.Min(AvailableData, nbytes);
     AdvanceTail(advance);
     nbytes -= advance;
-    if(nbytes != 0) Position += nbytes;
+    if(nbytes != 0)
+    {
+      if(ExternalBuffer) throw new EndOfStreamException();
+      BaseStream.Skip(nbytes);
+    }
   }
 
-  /// <summary>Skips a string that was written by <see cref="BinaryWriter.WriteStringWithLength"/>.</summary>
-  public void SkipStringWithLength()
+  /// <summary>Skips a string that was written by <see cref="BinaryWriter.WriteNullableString"/>.</summary>
+  public void SkipNullableString()
   {
-    int length = ReadEncodedInt32();
+    int length = (int)ReadEncodedUInt32() - 1; // subtract one because null is represented by zero, empty as 1, etc.
     if(length > 0) Skip(length);
   }
 
@@ -1330,6 +1324,7 @@ public unsafe class BinaryReader : BinaryReaderWriterBase
       }
 
       int toRead = availableContiguousSpace - headIndex; // fill the entire contiguous region
+      if(toRead > nbytes && !BaseStream.CanSeek) toRead = nbytes; // avoid reading too much from nonseekable streams
       do
       {
         int read = BaseStream.Read(Buffer, headIndex, toRead);
@@ -2135,7 +2130,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes a string to the stream, using the default encoding. Returns the number of bytes written to the stream.
-  /// This method does not accept null values. To write a nullable string, use <see cref="WriteStringWithLength(string)"/>.
+  /// This method does not accept null values. To write a nullable string, use <see cref="WriteNullableString(string)"/>.
   /// </summary>
   public int Write(string str)
   {
@@ -2143,7 +2138,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes a string to the stream, with the given encoding. Returns the number of bytes written to the stream.
-  /// This method does not accept null values. To write a nullable string, use <see cref="WriteStringWithLength(string,Encoding)"/>.
+  /// This method does not accept null values. To write a nullable string, use <see cref="WriteNullableString(string,Encoding)"/>.
   /// </summary>
   public int Write(string str, Encoding encoding)
   {
@@ -2152,17 +2147,13 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     else fixed(char* chars=str) return Write(chars, str.Length, encoding);
   }
 
-  /// <summary>Writes a substring to the stream, using the default encoding. Returns the number of bytes written to the stream.
-  /// This method does not accept null values. To write a nullable string, use <see cref="WriteStringWithLength(string,int,int)"/>.
-  /// </summary>
+  /// <summary>Writes a substring to the stream, using the default encoding. Returns the number of bytes written to the stream.</summary>
   public int Write(string str, int index, int count)
   {
     return Write(str, index, count, DefaultEncoding);
   }
 
-  /// <summary>Writes a substring to the stream, using the given encoding. Returns the number of bytes written to the stream. This
-  /// method does not accept null values. To write a nullable string, use <see cref="WriteStringWithLength(string,int,int,Encoding)"/>.
-  /// </summary>
+  /// <summary>Writes a substring to the stream, using the given encoding. Returns the number of bytes written to the stream.</summary>
   public int Write(string str, int index, int count, Encoding encoding)
   {
     Utility.ValidateRange(str, index, count);
@@ -2321,49 +2312,93 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
   }
 
   /// <summary>Writes a string to the stream, using the default encoding. Null strings are supported.</summary>
-  public void WriteStringWithLength(string str)
+  public void WriteNullableString(string str)
   {
-    WriteStringWithLength(str, DefaultEncoding);
+    WriteNullableString(str, DefaultEncoding);
   }
 
   /// <summary>Writes a string to the stream, with the given encoding. Null strings are supported.</summary>
-  public void WriteStringWithLength(string str, Encoding encoding)
+  public void WriteNullableString(string str, Encoding encoding)
   {
-    if(str == null) WriteEncoded(-1); // TODO: use (uint)0 instead of -1 to represent a null string
+    if(str == null) WriteEncoded(0U);
     else WriteStringWithLength(str, 0, str.Length, encoding);
   }
 
   /// <summary>Writes a substring to the stream, using the default encoding.</summary>
+  /// <remarks>The string may be read back with <see cref="BinaryReader.ReadNullableString"/>.</remarks>
   public void WriteStringWithLength(string str, int index, int length)
   {
     Write(str, index, length, DefaultEncoding);
   }
 
   /// <summary>Writes a substring to the stream, using the given encoding.</summary>
+  /// <remarks>The string may be read back with <see cref="BinaryReader.ReadNullableString"/>.</remarks>
   public void WriteStringWithLength(string str, int index, int length, Encoding encoding)
   {
     Utility.ValidateRange(str, index, length);
-    if(encoding == null) throw new ArgumentNullException();
+    if(encoding == null) throw new ArgumentNullException("encoding");
 
-    if(length != 0) // zero-length arrays yield a null-pointer when fixed, so avoid passing a null pointer
+    if(length != 0) // zero-length strings yield a null-pointer when fixed, so avoid passing a null pointer
     {
       int spaceNeeded = encoding.GetMaxByteCount(length);
       if(spaceNeeded <= StackAllocThreshold)
       {
         byte* buffer = stackalloc byte[spaceNeeded];
         fixed(char* chars=str) spaceNeeded = encoding.GetBytes(chars+index, length, buffer, spaceNeeded);
-        WriteEncoded(spaceNeeded);
+        WriteEncoded((uint)spaceNeeded + 1); // we write a length one greater than actual, so null strings can have a length of 0
         WriteCore(buffer, spaceNeeded);
       }
       else
       {
         fixed(char* chars=str)
         {
-          WriteEncoded(encoding.GetByteCount(chars+index, length));
+          WriteEncoded((uint)encoding.GetByteCount(chars+index, length) + 1);
           Write(chars+index, length, encoding);
         }
       }
     }
+    else
+    {
+      WriteEncoded(1U); // zero is for null strings, so we have to add one to the length (producing 1)
+    }
+  }
+
+  /// <summary>Writes a sequence of strings to the stream, with the default encoding. Null strings are supported.</summary>
+  /// <remarks>Individual strings are written using <see cref="WriteNullableString(string)"/> and the sequence can be read back
+  /// with <see cref="BinaryReader.ReadNullableStrings"/>.
+  /// </remarks>
+  public void WriteNullableStrings(params string[] array)
+  {
+    WriteNullableStrings(array, DefaultEncoding);
+  }
+
+  /// <summary>Writes a sequence of strings to the stream, with the given encoding. Null strings are supported.</summary>
+  /// <remarks>Individual strings are written using <see cref="WriteNullableString(string,Encoding)"/> and the sequence can be read back
+  /// with <see cref="BinaryReader.ReadNullableStrings"/>.
+  /// </remarks>
+  public void WriteNullableStrings(string[] array, Encoding encoding)
+  {
+    if(array == null) throw new ArgumentNullException();
+    WriteNullableStrings(array, 0, array.Length, encoding);
+  }
+
+  /// <summary>Writes a sequence of strings to the stream, with the default encoding. Null strings are supported.</summary>
+  /// <remarks>Individual strings are written using <see cref="WriteNullableString(string)"/> and the sequence can be read back
+  /// with <see cref="BinaryReader.ReadNullableStrings"/>.
+  /// </remarks>
+  public void WriteNullableStrings(string[] array, int index, int length)
+  {
+    WriteNullableStrings(array, index, length, DefaultEncoding);
+  }
+
+  /// <summary>Writes a sequence of strings to the stream, with the given encoding. Null strings are supported.</summary>
+  /// <remarks>Individual strings are written using <see cref="WriteNullableString(string,Encoding)"/> and the sequence can be read back
+  /// with <see cref="BinaryReader.ReadNullableStrings"/>.
+  /// </remarks>
+  public void WriteNullableStrings(string[] array, int index, int length, Encoding encoding)
+  {
+    Utility.ValidateRange(array, index, length);
+    foreach(string str in array) WriteNullableString(str);
   }
 
   /// <summary>Writes the given number of zero bytes.</summary>
@@ -2372,7 +2407,7 @@ public unsafe class BinaryWriter : BinaryReaderWriterBase
     if(count < 0) throw new ArgumentOutOfRangeException();
     if(count != 0) // avoid throwing an exception if we're at the end of an external buffer
     {
-      EnsureSpace(1);
+      EnsureSpace(1); // the loop below assumes there's some free space in the buffer, so ensure that
       do
       {
         int toWrite = Math.Min(count, AvailableSpace);

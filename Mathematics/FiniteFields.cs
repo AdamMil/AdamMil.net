@@ -3,7 +3,7 @@ AdamMil.Mathematics is a library that provides some useful mathematics classes
 for the .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2007-2016 Adam Milazzo
+Copyright (C) 2007-2019 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -38,7 +38,7 @@ namespace AdamMil.Mathematics.Fields
   /// <remarks>The values in the field are polynomials represented as integers. Each coefficient is either 0 or 1, so they are represented
   /// as bits within an integer, with the constant term in the lowest bit, the linear term in the second lowest bit, etc. So, x^3 + x + 1
   /// is represented in binary as 1011, corresponding to the integer 11.
-  /// <para>Note that instantiating a GF2pField is a relatively expensive operations, so field objects should be reused if possible.</para>
+  /// <para>Note that instantiating a GF2pField is a relatively expensive operation, so field objects should be reused if possible.</para>
   /// </remarks>
   // The field is constructed by taking a generator polynomial (default: x) raised to the power n modulo the prime polynomial for each of
   // the n values in the field except zero. So the values are g^0 mod p, g^1 mod p, g^2 mod p, through g^(2^power-2). So the values of a
