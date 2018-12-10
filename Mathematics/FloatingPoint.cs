@@ -3,7 +3,7 @@ AdamMil.Mathematics is a library that provides some useful mathematics classes
 for the .NET framework.
 
 http://www.adammil.net/
-Copyright (C) 2007-2016 Adam Milazzo
+Copyright (C) 2007-2019 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -3260,8 +3260,8 @@ namespace AdamMil.Mathematics
       // value will be > 1. high = (v + v+)/2, v+ = v + 2^e, v = n/d, and m+ = d(v+ - v)/2. so 2m+/d = v+ - v, 2m+/d + 2v = v+ + v,
       // m+/d + v = (v + v+)/2 = high. and m+/d + v = m+/d + n/d = (n + m+)/d. and as noted above, we can check whether a/b > 1 by seeing
       // whether a > b. in this case, then, we need to compare n + m+ with d.
-      Integer rPlus = n + mPlus;
-      if(boundaryOk ? rPlus >= d : rPlus > d) // if the scaled high > 1 (or >= 1 depending on what we can assume about the rounding mode)..
+      int cmp = (n + mPlus).CompareTo(d);
+      if(cmp >= (boundaryOk ? 0 : 1)) // if the scaled high > 1 (or >= 1 depending on what we can assume about the rounding mode)..
       {
         d *= 10; // scale everything down once more by increasing the denominator
         k++;     // and fix k

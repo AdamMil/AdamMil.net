@@ -28,14 +28,15 @@ public class BinaryReaderWriterTest
     }
     Assert.AreEqual(ms.Position, 52); // make sure that the reader puts the stream position back where it should be
 
-    for(int i=0; i<2; i++)
+    for(int endian=0; endian<2; endian++)
     {
       DateTime dt1 = new DateTime(1999, 12, 31, 1, 2, 3, DateTimeKind.Utc), dt2 = DateTime.Now;
       Guid guid = Guid.NewGuid();
       ms.SetLength(0);
+      int expectedLength;
       using(BinaryWriter w = new BinaryWriter(ms, false))
       {
-        w.LittleEndian = i == 0;
+        w.LittleEndian = endian == 0;
         w.Write(true);
         w.Write((byte)42);
         w.Write(new byte[] { 1, 2, 3 });
@@ -65,41 +66,56 @@ public class BinaryReaderWriterTest
         w.Write(new uint[] { 10000, uint.MaxValue });
         w.Write(9000000000ul);
         w.Write(new ulong[] { 20000, ulong.MaxValue });
+        w.WriteNullableStrings(null, "", "hello, world!", new string('x', 512));
+        expectedLength = (int)w.Position;
       }
 
-      ms.Position = 0;
-      using(BinaryReader r = new BinaryReader(ms, false))
+      Assert.AreEqual(expectedLength, ms.Position);
+      Assert.AreEqual(expectedLength, ms.Length);
+
+      for(int seekability=0; seekability<2; seekability++) // try with both seekable and nonseekable streams
       {
-        r.LittleEndian = i == 0;
-        Assert.AreEqual(true, r.ReadBoolean());
-        Assert.AreEqual((byte)42, r.ReadByte());
-        TestHelpers.AssertArrayEquals(r.ReadBytes(3), new byte[] { 1, 2, 3 });
-        Assert.AreEqual(dt1, r.ReadDateTime());
-        TestHelpers.AssertArrayEquals(r.ReadDateTimes(2), new DateTime[] { dt2, dt1 });
-        Assert.AreEqual(dt1, r.ReadAdjustableDateTime());
-        TestHelpers.AssertArrayEquals(r.ReadAdjustableDateTimes(2), new DateTime[] { dt2, dt1 });
-        Assert.AreEqual(3.14159m, r.ReadDecimal());
-        TestHelpers.AssertArrayEquals(r.ReadDecimals(2), new decimal[] { 2000.77777m, -10000000000000.55m });
-        Assert.AreEqual(Math.PI, r.ReadDouble());
-        TestHelpers.AssertArrayEquals(r.ReadDoubles(2), new double[] { Math.E, Math.Sqrt(2) });
-        Assert.AreEqual((float)Math.PI, r.ReadSingle());
-        TestHelpers.AssertArrayEquals(r.ReadSingles(2), new float[] { (float)Math.E, 140000.22f });
-        Assert.AreEqual(guid, r.ReadGuid());
-        TestHelpers.AssertArrayEquals(r.ReadGuids(2), new Guid[] { Guid.Empty, guid });
-        Assert.AreEqual(-42, r.ReadInt32());
-        TestHelpers.AssertArrayEquals(r.ReadInt32s(2), new int[] { int.MaxValue, int.MinValue });
-        Assert.AreEqual(-500L, r.ReadInt64());
-        TestHelpers.AssertArrayEquals(r.ReadInt64s(2), new long[] { long.MaxValue, long.MinValue });
-        Assert.AreEqual((sbyte)-50, r.ReadSByte());
-        TestHelpers.AssertArrayEquals(r.ReadSBytes(2), new sbyte[] { -100, 100 });
-        Assert.AreEqual((short)-5000, r.ReadInt16());
-        TestHelpers.AssertArrayEquals(r.ReadInt16s(2), new short[] { -30000, 30000 });
-        Assert.AreEqual((ushort)50000, r.ReadUInt16());
-        TestHelpers.AssertArrayEquals(r.ReadUInt16s(2), new ushort[] { 70, ushort.MaxValue });
-        Assert.AreEqual(3000000000u, r.ReadUInt32());
-        TestHelpers.AssertArrayEquals(r.ReadUInt32s(2), new uint[] { 10000, uint.MaxValue });
-        Assert.AreEqual(9000000000ul, r.ReadUInt64());
-        TestHelpers.AssertArrayEquals(r.ReadUInt64s(2), new ulong[] { 20000, ulong.MaxValue });
+        // add some extra padding to the end for nonseekable streams so we can be sure we don't consume it
+        if(seekability != 0) ms.Write(new byte[64*1024]);
+
+        ms.Position = 0;
+        Stream stream = seekability != 0 ? new NonseekableStream(ms) : (Stream)ms;
+        using(BinaryReader r = new BinaryReader(stream, false))
+        {
+          r.LittleEndian = endian == 0;
+          Assert.AreEqual(true, r.ReadBoolean());
+          Assert.AreEqual((byte)42, r.ReadByte());
+          TestHelpers.AssertArrayEquals(r.ReadBytes(3), new byte[] { 1, 2, 3 });
+          Assert.AreEqual(dt1, r.ReadDateTime());
+          TestHelpers.AssertArrayEquals(r.ReadDateTimes(2), new DateTime[] { dt2, dt1 });
+          Assert.AreEqual(dt1, r.ReadAdjustableDateTime());
+          TestHelpers.AssertArrayEquals(r.ReadAdjustableDateTimes(2), new DateTime[] { dt2, dt1 });
+          Assert.AreEqual(3.14159m, r.ReadDecimal());
+          TestHelpers.AssertArrayEquals(r.ReadDecimals(2), new decimal[] { 2000.77777m, -10000000000000.55m });
+          Assert.AreEqual(Math.PI, r.ReadDouble());
+          TestHelpers.AssertArrayEquals(r.ReadDoubles(2), new double[] { Math.E, Math.Sqrt(2) });
+          Assert.AreEqual((float)Math.PI, r.ReadSingle());
+          TestHelpers.AssertArrayEquals(r.ReadSingles(2), new float[] { (float)Math.E, 140000.22f });
+          Assert.AreEqual(guid, r.ReadGuid());
+          TestHelpers.AssertArrayEquals(r.ReadGuids(2), new Guid[] { Guid.Empty, guid });
+          Assert.AreEqual(-42, r.ReadInt32());
+          TestHelpers.AssertArrayEquals(r.ReadInt32s(2), new int[] { int.MaxValue, int.MinValue });
+          Assert.AreEqual(-500L, r.ReadInt64());
+          TestHelpers.AssertArrayEquals(r.ReadInt64s(2), new long[] { long.MaxValue, long.MinValue });
+          Assert.AreEqual((sbyte)-50, r.ReadSByte());
+          TestHelpers.AssertArrayEquals(r.ReadSBytes(2), new sbyte[] { -100, 100 });
+          Assert.AreEqual((short)-5000, r.ReadInt16());
+          TestHelpers.AssertArrayEquals(r.ReadInt16s(2), new short[] { -30000, 30000 });
+          Assert.AreEqual((ushort)50000, r.ReadUInt16());
+          TestHelpers.AssertArrayEquals(r.ReadUInt16s(2), new ushort[] { 70, ushort.MaxValue });
+          Assert.AreEqual(3000000000u, r.ReadUInt32());
+          TestHelpers.AssertArrayEquals(r.ReadUInt32s(2), new uint[] { 10000, uint.MaxValue });
+          Assert.AreEqual(9000000000ul, r.ReadUInt64());
+          TestHelpers.AssertArrayEquals(r.ReadUInt64s(2), new ulong[] { 20000, ulong.MaxValue });
+          TestHelpers.AssertArrayEquals(r.ReadNullableStrings(4), null, "", "hello, world!", new string('x', 512));
+        }
+
+        Assert.AreEqual(expectedLength, ms.Position);
       }
     }
   }
@@ -112,8 +128,8 @@ public class BinaryReaderWriterTest
     {
       bw.Write('H');
       bw.Write('吉');
-      bw.WriteStringWithLength("Hello, world.吉吉");
-      bw.WriteStringWithLength(new string('吉', 4096)); // write a really long string
+      bw.WriteNullableString("Hello, world.吉吉");
+      bw.WriteNullableString(new string('吉', 4096)); // write a really long string
       bw.Write(new char[] { 'H', 'o', 'p', 'e', '吉' });
     }
 
@@ -122,8 +138,8 @@ public class BinaryReaderWriterTest
     {
       Assert.AreEqual('H', br.ReadChar());
       Assert.AreEqual('吉', br.ReadChar());
-      Assert.AreEqual("Hello, world.吉吉", br.ReadStringWithLength());
-      Assert.AreEqual(new string('吉', 4096), br.ReadStringWithLength());
+      Assert.AreEqual("Hello, world.吉吉", br.ReadNullableString());
+      Assert.AreEqual(new string('吉', 4096), br.ReadNullableString());
       TestHelpers.AssertArrayEquals(new char[] { 'H', 'o', 'p', 'e', '吉' }, br.ReadChars(5));
     }
   }
@@ -295,6 +311,29 @@ public class BinaryReaderWriterTest
       }
     }
   }*/
+
+  #region NonseekableStream
+  sealed class NonseekableStream : DelegateStream
+  {
+    public NonseekableStream(Stream stream) : base(stream, true) { }
+
+    public override bool CanSeek
+    {
+      get { return false; }
+    }
+
+    public override long Length
+    {
+      get { throw new NotSupportedException(); }
+    }
+
+    public override long Position
+    {
+      get { throw new NotSupportedException(); }
+      set { throw new NotSupportedException(); }
+    }
+  }
+  #endregion
 }
 
 } // namespace AdamMil.IO.Tests

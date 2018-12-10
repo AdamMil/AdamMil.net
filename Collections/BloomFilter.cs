@@ -172,7 +172,7 @@ public class BloomFilter<T>
 
   /// <summary>Merges all of the items from another Bloom filter into this one, assuming the filters have the same configuration.</summary>
   /// <param name="filter">A Bloom filter whose items will be added to this filter. The filters must have the same size, number of hash
-  /// functions, and hash provider.
+  /// functions, and hash providers.
   /// </param>
   /// <remarks>A typical use of this method is to create one Bloom filter per CPU core, fill them in parallel, and union the filters
   /// together at the end to obtain the combined filter.
@@ -180,7 +180,11 @@ public class BloomFilter<T>
   public void UnionWith(BloomFilter<T> filter)
   {
     if(filter == null) throw new ArgumentNullException();
-    if(bits.Length != filter.bits.Length || hashCount != filter.hashCount) throw new ArgumentException("The filters are not compatible.");
+    if(bits.Length != filter.bits.Length || hashCount != filter.hashCount || hashProvider != filter.hashProvider)
+    {
+      throw new ArgumentException("The filters are not compatible.");
+    }
+
     for(int i=0; i<bits.Length; i++) bits[i] |= filter.bits[i];
   }
 

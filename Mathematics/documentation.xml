@@ -27,6 +27,206 @@
     <GetHashCode>Returns a hash code for the object.</GetHashCode>
   </Common>
 
+  <Financial>
+    <FutureValue>
+      <summary>Computes the future value of an annuity, investment, or loan.</summary>
+      <param name="rate">The interest rate of the investment or loan, or the discount rate of the annuity, per period</param>
+      <param name="payment">The payment per period, positive for cash received and negative for cash paid</param>
+      <param name="paymentCount">The number of payment periods</param>
+      <param name="presentValue">
+        The present value that would have to be paid to purchase the investment (negative), or the amount received as a loan (positive),
+        or zero if the future value will come from the payments alone. If omitted, the value is zero.
+      </param>
+      <param name="payAtEnd">
+        If true, payments are made at the end of each period (e.g. for an annuity-immediate), and if false,
+        payments are made at the beginning of each period (e.g. for an annuity-due). This affects whether the first and last periods
+        have a chance to earn interest. If omitted, the value is true.
+      </param>
+      <returns>
+        Returns the future value, positive if you would have an asset in the future and negative if you would have a liability
+        in the future.
+      </returns>
+      <example>
+        To compute how much you would have if you started with $3000 and saved $500 at the end of each month for ten years while
+        earning 5% APY compounded monthly, use rate = PeriodicRate(.05, 12) (5% APY compounded monthly), payment = -500 (negative because
+        you are paying), paymentCount = 10*12 (ten years of monthly payments), presentValue = -3000 (because you started by depositing
+        (paying) $3000 into your account), and payAtEnd = true (because you are depositing money at the end of each month).
+        The result is $82,068.26 (positive because this is an asset), indicating that you'd have that much money after 10 years.
+      </example>
+    </FutureValue>
+    <Payment>
+      <summary>Computes the periodic payment needed to bring an annuity, loan, or investment from its present value to a future value.</summary>
+      <param name="rate">The interest rate of the loan or investment, or the discount rate of the annuity, per period</param>
+      <param name="paymentCount">The number of payment periods</param>
+      <param name="presentValue">
+        The present value that would have to be paid to purchase the investment (negative), or the amount
+        received as a loan (positive), or zero if the future value will come from the payments alone.
+      </param>
+      <param name="futureValue">
+        The future value of the investment (positive) or the balance of the loan (negative) after the last
+        payment. You may specify zero, if the investment would be completely sold or the loan paid off after the last payment. If
+        omitted, the value is zero.
+      </param>
+      <param name="payAtEnd">
+        If true, payments are made at the end of each period (e.g. for an annuity-immediate), and if false, payments
+        are made at the beginning of each period (e.g. for an annuity-due). This affects whether the first and last periods have a chance
+        to earn interest. If omitted, the value is true.
+      </param>
+      <returns>
+        Returns the payment amount needed to reach the future value over the given number of periods, negative if you must pay
+        to transform the value and positive if you will be paid. The value will be a non-integer if the future value will not be reached
+        exactly at the start or end of any period.
+      </returns>
+      <example>
+        You want to take a $10,000 personal loan. The bank is willing to offer you the money at 8% APR (compounded monthly), and
+        you want to know what your monthly payment would need to be in order to pay it back within 4 years. Take rate = 0.08/12 (8% APR
+        compounded monthly), paymentCount = 4*12 (four years of monthly payments), presentValue = 10,000 (positive because the lender gave
+        you money), futureValue = 0 (because you expect to fully repay the loan after four years), and payAtEnd = true (because the bank
+        changes interest before the first payment is due). The result is -$244.13 per month, which is negative because you'll have to pay
+        that amount.
+        <para>
+          It's October and you've had a child. You want to save $75,000 over the next 18 years for his college tuition. You expect
+          the market to return at least 5% per year and want to know how much you'll need to divert from your Christmas bonus to reach your
+          goal. Take rate = 0.05 (5%), paymentCount = 18, presentValue = 0 (because you don't have anything saved yet), futureValue = 75,000,
+          and payAtEnd = false (because you'll be depositing money from your Christmas bonus which is near the beginning of the 12-month
+          period starting from October). The result is about -$2539, which is negative because you'll have to pay it each Christmas.
+        </para>
+      </example>
+    </Payment>
+    <Periods>
+      <summary>Computes the number of periods needed to bring an annuity, loan, or investment from its present value to a future value.</summary>
+      <param name="rate">The interest rate of the loan or investment, or the discount rate of the annuity, per period</param>
+      <param name="payment">The payment per period, positive for cash received and negative for cash paid</param>
+      <param name="presentValue">
+        The present value that would have to be paid to purchase the investment (negative), or the amount
+        received as a loan (positive), or zero if the future value will come from the payments alone.
+      </param>
+      <param name="futureValue">
+        The future value of the investment (positive) or the balance of the loan (negative) after the last
+        payment. You may specify zero, if the investment would be completely sold or the loan paid off after the last payment. If
+        omitted, the value is zero.
+      </param>
+      <param name="payAtEnd">
+        If true, payments are made at the end of each period (e.g. for an annuity-immediate), and if false, payments
+        are made at the beginning of each period (e.g. for an annuity-due). This affects whether the first and last periods have a chance
+        to earn interest. If omitted, the value is true.
+      </param>
+      <returns>
+        Returns the number of periods needed for the investment to reach the future value (zero if omitted). The value will be
+        negative if the "future" value was actually reached in the past (i.e. if the future value can't be reached because the value is
+        changing in the wrong direction). A non-integer value will be returned if the future value would not be reached at the exact
+        start or end of a period.
+      </returns>
+      <example>
+        You're considering taking a loan for $100,000 at 5% APR compounded monthly with a $1000 monthly payment, and want to know
+        how long it would take to pay it off. Take rate = .05/12 (5% APR compounded monthly), payment = -1000 (negative
+        because you're paying), presentValue = 100,000 (positive because you received the money from the lender), futureValue = 0 (because
+        you intend to repay the entire loan), and payAtEnd = true (because for this loan the interest is charged before the first payment).
+        The result is about 129.63, meaning it will take that many months to pay it off. Dividing by 12, you get 10.8 years.
+        <para>
+          You have $2000 in your savings account which pays 2.5% APY (compounded monthly) and want to know how long it will take to reach
+          $2200. Take rate = PeriodicRate(0.025, 12) (2.5% APY compounded monthly), payment = 0 (because you're not making additional
+          deposits), presentValue = -2000 (negative because you "paid" (deposited) money to create this investment), and futureValue = 2200
+          (positive because you'll be able to "sell" (withdraw) your investment at the end). The result is about 46.32 months or 3.9 years.
+        </para>
+      </example>
+    </Periods>
+    <PresentValue>
+      <summary>Computes the present value of an annuity, loan, or investment.</summary>
+      <param name="rate">The interest rate of the loan or investment, or the discount rate of the annuity, per period</param>
+      <param name="payment">The payment per period, positive for cash received and negative for cash paid</param>
+      <param name="paymentCount">The number of payment periods</param>
+      <param name="futureValue">
+        The future value of the investment (positive) or the balance of the loan (negative) after the last payment. You may specify zero,
+        if the investment would be completely sold or the loan paid off after the last payment. If omitted, the value is zero.
+      </param>
+      <param name="payAtEnd">
+        If true, payments are made at the end of each period (e.g. for an annuity-immediate), and if false, payments are made
+        at the beginning of each period (e.g. for an annuity-due). This affects whether the first and last periods
+        have a chance to earn interest. If omitted, the value is true.
+      </param>
+      <returns>Returns the present value, positive if you receive cash in the present and negative if you pay cash in the present.</returns>
+      <example>
+        To compute how much you would have to pay right now to obtain $100,000 in ten years assuming you had a savings account
+        that paid 5% APY (compounded monthly) and assuming that you would deposit $250 per month, use rate = PeriodicRate(.05, 12) (5% APY
+        compounded monthly), payment = -250 (negative because you are paying), paymentCount = 10*12 (ten years of monthly payments),
+        futureValue = 100,000 (the amount you want to have at the end), and payAtEnd = true (because you'll make the first $250 payment
+        after the first month). The result is -$37699.93, meaning that you'd need to start with a
+        lump sum payment of $37699.93 under those conditions to reach $100,000 in ten years.
+        <para>
+          To compute how expensive of a house you could afford assuming you have $50,000 saved for a down payment and are able to pay
+          $1,250 per month over 30 years to service the loan, and assuming you can get an interest rate of 5% APR, use rate = 0.05/12 (5% APR
+          paid monthly), payment = -1250 (negative because you are paying), paymentCount = 30*12 (30 years of monthly payments),
+          futureValue = 0 (because you'll have paid off the loan at the end of 30 years), and payAtEnd = true (since that's how mortgages
+          work). The result is about $232,852 (positive since you are being paid that much by the lender), which is the amount of loan
+          principal you can afford. Adding the down payment, you get $282,852 as the most expensive house you can afford.
+        </para>
+        <para>
+          To compute how much you'd need to pay to establish an annuity that pays you $1000/mo for 20 years and has a fixed interest
+          rate of 5% APY (compounded daily), use rate = PeriodicRate(.05, 365.25) (5% APY compounded daily), payment = 1000 (positive because
+          you are being paid), paymentCount = 20*12 (20 years of monthly payments), futureValue = 0 (because the annuity will be exhausted at
+          the end of 20 years), and payAtEnd = true (as is typical for annuities). The result is -$236,177.90 (negative because you must pay
+          this lump sum in the present to establish the annuity).
+        </para>
+      </example>
+    </PresentValue>
+    <Rate>
+      <summary>Computes the interest rate needed to bring an annuity, loan, or investment from its present value to a future value.</summary>
+      <param name="payment">The payment per period, positive for cash received and negative for cash paid</param>
+      <param name="paymentCount">The number of payment periods</param>
+      <param name="presentValue">
+        The present value that would have to be paid to purchase the investment (negative), or the amount
+        received as a loan (positive), or zero if the future value will come from the payments alone.
+      </param>
+      <param name="futureValue">
+        The future value of the investment (positive) or the balance of the loan (negative) after the last
+        payment. You may specify zero, if the investment would be completely sold or the loan paid off after the last payment. If
+        omitted, the value is zero.
+      </param>
+      <param name="payAtEnd">
+        If true, payments are made at the end of each period (e.g. for an annuity-immediate), and if false, payments
+        are made at the beginning of each period (e.g. for an annuity-due). This affects whether the first and last periods have a chance
+        to earn interest. If omitted, the value is true.
+      </param>
+      <param name="guess">A guess for the result, which must be greater than or equal to -1. If omitted, the value is 0.1 (10%).</param>
+      <returns>Returns the interest rate needed to reach the future value over the given number of periods.</returns>
+      <example>
+        You've been looking for a good investment when a friend asks to borrow $1,000, promising to pay you $50 each month for
+        next 21 months (i.e. you'll gain $50 if the loan is repayed). You want to know what APR this is equivalent to, so take payment =
+        50 (positive because you're receiving money), paymentCount = 21, presentValue = -1000 (negative because you would pay $1000),
+        futureValue = 0 (because the loan will be fully repaid after 21 months), and payAtEnd = true (because the first payment is a month
+        away). You get 0.00494, or 0.494% per month. Multiplying by 12 to get the APR, the result is 0.0592, or 5.92% APR.
+      </example>
+    </Rate>
+    <XIRR>
+      <summary>Computes the non-periodic, internal rate of return for a series of cash flows.</summary>
+      <param name="values">The cash flow values, where negative values are amounts paid and positive values are amounts received. The
+        sequence must contain at least one positive and one negative value.
+      </param>
+      <param name="times">The list of times on which the cash flows occurred, expressed in arbitrary units. The earliest time must come
+        first, and the sequence must have the same number of elements as <paramref name="values"/>.
+      </param>
+      <param name="guess">A guess for the result, which must be greater than or equal to -1. If omitted, the value is 0.1 (10%).</param>
+      <returns>Returns the rate that would make the <see cref="PresentValue(double,IEnumerable{double},IEnumerable{double})"/>
+        of the investment equal to zero.
+      </returns>
+    </XIRR>
+    <XIRRA>
+      <summary>Computes the non-periodic, annualized internal rate of return for a series of cash flows.</summary>
+      <param name="values">The cash flow values, where negative values are amounts paid and positive values are amounts received. The
+        list must contain at least one positive and one negative value.
+      </param>
+      <param name="dates">The list of dates on which the cash flows occurred. The earliest date must come first, and the list must have
+        the same number of elements as <paramref name="values"/>.
+      </param>
+      <param name="guess">A guess for the result, which must be greater than or equal to -1. If omitted, the value is 0.1 (10%).</param>
+      <returns>Returns the rate that would make the <see cref="PresentValue(double,IEnumerable{double},IEnumerable{DateTime})"/>
+        of the investment equal to zero.
+      </returns>
+      <remarks>This method assumes there are 365.25 days per year.</remarks>
+    </XIRRA>
+  </Financial>
+
   <FP107>
     <ExpRemarks>
       <remarks>
@@ -521,7 +721,7 @@
         <returns>Returns true if an interval containing a local minimum was found, or false if no interval was found.</returns>
         <remarks>
           This method identifies a local minimum by searching for three points where the middle point is less than or equal to the
-          both edge points, but if the function values at the initial points are not equal, a minimum will all three points equal will not
+          both edge points, but if the function values at the initial points are not equal, a minimum with all three points equal will not
           be returned. The method is not guaranteed to find minima in all cases where they exist, but for well-behaved functions it should
           be quite robust.
         </remarks>
