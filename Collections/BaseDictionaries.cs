@@ -100,7 +100,7 @@ public abstract class AccessLimitedDictionaryBase<TKey,TValue> : IDictionary<TKe
     return Items.ContainsKey(key);
   }
 
-  /// <include file="documentation.xml" path="/Collections/Common/GetEnumerator/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Common/GetEnumerator/*"/>
   public Dictionary<TKey, TValue>.Enumerator GetEnumerator()
   {
     return Items.GetEnumerator();
@@ -264,7 +264,7 @@ public abstract class DictionaryBase<TKey, TValue> : IDictionary<TKey, TValue>
     }
   }
 
-  /// <include file="documentation.xml" path="/Collections/Common/GetEnumerator/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Common/GetEnumerator/*"/>
   public Dictionary<TKey, TValue>.Enumerator GetEnumerator()
   {
     return Items.GetEnumerator();

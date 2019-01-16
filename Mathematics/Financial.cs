@@ -20,39 +20,206 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using AdamMil.Mathematics.RootFinding;
-using AdamMil.Utilities;
 
 // TODO: add bond valuation functions
 
 namespace AdamMil.Mathematics
 {
   /// <summary>Provides functions related to financial calculations.</summary>
+  /// <remarks><note type="caution">Be aware that some of the methods of this class implement ideal, general formulae that don't take
+  /// account of the specific details of real-world finance in various countries. For example, they assume that currency is infinitely
+  /// divisible, allowing loan payments to all be the same size, whereas in reality the mathematically correct payment is rarely an exact
+  /// multiple of the unit of currency. Different lenders handle this in different ways, for example by overcharging one month and
+  /// undercharging the next, or by rounding all payments up to the nearest cent or dollar except for the final payment which is smaller
+  /// than the rest.
+  /// </note></remarks>
   public static class Financial
   {
+    /// <summary>Combines multiple interest rates into a single rate.</summary>
+    /// <example>A financial advisor managing your account gets you an annual return of 5% but charges a fee of 0.25%. To compute the true
+    /// return, you can use <c>CombineRates(0.05, InvertRate(.0025))</c> which gives about 0.0474, or 4.74%.
+    /// </example>
+    public static double CombineRates(double a, double b)
+    {
+      return (a + 1) * (b + 1) - 1;
+    }
+
+    /// <summary>Combines multiple interest rates into a single rate.</summary>
+    /// <example>A financial advisor managing your account gets you an annual return of 5% but charges a fee of 0.35%, and inflation is
+    /// also running at 2.5%. To compute the real return, you can use <c>CombineRates(0.05, InvertRate(.0035), InvertRate(.025))</c> which
+    /// gives about .0208, or 2.08%.
+    /// </example>
+    public static double CombineRates(double a, double b, double c)
+    {
+      return (a + 1) * (b + 1) * (c + 1) - 1;
+    }
+
+    /// <summary>Combines multiple interest rates into a single rate.</summary>
+    /// <example>A financial advisor managing your account gets you an annual return of 5% but charges a fee of 0.35%, and inflation is
+    /// also running at 2.5%. To compute the real return, you can use <c>CombineRates(0.05, InvertRate(.0035), InvertRate(.025))</c> which
+    /// gives about .0208, or 2.08%.
+    /// </example>
+    public static double CombineRates(params double[] rates)
+    {
+      if(rates == null) throw new ArgumentNullException();
+      if(rates.Length == 0) throw new ArgumentException("Empty array.");
+      double product = rates[0] + 1;
+      for(int i = 1; i < rates.Length; i++) product *= rates[i] + 1;
+      return product - 1;
+    }
+
     /// <summary>Computes a compound interest rate given a nominal rate and a number of periods.</summary>
     /// <param name="nominalRate">A nominal, or simple, interest rate</param>
     /// <param name="periods">The number of periods over which the nominal rate will be compounded</param>
-    /// <returns>Returns the compound rate. For example, 1% interest per month is CompoundRate(0.01, 12), which equals an annual compound
-    /// rate (APY) of about 12.68%.
+    /// <returns>Returns the compound rate. For example, 1% interest per month compounded over the course of a year is
+    /// <c>CompoundRate(0.01, 12)</c>, which equals an annual compound rate (APY) of about 12.68%.
     /// </returns>
     public static double CompoundRate(double nominalRate, int periods)
     {
       return CompoundRate(nominalRate, (double)periods);
     }
 
-    /// <summary>Computes a periodic interest rate given a compounded rate and a number of periods.</summary>
+    /// <summary>Computes a compound interest rate given a nominal rate and a number of periods.</summary>
     /// <param name="nominalRate">A nominal, or simple, interest rate</param>
     /// <param name="periods">The number of periods over which the nominal rate will be compounded</param>
-    /// <returns>Returns the compound rate. For example, 0.1% interest per day is CompoundRate(0.001, 365.25), which equals an annual
-    /// compound rate (APY) of about 44.06%.
+    /// <returns>Returns the compound rate. For example, 0.1% interest per day compounded over the course of an average year is
+    /// <c>CompoundRate(0.001, 365.25)</c>, which equals an annual compound rate (APY) of about 44.06%.
     /// </returns>
     public static double CompoundRate(double nominalRate, double periods)
     {
-      if(nominalRate < 0) throw new ArgumentOutOfRangeException("nominalRate");
+      if(nominalRate < -1) throw new ArgumentOutOfRangeException("nominalRate");
       if(periods <= 0) throw new ArgumentOutOfRangeException("periods");
       return Math.Pow(1 + nominalRate, periods) - 1;
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/CumulativeInterest/*[@name != 'payment' and @name != 'futureValue' and @name != 'payAtEnd']"/>
+    public static double CumulativeInterest(
+      double rate, int firstPeriod, int periodCount, int paymentCount, double presentValue)
+    {
+      return CumulativeInterest(rate, firstPeriod, periodCount, paymentCount, presentValue, 0, true);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/CumulativeInterest/*[@name != 'payment' and @name != 'futureValue']"/>
+    public static double CumulativeInterest(
+      double rate, int firstPeriod, int periodCount, int paymentCount, double presentValue, bool payAtEnd)
+    {
+      return CumulativeInterest(rate, firstPeriod, periodCount, paymentCount, presentValue, 0, payAtEnd);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/CumulativeInterest/*[@name != 'payment' and @name != 'payAtEnd']"/>
+    public static double CumulativeInterest(
+      double rate, int firstPeriod, int periodCount, int paymentCount, double presentValue, double futureValue)
+    {
+      return CumulativeInterest(rate, firstPeriod, periodCount, paymentCount, presentValue, futureValue, true);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/CumulativeInterest/*[@name != 'payment']"/>
+    public static double CumulativeInterest(
+      double rate, int firstPeriod, int periodCount, int paymentCount, double presentValue, double futureValue, bool payAtEnd)
+    {
+      double payment = Payment(rate, paymentCount, presentValue, futureValue, payAtEnd);
+      return CumulativeInterest(rate, payment, firstPeriod, periodCount, presentValue, payAtEnd);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/CumulativeInterest/*[@name != 'paymentCount' and @name != 'futureValue' and @name != 'payAtEnd']"/>
+    public static double CumulativeInterest(double rate, double payment, int firstPeriod, int periodCount, double presentValue)
+    {
+      return CumulativeInterest(rate, payment, firstPeriod, periodCount, presentValue, true);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/CumulativeInterest/*[@name != 'paymentCount' and @name != 'futureValue']"/>
+    public static double CumulativeInterest(
+      double rate, double payment, int firstPeriod, int periodCount, double presentValue, bool payAtEnd)
+    {
+      return payment*periodCount - CumulativePrincipal(rate, payment, firstPeriod, periodCount, presentValue, payAtEnd);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/CumulativePrincipal/*[@name != 'payment' and @name != 'futureValue' and @name != 'payAtEnd']"/>
+    public static double CumulativePrincipal(double rate, int firstPeriod, int periodCount, int paymentCount, double presentValue)
+    {
+      return CumulativePrincipal(rate, firstPeriod, periodCount, paymentCount, presentValue, 0, true);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/CumulativePrincipal/*[@name != 'payment' and @name != 'futureValue']"/>
+    public static double CumulativePrincipal(
+      double rate, int firstPeriod, int periodCount, int paymentCount, double presentValue, bool payAtEnd)
+    {
+      return CumulativePrincipal(rate, firstPeriod, periodCount, paymentCount, presentValue, 0, payAtEnd);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/CumulativePrincipal/*[@name != 'payment' and @name != 'payAtEnd']"/>
+    public static double CumulativePrincipal(
+      double rate, int firstPeriod, int periodCount, int paymentCount, double presentValue, double futureValue)
+    {
+      return CumulativePrincipal(rate, firstPeriod, periodCount, paymentCount, presentValue, futureValue, true);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/CumulativePrincipal/*[@name != 'payment']"/>
+    public static double CumulativePrincipal(
+      double rate, int firstPeriod, int periodCount, int paymentCount, double presentValue, double futureValue, bool payAtEnd)
+    {
+      double payment = Payment(rate, paymentCount, presentValue, futureValue, payAtEnd);
+      return CumulativePrincipal(rate, payment, firstPeriod, periodCount, presentValue, payAtEnd);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/CumulativePrincipal/*[@name != 'paymentCount' and @name != 'futureValue' and @name != 'payAtEnd']"/>
+    public static double CumulativePrincipal(double rate, double payment, int firstPeriod, int periodCount, double presentValue)
+    {
+      return CumulativePrincipal(rate, payment, firstPeriod, periodCount, presentValue, true);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/CumulativePrincipal/*[@name != 'paymentCount' and @name != 'futureValue']"/>
+    public static double CumulativePrincipal(
+      double rate, double payment, int firstPeriod, int periodCount, double presentValue, bool payAtEnd)
+    {
+      if(firstPeriod < 0) throw new ArgumentOutOfRangeException("period");
+      if(periodCount <= 0)
+      {
+        if(periodCount == 0) return 0;
+        throw new ArgumentOutOfRangeException("periodCount");
+      }
+
+      // the cumulative principal paid is just the difference in the future value at the two points of time
+      if(rate != 0)
+      {
+        return FutureValue(rate, payment, firstPeriod, presentValue, payAtEnd) -
+               FutureValue(rate, payment, firstPeriod + periodCount, presentValue, payAtEnd);
+      }
+      else // if there's no interest...
+      {
+        return payment * periodCount; // then the future value is altered only by payments
+      }
+    }
+
+    /// <summary>Converts an interest rate quoted without compounding (such as an APR) into the effective interest rate, which accounts for
+    /// compounding (such as an APY).
+    /// </summary>
+    /// <param name="rate">The rate without compounding</param>
+    /// <param name="periods">The number of periods over which it should have been compounded</param>
+    /// <example>A loan is quoted at 5% APR and you want to know the true annual rate, so you use <c>EffectiveRate(0.05, 12)</c> and get
+    /// about 0.0512, or 5.12%.
+    /// </example>
+    /// <remarks><see cref="NominalRate(double, int)"/> and <see cref="EffectiveRate(double, int)"/> are complementary functions.</remarks>
+    public static double EffectiveRate(double rate, int periods)
+    {
+      return EffectiveRate(rate, (double)periods);
+    }
+
+    /// <summary>Converts an interest rate quoted without compounding (such as an APR) into the effective interest rate, which accounts for
+    /// compounding (such as an APY).
+    /// </summary>
+    /// <param name="rate">The rate without compounding</param>
+    /// <param name="periods">The number of periods over which it should have been compounded</param>
+    /// <example>A loan is quoted at 5% APR and you want to know the true annual rate, so you use <c>EffectiveRate(0.05, 12)</c> and get
+    /// about 0.0512, or 5.12%.
+    /// </example>
+    /// <remarks><see cref="NominalRate(double, double)"/> and <see cref="EffectiveRate(double, double)"/> are complementary functions.</remarks>
+    public static double EffectiveRate(double rate, double periods)
+    {
+      if(rate < -1) throw new ArgumentOutOfRangeException("rate");
+      if(periods <= 0) throw new ArgumentOutOfRangeException("periods");
+      return Math.Pow(rate/periods + 1, periods) - 1;
     }
 
     /// <summary>Computes the future value of a series of cash flows, assuming they earn interest at a given rate.</summary>
@@ -89,25 +256,25 @@ namespace AdamMil.Mathematics
       return fv;
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/FutureValue/node()[@node != 'presentValue' and @node != 'payAtEnd']"/>
+    /// <include file="documentation.xml" path="/Math/Financial/FutureValue/*[@name != 'presentValue' and @name != 'payAtEnd']"/>
     public static double FutureValue(double rate, double payment, int paymentCount)
     {
       return FutureValue(rate, payment, paymentCount, 0, true);
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/FutureValue/node()[@node != 'presentValue']"/>
+    /// <include file="documentation.xml" path="/Math/Financial/FutureValue/*[@name != 'presentValue']"/>
     public static double FutureValue(double rate, double payment, int paymentCount, bool payAtEnd)
     {
       return FutureValue(rate, payment, paymentCount, 0, payAtEnd);
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/FutureValue/node()[@node != 'payAtEnd']"/>
+    /// <include file="documentation.xml" path="/Math/Financial/FutureValue/*[@name != 'payAtEnd']"/>
     public static double FutureValue(double rate, double payment, int paymentCount, double presentValue)
     {
       return FutureValue(rate, payment, paymentCount, presentValue, true);
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/FutureValue/node()"/>
+    /// <include file="documentation.xml" path="/Math/Financial/FutureValue/*"/>
     public static double FutureValue(double rate, double payment, int paymentCount, double presentValue, bool payAtEnd)
     {
       if(paymentCount < 0) throw new ArgumentOutOfRangeException("paymentCount");
@@ -137,6 +304,93 @@ namespace AdamMil.Mathematics
       return sum;
     }
 
+    /// <summary>Converts a rate that multiplies a value into a rate that divides it, or vice versa.</summary>
+    /// <param name="rate">An interest rate</param>
+    /// <returns>If <paramref name="rate"/> is a rate used to divide a value (such as an inflation rate), the equivalent rate used to
+    /// multiply the value will be returned, and vice versa. For example, a 2% inflation rate corresponds to an interest rate of about
+    /// -1.96%, and vice versa.
+    /// </returns>
+    /// <example>You want to determine the real interest rate that your bank is paying (i.e. the interest rate after accounting for
+    /// inflation). Assuming your bank is paying 3% APY and inflation is 2.5%, you use <c>CombineRates(.03, InvertRate(.025))</c> and
+    /// get about 0.0049, or 0.49% APY.
+    /// </example>
+    public static double InvertRate(double rate)
+    {
+      if(rate <= -1) throw new ArgumentOutOfRangeException();
+      return 1 / (1 + rate) - 1;
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/Interest/*[@name != 'payment' and @name != 'futureValue' and @name != 'payAtEnd']"/>
+    public static double Interest(double rate, int period, int paymentCount, double presentValue)
+    {
+      return Interest(rate, period, paymentCount, presentValue, 0, true);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/Interest/*[@name != 'payment' and @name != 'futureValue']"/>
+    public static double Interest(double rate, int period, int paymentCount, double presentValue, bool payAtEnd)
+    {
+      return Interest(rate, period, paymentCount, presentValue, 0, payAtEnd);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/Interest/*[@name != 'payment' and @name != 'payAtEnd']"/>
+    public static double Interest(double rate, int period, int paymentCount, double presentValue, double futureValue)
+    {
+      return Interest(rate, period, paymentCount, presentValue, futureValue, true);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/Interest/*[@name != 'payment']"/>
+    public static double Interest(double rate, int period, int paymentCount, double presentValue, double futureValue, bool payAtEnd)
+    {
+      if(period == 0) return -presentValue * rate;
+      double payment = Payment(rate, paymentCount, presentValue, futureValue, payAtEnd);
+      return Interest(rate, payment, period, paymentCount, presentValue, payAtEnd);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/Interest/*[@name != 'futureValue' and @name != 'payAtEnd']"/>
+    public static double Interest(double rate, double payment, int period, int paymentCount, double presentValue)
+    {
+      return Interest(rate, payment, period, paymentCount, presentValue, true);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/Interest/*[@name != 'futureValue']"/>
+    public static double Interest(double rate, double payment, int period, int paymentCount, double presentValue, bool payAtEnd)
+    {
+      if((uint)period > (uint)paymentCount) throw new ArgumentOutOfRangeException("period");
+      if(period != 0)
+      {
+        return FutureValue(rate, payment, period, presentValue, payAtEnd) * rate;
+      }
+      else
+      {
+        if(rate < -1) throw new ArgumentOutOfRangeException("rate");
+        if(paymentCount < 0) throw new ArgumentOutOfRangeException("paymentCount");
+        return -presentValue * rate;
+      }
+    }
+
+    /// <summary>Given a change in value of an investment or loan, this method computes the equivalent interest rate over a given number of
+    /// compounding periods.
+    /// </summary>
+    /// <param name="periods">The number of periods over which the interest is compounded. This must be at least one.</param>
+    /// <param name="presentValue">The present or old value of the investment or loan</param>
+    /// <param name="futureValue">The future or new value of the investment or loan</param>
+    /// <returns>Returns the interest rate that would change an investment or loan from its <paramref name="presentValue"/> to the
+    /// <paramref name="futureValue"/> over <paramref name="periods"/> compounding periods.
+    /// </returns>
+    /// <example>Someone asks you to loan them $10,000 on the condition that they'll pay you $11,000 in seven years. You want to compare
+    /// the value of this investment with what you could get by leaving the money in your savings account, so you take periods = 7*12 (
+    /// seven years in an account that pays interest monthly), presentValue = 10,000, and futureValue = 11,000. You get 0.1135%, which
+    /// is 0.1135*12 = 1.362% APR or <c>CompoundRate(0.001135, 12)</c> = 1.371% APY. Thus, if you get more than 1.371% APY from your
+    /// savings account, you would make more money that way (assuming the bank doesn't lower its rate in the next seven years).
+    /// </example>
+    public static double IRR(int periods, double presentValue, double futureValue)
+    {
+      if(periods <= 0) throw new ArgumentOutOfRangeException("paymentCount");
+      if(presentValue != 0) return Math.Pow(futureValue / presentValue, 1.0 / periods) - 1;
+      else if(futureValue != 0) return double.NaN;
+      else return 0;
+    }
+
     /// <summary>Computes the periodic internal rate of return for an series of cash flows.</summary>
     /// <param name="values">The cash flow values, where negative values are amounts paid and positive values are amounts received. The
     /// list must contain at least one positive and one negative value.
@@ -149,44 +403,45 @@ namespace AdamMil.Mathematics
       if(values == null) throw new ArgumentNullException();
       return RateNewton(guess, (rate, needDerivative) =>
       {
-        // this function uses Newton's method to solve for the rate where NPV(rate, values, times) == 0. NPV(rate, values, times) is
-        // equivalent to sum(values[i] / (rate+1)^times[i]) over the lists. for brevity, we'll abbreviate this as sum(v_i / r^t_i).
-        // Newton's method requires the derivative of this, which is sum(-t_i * v_i / r^(t_i+1)). for efficiency, we can compute
-        // v / r^t as v * r^-t (avoiding division) and v / r^(t+1) as v / r^t * r (reusing the power)
-        double fx = 0, dfx = 0, factor = rate + 1;
-        int i = 1;
+        // this function uses Newton's method to solve for the rate where NPV(rate, values) == 0. NPV(rate, values) is equivalent to
+        // sum(values[i] / (rate+1)^i) over the lists. for brevity, we'll abbreviate this as sum(v_i / r^i). Newton's method requires the
+        // derivative of this, which is sum(-i * v_i / r^(i+1)). for efficiency, we can compute v / r^i as v * r^-i (avoiding division)
+        // and v / r^(i+1) as v / r^i / r = v / (r^i * r) (reusing the power)
+        rate = 1 / (rate + 1);
+        double fx = 0, dfx = 0, factor = rate;
+        int i = 0;
         foreach(double value in values)
         {
-          if(--i == 0) { fx = value; continue; }
-          double vpow = value * Math.Pow(factor, i);
-          fx  += vpow;
-          if(needDerivative) dfx += vpow * i / factor;
+          if(i++ == 0) { fx = value; continue; }
+          fx += value * factor;
+          factor *= rate;
+          if(needDerivative) dfx += factor * value * -i;
         }
-        if(i >= 0) fx = double.NaN; // we need at least two values to perform the computation
+        if(i < 2) fx = double.NaN; // we need at least two values to perform the computation
         return new Result(fx, dfx);
       });
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/XIRRA/node()[@name != 'guess']"/>
+    /// <include file="documentation.xml" path="/Math/Financial/XIRRA/*[@name != 'guess']"/>
     public static double IRR(IEnumerable<double> values, IEnumerable<DateTime> dates)
     {
       return IRR(values, dates, RateGuess);
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/XIRRA/node()"/>
+    /// <include file="documentation.xml" path="/Math/Financial/XIRRA/*"/>
     public static double IRR(IEnumerable<double> values, IEnumerable<DateTime> dates, double guess)
     {
       if(dates == null) throw new ArgumentNullException();
       return IRR(values, dates.Select(t => t.Ticks * (1 / TicksPerYear)), guess);
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/XIRR/node()[@name != 'guess']"/>
+    /// <include file="documentation.xml" path="/Math/Financial/XIRR/*[@name != 'guess']"/>
     public static double IRR(IEnumerable<double> values, IEnumerable<double> times)
     {
       return IRR(values, times, RateGuess);
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/XIRR/node()"/>
+    /// <include file="documentation.xml" path="/Math/Financial/XIRR/*"/>
     public static double IRR(IEnumerable<double> values, IEnumerable<double> times, double guess)
     {
       return RateNewton(guess, (rate, needDerivative) =>
@@ -196,10 +451,14 @@ namespace AdamMil.Mathematics
         // this as sum(v_i / r^t_i). Newton's method requires the derivative of this, which is sum(-t_i * v_i / r^(t_i+1)). for
         // efficiency, we can compute v / r^t as v * r^-t (avoiding division) and v / r^(t+1) as v / r^t * r (reusing the power)
         double fx = 0, firstTime = 0, dfx = 0, factor = rate + 1;
-        int count = Apply(values, times,
-          (a, b) => { fx = a; firstTime = b; },
-          (a, b) => { double t = firstTime - b, vpow = a * Math.Pow(factor, t); fx += vpow; if(needDerivative) dfx += vpow * t / factor; });
-        if(count < 2) fx = double.NaN; // we need at least two values to perform the computation
+        Action<double, double> first = (a, b) => { fx = a; firstTime = b; };
+        Action<double, double> other = (a, b) =>
+        {
+          double t = firstTime - b, vpow = a * Math.Pow(factor, t);
+          fx += vpow;
+          if(needDerivative) dfx += vpow * t / factor;
+        };
+        if(Apply(values, times, first, other) < 2) fx = double.NaN; // we need at least two values to perform the computation
         return new Result(fx, dfx);
       });
     }
@@ -220,25 +479,59 @@ namespace AdamMil.Mathematics
       return Math.Pow(fv / -pv, 1.0 / (values.Count() - 1)) - 1;
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/Payment/node()[@name != 'futureValue' and @name != 'payAtEnd']"/>
+    /// <summary>Converts an effective interest rate (such as an APY) into a nominal rate that does not account for the effect of
+    /// compounding (such as an APR).
+    /// </summary>
+    /// <param name="rate">An effective interest rate, which accounts for compounding over a number of periods</param>
+    /// <param name="periods">The number of periods over which the <paramref name="rate"/> was compounded</param>
+    /// <returns>Returns the nominal rate that does not account for compounding.</returns>
+    /// <example>You receive a loan offer of 4.9% APR from the United States and 5% EIR from a European country, and want to compare the
+    /// two. To convert the 5% effective interest rate to APR, you use <c>NominalRate(.05, 12)</c> and get about .0489, or 4.89%. So the
+    /// loan from Europe has a slightly lower interest rate.
+    /// </example>
+    /// <remarks><see cref="NominalRate(double, int)"/> and <see cref="EffectiveRate(double, int)"/> are complementary functions.</remarks>
+    public static double NominalRate(double rate, int periods)
+    {
+      return NominalRate(rate, (double)periods);
+    }
+
+    /// <summary>Converts an effective interest rate (such as an APY) into a nominal rate that does not account for the effect of
+    /// compounding (such as an APR).
+    /// </summary>
+    /// <param name="rate">An effective interest rate, which accounts for compounding over a number of periods</param>
+    /// <param name="periods">The number of periods over which the <paramref name="rate"/> was compounded</param>
+    /// <returns>Returns the nominal rate that does not account for compounding.</returns>
+    /// <example>You receive a loan offer of 4.9% APR from the United States and 5% EIR from a European country, and want to compare the
+    /// two. To convert the 5% effective interest rate to APR, you use <c>NominalRate(.05, 12)</c> and get about .0489, or 4.89%. So the
+    /// loan from Europe has a slightly lower interest rate.
+    /// </example>
+    /// <remarks><see cref="NominalRate(double, double)"/> and <see cref="EffectiveRate(double, double)"/> are complementary functions.</remarks>
+    public static double NominalRate(double rate, double periods)
+    {
+      if(rate < -1) throw new ArgumentOutOfRangeException("rate");
+      if(periods <= 0) throw new ArgumentOutOfRangeException("periods");
+      return (Math.Pow(rate + 1, 1 / periods) - 1) * periods;
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/Payment/*[@name != 'futureValue' and @name != 'payAtEnd']"/>
     public static double Payment(double rate, int paymentCount, double presentValue)
     {
       return Payment(rate, paymentCount, presentValue, 0, true);
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/Payment/node()[@name != 'futureValue']"/>
+    /// <include file="documentation.xml" path="/Math/Financial/Payment/*[@name != 'futureValue']"/>
     public static double Payment(double rate, int paymentCount, double presentValue, bool payAtEnd)
     {
       return Payment(rate, paymentCount, presentValue, 0, payAtEnd);
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/Payment/node()[@name != 'payAtEnd']"/>
+    /// <include file="documentation.xml" path="/Math/Financial/Payment/*[@name != 'payAtEnd']"/>
     public static double Payment(double rate, int paymentCount, double presentValue, double futureValue)
     {
       return Payment(rate, paymentCount, presentValue, futureValue, true);
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/Payment/node()"/>
+    /// <include file="documentation.xml" path="/Math/Financial/Payment/*"/>
     public static double Payment(double rate, int paymentCount, double presentValue, double futureValue, bool payAtEnd)
     {
       if(paymentCount < 0) throw new ArgumentOutOfRangeException("paymentCount");
@@ -263,8 +556,8 @@ namespace AdamMil.Mathematics
     /// <summary>Computes a periodic interest rate given a compounded rate and a number of periods.</summary>
     /// <param name="compoundRate">A compound interest rate</param>
     /// <param name="periods">The number of periods over which the periodic rate is compounded to equal the <paramref name="compoundRate"/></param>
-    /// <returns>Returns the periodic rate. For example, 5% APY compounded monthly is PeriodicRate(0.05, 12), which equals a monthly rate
-    /// of about 0.407%.
+    /// <returns>Returns the periodic rate. For example, 5% APY compounded monthly is <c>PeriodicRate(0.05, 12)</c>, which equals a monthly
+    /// rate of about 0.407%.
     /// </returns>
     public static double PeriodicRate(double compoundRate, int periods)
     {
@@ -274,35 +567,35 @@ namespace AdamMil.Mathematics
     /// <summary>Computes a periodic interest rate given a compounded rate and a number of periods.</summary>
     /// <param name="compoundRate">A compound interest rate</param>
     /// <param name="periods">The number of periods over which the periodic rate is compounded to equal the <paramref name="compoundRate"/></param>
-    /// <returns>Returns the periodic rate. For example, 5% APY compounded daily is PeriodicRate(0.05, 365.25), which equals a daily rate
-    /// of about 0.01336%.
+    /// <returns>Returns the periodic rate. For example, 5% APY compounded daily is <c>PeriodicRate(0.05, 365.25)</c>, which equals a daily
+    /// rate of about 0.01336%.
     /// </returns>
     public static double PeriodicRate(double compoundRate, double periods)
     {
-      if(compoundRate < 0) throw new ArgumentOutOfRangeException("compoundRate");
+      if(compoundRate < -1) throw new ArgumentOutOfRangeException("compoundRate");
       if(periods <= 0) throw new ArgumentOutOfRangeException("periods");
       return Math.Pow(1 + compoundRate, 1.0 / periods) - 1;
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/Periods/node()[@name != 'futureValue' and @name != 'payAtEnd']"/>
+    /// <include file="documentation.xml" path="/Math/Financial/Periods/*[@name != 'futureValue' and @name != 'payAtEnd']"/>
     public static double Periods(double rate, double payment, double presentValue)
     {
       return Periods(rate, payment, presentValue, 0, true);
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/Periods/node()[@name != 'payAtEnd']"/>
+    /// <include file="documentation.xml" path="/Math/Financial/Periods/*[@name != 'payAtEnd']"/>
     public static double Periods(double rate, double payment, double presentValue, double futureValue)
     {
       return Periods(rate, payment, presentValue, futureValue, true);
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/Periods/node()[@name != 'futureValue']"/>
+    /// <include file="documentation.xml" path="/Math/Financial/Periods/*[@name != 'futureValue']"/>
     public static double Periods(double rate, double payment, double presentValue, bool payAtEnd)
     {
       return Periods(rate, payment, presentValue, 0, payAtEnd);
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/Periods/node()"/>
+    /// <include file="documentation.xml" path="/Math/Financial/Periods/*"/>
     public static double Periods(double rate, double payment, double presentValue, double futureValue, bool payAtEnd)
     {
       if(rate != 0)
@@ -344,13 +637,11 @@ namespace AdamMil.Mathematics
     {
       if(rate < -1) throw new ArgumentOutOfRangeException("rate");
       if(values == null) throw new ArgumentNullException();
-      // NPV(rate, values) = sum(v_i / (1+rate)^i), but we use 1/(1+rate) to avoid division, and we exponentiate incrementally
+      // NPV(rate, values) = sum(v_i / (1+rate)^i), but we use v_i * (1/(1+rate)) to avoid division, and we exponentiate incrementally
       rate = 1 / (rate + 1);
-      double power = rate, npv = 0;
-      int count = 0;
+      double power = 1, npv = 0;
       foreach(double value in values)
       {
-        if(count++ == 0) { npv = value; continue; }
         npv += value * power;
         power *= rate;
       }
@@ -384,25 +675,25 @@ namespace AdamMil.Mathematics
       return npv;
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/PresentValue/node()[@name != 'futureValue' and @name != 'payAtEnd']"/>
+    /// <include file="documentation.xml" path="/Math/Financial/PresentValue/*[@name != 'futureValue' and @name != 'payAtEnd']"/>
     public static double PresentValue(double rate, double payment, int paymentCount)
     {
       return PresentValue(rate, payment, paymentCount, 0, true);
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/PresentValue/node()[@name != 'futureValue']"/>
+    /// <include file="documentation.xml" path="/Math/Financial/PresentValue/*[@name != 'futureValue']"/>
     public static double PresentValue(double rate, double payment, int paymentCount, bool payAtEnd)
     {
       return PresentValue(rate, payment, paymentCount, 0, payAtEnd);
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/PresentValue/node()[@name != 'payAtEnd']"/>
+    /// <include file="documentation.xml" path="/Math/Financial/PresentValue/*[@name != 'payAtEnd']"/>
     public static double PresentValue(double rate, double payment, int paymentCount, double futureValue)
     {
       return PresentValue(rate, payment, paymentCount, futureValue, true);
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/PresentValue/node()"/>
+    /// <include file="documentation.xml" path="/Math/Financial/PresentValue/*"/>
     public static double PresentValue(double rate, double payment, int paymentCount, double futureValue, bool payAtEnd)
     {
       if(paymentCount < 0) throw new ArgumentOutOfRangeException("paymentCount");
@@ -432,31 +723,68 @@ namespace AdamMil.Mathematics
       return sum;
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/Rate/node()[@name != 'futureValue' and @name != 'payAtEnd' and @name != 'guess']"/>
+    /// <include file="documentation.xml" path="/Math/Financial/Principal/*[@name != 'payment' and @name != 'futureValue' and @name != 'payAtEnd']"/>
+    public static double Principal(double rate, int period, int paymentCount, double presentValue)
+    {
+      return Principal(rate, period, paymentCount, presentValue, 0, true);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/Principal/*[@name != 'payment' and @name != 'futureValue']"/>
+    public static double Principal(double rate, int period, int paymentCount, double presentValue, bool payAtEnd)
+    {
+      return Principal(rate, period, paymentCount, presentValue, 0, payAtEnd);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/Principal/*[@name != 'payment' and @name != 'payAtEnd']"/>
+    public static double Principal(double rate, int period, int paymentCount, double presentValue, double futureValue)
+    {
+      return Principal(rate, period, paymentCount, presentValue, futureValue, true);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/Principal/*[@name != 'payment']"/>
+    public static double Principal(double rate, int period, int paymentCount, double presentValue, double futureValue, bool payAtEnd)
+    {
+      double payment = Payment(rate, paymentCount, presentValue, futureValue, payAtEnd);
+      return payment - Interest(rate, payment, period, paymentCount, presentValue, payAtEnd);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/Principal/*[@name != 'futureValue' and @name != 'payAtEnd']"/>
+    public static double Principal(double rate, double payment, int period, int paymentCount, double presentValue)
+    {
+      return Principal(rate, payment, period, paymentCount, presentValue, true);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/Principal/*[@name != 'futureValue']"/>
+    public static double Principal(double rate, double payment, int period, int paymentCount, double presentValue, bool payAtEnd)
+    {
+      return payment - Interest(rate, payment, period, paymentCount, presentValue, payAtEnd);
+    }
+
+    /// <include file="documentation.xml" path="/Math/Financial/Rate/*[@name != 'futureValue' and @name != 'payAtEnd' and @name != 'guess']"/>
     public static double Rate(double payment, int paymentCount, double presentValue)
     {
       return Rate(payment, paymentCount, presentValue, 0, true, RateGuess);
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/Rate/node()[@name != 'payAtEnd' and @name != 'guess']"/>
+    /// <include file="documentation.xml" path="/Math/Financial/Rate/*[@name != 'payAtEnd' and @name != 'guess']"/>
     public static double Rate(double payment, int paymentCount, double presentValue, double futureValue)
     {
       return Rate(payment, paymentCount, presentValue, futureValue, true, RateGuess);
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/Rate/node()[@name != 'futureValue' and @name != 'guess']"/>
+    /// <include file="documentation.xml" path="/Math/Financial/Rate/*[@name != 'futureValue' and @name != 'guess']"/>
     public static double Rate(double payment, int paymentCount, double presentValue, bool payAtEnd)
     {
       return Rate(payment, paymentCount, presentValue, 0, payAtEnd, RateGuess);
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/Rate/node()[@name != 'guess']"/>
+    /// <include file="documentation.xml" path="/Math/Financial/Rate/*[@name != 'guess']"/>
     public static double Rate(double payment, int paymentCount, double presentValue, double futureValue, bool payAtEnd)
     {
       return Rate(payment, paymentCount, presentValue, futureValue, payAtEnd, RateGuess);
     }
 
-    /// <include file="documentation.xml" path="/Math/Financial/Rate/node()"/>
+    /// <include file="documentation.xml" path="/Math/Financial/Rate/*"/>
     public static double Rate(double payment, int paymentCount, double presentValue, double futureValue, bool payAtEnd, double guess)
     {
       return RateNewton(guess, (rate, needDerivative) =>

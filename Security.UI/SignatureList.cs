@@ -123,14 +123,14 @@ public class SignatureList : PGPListBase
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/ClearCachedFonts/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/ClearCachedFonts/*"/>
   protected override void ClearCachedFonts()
   {
     base.ClearCachedFonts();
     boldFont = null;
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/CreateSignatureItem/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/CreateSignatureItem/*"/>
   protected virtual SignatureItem CreateSignatureItem(Signature sig)
   {
     SignatureItem item = new SignatureItem(sig, sig.SignerName + " (0x" + sig.ShortKeyId + ")");
@@ -140,7 +140,7 @@ public class SignatureList : PGPListBase
     return item;
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/SetSignatureItemFont/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/SetSignatureItemFont/*"/>
   protected virtual void SetFont(SignatureItem item)
   {
     if(item.Signature.IsInvalid)
@@ -157,7 +157,7 @@ public class SignatureList : PGPListBase
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/SetKeySignatureItemFont/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/SetKeySignatureItemFont/*"/>
   protected virtual void SetFont(KeySignatureItem item)
   {
     if(item.Signature.IsInvalid) // if the signature failed verification, it may indicate a security problem
@@ -175,7 +175,7 @@ public class SignatureList : PGPListBase
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/SetSourceItemFont/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/SetSourceItemFont/*"/>
   protected virtual void SetFont(ListViewItem sourceItem, SignatureStatus status)
   {
     SignatureStatus basicStatus = status & SignatureStatus.SuccessMask;

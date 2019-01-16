@@ -89,7 +89,7 @@ public partial class KeyServerForm : Form
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnClosing/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnClosing/*"/>
   protected override void OnShown(EventArgs e)
   {
     base.OnShown(e);

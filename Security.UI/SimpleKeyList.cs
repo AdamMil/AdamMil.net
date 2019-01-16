@@ -46,7 +46,7 @@ public class SimpleKeyList : KeyListBase
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/CreateKeyItem/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/CreateKeyItem/*"/>
   protected virtual PGPListViewItem CreateKeyItem(Key key)
   {
     PrimaryKey primaryKey = key as PrimaryKey;
@@ -71,7 +71,7 @@ public class SimpleKeyList : KeyListBase
     return item;
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/RecreateItems/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/RecreateItems/*"/>
   protected override void RecreateItems()
   {
     List<Key> keys = new List<Key>(Items.Count);

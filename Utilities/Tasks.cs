@@ -82,7 +82,7 @@ public abstract class Task : IDisposable
     this.cancellationEvent = cancellationEvent;
   }
 
-  /// <include file="documentation.xml" path="/Utilities/Task/Dispose/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Task/Dispose/*"/>
   ~Task()
   {
     Dispose(false);
@@ -143,7 +143,7 @@ public abstract class Task : IDisposable
     canceled = true;
   }
 
-  /// <include file="documentation.xml" path="/Utilities/Task/Dispose/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Task/Dispose/*"/>
   public void Dispose()
   {
     Dispose(true);
@@ -224,16 +224,16 @@ public abstract class Task : IDisposable
     }
   }
 
-  /// <include file="documentation.xml" path="/Utilities/Task/AbortCore/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Task/AbortCore/*"/>
   protected abstract void AbortCore();
 
-  /// <include file="documentation.xml" path="/Utilities/Task/CancelCore/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Task/CancelCore/*"/>
   protected virtual void CancelCore() { }
 
-  /// <include file="documentation.xml" path="/Utilities/Task/RunCore/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Task/RunCore/*"/>
   protected abstract void RunCore();
 
-  /// <include file="documentation.xml" path="/Utilities/Task/StartCore/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Task/StartCore/*"/>
   protected abstract void StartCore();
 
   /// <summary>Called to indicate that the task has completed.</summary>
@@ -249,7 +249,7 @@ public abstract class Task : IDisposable
     }
   }
 
-  /// <include file="documentation.xml" path="/Utilities/Task/Dispose/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Task/Dispose/*"/>
   protected virtual void Dispose(bool manualDispose)
   {
     if(completionEvent != null)
@@ -338,7 +338,7 @@ public class CompositeTask : Task
     return results.ToArray();
   }
 
-  /// <include file="documentation.xml" path="/Utilities/Task/AbortCore/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Task/AbortCore/*"/>
   protected override void AbortCore()
   {
     foreach(Task task in tasks)
@@ -348,21 +348,21 @@ public class CompositeTask : Task
     }
   }
 
-  /// <include file="documentation.xml" path="/Utilities/Task/CancelCore/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Task/CancelCore/*"/>
   protected override void CancelCore()
   {
     foreach(Task task in tasks) task.Cancel();
     base.CancelCore();
   }
 
-  /// <include file="documentation.xml" path="/Utilities/Task/Dispose/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Task/Dispose/*"/>
   protected override void Dispose(bool manualDispose)
   {
     base.Dispose(manualDispose);
     foreach(Task task in tasks) task.Completed -= task_Completed;
   }
 
-  /// <include file="documentation.xml" path="/Utilities/Task/RunCore/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Task/RunCore/*"/>
   protected override void RunCore()
   {
     if(tasks.Length == 1)
@@ -387,7 +387,7 @@ public class CompositeTask : Task
     }
   }
 
-  /// <include file="documentation.xml" path="/Utilities/Task/StartCore/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Task/StartCore/*"/>
   protected override void StartCore()
   {
     foreach(Task task in tasks) task.Start();
@@ -420,19 +420,19 @@ public sealed class WorkItemTask : Task
     this.work = work;
   }
 
-  /// <include file="documentation.xml" path="/Utilities/Task/AbortCore/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Task/AbortCore/*"/>
   protected override void AbortCore()
   {
     thread.Abort();
   }
 
-  /// <include file="documentation.xml" path="/Utilities/Task/RunCore/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Task/RunCore/*"/>
   protected override void RunCore()
   {
     work(this);
   }
 
-  /// <include file="documentation.xml" path="/Utilities/Task/StartCore/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Task/StartCore/*"/>
   protected override void StartCore()
   {
     thread = new Thread(ThreadFunc);
@@ -468,19 +468,19 @@ public sealed class WorkItemTask<T> : Task<T>
     this.work = work;
   }
 
-  /// <include file="documentation.xml" path="/Utilities/Task/AbortCore/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Task/AbortCore/*"/>
   protected override void AbortCore()
   {
     thread.Abort();
   }
 
-  /// <include file="documentation.xml" path="/Utilities/Task/RunCore/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Task/RunCore/*"/>
   protected override void RunCore()
   {
     Result = work(this);
   }
 
-  /// <include file="documentation.xml" path="/Utilities/Task/StartCore/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Task/StartCore/*"/>
   protected override void StartCore()
   {
     thread = new Thread(ThreadFunc);
@@ -501,7 +501,7 @@ public sealed class WorkItemTask<T> : Task<T>
 
 #region Tasks
 /// <summary>Provides methods to manage <see cref="Task">tasks</see> and execute tasks in parallel.</summary>
-/// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/node()"/>
+/// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/*"/>
 public static class Tasks
 {
   #region LoopThreadInfo
@@ -519,7 +519,7 @@ public static class Tasks
   #endregion
 
   /// <summary>Creates and returns a task that represents the running of an instance of a work item on each hardware thread.</summary>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/*"/>
   public static Task CreateParallel(TaskDelegate work)
   {
     return CreateParallel(work, SystemInformation.GetAvailableCpuThreads(), null);
@@ -529,14 +529,14 @@ public static class Tasks
   /// method accepts an optional cancellation event that can be associated with all instances of the work item, as well as the
   /// aggregate task that encapsulates them.
   /// </summary>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/*"/>
   public static Task CreateParallel(TaskDelegate work, TaskCancellationEvent cancellationEvent)
   {
     return CreateParallel(work, SystemInformation.GetAvailableCpuThreads(), cancellationEvent);
   }
 
   /// <summary>Creates and returns a task that represents the running of a number of instances of a work item simultaneously.</summary>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/*"/>
   public static Task CreateParallel(TaskDelegate work, int instanceCount)
   {
     return CreateParallel(work, instanceCount, null);
@@ -546,7 +546,7 @@ public static class Tasks
   /// The method accepts an optional cancellation event that can be associated with all instances of the work item, as well as
   /// the aggregate task that encapsulates them.
   /// </summary>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/*"/>
   public static Task CreateParallel(TaskDelegate work, int instanceCount, TaskCancellationEvent cancellationEvent)
   {
     if(instanceCount <= 0) throw new ArgumentOutOfRangeException();
@@ -564,7 +564,7 @@ public static class Tasks
   }
 
   /// <summary>Creates and returns a task that represents the running of an instance of a work item on each hardware thread.</summary>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/*"/>
   public static CompositeTask CreateParallel<T>(TaskDelegate<T> work)
   {
     return CreateParallel(work, SystemInformation.GetAvailableCpuThreads(), null);
@@ -574,14 +574,14 @@ public static class Tasks
   /// method accepts an optional cancellation event that can be associated with all instances of the work item, as well as the
   /// aggregate task that encapsulates them.
   /// </summary>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/*"/>
   public static CompositeTask CreateParallel<T>(TaskDelegate<T> work, TaskCancellationEvent cancellationEvent)
   {
     return CreateParallel(work, SystemInformation.GetAvailableCpuThreads(), cancellationEvent);
   }
 
   /// <summary>Creates and returns a task that represents the running of a number of instances of a work item simultaneously.</summary>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/*"/>
   public static CompositeTask CreateParallel<T>(TaskDelegate<T> work, int instanceCount)
   {
     return CreateParallel(work, instanceCount, null);
@@ -591,7 +591,7 @@ public static class Tasks
   /// The method accepts an optional cancellation event that can be associated with all instances of the work item, as well as
   /// the aggregate task that encapsulates them.
   /// </summary>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/*"/>
   public static CompositeTask CreateParallel<T>(TaskDelegate<T> work, int instanceCount, TaskCancellationEvent cancellationEvent)
   {
     if(instanceCount <= 0) throw new ArgumentOutOfRangeException();
@@ -602,7 +602,7 @@ public static class Tasks
   }
 
   /// <summary>Executes a loop using the maximum number of hardware threads available.</summary>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelFor/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelFor/*"/>
   public static void ParallelFor(int start, int endExclusive, Action<int> body)
   {
     ParallelFor(start, endExclusive, body, SystemInformation.GetAvailableCpuThreads());
@@ -610,7 +610,7 @@ public static class Tasks
 
   /// <summary>Executes a loop using up to the given number of threads.</summary>
   /// <param name="parallelism">The maximum number of threads to use to execute the loop.</param>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelFor/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelFor/*"/>
   public static void ParallelFor(int start, int endExclusive, Action<int> body, int parallelism)
   {
     if(body == null) throw new ArgumentNullException();
@@ -619,7 +619,7 @@ public static class Tasks
 
   /// <summary>Executes a loop using the maximum number of hardware threads available.</summary>
   /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelFor/*[not(@name='body')]"/>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelForWithInit/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelForWithInit/*"/>
   public static void ParallelFor<T>(int start, int endExclusive, Func<LoopThreadInfo, T> threadInitializer,
                                     Action<int, T, LoopThreadInfo> body)
   {
@@ -629,7 +629,7 @@ public static class Tasks
   /// <summary>Executes a loop using up to the given number of threads.</summary>
   /// <param name="maxParallelism">The maximum number of threads to use to execute the loop.</param>
   /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelFor/*[not(@name='body')]"/>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelForWithInit/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelForWithInit/*"/>
   public static void ParallelFor<T>(int start, int endExclusive, Func<LoopThreadInfo, T> threadInitializer,
                                     Action<int, T, LoopThreadInfo> body, int maxParallelism)
   {
@@ -679,7 +679,7 @@ public static class Tasks
   }
 
   /// <summary>Executes a loop in chunks using the maximum number of hardware threads available.</summary>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelForChunked/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelForChunked/*"/>
   public static void ParallelFor(int start, int endExclusive, Action<int, int, LoopThreadInfo> body)
   {
     ParallelFor(start, endExclusive, body, SystemInformation.GetAvailableCpuThreads());
@@ -687,7 +687,7 @@ public static class Tasks
 
   /// <summary>Executes a loop in chunks, using up to the given number of threads.</summary>
   /// <param name="maxParallelism">The maximum number of threads to use to execute the loop.</param>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelForChunked/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelForChunked/*"/>
   public static void ParallelFor(int start, int endExclusive, Action<int, int, LoopThreadInfo> body, int maxParallelism)
   {
     if(start > endExclusive || maxParallelism <= 0) throw new ArgumentOutOfRangeException();
@@ -739,7 +739,7 @@ public static class Tasks
   }
 
   /// <summary>Runs an instance of a work item on each hardware thread, and returns when all instances have completed.</summary>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/*"/>
   public static void Parallelize(TaskDelegate work)
   {
     Parallelize(work, SystemInformation.GetAvailableCpuThreads(), null);
@@ -748,14 +748,14 @@ public static class Tasks
   /// <summary>Runs an instance of a work item on each hardware thread, and returns when all instances have completed or been
   /// canceled using the given cancellation event.
   /// </summary>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/*"/>
   public static void Parallelize(TaskDelegate work, TaskCancellationEvent cancellationEvent)
   {
     Parallelize(work, SystemInformation.GetAvailableCpuThreads(), cancellationEvent);
   }
 
   /// <summary>Runs a number of instances of a work item simultaneously, and returns when all instances have completed.</summary>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/*"/>
   public static void Parallelize(TaskDelegate work, int instanceCount)
   {
     Parallelize(work, instanceCount, null);
@@ -764,7 +764,7 @@ public static class Tasks
   /// <summary>Runs a number of instances of a work item simultaneously, and returns when all instances have completed or been
   /// canceled using the given cancellation event.
   /// </summary>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/*"/>
   public static void Parallelize(TaskDelegate work, int instanceCount, TaskCancellationEvent cancellationEvent)
   {
     using(Task task = CreateParallel(work, instanceCount, cancellationEvent)) task.Run();
@@ -773,7 +773,7 @@ public static class Tasks
   /// <summary>Runs an instance of a work item on each hardware thread, and returns the results from all instances they've
   /// completed.
   /// </summary>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/*"/>
   public static T[] Parallelize<T>(TaskDelegate<T> work)
   {
     return Parallelize(work, SystemInformation.GetAvailableCpuThreads(), null);
@@ -782,7 +782,7 @@ public static class Tasks
   /// <summary>Runs an instance of a work item on each hardware thread, and returns the results from all instances when they've
   /// completed or been canceled using the given cancellation event.
   /// </summary>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/*"/>
   public static T[] Parallelize<T>(TaskDelegate<T> work, TaskCancellationEvent cancellationEvent)
   {
     return Parallelize(work, SystemInformation.GetAvailableCpuThreads(), cancellationEvent);
@@ -791,7 +791,7 @@ public static class Tasks
   /// <summary>Runs a number of instances of a work item simultaneously, and returns the results from all instances when they've
   /// completed.
   /// </summary>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/*"/>
   public static T[] Parallelize<T>(TaskDelegate<T> work, int instanceCount)
   {
     return Parallelize(work, instanceCount, null);
@@ -800,7 +800,7 @@ public static class Tasks
   /// <summary>Runs a number of instances of a work item simultaneously, and returns the results from all instances when they've
   /// completed or been canceled using the given cancellation event.
   /// </summary>
-  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/*"/>
   public static T[] Parallelize<T>(TaskDelegate<T> work, int instanceCount, TaskCancellationEvent cancellationEvent)
   {
     using(CompositeTask task = CreateParallel(work, instanceCount, cancellationEvent))

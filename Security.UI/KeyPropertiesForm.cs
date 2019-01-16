@@ -66,7 +66,7 @@ public partial class KeyPropertiesForm : Form
     foreach(Subkey subkey in key.Subkeys) keyList.AddKey(subkey);
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/*"/>
   protected override void OnKeyDown(KeyEventArgs e)
   {
     base.OnKeyDown(e);
@@ -78,7 +78,7 @@ public partial class KeyPropertiesForm : Form
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnShown/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnShown/*"/>
   protected override void OnShown(EventArgs e)
   {
     base.OnShown(e);

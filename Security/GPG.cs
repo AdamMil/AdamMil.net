@@ -183,19 +183,19 @@ public class ExeGPG : GPG
   }
 
   #region Configuration
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetDefaultPrimaryKeyType/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetDefaultPrimaryKeyType/*"/>
   public override string GetDefaultPrimaryKeyType()
   {
     return KeyType.DSA;
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetDefaultSubkeyType/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetDefaultSubkeyType/*"/>
   public override string GetDefaultSubkeyType()
   {
     return KeyType.ElGamal;
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetMaximumKeyLength/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetMaximumKeyLength/*"/>
   public override int GetMaximumKeyLength(string keyType)
   {
     if(!string.Equals(keyType, "RSA-E", StringComparison.OrdinalIgnoreCase) &&
@@ -209,28 +209,28 @@ public class ExeGPG : GPG
     return string.Equals(keyType, "DSA", StringComparison.OrdinalIgnoreCase) ? 3072 : 4096;
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedCiphers/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedCiphers/*"/>
   public override string[] GetSupportedCiphers()
   {
     AssertInitialized();
     return ciphers == null ? new string[0] : (string[])ciphers.Clone();
   }
 
-  ///  <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedCompressions/node()"/>
+  ///  <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedCompressions/*"/>
   public override string[] GetSupportedCompressions()
   {
     AssertInitialized();
     return compressions == null ? new string[0] : (string[])compressions.Clone();
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedHashes/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedHashes/*"/>
   public override string[] GetSupportedHashes()
   {
     AssertInitialized();
     return hashes == null ? new string[0] : (string[])hashes.Clone();
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedKeyTypes/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedKeyTypes/*"/>
   public override string[] GetSupportedKeyTypes()
   {
     AssertInitialized();
@@ -239,7 +239,7 @@ public class ExeGPG : GPG
   #endregion
 
   #region Encryption and signing
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SignAndEncrypt/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignAndEncrypt/*"/>
   public override void SignAndEncrypt(Stream sourceData, Stream destination, SigningOptions signingOptions,
                                       EncryptionOptions encryptionOptions, OutputOptions outputOptions)
   {
@@ -385,7 +385,7 @@ public class ExeGPG : GPG
     }
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/Decrypt/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/Decrypt/*"/>
   public override Signature[] Decrypt(Stream ciphertext, Stream destination, DecryptionOptions options)
   {
     if(ciphertext == null || destination == null) throw new ArgumentNullException();
@@ -394,14 +394,14 @@ public class ExeGPG : GPG
     return DecryptVerifyCore(cmd, ciphertext, destination, options);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/Verify2/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/Verify2/*"/>
   public override Signature[] Verify(Stream signedData, VerificationOptions options)
   {
     if(signedData == null) throw new ArgumentNullException();
     return VerifyCore(null, signedData, options);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/Verify3/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/Verify3/*"/>
   /// <remarks>The signature data (from <paramref name="signature"/>) will be written into a temporary file for the
   /// duration of this method call.
   /// </remarks>
@@ -425,7 +425,7 @@ public class ExeGPG : GPG
   #endregion
 
   #region Key import and export
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportKeys/*"/>
   public override void ExportKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions,
                                   OutputOptions outputOptions)
   {
@@ -454,7 +454,7 @@ public class ExeGPG : GPG
     }
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportKeys2/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportKeys2/*"/>
   public override void ExportKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
                                   ExportOptions exportOptions, OutputOptions outputOptions)
   {
@@ -481,7 +481,7 @@ public class ExeGPG : GPG
     }
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeys3/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeys3/*"/>
   public override ImportedKey[] ImportKeys(Stream source, Keyring keyring, ImportOptions options)
   {
     if(source == null) throw new ArgumentNullException();
@@ -495,7 +495,7 @@ public class ExeGPG : GPG
   #endregion
 
   #region Key revocation
-  /// <include file="documentation.xml" path="/Security/PGPSystem/AddDesignatedRevoker/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddDesignatedRevoker/*"/>
   public override void AddDesignatedRevoker(PrimaryKey key, PrimaryKey revokerKey)
   {
     if(key == null || revokerKey == null) throw new ArgumentNullException();
@@ -514,14 +514,14 @@ public class ExeGPG : GPG
            new AddRevokerCommand(revokerKey.Fingerprint));
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRevocationCertificate/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRevocationCertificate/*"/>
   public override void GenerateRevocationCertificate(PrimaryKey key, Stream destination, KeyRevocationReason reason,
                                                      OutputOptions outputOptions)
   {
     GenerateRevocationCertificateCore(key, null, destination, reason, outputOptions);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRevocationCertificateD/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRevocationCertificateD/*"/>
   public override void GenerateRevocationCertificate(PrimaryKey keyToRevoke, PrimaryKey designatedRevoker,
                                                      Stream destination, KeyRevocationReason reason,
                                                      OutputOptions outputOptions)
@@ -530,20 +530,20 @@ public class ExeGPG : GPG
     GenerateRevocationCertificateCore(keyToRevoke, designatedRevoker, destination, reason, outputOptions);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeKeys/*"/>
   public override void RevokeKeys(KeyRevocationReason reason, params PrimaryKey[] keys)
   {
     RevokeKeysCore(null, reason, keys);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeKeysD/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeKeysD/*"/>
   public override void RevokeKeys(PrimaryKey designatedRevoker, KeyRevocationReason reason, params PrimaryKey[] keys)
   {
     if(designatedRevoker == null) throw new ArgumentNullException();
     RevokeKeysCore(designatedRevoker, reason, keys);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSubkeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSubkeys/*"/>
   public override void RevokeSubkeys(KeyRevocationReason reason, params Subkey[] subkeys)
   {
     EditSubkeys(subkeys, delegate { return new RevokeSubkeysCommand(reason); });
@@ -551,7 +551,7 @@ public class ExeGPG : GPG
   #endregion
 
   #region Key server operations
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKeysOnServer/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKeysOnServer/*"/>
   public override void FindKeysOnServer(Uri keyServer, KeySearchHandler handler, params string[] searchKeywords)
   {
     if(keyServer == null || handler == null || searchKeywords == null) throw new ArgumentNullException();
@@ -680,7 +680,7 @@ public class ExeGPG : GPG
     if(!command.SuccessfulExit) throw new KeyServerFailedException("Key search failed.", commandState.FailureReasons);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeysFromServer/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeysFromServer/*"/>
   public override ImportedKey[] ImportKeysFromServer(KeyDownloadOptions options, Keyring keyring,
                                                      params string[] keyFingerprintsOrIds)
   {
@@ -696,7 +696,7 @@ public class ExeGPG : GPG
     return KeyServerCore(args, "Key import", true, false);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/RefreshKeyringFromServer/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RefreshKeyringFromServer/*"/>
   public override ImportedKey[] RefreshKeysFromServer(KeyDownloadOptions options, Keyring keyring)
   {
     string args = GetImportArgs(keyring, options == null ? ImportOptions.Default : options.ImportOptions) +
@@ -704,7 +704,7 @@ public class ExeGPG : GPG
     return KeyServerCore(args, "Keyring refresh", true, false);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/RefreshKeysFromServer/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RefreshKeysFromServer/*"/>
   public override ImportedKey[] RefreshKeysFromServer(KeyDownloadOptions options, params PrimaryKey[] keys)
   {
     if(keys == null) throw new ArgumentNullException();
@@ -716,7 +716,7 @@ public class ExeGPG : GPG
     return KeyServerCore(args, "Key refresh", true, false);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/UploadKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/UploadKeys/*"/>
   public override void UploadKeys(KeyUploadOptions options, params PrimaryKey[] keys)
   {
     if(keys == null) throw new ArgumentNullException();
@@ -729,19 +729,19 @@ public class ExeGPG : GPG
   #endregion
 
   #region Key signing
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSignatures/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSignatures/*"/>
   public override void DeleteSignatures(params KeySignature[] signatures)
   {
     EditSignatures(signatures, delegate(KeySignature[] sigs) { return new DeleteSigsCommand(sigs); });
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSignatures/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSignatures/*"/>
   public override void RevokeSignatures(UserRevocationReason reason, params KeySignature[] signatures)
   {
     EditSignatures(signatures, delegate(KeySignature[] sigs) { return new RevokeSigsCommand(reason, sigs); });
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SignAttributes/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignAttributes/*"/>
   public override void SignAttributes(UserAttribute[] attributes, PrimaryKey signingKey, KeySigningOptions options)
   {
     if(attributes == null || signingKey == null) throw new ArgumentNullException();
@@ -758,7 +758,7 @@ public class ExeGPG : GPG
     }
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SignKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignKeys/*"/>
   public override void SignKeys(PrimaryKey[] keysToSign, PrimaryKey signingKey, KeySigningOptions options)
   {
     if(keysToSign == null || signingKey == null) throw new ArgumentNullException();
@@ -773,7 +773,7 @@ public class ExeGPG : GPG
   #endregion
 
   #region Keyring queries
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKey/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKey/*"/>
   public override PrimaryKey FindKey(string keywordOrId, Keyring keyring, ListOptions options)
   {
     PrimaryKey[] keys = FindKeys(new string[] { keywordOrId },
@@ -781,7 +781,7 @@ public class ExeGPG : GPG
     return keys[0];
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKeys/*"/>
   public override PrimaryKey[] FindKeys(string[] fingerprintsOrIds, Keyring[] keyrings,
                                         bool includeDefaultKeyring, ListOptions options)
   {
@@ -831,7 +831,7 @@ public class ExeGPG : GPG
     }
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetKeys/*"/>
   public override PrimaryKey[] GetKeys(Keyring[] keyrings, bool includeDefaultKeyring, ListOptions options)
   {
     return GetKeys(keyrings, includeDefaultKeyring, options, null);
@@ -839,7 +839,7 @@ public class ExeGPG : GPG
   #endregion
 
   #region Miscellaneous
-  /// <include file="documentation.xml" path="/Security/PGPSystem/CreateTrustDatabase/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/CreateTrustDatabase/*"/>
   public override void CreateTrustDatabase(string path)
   {
     // the following creates a valid, empty version 3 trust database. (see gpg-src\doc\DETAILS)
@@ -855,7 +855,7 @@ public class ExeGPG : GPG
     }
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRandomData/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRandomData/*"/>
   public override void GetRandomData(Randomness quality, byte[] buffer, int index, int count)
   {
     Utility.ValidateRange(buffer, index, count);
@@ -876,7 +876,7 @@ public class ExeGPG : GPG
     command.CheckExitCode();
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/Hash/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/Hash/*"/>
   public override byte[] Hash(Stream data, string hashAlgorithm)
   {
     if(data == null) throw new ArgumentNullException();
@@ -942,7 +942,7 @@ public class ExeGPG : GPG
   #endregion
 
   #region Primary key management
-  /// <include file="documentation.xml" path="/Security/PGPSystem/AddSubkey/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddSubkey/*"/>
   public override void AddSubkey(PrimaryKey key, string keyType, KeyCapabilities capabilities, int keyLength,
                                  DateTime? expiration)
   {
@@ -951,7 +951,7 @@ public class ExeGPG : GPG
            new AddSubkeyCommand(this, keyType, capabilities, keyLength, expiration));
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ChangeExpiration/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ChangeExpiration/*"/>
   public override void ChangeExpiration(Key key, DateTime? expiration)
   {
     if(key == null) throw new ArgumentNullException();
@@ -967,19 +967,19 @@ public class ExeGPG : GPG
     }
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ChangePassword/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ChangePassword/*"/>
   public override void ChangePassword(PrimaryKey key, SecureString password)
   {
     DoEdit(key, new ChangePasswordCommand(password));
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/CleanKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/CleanKeys/*"/>
   public override void CleanKeys(params PrimaryKey[] keys)
   {
     RepeatedRawEditCommand(keys, "clean");
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/CreateKey/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/CreateKey/*"/>
   /// <remarks>If <see cref="NewKeyOptions.Keyring"/> is set, the key will not be automatically trusted in the default
   /// trust database.
   /// </remarks>
@@ -1144,7 +1144,7 @@ public class ExeGPG : GPG
     return newKey;
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteKeys/*"/>
   public override void DeleteKeys(PrimaryKey[] keys, KeyDeletion deletion)
   {
     if(keys == null) throw new ArgumentNullException();
@@ -1173,31 +1173,31 @@ public class ExeGPG : GPG
     if(!command.SuccessfulExit) throw new KeyEditFailedException("Deleting keys failed.", commandState.FailureReasons);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSubkeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSubkeys/*"/>
   public override void DeleteSubkeys(params Subkey[] subkeys)
   {
     EditSubkeys(subkeys, delegate { return new DeleteSubkeysCommand(); });
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DisableKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DisableKeys/*"/>
   public override void DisableKeys(params PrimaryKey[] keys)
   {
     RepeatedRawEditCommand(keys, "disable");
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/EnableKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/EnableKeys/*"/>
   public override void EnableKeys(params PrimaryKey[] keys)
   {
     RepeatedRawEditCommand(keys, "enable");
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/MinimizeKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/MinimizeKeys/*"/>
   public override void MinimizeKeys(params PrimaryKey[] keys)
   {
     RepeatedRawEditCommand(keys, "minimize");
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SetOwnerTrust/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SetOwnerTrust/*"/>
   public override void SetOwnerTrust(TrustLevel trust, params PrimaryKey[] keys)
   {
     EditKeys(keys, delegate { return new SetTrustCommand(trust); });
@@ -1205,7 +1205,7 @@ public class ExeGPG : GPG
   #endregion
 
   #region User ID management
-  /// <include file="documentation.xml" path="/Security/PGPSystem/AddPhoto4/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddPhoto4/*"/>
   public override void AddPhoto(PrimaryKey key, Stream image, OpenPGPImageType imageFormat,
                                 UserPreferences preferences)
   {
@@ -1229,7 +1229,7 @@ public class ExeGPG : GPG
     finally { File.Delete(filename); }
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/AddUserId/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddUserId/*"/>
   public override void AddUserId(PrimaryKey key, string realName, string email, string comment,
                                  UserPreferences preferences)
   {
@@ -1246,13 +1246,13 @@ public class ExeGPG : GPG
     DoEdit(key, "--allow-freeform-uid", true, new AddUidCommand(realName, email, comment, preferences));
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteAttributes/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteAttributes/*"/>
   public override void DeleteAttributes(params UserAttribute[] attributes)
   {
     EditAttributes(attributes, delegate { return new DeleteUidCommand(); });
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetPreferences/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetPreferences/*"/>
   public override UserPreferences GetPreferences(UserAttribute user)
   {
     if(user == null) throw new ArgumentNullException();
@@ -1266,13 +1266,13 @@ public class ExeGPG : GPG
     return preferences;
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeAttributes/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeAttributes/*"/>
   public override void RevokeAttributes(UserRevocationReason reason, params UserAttribute[] attributes)
   {
     EditAttributes(attributes, delegate { return new RevokeUidCommand(reason); });
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SetPreferences/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SetPreferences/*"/>
   public override void SetPreferences(UserAttribute user, UserPreferences preferences)
   {
     if(user == null || preferences == null) throw new ArgumentNullException();

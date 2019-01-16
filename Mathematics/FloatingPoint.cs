@@ -334,7 +334,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Returns the cosine of this value.</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/SinCosRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/SinCosRemarks/*"/>
     public FP107 Cos()
     {
       return Cos(this);
@@ -409,7 +409,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Raises e (Euler's constant) to a power equal to the current value, and returns the result.</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/ExpRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/ExpRemarks/*"/>
     public FP107 Exp()
     {
       return Exp(this);
@@ -437,14 +437,14 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Returns the natural logarithm of this value.</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/LogRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/LogRemarks/*"/>
     public FP107 Log()
     {
       return Log(this);
     }
 
     /// <summary>Returns the base-10 logarithm of this value.</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/Log10Remarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/Log10Remarks/*"/>
     public FP107 Log10()
     {
       return Log10(this);
@@ -463,7 +463,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Returns the given root (e.g. square root, cube root, etc) of the value.</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/RootRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/RootRemarks/*"/>
     public FP107 Root(int root)
     {
       return Root(this, root);
@@ -486,7 +486,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Returns the sine of this value.</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/SinCosRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/SinCosRemarks/*"/>
     public FP107 Sin()
     {
       return Sin(this);
@@ -499,7 +499,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Computes the sine and cosine of this value.</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/SinCosRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/SinCosRemarks/*"/>
     public void SinCos(out FP107 sin, out FP107 cos)
     {
       SinCos(this, out sin, out cos);
@@ -539,28 +539,28 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Converts the value to string using the current culture.</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/ToString/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/ToString/*"/>
     public override string ToString()
     {
       return ToString(null, null);
     }
 
     /// <summary>Converts the value to string using the current culture.</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/ToString/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/ToString/*"/>
     public string ToString(string format)
     {
       return ToString(format, null);
     }
 
     /// <summary>Converts the value to string, using the given format provider.</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/ToString/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/ToString/*"/>
     public string ToString(IFormatProvider provider)
     {
       return ToString(null, provider);
     }
 
     /// <summary>Converts the value to string, using the given format provider.</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/ToString/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/ToString/*"/>
     public string ToString(string format, IFormatProvider provider)
     {
       // parse and validate the user's format string
@@ -1749,7 +1749,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Returns the cosine of the given value.</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/SinCosRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/SinCosRemarks/*"/>
     public static FP107 Cos(FP107 value)
     {
       if(value.IsZero) return One;
@@ -1852,7 +1852,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Raises Euler's number (e) to the given power and returns the value as an <see cref="FP107"/>.</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/ExpRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/ExpRemarks/*"/>
     public unsafe static FP107 Exp(FP107 power)
     {
       const double Bounds = 709.782712893384; // this method can only handle values between approximately -709.8 to 709.8
@@ -2003,7 +2003,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Returns the natural logarithm of the given value.</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/LogRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/LogRemarks/*"/>
     public static FP107 Log(FP107 value)
     {
       // the strategy here is simply to approximate a solution to e^x = a using Newton's method. if f(x) = e^x - a, then f'(x) = e^x and
@@ -2014,7 +2014,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Computes logarithm of the given value using the given base.</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/LogRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/LogRemarks/*"/>
     public static FP107 Log(FP107 value, FP107 logBase)
     {
       // if value > 0 && logBase > 0 && logBase != 1, return the logarithm. otherwise, there's a mess of special cases:
@@ -2049,7 +2049,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Returns the base-10 logarithm of the given value.</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/Log10Remarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/Log10Remarks/*"/>
     public static FP107 Log10(FP107 value)
     {
       FP107 logarithm = Log(value) / Ln10;
@@ -2108,24 +2108,24 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Parses a high-precision floating-point value formatted according to the current culture.</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/Parse/node()"/>
-    /// <include file="documentation.xml" path="/Math/FP107/ParseRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/Parse/*"/>
+    /// <include file="documentation.xml" path="/Math/FP107/ParseRemarks/*"/>
     public static FP107 Parse(string str)
     {
       return Parse(str, NumberStyles.Any, null);
     }
 
     /// <summary>Parses a high-precision floating-point value formatted using the given provider.</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/Parse/node()"/>
-    /// <include file="documentation.xml" path="/Math/FP107/ParseRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/Parse/*"/>
+    /// <include file="documentation.xml" path="/Math/FP107/ParseRemarks/*"/>
     public static FP107 Parse(string str, IFormatProvider provider)
     {
       return Parse(str, NumberStyles.Any, provider);
     }
 
     /// <summary>Parses a high-precision floating-point value formatted using the given provider.</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/Parse/node()"/>
-    /// <include file="documentation.xml" path="/Math/FP107/ParseRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/Parse/*"/>
+    /// <include file="documentation.xml" path="/Math/FP107/ParseRemarks/*"/>
     public static FP107 Parse(string str, NumberStyles style, IFormatProvider provider)
     {
       if(str == null) throw new ArgumentNullException();
@@ -2238,7 +2238,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Returns a root of a value (e.g. square root, cube root, etc).</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/RootRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/RootRemarks/*"/>
     public static FP107 Root(FP107 value, int root)
     {
       if(root <= 0 || (root&1) == 0 && value.IsNegative) return NaN;
@@ -2286,7 +2286,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Returns the sine of the given value.</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/SinCosRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/SinCosRemarks/*"/>
     public static FP107 Sin(FP107 value)
     {
       if(value.IsZero) return Zero;
@@ -2353,7 +2353,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Computes the sine and cosine of the given value.</summary>
-    /// <include file="documentation.xml" path="/Math/FP107/SinCosRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/SinCosRemarks/*"/>
     public static void SinCos(FP107 value, out FP107 sin, out FP107 cos)
     {
       // see Sin(FP107) or Cos(FP107) for a description of the strategy here
@@ -2518,7 +2518,7 @@ namespace AdamMil.Mathematics
     /// <summary>Attempts to parse a high-precision floating-point value formatted according to the current culture and returns true if the
     /// parse was successful.
     /// </summary>
-    /// <include file="documentation.xml" path="/Math/FP107/ParseRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/ParseRemarks/*"/>
     public static bool TryParse(string str, out FP107 value)
     {
       return TryParse(str, NumberStyles.Any, null, out value);
@@ -2527,7 +2527,7 @@ namespace AdamMil.Mathematics
     /// <summary>Attempts to parse a high-precision floating-point value formatted according to the given provider and returns true if the
     /// parse was successful.
     /// </summary>
-    /// <include file="documentation.xml" path="/Math/FP107/ParseRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/ParseRemarks/*"/>
     public static bool TryParse(string str, IFormatProvider provider, out FP107 value)
     {
       return TryParse(str, NumberStyles.Any, provider, out value);
@@ -2536,7 +2536,7 @@ namespace AdamMil.Mathematics
     /// <summary>Attempts to parse a high-precision floating-point value formatted according to the given provider and returns true if the
     /// parse was successful.
     /// </summary>
-    /// <include file="documentation.xml" path="/Math/FP107/ParseRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/FP107/ParseRemarks/*"/>
     public static bool TryParse(string str, NumberStyles style, IFormatProvider provider, out FP107 value)
     {
       Exception ex;

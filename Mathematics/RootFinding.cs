@@ -122,15 +122,15 @@ public class RootNotFoundException : Exception
 public static class FindRoot
 {
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[not(@name='tolerance')]"/>
-  /// <include file="documentation.xml" path="/Math/RootFinding/BoundedNewtonRaphson/node()"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/BoundedNewtonRaphson/*"/>
   /// <returns>Returns a root of the function, to within a default tolerance. See the remarks for more details.</returns>
   public static double BoundedNewtonRaphson(IDifferentiableFunction function, RootBracket interval)
   {
     return BoundedNewtonRaphson(function, interval, GetDefaultTolerance(interval));
   }
 
-  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/node()"/>
-  /// <include file="documentation.xml" path="/Math/RootFinding/BoundedNewtonRaphson/node()"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/BoundedNewtonRaphson/*"/>
   /// <returns>Returns a root of the function, to within the specified tolerance. See the remarks for more details.</returns>
   public static double BoundedNewtonRaphson(IDifferentiableFunction function, RootBracket interval, double tolerance)
   {
@@ -197,14 +197,14 @@ public static class FindRoot
     throw RootNotFoundError();
   }
 
-  /// <include file="documentation.xml" path="/Math/RootFinding/BracketInward/node()"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/BracketInward/*"/>
   public static IEnumerable<RootBracket> BracketInward(IOneDimensionalFunction function, RootBracket interval, int segments)
   {
     if(function == null) throw new ArgumentNullException();
     return BracketInward(function.Evaluate, interval, segments);
   }
 
-  /// <include file="documentation.xml" path="/Math/RootFinding/BracketInward/node()"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/BracketInward/*"/>
   public static IEnumerable<RootBracket> BracketInward(Func<double, double> function, RootBracket interval, int segments)
   {
     ValidateArguments(function, interval);
@@ -222,14 +222,14 @@ public static class FindRoot
     }
   }
 
-  /// <include file="documentation.xml" path="/Math/RootFinding/BracketOutward/node()"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/BracketOutward/*"/>
   public static bool BracketOutward(IOneDimensionalFunction function, ref RootBracket initialGuess)
   {
     if(function == null) throw new ArgumentNullException();
     return BracketOutward(function.Evaluate, ref initialGuess);
   }
 
-  /// <include file="documentation.xml" path="/Math/RootFinding/BracketOutward/node()"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/BracketOutward/*"/>
   public static bool BracketOutward(Func<double, double> function, ref RootBracket initialGuess)
   {
     ValidateArguments(function, initialGuess);
@@ -259,7 +259,7 @@ public static class FindRoot
   }
 
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[not(@name='tolerance')]"/>
-  /// <include file="documentation.xml" path="/Math/RootFinding/Brent/node()"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/Brent/*"/>
   /// <returns>Returns a root of the function, to within a default level of tolerance. See the remarks for more details.</returns>
   public static double Brent(IOneDimensionalFunction function, RootBracket interval)
   {
@@ -268,23 +268,23 @@ public static class FindRoot
   }
 
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[not(@name='tolerance')]"/>
-  /// <include file="documentation.xml" path="/Math/RootFinding/Brent/node()"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/Brent/*"/>
   /// <returns>Returns a root of the function, to within a default level of tolerance. See the remarks for more details.</returns>
   public static double Brent(Func<double, double> function, RootBracket interval)
   {
     return Brent(function, interval, GetDefaultTolerance(interval));
   }
 
-  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/node()"/>
-  /// <include file="documentation.xml" path="/Math/RootFinding/Brent/node()"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/Brent/*"/>
   /// <returns>Returns a root of the function, to within the specified tolerance. See the remarks for more details.</returns>
   public static double Brent(IOneDimensionalFunction function, RootBracket interval, double tolerance)
   {
     return Brent(function.Evaluate, interval, tolerance);
   }
 
-  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/node()"/>
-  /// <include file="documentation.xml" path="/Math/RootFinding/Brent/node()"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/Brent/*"/>
   /// <returns>Returns a root of the function, to within the specified tolerance. See the remarks for more details.</returns>
   public static double Brent(Func<double, double> function, RootBracket interval, double tolerance)
   {
@@ -639,7 +639,7 @@ public static class FindRoot
   }
 
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[not(@name='tolerance')]"/>
-  /// <include file="documentation.xml" path="/Math/RootFinding/Subdivide/node()"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/Subdivide/*"/>
   /// <returns>Returns a root of the function, to within a default level of tolerance. See the remarks for more details.</returns>
   public static double Subdivide(IOneDimensionalFunction function, RootBracket interval)
   {
@@ -648,15 +648,15 @@ public static class FindRoot
   }
 
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[not(@name='tolerance')]"/>
-  /// <include file="documentation.xml" path="/Math/RootFinding/Subdivide/node()"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/Subdivide/*"/>
   /// <returns>Returns a root of the function, to within a default level of tolerance. See the remarks for more details.</returns>
   public static double Subdivide(Func<double, double> function, RootBracket interval)
   {
     return Subdivide(function, interval, GetDefaultTolerance(interval));
   }
 
-  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/node()"/>
-  /// <include file="documentation.xml" path="/Math/RootFinding/Subdivide/node()"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/Subdivide/*"/>
   /// <returns>Returns a root of the function, to within the specified tolerance. See the remarks for more details.</returns>
   public static double Subdivide(IOneDimensionalFunction function, RootBracket interval, double tolerance)
   {
@@ -664,8 +664,8 @@ public static class FindRoot
     return Subdivide(function.Evaluate, interval, tolerance);
   }
 
-  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/node()"/>
-  /// <include file="documentation.xml" path="/Math/RootFinding/Subdivide/node()"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/Subdivide/*"/>
   /// <returns>Returns a root of the function, to within the specified tolerance. See the remarks for more details.</returns>
   public static double Subdivide(Func<double, double> function, RootBracket interval, double tolerance)
   {
@@ -704,15 +704,15 @@ public static class FindRoot
   }
 
   /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*[not(@name='tolerance')]"/>
-  /// <include file="documentation.xml" path="/Math/RootFinding/UnboundedNewtonRaphson/node()"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/UnboundedNewtonRaphson/*"/>
   /// <returns>Returns a root of the function, to within a default tolerance. See the remarks for more details.</returns>
   public static double UnboundedNewtonRaphson(IDifferentiableFunction function, RootBracket interval)
   {
     return UnboundedNewtonRaphson(function, interval, GetDefaultTolerance(interval));
   }
 
-  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/node()"/>
-  /// <include file="documentation.xml" path="/Math/RootFinding/UnboundedNewtonRaphson/node()"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/FindRoot1/*"/>
+  /// <include file="documentation.xml" path="/Math/RootFinding/UnboundedNewtonRaphson/*"/>
   /// <returns>Returns a root of the function, to within the specified tolerance. See the remarks for more details.</returns>
   public static double UnboundedNewtonRaphson(IDifferentiableFunction function, RootBracket interval, double tolerance)
   {

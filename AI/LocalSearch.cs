@@ -191,7 +191,7 @@ public abstract class LocalSearchBase<StateType, ProblemType, ContextType>
     return RandomNumberGenerator.CreateDefault();
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/SelectBestSolution/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/SelectBestSolution/*"/>
   protected override StateValuePair<StateType> SelectBestSolution(ContextType[] contexts)
   {
     if(contexts == null) throw new ArgumentNullException();
@@ -252,14 +252,14 @@ public class GeneticAlgorithmSearch<StateType>
   /// <summary>Initializes the <see cref="GeneticAlgorithmSearch{S}"/> with the given population size, a 90% chance
   /// of crossover, a 0.5% chance of regeneration, and a 2% chance of mutation.
   /// </summary>
-  /// <include file="documentation.xml" path="/AI/Search/GeneticAlgorithm/Constructor/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/GeneticAlgorithm/Constructor/*"/>
   public GeneticAlgorithmSearch(IGeneticallySearchable<StateType> problem, int populationSize)
     : this(problem, populationSize, 0.90, 0.005, 0.02) { }
 
   /// <summary>Initializes the <see cref="GeneticAlgorithmSearch{S}"/> with the given population size, crossover
   /// chance, regeneration chance, and mutation chance.
   /// </summary>
-  /// <include file="documentation.xml" path="/AI/Search/GeneticAlgorithm/Constructor/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/GeneticAlgorithm/Constructor/*"/>
   /// <param name="crossoverChance">The initial value for <see cref="CrossoverChance"/>.</param>
   /// <param name="regenerationChance">The initial value for <see cref="RegenerationChance"/>.</param>
   /// <param name="mutationChance">The initial value for <see cref="MutationChance"/>.</param>
@@ -450,7 +450,7 @@ public class GeneticAlgorithmSearch<StateType>
     get { return false; }
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/SelectBestSolution/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/SelectBestSolution/*"/>
   protected override StateValuePair<StateType> SelectBestSolution(Context[] contexts)
   {
     throw new NotImplementedException();
@@ -583,12 +583,12 @@ public class HillClimbingSearch<StateType>
   /// <summary>Initializes a new <see cref="HillClimbingSearch{S}"/> with the given maximum number of sideways moves,
   /// and no limit to the number of random restarts allowed.
   /// </summary>
-  /// <include file="documentation.xml" path="/AI/Search/HillClimbingSearch/Constructor/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/HillClimbingSearch/Constructor/*"/>
   public HillClimbingSearch(IClimbingSearchable<StateType> problem, int maxSidewaysMoves)
     : this(problem, maxSidewaysMoves, Infinite) { }
 
   /// <summary>Initializes a new <see cref="HillClimbingSearch{S}"/>.</summary>
-  /// <include file="documentation.xml" path="/AI/Search/HillClimbingSearch/Constructor/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/HillClimbingSearch/Constructor/*"/>
   /// <param name="maxRestarts">The initial value of <see cref="MaxRestarts"/>.</param>
   public HillClimbingSearch(IClimbingSearchable<StateType> problem, int maxSidewaysMoves, int maxRestarts) : base(problem)
   {
@@ -655,21 +655,21 @@ public class HillClimbingSearch<StateType>
     }
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch/*"/>
   public override Context BeginSearch()
   {
     RandomNumberGenerator random = CreateRandom();
     return new Context(random, Problem.GetRandomState(random), MaxRestarts, MaxSidewaysMoves);
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch_State/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch_State/*"/>
   public override Context BeginSearch(StateType initialState)
   {
     StateValuePair<StateType> statePair = new StateValuePair<StateType>(initialState, Problem.EvaluateState(initialState));
     return new Context(CreateRandom(), statePair, MaxRestarts, MaxSidewaysMoves);
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/Iterate/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/Iterate/*"/>
   public override SearchResult Iterate(Context context)
   {
     if(context == null) throw new ArgumentNullException();
@@ -734,7 +734,7 @@ public static class SimulatedAnnealingSearch
   /// <returns>Tunneling functions attempt to warp the search space dynamically based on the best known value to help
   /// the search escape from local maxima that are less desirable than the best known value.
   /// </returns>
-  /// <remarks><include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/Tunneling/node()"/></remarks>
+  /// <remarks><include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/Tunneling/*"/></remarks>
   public delegate float Tunneler(float value, float bestKnownValue);
 
   /// <summary>Given an annealing schedule <c>f(x)</c>, returns a new annealing schedule that alternates between
@@ -799,8 +799,8 @@ public static class SimulatedAnnealingSearch
 
   /// <summary>Returns a STUN tunneler with a single tuning parameter for both amplification and compression.</summary>
   /// <remarks>
-  /// <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/Tunneling/node()"/>
-  /// <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/STUN/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/Tunneling/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/STUN/*"/>
   /// </remarks>
   public static Tunneler MakeStunTunneler(double gamma)
   {
@@ -810,8 +810,8 @@ public static class SimulatedAnnealingSearch
 
   /// <summary>Returns a STUN tunneler with separate tuning parameters for amplification and compression.</summary>
   /// <remarks>
-  /// <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/Tunneling/node()"/>
-  /// <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/STUN/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/Tunneling/*"/>
+  /// <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/STUN/*"/>
   /// </remarks>
   public static Tunneler MakeStunTunneler(double amplification, double compression)
   {
@@ -866,12 +866,12 @@ public class SimulatedAnnealingSearch<StateType>
   /// <summary>Initializes a new simulated annealing search with the given starting temperature and number of
   /// iterations, with tunneling disabled and quenching enabled.
   /// </summary>
-  /// <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/ConstructorI/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/ConstructorI/*"/>
   public SimulatedAnnealingSearch(ILocallySearchable<StateType> problem, double startTemperature, int iterations)
     : this(problem,
            SimulatedAnnealingSearch.MakeExponentialSchedule(startTemperature, startTemperature*0.02, iterations)) { }
 
-  /// <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/ConstructorI/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/ConstructorI/*"/>
   /// <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/Constructor/param[@name='quench']"/>
   public SimulatedAnnealingSearch(ILocallySearchable<StateType> problem, double startTemperature, int iterations,
                                   bool quench)
@@ -889,13 +889,13 @@ public class SimulatedAnnealingSearch<StateType>
   /// <summary>Initializes a new simulated annealing search with the given schedule and tunneler, with quenching
   /// enabled.
   /// </summary>
-  /// <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/ConstructorD/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/ConstructorD/*"/>
   public SimulatedAnnealingSearch(ILocallySearchable<StateType> problem, SimulatedAnnealingSearch.Schedule schedule,
                                   SimulatedAnnealingSearch.Tunneler tunneler)
     : this(problem, schedule, tunneler, true) { }
 
   /// <summary>Initializes a simulated annealing search.</summary>
-  /// <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/ConstructorD/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/ConstructorD/*"/>
   /// <include file="documentation.xml" path="/AI/Search/SimulatedAnnealing/Constructor/param[@name='quench']"/>
   public SimulatedAnnealingSearch(ILocallySearchable<StateType> problem, SimulatedAnnealingSearch.Schedule schedule,
                                   SimulatedAnnealingSearch.Tunneler tunneler, bool quench) : base(problem)
@@ -972,21 +972,21 @@ public class SimulatedAnnealingSearch<StateType>
   /// </summary>
   public SimulatedAnnealingSearch.Tunneler Tunneler { get; set; }
 
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch/*"/>
   public override SimulatedAnnealingSearch<StateType>.Context BeginSearch()
   {
     RandomNumberGenerator random = CreateRandom();
     return new Context(random, Schedule, Tunneler, Problem.GetRandomState(random), Quench);
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch_State/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/BeginSearch_State/*"/>
   public override Context BeginSearch(StateType initialState)
   {
     StateValuePair<StateType> initialSolution = new StateValuePair<StateType>(initialState, Problem.EvaluateState(initialState));
     return new Context(CreateRandom(), Schedule, Tunneler, initialSolution, Quench);
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/Iterate/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/IIterativeSearch/Iterate/*"/>
   public override SearchResult Iterate(Context context)
   {
     if(context == null) throw new ArgumentNullException();

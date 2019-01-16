@@ -679,7 +679,7 @@ public struct ArraySegmentEnumerator<T> : IEnumerator<T>
     Reset();
   }
 
-  /// <include file="documentation.xml" path="/Utilities/IEnumerator/Current/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/IEnumerator/Current/*"/>
   public T Current
   {
     get
@@ -689,14 +689,14 @@ public struct ArraySegmentEnumerator<T> : IEnumerator<T>
     }
   }
 
-  /// <include file="documentation.xml" path="/Utilities/IEnumerator/MoveNext/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/IEnumerator/MoveNext/*"/>
   public bool MoveNext()
   {
     if(currentIndex != end) currentIndex++;
     return currentIndex != end;
   }
 
-  /// <include file="documentation.xml" path="/Utilities/IEnumerator/Reset/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/IEnumerator/Reset/*"/>
   public void Reset()
   {
     currentIndex = start-1;

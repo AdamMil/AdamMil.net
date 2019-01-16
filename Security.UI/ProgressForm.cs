@@ -110,7 +110,7 @@ public partial class ProgressForm : Form
     if(exception != null) throw exception;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnClosing/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnClosing/*"/>
   protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
   {
     base.OnClosing(e);
@@ -128,14 +128,14 @@ public partial class ProgressForm : Form
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnClosed/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnClosed/*"/>
   protected override void OnClosed(EventArgs e)
   {
     base.OnClosed(e);
     thread = null;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnLoad/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnLoad/*"/>
   protected override void OnLoad(EventArgs e)
   {
     base.OnLoad(e);

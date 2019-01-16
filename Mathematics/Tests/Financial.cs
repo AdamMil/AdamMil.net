@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
-using AdamMil.Tests;
 using NUnit.Framework;
 using F = AdamMil.Mathematics.Financial;
 
@@ -45,8 +43,18 @@ namespace AdamMil.Mathematics.Tests
       // test the modified IRR
       AssertEqual(0.17908568603489275993, F.ModifiedIRR(new[] { -1000d, -4000, 5000, 2000 }, 0.1, 0.12));
       AssertEqual(0.17908568603489275993, F.ModifiedIRR(new[] { 5000d, -1000, 2000, -4000 }, 0.1, 0.12));
+      AssertEqual(-0.02027768631762256020441, F.ModifiedIRR(new[] { -1d, -4, 3, 1 }, 0.1, 0.12));
       Assert.IsNaN(F.ModifiedIRR(new[] { 5000d, 1000, 2000, 4000 }, 0.1, 0.12));
       Assert.IsNaN(F.ModifiedIRR(new[] { -100d, -200, -300 }, 0.1, 0.12));
+
+      // test simple IRR based on periodic growth with two values
+      AssertEqual(0.0013246290443537750297885, F.IRR(72, 10000, 11000));
+      AssertEqual(-0.0013228767234238282709869, F.IRR(72, 11, 10));
+      Assert.AreEqual(0, F.IRR(10, 10, 10));
+      Assert.AreEqual(0, F.IRR(10, 0, 0));
+      AssertEqual(-1, F.IRR(1, 10, 0));
+      AssertEqual(-1, F.IRR(10, 1, 0));
+      Assert.IsNaN(F.IRR(2, 0, 1));
     }
 
     [Test]
@@ -61,9 +69,11 @@ namespace AdamMil.Mathematics.Tests
       TestInvestment(.09/12, -100, 7*12, 0, 11730.013040950889105, false);
       TestInvestment(0, -100, 10, -1000, 2000);
       TestInvestment(0, 100, 10, -1000, 0, false);
+      TestInvestment(-0.1, 100, 10, -10000, 2835.462841100002151506487);
 
       AssertEqual(-40, F.FutureValue(0.1, new[] { -100d, 10, 10, 10, 10, 70 }));
       AssertEqual(31.6712, F.FutureValue(0.1, new[] { 2d, 3, 5 }.Concat(new[] { 7d, 11 }))); // try a non IList<T>
+      AssertEqual(41.902, F.FutureValue(-0.1, new[] { -100d, 10, 10, 10, 10, 70 }));
     }
 
     [Test]
@@ -77,6 +87,7 @@ namespace AdamMil.Mathematics.Tests
       TestInvestment(F.PeriodicRate(.05, 365.25), 1000, 20*12, -236177.89990613201544);
       TestInvestment(.09/12, 100, 7*12, -6262.0119295608783911, 0, false);
       TestInvestment(.05/12, -100, 10*12, -51248.685101108485610, 100000, false);
+      TestInvestment(-.05/12, -100, 10*12, -149498.8168650295333123, 100000, false);
       TestInvestment(0, 100, 10, 0, -1000);
     }
 
@@ -85,14 +96,32 @@ namespace AdamMil.Mathematics.Tests
     {
       AssertEqual(0.12682503013196972066, F.CompoundRate(0.01, 12));
       AssertEqual(0.44061124131308475614, F.CompoundRate(0.001, 365.25));
+      AssertEqual(-.113615128283870719341199, F.CompoundRate(-0.01, 12));
       AssertEqual(0.0040741237836483016054, F.PeriodicRate(0.05, 12));
       AssertEqual(0.00013358911160635399973, F.PeriodicRate(0.05, 365.25));
+      AssertEqual(-0.004265318777560644925018, F.PeriodicRate(-0.05, 12));
+      AssertEqual(-0.000140423526107102958349, F.PeriodicRate(-0.05, 365.25));
+
+      AssertEqual(.05116189788173318980487, F.EffectiveRate(.05, 12));
+      AssertEqual(-.04886993281129903190071, F.EffectiveRate(-.05, 12));
+      AssertEqual(.05, F.NominalRate(.05116189788173318980487, 12));
+      AssertEqual(-.05, F.NominalRate(-.04886993281129903190071, 12));
+      AssertEqual(.04888948540377961926506, F.NominalRate(0.05, 12));
+
+      AssertEqual(-0.02439024390243902439024, F.InvertRate(.025));
+      AssertEqual(.025, F.InvertRate(-0.02439024390243902439024));
+
+      AssertEqual(0.004878048780487804878049, F.CombineRates(.03, F.InvertRate(.025)));
+      AssertEqual(0.02081738306172299391155, F.CombineRates(.05, F.InvertRate(.0035), F.InvertRate(0.025)));
+      AssertEqual(0.02081738306172299391155, F.CombineRates(new[] { .05, F.InvertRate(.0035), F.InvertRate(0.025) }));
+      Assert.AreEqual(0.25, F.CombineRates(new[] { .25 }));
 
       AssertEqual(0.0077014724882020438160, F.Rate(-200, 4*12, 8000));
       AssertEqual(0.013910762587407681666, F.Rate(-200, 4*12, 8000, -2000));
       AssertEqual(0.0080529819239060342467, F.Rate(-200, 4*12, 8000, false));
       AssertEqual(0.014414334213886103585, F.Rate(-200, 4*12, 8000, -2000, false));
       AssertEqual(0.0049355932778172330408, F.Rate(50, 21, -1000));
+      AssertEqual(-0.06765766138943930352052, F.Rate(100, 10, -1500));
     }
 
     [Test]
@@ -105,6 +134,8 @@ namespace AdamMil.Mathematics.Tests
       AssertEqual(8.6690930741204999513, F.Periods(0.01, 100, 1000, -2000, false));
       AssertEqual(10.802372638626807957, F.Periods(.05/12, -1000, 100000) / 12);
       AssertEqual(3.8598661626226451824, F.Periods(F.PeriodicRate(.025, 12), 0, -2000, 2200) / 12);
+      AssertEqual(14.51957583084954867337, F.Periods(-.05/12, 100, -1500));
+      AssertEqual(10, F.Periods(-0.06765766138943930352052, 100, -1500));
       Assert.AreEqual(0, F.Periods(0.01, 100, -1000, 1000));
 
       TestInvestment(0, -100, 10, 1000);
@@ -117,17 +148,40 @@ namespace AdamMil.Mathematics.Tests
     }
 
     [Test]
-    public void T06_Payments()
+    public void T06_Payment()
     {
       TestInvestment(.08/12, -244.129223415024806, 4*12, 10000);
       TestInvestment(.05, -2539.015879981144921, 18, 0, 75000, false);
+      TestInvestment(-.05/12, -478.414197762754286684, 20, 10000);
       TestInvestment(0, 10, 100, -1000);
+    }
+
+    [Test]
+    public void T07_InterestPrincipal()
+    {
+      AssertEqual(-2083.3333333333333333333333, F.Interest(.05/12, 0, 30*12, 500000));
+      AssertEqual(-600.77478172736159080912956, F.Principal(.05/12, 0, 30*12, 500000));
+      AssertEqual(-1694.6263435829236801337996, F.Interest(.05/12, 120, 30*12, 500000));
+      AssertEqual(-989.48177147777124400866327, F.Principal(.05/12, 120, 30*12, 500000));
+      Assert.AreEqual(0, F.Interest(0, 120, 30*12, 500000));
+      AssertEqual(-1388.8888888888888888888889, F.Principal(0, 120, 30*12, 500000));
+      AssertEqual(366.7471384570263007182, F.Interest(-.05/12, 10, 100, 100000));
+      AssertEqual(-1170.784888340898589609, F.Principal(-.05/12, 10, 100, 100000));
+
+      AssertEqual(-24832.470652890942184703259, F.CumulativeInterest(.05/12, 0, 12, 30*12, 500000));
+      AssertEqual(-7376.8267278373969050062960, F.CumulativePrincipal(.05/12, 0, 12, 30*12, 500000));
+      AssertEqual(-855.63460516596849487786568, F.CumulativeInterest(.05/12, 29*12, 12, 30*12, 500000));
+      AssertEqual(-31353.662775562370594831689, F.CumulativePrincipal(.05/12, 29*12, 12, 30*12, 500000));
+      Assert.AreEqual(0, F.CumulativeInterest(0, 29*12, 12, 30*12, 500000));
+      AssertEqual(-16666.666666666666666666667, F.CumulativePrincipal(0, 29*12, 12, 30*12, 500000));
+      AssertEqual(2127.714029484451706242, F.CumulativeInterest(-.05/12, 10, 6, 100, 100000));
+      AssertEqual(-6951.940528787685439586, F.CumulativePrincipal(-.05/12, 10, 6, 100, 100000));
     }
 
     static void AssertEqual(double expected, double actual)
     {
       if(expected == 0 || actual == 0) Assert.AreEqual(expected, actual, 1e-8); // use absolute error if either is zero
-      else Assert.LessOrEqual(actual / expected - 1, 1e-13, "Expected " + expected + " but got " + actual); // otherwise use relative error
+      else Assert.LessOrEqual(actual / expected - 1, 3e-13, "Expected " + expected + " but got " + actual); // otherwise use relative error
     }
 
     static void TestInvestment(double rate, double payment, int paymentCount, double presentValue = 0, double futureValue = 0, bool payAtEnd = true)

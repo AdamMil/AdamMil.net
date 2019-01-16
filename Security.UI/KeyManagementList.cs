@@ -345,7 +345,7 @@ public class KeyManagementList : KeyListBase
   }
   #endregion
 
-  /// <include file="documentation.xml" path="/UI/ListBase/ActivateItem/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/ActivateItem/*"/>
   protected virtual void ActivateItem(ListViewItem item)
   {
     PrimaryKeyItem primaryItem = GetPrimaryItem(item);
@@ -383,7 +383,7 @@ public class KeyManagementList : KeyListBase
     if(PGP == null) throw new InvalidOperationException("No PGP system has been set.");
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/CreateAttributeItem/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/CreateAttributeItem/*"/>
   protected override AttributeItem CreateAttributeItem(UserAttribute attr)
   {
     AttributeItem item = base.CreateAttributeItem(attr);
@@ -393,7 +393,7 @@ public class KeyManagementList : KeyListBase
     return item;
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/CreateContextMenu/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/CreateContextMenu/*"/>
   protected virtual ContextMenuStrip CreateContextMenu()
   {
     PrimaryKey[] keys = GetSelectedKeys();
@@ -559,7 +559,7 @@ public class KeyManagementList : KeyListBase
     return menu;
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/CreateDesignatedRevokerItem/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/CreateDesignatedRevokerItem/*"/>
   protected virtual DesignatedRevokerItem CreateDesignatedRevokerItem(string fingerprint, PrimaryKey key)
   {
     DesignatedRevokerItem item = new DesignatedRevokerItem(fingerprint, key, "Designated revoker");
@@ -567,7 +567,7 @@ public class KeyManagementList : KeyListBase
     return item;
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/CreatePrimaryKeyItem/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/CreatePrimaryKeyItem/*"/>
   protected virtual PrimaryKeyItem CreatePrimaryKeyItem(PrimaryKey key)
   {
     PrimaryKeyItem item = new PrimaryKeyItem(key, key.PrimaryUserId.Name);
@@ -579,7 +579,7 @@ public class KeyManagementList : KeyListBase
     return item;
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/CreateSubkeyItem/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/CreateSubkeyItem/*"/>
   protected virtual SubkeyItem CreateSubkeyItem(Subkey key)
   {
     if(key == null) throw new ArgumentNullException();
@@ -662,7 +662,7 @@ public class KeyManagementList : KeyListBase
     return keys;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/*"/>
   protected override void OnKeyDown(KeyEventArgs e)
   {
     base.OnKeyDown(e);
@@ -708,7 +708,7 @@ public class KeyManagementList : KeyListBase
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnMouseClick/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnMouseClick/*"/>
   protected override void OnMouseClick(MouseEventArgs e)
   {
     base.OnMouseClick(e);
@@ -728,7 +728,7 @@ public class KeyManagementList : KeyListBase
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnMouseDoubleClick/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnMouseDoubleClick/*"/>
   protected override void OnMouseDoubleClick(MouseEventArgs e)
   {
     base.OnMouseDoubleClick(e);
@@ -740,7 +740,7 @@ public class KeyManagementList : KeyListBase
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnMouseUp/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnMouseUp/*"/>
   protected override void OnMouseUp(MouseEventArgs e)
   {
     base.OnMouseUp(e);
@@ -798,7 +798,7 @@ public class KeyManagementList : KeyListBase
     return keys.ToArray();
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/RecreateItems/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/RecreateItems/*"/>
   protected override void RecreateItems()
   {
     Dictionary<string, object> visible = new Dictionary<string, object>();

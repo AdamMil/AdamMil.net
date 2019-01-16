@@ -72,7 +72,7 @@ public interface ISTMTransactionalValue
 /// <summary>Provides convenience methods for working with software transactional memory.</summary>
 public static class STM
 {
-  /// <include file="documentation.xml" path="/TX/STM/AddPostCommitAction/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/AddPostCommitAction/*" />
   /// <exception cref="InvalidOperationException">Thrown if there is no current transaction.</exception>
   public static void AddPostCommitAction(Action postCommitAction)
   {
@@ -83,7 +83,7 @@ public static class STM
   /// <summary>Allocates and returns a new <see cref="TransactionalVariable{T}"/> with a default value. This is equivalent to
   /// constructing a <see cref="TransactionalVariable{T}"/> using its constructor.
   /// </summary>
-  /// <include file="documentation.xml" path="/TX/STM/Allocate/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/Allocate/*" />
   public static TransactionalVariable<T> Allocate<T>()
   {
     return new TransactionalVariable<T>();
@@ -92,21 +92,21 @@ public static class STM
   /// <summary>Allocates and returns a new <see cref="TransactionalVariable{T}"/> with the given value. This is equivalent to
   /// constructing a <see cref="TransactionalVariable{T}"/> using its constructor.
   /// </summary>
-  /// <include file="documentation.xml" path="/TX/STM/Allocate/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/Allocate/*" />
   public static TransactionalVariable<T> Allocate<T>(T initialValue)
   {
     return new TransactionalVariable<T>(initialValue);
   }
 
   /// <exception cref="InvalidOperationException">Thrown if there is no current transaction, or if it is no longer active.</exception>
-  /// <include file="documentation.xml" path="/TX/STM/CheckConsistency/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/CheckConsistency/*" />
   public static void CheckConsistency()
   {
     GetTransaction().CheckConsistency();
   }
 
   /// <exception cref="InvalidOperationException">Thrown if there is no current transaction, or if it is no longer active.</exception>
-  /// <include file="documentation.xml" path="/TX/STM/IsConsistent/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/IsConsistent/*" />
   public static bool IsConsistent()
   {
     return GetTransaction().IsConsistent();
@@ -137,7 +137,7 @@ public static class STM
 
   /// <summary>Executes an action until it successfully commits in a transaction.</summary>
   /// <param name="action">The action to execute.</param>
-  /// <include file="documentation.xml" path="/TX/STM/Retry/node()"/>
+  /// <include file="documentation.xml" path="/TX/STM/Retry/*"/>
   public static void Retry(STMOptions options, Action action, Action postCommitAction)
   {
     Retry(Timeout.Infinite, options, action, postCommitAction);
@@ -161,7 +161,7 @@ public static class STM
 
   /// <summary>Executes an action until it successfully commits in a transaction, or until the given time limit has elapsed.</summary>
   /// <param name="action">The action to execute.</param>
-  /// <include file="documentation.xml" path="/TX/STM/RetryWithTimeout/node()"/>
+  /// <include file="documentation.xml" path="/TX/STM/RetryWithTimeout/*"/>
   public static void Retry(int timeoutMs, STMOptions options, Action action, Action postCommitAction)
   {
     Retry(timeoutMs, options, (Func<object>)delegate { action(); return null; }, postCommitAction);
@@ -200,7 +200,7 @@ public static class STM
   /// first successful transaction will then be returned.
   /// </summary>
   /// <param name="function">The function to execute.</param>
-  /// <include file="documentation.xml" path="/TX/STM/Retry/node()"/>
+  /// <include file="documentation.xml" path="/TX/STM/Retry/*"/>
   public static T Retry<T>(STMOptions options, Func<T> function, Action postCommitAction)
   {
     return Retry(Timeout.Infinite, options, function, postCommitAction);
@@ -230,7 +230,7 @@ public static class STM
   /// The value returned from the function in the first successful transaction will then be returned.
   /// </summary>
   /// <param name="function">The function to execute.</param>
-  /// <include file="documentation.xml" path="/TX/STM/RetryWithTimeout/node()"/>
+  /// <include file="documentation.xml" path="/TX/STM/RetryWithTimeout/*"/>
   public static T Retry<T>(int timeoutMs, STMOptions options, Func<T> function, Action postCommitAction)
   {
     if(function == null) throw new ArgumentNullException();
@@ -293,14 +293,14 @@ public static class STM
     }
   }
 
-  /// <include file="documentation.xml" path="/TX/STM/WaitForDistributedTransaction/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/WaitForDistributedTransaction/*" />
   /// <remarks>The method will wait for up to 30 seconds before throwing an exception.</remarks>
   public static void WaitForDistributedTransaction()
   {
     STMTransaction.WaitForDistributedTransaction(30 * 1000);
   }
 
-  /// <include file="documentation.xml" path="/TX/STM/WaitForDistributedTransaction/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/WaitForDistributedTransaction/*" />
   /// <param name="timeoutMs">The number of milliseconds that the method should wait for any pending .NET system transaction to complete,
   /// or <see cref="Timeout.Infinite"/> if the method should wait indefinitely.
   /// </param>
@@ -370,7 +370,7 @@ public enum STMOptions
 /// <see cref="STMTransaction"/> that integrates with a <see cref="Transaction"/> if necessary.
 /// </para>
 /// </remarks>
-/// <include file="documentation.xml" path="/TX/STM/ConsistencyRemarks/node()" />
+/// <include file="documentation.xml" path="/TX/STM/ConsistencyRemarks/*" />
 public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
 {
   internal STMTransaction(STMTransaction parent, STMOptions options)
@@ -394,7 +394,7 @@ public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
   /// is required, or better yet, write write your transactions so that they can tolerate inconsistency. See <see
   /// cref="STMTransaction.CheckConsistency"/> for details.
   /// </summary>
-  /// <include file="documentation.xml" path="/TX/STM/ConsistencyRemarks/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/ConsistencyRemarks/*" />
   public bool EnsureConsistency
   {
     get { return (options & STMOptions.EnsureConsistency) != 0; }
@@ -405,7 +405,7 @@ public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
     }
   }
 
-  /// <include file="documentation.xml" path="/TX/STM/AddPostCommitAction/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/AddPostCommitAction/*" />
   public void AddPostCommitAction(Action postCommitAction)
   {
     if(postCommitAction == null) throw new ArgumentNullException();
@@ -418,13 +418,13 @@ public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
   /// <see cref="STM.CheckConsistency"/>.
   /// </remarks>
   /// <seealso cref="STM.CheckConsistency"/>
-  /// <include file="documentation.xml" path="/TX/STM/CheckConsistency/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/CheckConsistency/*" />
   public void CheckConsistency()
   {
     if(!IsConsistent()) throw new TransactionAbortedException();
   }
 
-  /// <include file="documentation.xml" path="/TX/STM/Commit/node()"/>
+  /// <include file="documentation.xml" path="/TX/STM/Commit/*"/>
   public void Commit()
   {
     Commit(null);
@@ -436,7 +436,7 @@ public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
   /// returns because in the case of a nested transaction, it will be queued and executed only if all enclosing transactions also
   /// commit successfully. If the action throws an exception, it will be ignored.
   /// </param>
-  /// <include file="documentation.xml" path="/TX/STM/Commit/node()"/>
+  /// <include file="documentation.xml" path="/TX/STM/Commit/*"/>
   public void Commit(Action postCommitAction)
   {
     if(this != CurrentUnmanaged) throw new InvalidOperationException();
@@ -465,7 +465,7 @@ public sealed class STMTransaction : IDisposable, ISinglePhaseNotification
   /// <see cref="STM.IsConsistent"/>.
   /// </remarks>
   /// <seealso cref="STM.IsConsistent"/>
-  /// <include file="documentation.xml" path="/TX/STM/IsConsistent/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/IsConsistent/*" />
   public bool IsConsistent()
   {
     AssertActive();
@@ -1306,7 +1306,7 @@ public abstract class TransactionalVariable
   /// <summary>Checks that this variable hasn't been changed by another transaction since it was opened. If it has, a
   /// <see cref="TransactionAbortedException"/> will be thrown.
   /// </summary>
-  /// <include file="documentation.xml" path="/TX/STM/ConsistencyCheckRemarks/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/ConsistencyCheckRemarks/*" />
   /// <exception cref="InvalidOperationException">Thrown if there is no current, active transaction.</exception>
   public void CheckConsistency()
   {
@@ -1314,27 +1314,27 @@ public abstract class TransactionalVariable
   }
 
   /// <summary>Checks that this variable hasn't been changed by another transaction since it was opened.</summary>
-  /// <include file="documentation.xml" path="/TX/STM/ConsistencyCheckRemarks/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/ConsistencyCheckRemarks/*" />
   /// <exception cref="InvalidOperationException">Thrown if there is no current, active transaction.</exception>
   public bool IsConsistent()
   {
     return GetTransaction().IsConsistent(this);
   }
 
-  /// <include file="documentation.xml" path="/TX/STM/OpenForWrite/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/OpenForWrite/*" />
   public object OpenForWrite()
   {
     return GetTransaction().OpenForWrite(this);
   }
 
-  /// <include file="documentation.xml" path="/TX/STM/Read/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/Read/*" />
   public object Read()
   {
     STMTransaction transaction = STMTransaction.CurrentUnsuppressed;
     return transaction == null ? ReadCommitted() : transaction.OpenForRead(this);
   }
 
-  /// <include file="documentation.xml" path="/TX/STM/ReadCommitted/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/ReadCommitted/*" />
   public object ReadCommitted()
   {
     object value = this.value; // get the most recently committed value
@@ -1344,7 +1344,7 @@ public abstract class TransactionalVariable
     return value;
   }
 
-  /// <include file="documentation.xml" path="/TX/STM/ReadWithoutOpening/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/ReadWithoutOpening/*" />
   public object ReadWithoutOpening()
   {
     STMTransaction transaction = STMTransaction.CurrentUnsuppressed;
@@ -1480,7 +1480,7 @@ public abstract class TransactionalVariable
     ICloneable
   }
 
-  /// <include file="documentation.xml" path="/TX/STM/Set/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/Set/*" />
   // NOTE: this is not public because it would allow type safety to be broken (i.e. non-T stored in TransactionalVariable<T>)
   protected void Set(object newValue)
   {
@@ -1582,44 +1582,44 @@ public abstract class TransactionalVariable
 /// <summary>Represents a slot within transactional memory. To create a new transactional variable, construct an instance of this
 /// type or call <see cref="STM.Allocate"/>.
 /// </summary>
-/// <include file="documentation.xml" path="/TX/STM/TVarRemarks/node()" />
+/// <include file="documentation.xml" path="/TX/STM/TVarRemarks/*" />
 public sealed class TransactionalVariable<T> : TransactionalVariable
 {
   /// <summary>Allocates a new <see cref="TransactionalVariable{T}"/> with a default value.</summary>
-  /// <include file="documentation.xml" path="/TX/STM/NewTVar/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/NewTVar/*" />
   public TransactionalVariable() : this(default(T)) { }
   /// <summary>Allocates a new <see cref="TransactionalVariable{T}"/> with the given value.</summary>
-  /// <include file="documentation.xml" path="/TX/STM/NewTVar/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/NewTVar/*" />
   public TransactionalVariable(T initialValue) : base(initialValue)
   {
     ValidateCloneType(typeof(T)); // verify that the object can be cloned
   }
 
-  /// <include file="documentation.xml" path="/TX/STM/OpenForWrite/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/OpenForWrite/*" />
   public new T OpenForWrite()
   {
     return (T)base.OpenForWrite();
   }
 
-  /// <include file="documentation.xml" path="/TX/STM/Read/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/Read/*" />
   public new T Read()
   {
     return (T)base.Read();
   }
 
-  /// <include file="documentation.xml" path="/TX/STM/ReadCommitted/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/ReadCommitted/*" />
   public new T ReadCommitted()
   {
     return (T)base.ReadCommitted();
   }
 
-  /// <include file="documentation.xml" path="/TX/STM/ReadWithoutOpening/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/ReadWithoutOpening/*" />
   public new T ReadWithoutOpening()
   {
     return (T)base.ReadWithoutOpening();
   }
 
-  /// <include file="documentation.xml" path="/TX/STM/Set/node()" />
+  /// <include file="documentation.xml" path="/TX/STM/Set/*" />
   public void Set(T newValue)
   {
     base.Set(newValue);

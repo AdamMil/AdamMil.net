@@ -33,7 +33,7 @@ namespace AdamMil.AI.Search.Graph
 #region Problem definitions
 #region IGraphSearchable
 /// <summary>Represents a problem that can be attacked with a graph search.</summary>
-/// <include file="documentation.xml" path="/AI/Search/GraphSearchDescription/node()"/>
+/// <include file="documentation.xml" path="/AI/Search/GraphSearchDescription/*"/>
 /// <include file="documentation.xml" path="/AI/Search/typeparam[@name='StateType' or @name='ActionType']"/>
 public interface IGraphSearchable<StateType, ActionType> : ISearchable<StateType>
 {
@@ -82,7 +82,7 @@ public interface IGraphSearchable<StateType, ActionType> : ISearchable<StateType
 
 #region IBidirectionallySearchable
 /// <summary>Represents a problem that can searched bidirectionally.</summary>
-/// <include file="documentation.xml" path="/AI/Search/BidirectionalSearchDescription/node()"/>
+/// <include file="documentation.xml" path="/AI/Search/BidirectionalSearchDescription/*"/>
 /// <include file="documentation.xml" path="/AI/Search/typeparam[@name='StateType' or @name='ActionType']"/>
 public interface IBidirectionallySearchable<StateType, ActionType> : IGraphSearchable<StateType, ActionType>
 {
@@ -110,25 +110,25 @@ public interface IBidirectionallySearchable<StateType, ActionType> : IGraphSearc
 #region Search types
 #region IGraphSearch
 /// <summary>Represents a graph search.</summary>
-/// <include file="documentation.xml" path="/AI/Search/GraphSearchDescription/node()"/>
+/// <include file="documentation.xml" path="/AI/Search/GraphSearchDescription/*"/>
 /// <include file="documentation.xml" path="/AI/Search/typeparam[@name='StateType' or @name='ActionType']"/>
 public interface IGraphSearch<StateType, ActionType> : ISearch<StateType, Node<StateType, ActionType>>
 {
-  /// <include file="documentation.xml" path="/AI/Search/IGraphSearch/EliminateDuplicateStates/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/IGraphSearch/EliminateDuplicateStates/*"/>
   bool EliminateDuplicateStates { get; set; }
 }
 #endregion
 
 #region IBidirectionalGraphSearch
 /// <summary>Represents a graph search that can be used to search bidirectionally.</summary>
-/// <include file="documentation.xml" path="/AI/Search/BidirectionalSearchDescription/node()"/>
+/// <include file="documentation.xml" path="/AI/Search/BidirectionalSearchDescription/*"/>
 /// <include file="documentation.xml" path="/AI/Search/typeparam[@name='StateType' or @name='ActionType']"/>
 public interface IBidirectionalGraphSearch<StateType, ActionType> : IGraphSearch<StateType, ActionType>
 {
-  /// <include file="documentation.xml" path="/AI/Search/IBidirectionalGraphSearch/BidirectionalSearch/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/IBidirectionalGraphSearch/BidirectionalSearch/*"/>
   SearchResult BidirectionalSearch(SearchLimiter limiter, out Node<StateType, ActionType> solution);
 
-  /// <include file="documentation.xml" path="/AI/Search/IBidirectionalGraphSearch/BidirectionalSearch_State/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/IBidirectionalGraphSearch/BidirectionalSearch_State/*"/>
   SearchResult BidirectionalSearch(StateType initialState, SearchLimiter limiter,
                                    out Node<StateType, ActionType> solution);
 }
@@ -182,29 +182,29 @@ public abstract class GraphSearchBase<StateType, ActionType>
     Problem = problem;
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IGraphSearch/EliminateDuplicateStates/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/IGraphSearch/EliminateDuplicateStates/*"/>
   public bool EliminateDuplicateStates { get; set; }
 
-  /// <include file="documentation.xml" path="/AI/Search/GraphSearchBase/BidirectionalSearch/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/GraphSearchBase/BidirectionalSearch/*"/>
   public SearchResult BidirectionalSearch(out Node<StateType, ActionType> solution)
   {
     return BidirectionalSearch(Problem.GetInitialState(), null, out solution);
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/GraphSearchBase/BidirectionalSearch/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/GraphSearchBase/BidirectionalSearch/*"/>
   /// <include file="documentation.xml" path="/AI/Search/SearchBase/Search_Timeout/param[@name='msTimeLimit']"/>
   public SearchResult BidirectionalSearch(int msTimeLimit, out Node<StateType, ActionType> solution)
   {
     return BidirectionalSearch(Problem.GetInitialState(), msTimeLimit, out solution);
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/GraphSearchBase/BidirectionalSearch_State/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/GraphSearchBase/BidirectionalSearch_State/*"/>
   public SearchResult BidirectionalSearch(StateType initialState, out Node<StateType, ActionType> solution)
   {
     return BidirectionalSearch(initialState, null, out solution);
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/GraphSearchBase/BidirectionalSearch_State/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/GraphSearchBase/BidirectionalSearch_State/*"/>
   /// <include file="documentation.xml" path="/AI/Search/SearchBase/Search_Timeout/param[@name='msTimeLimit']"/>
   public SearchResult BidirectionalSearch(StateType initialState, int msTimeLimit,
                                           out Node<StateType, ActionType> solution)
@@ -213,17 +213,17 @@ public abstract class GraphSearchBase<StateType, ActionType>
                                out solution);
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IBidirectionalGraphSearch/BidirectionalSearch/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/IBidirectionalGraphSearch/BidirectionalSearch/*"/>
   public SearchResult BidirectionalSearch(SearchLimiter limiter, out Node<StateType, ActionType> solution)
   {
     return BidirectionalSearch(Problem.GetInitialState(), limiter, out solution);
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IBidirectionalGraphSearch/BidirectionalSearch_State/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/IBidirectionalGraphSearch/BidirectionalSearch_State/*"/>
   public abstract SearchResult BidirectionalSearch(StateType initialState, SearchLimiter limiter,
                                                    out Node<StateType,ActionType> solution);
 
-  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search/*"/>
   public sealed override SearchResult Search(SearchLimiter limiter, out Node<StateType, ActionType> solution)
   {
     return Search(Problem.GetInitialState(), limiter, out solution);
@@ -259,7 +259,7 @@ public abstract class SingleQueueSearchBase<StateType, ActionType> : GraphSearch
     this.useHeuristic = usesHeuristic;
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/IBidirectionalGraphSearch/BidirectionalSearch_State/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/IBidirectionalGraphSearch/BidirectionalSearch_State/*"/>
   public override SearchResult BidirectionalSearch(StateType initialState, SearchLimiter limiter,
                                                    out Node<StateType, ActionType> solution)
   {
@@ -268,7 +268,7 @@ public abstract class SingleQueueSearchBase<StateType, ActionType> : GraphSearch
     return FinishBidirectionalSearch(initialState, limiter, out solution);
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/*"/>
   public override SearchResult Search(StateType initialState, SearchLimiter limiter,
                                       out Node<StateType,ActionType> solution)
   {
@@ -704,14 +704,14 @@ public sealed class IterativeDeepeningSearch<StateType, ActionType> : DepthBased
   /// <summary>Initializes a new <see cref="IterativeDeepeningSearch{S,A}"/>.</summary>
   public IterativeDeepeningSearch(IGraphSearchable<StateType, ActionType> problem) : base(problem, false) { }
 
-  /// <include file="documentation.xml" path="/AI/Search/IBidirectionalGraphSearch/BidirectionalSearch_State/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/IBidirectionalGraphSearch/BidirectionalSearch_State/*"/>
   public override SearchResult BidirectionalSearch(StateType initialState, SearchLimiter limiter,
                                                    out Node<StateType, ActionType> solution)
   {
     return Search(initialState, limiter, out solution, true);
   }
 
-  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/*"/>
   public override SearchResult Search(StateType initialState, SearchLimiter limiter,
                                       out Node<StateType, ActionType> solution)
   {
@@ -754,7 +754,7 @@ public sealed class IterativeDeepeningAStarSearch<StateType, ActionType> : Depth
   /// <summary>Initializes a new <see cref="IterativeDeepeningAStarSearch{S,A}"/>.</summary>
   public IterativeDeepeningAStarSearch(IGraphSearchable<StateType, ActionType> problem) : base(problem, true) { }
 
-  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/node()"/>
+  /// <include file="documentation.xml" path="/AI/Search/ISearch/Search_State/*"/>
   public override SearchResult Search(StateType initialState, SearchLimiter limiter, out Node<StateType, ActionType> solution)
   {
     if(limiter != null) limiter.Start();

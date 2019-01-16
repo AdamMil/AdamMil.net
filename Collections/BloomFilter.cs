@@ -82,7 +82,7 @@ public class BloomFilter<T>
   public BloomFilter(int itemCount, float falsePositiveRate, int maxHashCount)
     : this(itemCount, falsePositiveRate, null, maxHashCount) { }
 
-  /// <include file="documentation.xml" path="/Collections/BloomFilter/TuningConstructor/node()"/>
+  /// <include file="documentation.xml" path="/Collections/BloomFilter/TuningConstructor/*"/>
   public BloomFilter(int itemCount, float falsePositiveRate, IMultiHashProvider<T> hashProvider, int maxHashCount)
   {
     if(itemCount < 0 || falsePositiveRate <= 0 || falsePositiveRate >= 1 || maxHashCount < 0)
@@ -124,7 +124,7 @@ public class BloomFilter<T>
   /// <include file="documentation.xml" path="/Collections/BloomFilter/DirectConstructor/*[not(@name='hashProvider')]"/>
   public BloomFilter(int bitCount, int maxHashCount) : this(bitCount, maxHashCount, null) { }
 
-  /// <include file="documentation.xml" path="/Collections/BloomFilter/DirectConstructor/node()"/>
+  /// <include file="documentation.xml" path="/Collections/BloomFilter/DirectConstructor/*"/>
   public BloomFilter(int bitCount, int maxHashCount, IMultiHashProvider<T> hashProvider)
   {
     if(bitCount <= 0 || maxHashCount <= 0) throw new ArgumentOutOfRangeException();

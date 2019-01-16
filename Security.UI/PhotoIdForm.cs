@@ -58,7 +58,7 @@ public partial class PhotoIdForm : Form
     Height = Math.Min(picture.Image.Height + 2, 384) + topSpace + bottomSpace;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/*"/>
   protected override void OnKeyDown(KeyEventArgs e)
   {
     base.OnKeyDown(e);
@@ -70,7 +70,7 @@ public partial class PhotoIdForm : Form
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnSizeChanged/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnSizeChanged/*"/>
   protected override void OnSizeChanged(EventArgs e)
   {
     base.OnSizeChanged(e);

@@ -78,7 +78,7 @@ public abstract class AccessLimitedCollectionBase<T> : IList<T>
     Items.CopyTo(array, arrayIndex);
   }
 
-  /// <include file="documentation.xml" path="/Collections/Common/GetEnumerator/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Common/GetEnumerator/*"/>
   public List<T>.Enumerator GetEnumerator()
   {
     return Items.GetEnumerator();
@@ -224,7 +224,7 @@ public abstract class CollectionBase<T> : IList<T>
     AddRange((IEnumerable<T>)items);
   }
 
-  /// <include file="documentation.xml" path="/Collections/Common/Clear/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Common/Clear/*"/>
   public void Clear()
   {
     AssertNotReadOnly();
@@ -235,31 +235,31 @@ public abstract class CollectionBase<T> : IList<T>
     }
   }
 
-  /// <include file="documentation.xml" path="/Collections/Common/Contains/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Common/Contains/*"/>
   public bool Contains(T item)
   {
     return IndexOf(item) != -1;
   }
 
-  /// <include file="documentation.xml" path="/Collections/Common/CopyTo/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Common/CopyTo/*"/>
   public void CopyTo(T[] array, int arrayIndex)
   {
     Items.CopyTo(array, arrayIndex);
   }
 
-  /// <include file="documentation.xml" path="/Collections/Common/GetEnumerator/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Common/GetEnumerator/*"/>
   public List<T>.Enumerator GetEnumerator()
   {
     return Items.GetEnumerator();
   }
 
-  /// <include file="documentation.xml" path="/Collections/Common/IndexOf/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Common/IndexOf/*"/>
   public virtual int IndexOf(T item)
   {
     return Items.IndexOf(item);
   }
 
-  /// <include file="documentation.xml" path="/Collections/Common/Insert/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Common/Insert/*"/>
   public void Insert(int index, T item)
   {
     if((uint)index > (uint)Count) throw new ArgumentOutOfRangeException();
@@ -267,7 +267,7 @@ public abstract class CollectionBase<T> : IList<T>
     InsertItem(index, item);
   }
 
-  /// <include file="documentation.xml" path="/Collections/Common/Remove/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Common/Remove/*"/>
   public bool Remove(T item)
   {
     AssertNotReadOnly();
@@ -283,14 +283,14 @@ public abstract class CollectionBase<T> : IList<T>
     }
   }
 
-  /// <include file="documentation.xml" path="/Collections/Common/RemoveAt/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Common/RemoveAt/*"/>
   public void RemoveAt(int index)
   {
     AssertNotReadOnly();
     RemoveItem(index, this[index]);
   }
 
-  /// <include file="documentation.xml" path="/Collections/Common/ToArray/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Common/ToArray/*"/>
   public T[] ToArray()
   {
     T[] array = new T[Count];
@@ -312,35 +312,35 @@ public abstract class CollectionBase<T> : IList<T>
     if(IsReadOnly) throw new InvalidOperationException("The collection is read-only.");
   }
 
-  /// <include file="documentation.xml" path="/Collections/CollectionBase/ClearItems/node()"/>
+  /// <include file="documentation.xml" path="/Collections/CollectionBase/ClearItems/*"/>
   protected virtual void ClearItems()
   {
     Items.Clear();
     OnCollectionChanged();
   }
 
-  /// <include file="documentation.xml" path="/Collections/CollectionBase/InsertItem/node()"/>
+  /// <include file="documentation.xml" path="/Collections/CollectionBase/InsertItem/*"/>
   protected virtual void InsertItem(int index, T item)
   {
     Items.Insert(index, item);
     OnCollectionChanged();
   }
 
-  /// <include file="documentation.xml" path="/Collections/CollectionBase/RemoveItem/node()"/>
+  /// <include file="documentation.xml" path="/Collections/CollectionBase/RemoveItem/*"/>
   protected virtual void RemoveItem(int index, T item)
   {
     Items.RemoveAt(index);
     OnCollectionChanged();
   }
 
-  /// <include file="documentation.xml" path="/Collections/CollectionBase/SetItem/node()"/>
+  /// <include file="documentation.xml" path="/Collections/CollectionBase/SetItem/*"/>
   protected virtual void SetItem(int index, T item)
   {
     Items[index] = item;
     OnCollectionChanged();
   }
 
-  /// <include file="documentation.xml" path="/Collections/CollectionBase/OnCollectionChanged/node()"/>
+  /// <include file="documentation.xml" path="/Collections/CollectionBase/OnCollectionChanged/*"/>
   protected virtual void OnCollectionChanged()
   {
   }
@@ -367,21 +367,21 @@ public abstract class ValidatedCollection<T> : CollectionBase<T>
   /// <summary>Initializes a new <see cref="ValidatedCollection{T}"/> with the given list of items.</summary>
   protected ValidatedCollection(IEnumerable<T> items) : base(items) { }
 
-  /// <include file="documentation.xml" path="/Collections/CollectionBase/InsertItem/node()"/>
+  /// <include file="documentation.xml" path="/Collections/CollectionBase/InsertItem/*"/>
   protected override void InsertItem(int index, T item)
   {
     ValidateItem(item, index);
     base.InsertItem(index, item);
   }
 
-  /// <include file="documentation.xml" path="/Collections/CollectionBase/SetItem/node()"/>
+  /// <include file="documentation.xml" path="/Collections/CollectionBase/SetItem/*"/>
   protected override void SetItem(int index, T item)
   {
     ValidateItem(item, index);
     base.SetItem(index, item);
   }
 
-  /// <include file="documentation.xml" path="/Collections/ValidatedCollection/ValidateItem/node()"/>
+  /// <include file="documentation.xml" path="/Collections/ValidatedCollection/ValidateItem/*"/>
   protected abstract void ValidateItem(T item, int index);
 }
 #endregion
@@ -396,7 +396,7 @@ public class NonNullCollection<T> : ValidatedCollection<T> where T : class
   /// <summary>Initializes a new <see cref="NonNullCollection{T}"/> with the given list of items.</summary>
   public NonNullCollection(IEnumerable<T> items) : base(items) { }
 
-  /// <include file="documentation.xml" path="/Collections/ValidatedCollection/ValidateItem/node()"/>
+  /// <include file="documentation.xml" path="/Collections/ValidatedCollection/ValidateItem/*"/>
   protected override void ValidateItem(T item, int index)
   {
     if(item == null) throw new ArgumentNullException();
@@ -412,7 +412,7 @@ public class NonEmptyStringCollection : ValidatedCollection<string>
   /// <summary>Initializes a new, empty <see cref="NonEmptyStringCollection"/>.</summary>
   public NonEmptyStringCollection() { }
 
-  /// <include file="documentation.xml" path="/Collections/ValidatedCollection/ValidateItem/node()"/>
+  /// <include file="documentation.xml" path="/Collections/ValidatedCollection/ValidateItem/*"/>
   protected override void ValidateItem(string item, int index)
   {
     if(string.IsNullOrEmpty(item)) throw new ArgumentException();

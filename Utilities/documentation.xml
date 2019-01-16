@@ -243,7 +243,7 @@
         The loop counter's ending value, exclusive. This must be greater than or equal to
         <paramref name="start"/>.
       </param>
-      <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/node()"/>
+      <include file="documentation.xml" path="/Utilities/Tasks/ParallelismRemarks/*"/>
     </ParallelForCommon>
     <ParallelFor>
       <param name="body">The body of the loop, which is executed for each iteration and passed the loop counter.</param>
@@ -253,7 +253,7 @@
         iteration of the loop, is preferred when the loop iterations take a substantial amount of time or take an uneven amount
         of time, such that scheduling them in large chunks could lead to an uneven amount of work for each thread.
       </remarks>
-      <include file="documentation.xml" path="/Utilities/Tasks/ParallelForCommon/node()"/>
+      <include file="documentation.xml" path="/Utilities/Tasks/ParallelForCommon/*"/>
     </ParallelFor>
     <ParallelForChunked>
       <param name="body">The body of the loop, which is called just once with a range of loop counter values, as an inclusive
@@ -265,7 +265,7 @@
         iterations, is preferred when the loop iterations take a small and even amount of time, such that it is unnecessary to
         incur the overhead of scheduling each loop iteration individually in order to balance the work between threads.
       </remarks>
-      <include file="documentation.xml" path="/Utilities/Tasks/ParallelForCommon/node()"/>
+      <include file="documentation.xml" path="/Utilities/Tasks/ParallelForCommon/*"/>
     </ParallelForChunked>
     <ParallelForWithInit>
       <param name="body">The body of the loop, which is executed for each iteration and passed the loop counter, the context
@@ -329,6 +329,7 @@
       </code>
     </DowngradeExample>
     <ReadExample>
+      <example>
       This example shows how to use the lock for read access.
       <code>
       using(rwLock.EnterRead())
@@ -336,8 +337,10 @@
         // read data here
       }
       </code>
+      </example>
     </ReadExample>
     <UpgradeExample>
+      <example>
       This example shows how to upgrade a lock from read mode to write mode. Because multiple threads can attempt to upgrade to write locks
       simultaneously, a thread is not guaranteed to be the first upgrader. If another thread upgrades first, you may want to recheck
       whether you still need to perform the write. This is demonstrated in the code below.
@@ -369,8 +372,10 @@
         }
       }
       </code>
+      </example>
     </UpgradeExample>
     <WriteExample>
+      <example>
       This example shows how to use the lock for write access.
       <code>
       using(rwLock.EnterWrite())
@@ -378,6 +383,7 @@
         // write data here
       }
       </code>
+      </example>
     </WriteExample>
   </UpgradableReadWriteLock>
 

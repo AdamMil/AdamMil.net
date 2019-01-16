@@ -405,7 +405,7 @@ public abstract class RandomNumberGenerator
   #pragma warning disable 3011 // only CLS compliant methods can be abstract
   // we're going to lie about the CLS compliance of this class because it's used everywhere, and is still very useable by non-CLS-compliant
   // languages. it's only that people may not be able to create their own random number generators, which is no problem for most users
-  /// <include file="documentation.xml" path="//Math/RNG/NextUint32/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/NextUint32/*"/>
   [CLSCompliant(false)]
   public abstract uint NextUInt32();
   #pragma warning restore 3011
@@ -450,10 +450,10 @@ public abstract class RandomNumberGenerator
     return new XorShift128RNG(seed);
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/*"/>
   protected abstract void LoadStateCore(BinaryReader reader);
 
-  /// <include file="documentation.xml" path="//Math/RNG/SaveStateCore/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/SaveStateCore/*"/>
   protected abstract void SaveStateCore(BinaryWriter writer);
 
   /// <summary>Returns a 128-bit seed based on the current time (both real-world time and an internal timer), as an array of four uints.</summary>
@@ -537,7 +537,7 @@ public sealed class AWCKISSRNG : RandomNumberGenerator
 {
   // adapted from http://www.cs.ucl.ac.uk/staff/d.jones/GoodPracticeRNG.pdf
 
-  /// <include file="documentation.xml" path="//Math/RNG/SeedSize/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/SeedSize/*"/>
   public const int SeedSize = 4;
 
   /// <summary>Initializes a new <see cref="AWCKISSRNG"/> random number generator with a seed based on the current time.</summary>
@@ -564,7 +564,7 @@ public sealed class AWCKISSRNG : RandomNumberGenerator
     }
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/NextUint32/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/NextUint32/*"/>
   [CLSCompliant(false)]
   public override uint NextUInt32()
   {
@@ -582,7 +582,7 @@ public sealed class AWCKISSRNG : RandomNumberGenerator
     return X + Y + W;
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/*"/>
   protected override void LoadStateCore(BinaryReader reader)
   {
     X = reader.ReadUInt32();
@@ -592,7 +592,7 @@ public sealed class AWCKISSRNG : RandomNumberGenerator
     C = reader.ReadUInt32();
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/SaveStateCore/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/SaveStateCore/*"/>
   protected override void SaveStateCore(BinaryWriter writer)
   {
     writer.Write(X);
@@ -619,7 +619,7 @@ public sealed class ISAACRNG : RandomNumberGenerator
 {
   // adapted from http://burtleburtle.net/bob/rand/isaacafa.html
 
-  /// <include file="documentation.xml" path="//Math/RNG/SeedSize/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/SeedSize/*"/>
   public const int SeedSize = 256;
 
   /// <summary>Initializes a new <see cref="ISAACRNG"/> with a seed based on the current time.</summary>
@@ -637,7 +637,7 @@ public sealed class ISAACRNG : RandomNumberGenerator
     Initialize(seed != null);
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/NextUint32/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/NextUint32/*"/>
   [CLSCompliant(false)]
   public override uint NextUInt32()
   {
@@ -645,7 +645,7 @@ public sealed class ISAACRNG : RandomNumberGenerator
     return results[resultIndex++];
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/*"/>
   protected override void LoadStateCore(BinaryReader reader)
   {
     results     = reader.ReadUInt32s(256);
@@ -656,7 +656,7 @@ public sealed class ISAACRNG : RandomNumberGenerator
     counter     = reader.ReadUInt32();
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/SaveStateCore/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/SaveStateCore/*"/>
   protected override void SaveStateCore(BinaryWriter writer)
   {
     writer.Write(results);
@@ -772,7 +772,7 @@ public sealed class KISSRNG : RandomNumberGenerator
 {
   // adapted from http://www.cs.ucl.ac.uk/staff/d.jones/GoodPracticeRNG.pdf
 
-  /// <include file="documentation.xml" path="//Math/RNG/SeedSize/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/SeedSize/*"/>
   public const int SeedSize = 4;
 
   /// <summary>Initializes a new <see cref="KISSRNG"/> with a seed based on the current time.</summary>
@@ -799,7 +799,7 @@ public sealed class KISSRNG : RandomNumberGenerator
     }
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/NextUint32/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/NextUint32/*"/>
   [CLSCompliant(false)]
   public override uint NextUInt32()
   {
@@ -814,7 +814,7 @@ public sealed class KISSRNG : RandomNumberGenerator
     return X + Y + Z;
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/*"/>
   protected override void LoadStateCore(BinaryReader reader)
   {
     X = reader.ReadUInt32();
@@ -823,7 +823,7 @@ public sealed class KISSRNG : RandomNumberGenerator
     C = reader.ReadUInt32();
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/SaveStateCore/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/SaveStateCore/*"/>
   protected override void SaveStateCore(BinaryWriter writer)
   {
     writer.Write(X);
@@ -846,7 +846,7 @@ public sealed class MWC256RNG : RandomNumberGenerator
 {
   // adapted from http://www.cs.ucl.ac.uk/staff/d.jones/GoodPracticeRNG.pdf
 
-  /// <include file="documentation.xml" path="//Math/RNG/SeedSize/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/SeedSize/*"/>
   public const int SeedSize = 256;
 
   /// <summary>Initializes a new <see cref="MWC256RNG"/> random number generator with a seed based on the current time.</summary>
@@ -877,7 +877,7 @@ public sealed class MWC256RNG : RandomNumberGenerator
     }
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/NextUint32/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/NextUint32/*"/>
   [CLSCompliant(false)]
   public override uint NextUInt32()
   {
@@ -887,7 +887,7 @@ public sealed class MWC256RNG : RandomNumberGenerator
     return Q[I] = (uint)t;
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/*"/>
   protected override void LoadStateCore(BinaryReader reader)
   {
     Q = reader.ReadUInt32s(256);
@@ -895,7 +895,7 @@ public sealed class MWC256RNG : RandomNumberGenerator
     I = reader.ReadByte();
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/SaveStateCore/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/SaveStateCore/*"/>
   protected override void SaveStateCore(BinaryWriter writer)
   {
     writer.Write(Q);
@@ -920,7 +920,7 @@ public sealed class XorShift128RNG : RandomNumberGenerator
   // adapted from Marsaglia (July 2003). "Xorshift RNGs". Journal of Statistical Software Vol. 8 (Issue  14)
   // (http://www.jstatsoft.org/v08/i14/paper)
 
-  /// <include file="documentation.xml" path="//Math/RNG/SeedSize/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/SeedSize/*"/>
   public const int SeedSize = 4;
 
   /// <summary>Initializes a new <see cref="XorShift128RNG"/> random number generator with a seed based on the current time.</summary>
@@ -947,7 +947,7 @@ public sealed class XorShift128RNG : RandomNumberGenerator
     }
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/NextUint32/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/NextUint32/*"/>
   [CLSCompliant(false)]
   public override uint NextUInt32()
   {
@@ -958,7 +958,7 @@ public sealed class XorShift128RNG : RandomNumberGenerator
     return W = W ^ (W >> 19) ^ t ^ (t >> 8);
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/LoadStateCore/*"/>
   protected override void LoadStateCore(BinaryReader reader)
   {
     X = reader.ReadUInt32();
@@ -967,7 +967,7 @@ public sealed class XorShift128RNG : RandomNumberGenerator
     W = reader.ReadUInt32();
   }
 
-  /// <include file="documentation.xml" path="//Math/RNG/SaveStateCore/node()"/>
+  /// <include file="documentation.xml" path="//Math/RNG/SaveStateCore/*"/>
   protected override void SaveStateCore(BinaryWriter writer)
   {
     writer.Write(X);

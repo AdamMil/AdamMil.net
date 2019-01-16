@@ -66,14 +66,14 @@ namespace AdamMil.Tests
         {
 
           fixture = cons.Invoke(null);
-          RunMethods(fixture, methods, typeof(TestFixtureSetUpAttribute), false);
+          RunMethods(fixture, methods, typeof(OneTimeSetUpAttribute), false);
           success = RunMethods(fixture, methods, typeof(TestAttribute), true);
         }
         finally
         {
           if(fixture != null)
           {
-            try { success &= RunMethods(fixture, methods, typeof(TestFixtureTearDownAttribute), true); }
+            try { success &= RunMethods(fixture, methods, typeof(OneTimeTearDownAttribute), true); }
             catch { success = false; }
             IDisposable disposable = fixture as IDisposable;
             if(disposable != null) disposable.Dispose();

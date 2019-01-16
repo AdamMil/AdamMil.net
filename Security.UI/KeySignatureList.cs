@@ -74,13 +74,13 @@ public class KeySignatureList : PGPListBase
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/ClearCachedFonts/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/ClearCachedFonts/*"/>
   protected override void ClearCachedFonts()
   {
     userIdFont = revokedIdFont = null;
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/CreateAttributeItem/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/CreateAttributeItem/*"/>
   protected override AttributeItem CreateAttributeItem(UserAttribute attr)
   {
     AttributeItem item = base.CreateAttributeItem(attr);
@@ -88,7 +88,7 @@ public class KeySignatureList : PGPListBase
     return item;
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/CreateSignatureItem/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/CreateSignatureItem/*"/>
   protected virtual KeySignatureItem CreateSignatureItem(KeySignature sig)
   {
     if(sig == null) throw new ArgumentNullException();
@@ -110,13 +110,13 @@ public class KeySignatureList : PGPListBase
     return item;
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/RecreateItems/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/RecreateItems/*"/>
   protected override void RecreateItems()
   {
     if(Items.Count != 0) Initialize(((AttributeItem)Items[0]).PublicKey);
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/SetAttributeItemFont/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/SetAttributeItemFont/*"/>
   protected virtual void SetFont(AttributeItem item)
   {
     if(item.Attribute.Revoked)
@@ -132,7 +132,7 @@ public class KeySignatureList : PGPListBase
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/SetKeySignatureItemFont/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/SetKeySignatureItemFont/*"/>
   protected virtual void SetFont(KeySignatureItem item)
   {
     if(item.Signature.IsInvalid) // if the signature failed verification, it may indicate a security problem

@@ -147,14 +147,14 @@ public class SecureTextBox : TextBox
     SelectionStart  = text.Length;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/Dispose/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/Dispose/*"/>
   protected override void Dispose(bool disposing)
   {
     base.Dispose(disposing);
     text.Dispose();
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/*"/>
   protected override void OnKeyDown(KeyEventArgs e)
   {
     if(e.Modifiers != Keys.None)
@@ -189,7 +189,7 @@ public class SecureTextBox : TextBox
     base.OnKeyDown(e);
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnKeyPress/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnKeyPress/*"/>
   protected override void OnKeyPress(KeyPressEventArgs e)
   {
     if(IsCharRestricted(e.KeyChar)) // don't allow restricted characters

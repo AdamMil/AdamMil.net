@@ -32,13 +32,13 @@ namespace AdamMil.UI.TextEditing
 /// </summary>
 public abstract class LineStorage
 {
-  /// <include file="documentation.xml" path="/UI/LineStorage/LineCount/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/LineCount/*"/>
   public abstract int LineCount { get; }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/CharToLine2/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/CharToLine2/*"/>
   public abstract void CharToLine(int charIndex, out int line, out int column);
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/CharToLine/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/CharToLine/*"/>
   public virtual int CharToLine(int charIndex)
   {
     int line, column;
@@ -46,34 +46,34 @@ public abstract class LineStorage
     return line;
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineInfo/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineInfo/*"/>
   public abstract void GetLineInfo(int line, out int offset, out int length);
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLength/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLength/*"/>
   public abstract int GetLineLength(int line);
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/AddLine/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/AddLine/*"/>
   public void AddLine(int length)
   {
     InsertLine(LineCount, length);
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/AlterLength/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/AlterLength/*"/>
   public abstract void AlterLength(int line, int lengthDelta);
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/Clear/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/Clear/*"/>
   public void Clear()
   {
     SetAllLengths(new int[0]);
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/InsertLine/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/InsertLine/*"/>
   public abstract void InsertLine(int line, int length);
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/DeleteLine/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/DeleteLine/*"/>
   public abstract void DeleteLine(int line);
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLengths/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLengths/*"/>
   public virtual int[] GetLineLengths()
   {
     int[] lengths = new int[LineCount];
@@ -81,10 +81,10 @@ public abstract class LineStorage
     return lengths;
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/SetAllLengths/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/SetAllLengths/*"/>
   public abstract void SetAllLengths(int[] lineLengths);
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/SetLength/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/SetLength/*"/>
   public virtual void SetLength(int line, int newLength)
   {
     AlterLength(line, newLength - GetLineLength(line));
@@ -102,7 +102,7 @@ public abstract class LineStorage
     return sb.ToString();
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/TrimExcess/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/TrimExcess/*"/>
   public abstract void TrimExcess();
 
   /// <summary>Given an array of line lengths, validates the line lengths.</summary>
@@ -136,13 +136,13 @@ public sealed class ArrayLineStorage : LineStorage
     lineLengths = new int[0];
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/LineCount/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/LineCount/*"/>
   public override int LineCount
   {
     get { return count; }
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/CharToLine2/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/CharToLine2/*"/>
   public override void CharToLine(int charIndex, out int line, out int column)
   {
     if(charIndex < 0) throw new ArgumentOutOfRangeException();
@@ -165,7 +165,7 @@ public sealed class ArrayLineStorage : LineStorage
     column = lineLengths[line];
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineInfo/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineInfo/*"/>
   public override void GetLineInfo(int line, out int offset, out int length)
   {
     if((uint)line >= (uint)count) throw new ArgumentOutOfRangeException();
@@ -175,14 +175,14 @@ public sealed class ArrayLineStorage : LineStorage
     length = lineLengths[line];
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLength/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLength/*"/>
   public override int GetLineLength(int line)
   {
     if((uint)line >= (uint)count) throw new ArgumentOutOfRangeException();
     return lineLengths[line];
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLengths/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLengths/*"/>
   public override int[] GetLineLengths()
   {
     int[] lengths = new int[LineCount];
@@ -190,14 +190,14 @@ public sealed class ArrayLineStorage : LineStorage
     return lengths;
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/AlterLength/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/AlterLength/*"/>
   public override void AlterLength(int line, int lengthDelta)
   {
     if((uint)line >= (uint)count || lineLengths[line]+lengthDelta < 0) throw new ArgumentOutOfRangeException();
     lineLengths[line] += lengthDelta;
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/InsertLine/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/InsertLine/*"/>
   public override void InsertLine(int line, int length)
   {
     if((uint)line > (uint)count || length < 0) throw new ArgumentOutOfRangeException();
@@ -214,7 +214,7 @@ public sealed class ArrayLineStorage : LineStorage
     count++;
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/DeleteLine/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/DeleteLine/*"/>
   public override void DeleteLine(int line)
   {
     if((uint)line >= (uint)count) throw new ArgumentOutOfRangeException();
@@ -222,7 +222,7 @@ public sealed class ArrayLineStorage : LineStorage
     count--;
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/SetAllLengths/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/SetAllLengths/*"/>
   public override void SetAllLengths(int[] lineLengths)
   {
     ValidateLineLengths(lineLengths);
@@ -230,7 +230,7 @@ public sealed class ArrayLineStorage : LineStorage
     count = lineLengths.Length;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/TrimExcess/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/TrimExcess/*"/>
   public override void TrimExcess()
   {
     int capacity = 16;
@@ -262,13 +262,13 @@ public sealed class TreeLineStorage : LineStorage
     SetAllLengths(new int[0]);
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/LineCount/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/LineCount/*"/>
   public override int LineCount
   {
     get { return count; }
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/CharToLine2/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/CharToLine2/*"/>
   public override void CharToLine(int charIndex, out int line, out int column)
   {
     if((uint)charIndex > (uint)array[0]) throw new ArgumentOutOfRangeException();
@@ -313,7 +313,7 @@ public sealed class TreeLineStorage : LineStorage
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineInfo/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineInfo/*"/>
   public override void GetLineInfo(int line, out int offset, out int length)
   {
     if((uint)line >= (uint)count) throw new ArgumentOutOfRangeException();
@@ -350,14 +350,14 @@ public sealed class TreeLineStorage : LineStorage
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLength/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLength/*"/>
   public override int GetLineLength(int line)
   {
     if((uint)line >= (uint)count) throw new ArgumentOutOfRangeException();
     return array[GetLeafIndex(line)];
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLengths/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLengths/*"/>
   public override int[] GetLineLengths()
   {
     int[] lengths = new int[LineCount];
@@ -365,7 +365,7 @@ public sealed class TreeLineStorage : LineStorage
     return lengths;
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/AlterLength/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/AlterLength/*"/>
   public override void AlterLength(int line, int lengthDelta)
   {
     if((uint)line > (uint)count) throw new ArgumentOutOfRangeException();
@@ -384,7 +384,7 @@ public sealed class TreeLineStorage : LineStorage
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/InsertLine/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/InsertLine/*"/>
   public override void InsertLine(int line, int length)
   {
     if((uint)line > (uint)count || length < 0) throw new ArgumentOutOfRangeException();
@@ -408,7 +408,7 @@ public sealed class TreeLineStorage : LineStorage
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/DeleteLine/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/DeleteLine/*"/>
   public override void DeleteLine(int line)
   {
     if((uint)line >= (uint)count) throw new ArgumentOutOfRangeException();
@@ -422,7 +422,7 @@ public sealed class TreeLineStorage : LineStorage
     FixupTree(leafIndex);                                           // fix up the interior nodes
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/SetAllLengths/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/SetAllLengths/*"/>
   public override void SetAllLengths(int[] lineLengths)
   {
     ValidateLineLengths(lineLengths);
@@ -445,7 +445,7 @@ public sealed class TreeLineStorage : LineStorage
     FixupTree(GetLeafIndex(0)); // calculate the rest of the tree
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/TrimExcess/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/TrimExcess/*"/>
   public override void TrimExcess()
   {
     if(count <= maxLines/2)
@@ -513,25 +513,25 @@ public sealed class TreeLineStorage : LineStorage
 /// <summary>A base class for text buffers designed for interactive text editing.</summary>
 public abstract class EditableTextBuffer
 {
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Indexer/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Indexer/*"/>
   public abstract char this[int index] { get; set; }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Capacity/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Capacity/*"/>
   public abstract int Capacity { get; set; }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Length/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Length/*"/>
   public abstract int Length { get; }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/CopyTo2/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/CopyTo2/*"/>
   public void CopyTo(char[] destArray, int destIndex)
   {
     CopyTo(0, destArray, destIndex, Length);
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/CopyTo4/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/CopyTo4/*"/>
   public abstract void CopyTo(int srcIndex, char[] destArray, int destIndex, int count);
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/CopyTo3/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/CopyTo3/*"/>
   public virtual void CopyTo(TextWriter writer, int srcIndex, int count)
   {
     if(writer == null) throw new ArgumentNullException();
@@ -548,25 +548,25 @@ public abstract class EditableTextBuffer
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Delete/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Delete/*"/>
   public virtual void Delete(int index)
   {
     Delete(index, 1);
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Delete2/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Delete2/*"/>
   public abstract void Delete(int index, int count);
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/FindNext/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/FindNext/*"/>
   public abstract int FindNext(char c, int startIndex);
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/GetText/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/GetText/*"/>
   public virtual string GetText()
   {
     return GetText(0, Length);
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/GetText2/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/GetText2/*"/>
   public virtual string GetText(int index, int count)
   {
     if(count < 0) throw new ArgumentOutOfRangeException();
@@ -575,16 +575,16 @@ public abstract class EditableTextBuffer
     return new string(buffer);
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertChar/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertChar/*"/>
   public abstract void Insert(int index, char c);
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertArray/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertArray/*"/>
   public abstract void Insert(int destIndex, char[] srcArray, int srcIndex, int count);
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertString/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertString/*"/>
   public abstract void Insert(int index, string str);
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertReader/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertReader/*"/>
   public virtual void Insert(int index, TextReader reader)
   {
     string line;
@@ -681,14 +681,14 @@ public class GapTextBuffer : EditableTextBuffer
     if(reader != null) Insert(0, reader);
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Indexer/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Indexer/*"/>
   public override char this[int index]
   {
     get { return buffer[GetRawIndex(index)]; }
     set { buffer[GetRawIndex(index)] = value; }
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Capacity/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Capacity/*"/>
   public override int Capacity
   {
     get { return buffer.Length; }
@@ -707,13 +707,13 @@ public class GapTextBuffer : EditableTextBuffer
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Length/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Length/*"/>
   public override int Length
   {
     get { return length; }
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/CopyTo4/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/CopyTo4/*"/>
   public override void CopyTo(int srcIndex, char[] destArray, int destIndex, int count)
   {
     Utility.ValidateRange(length, srcIndex, count);
@@ -734,7 +734,7 @@ public class GapTextBuffer : EditableTextBuffer
     Array.Copy(buffer, srcIndex, destArray, destIndex, count);
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Delete2/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Delete2/*"/>
   public override void Delete(int index, int count)
   {
     Utility.ValidateRange(length, index, count);
@@ -766,7 +766,7 @@ public class GapTextBuffer : EditableTextBuffer
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/FindNext/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/FindNext/*"/>
   public override int FindNext(char c, int startIndex)
   {
     int index;
@@ -781,7 +781,7 @@ public class GapTextBuffer : EditableTextBuffer
     return Array.IndexOf(buffer, c, startIndex, buffer.Length-startIndex); // search the portion after the gap
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertChar/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertChar/*"/>
   public override void Insert(int index, char c)
   {
     if((uint)index > (uint)length) throw new ArgumentOutOfRangeException();
@@ -790,7 +790,7 @@ public class GapTextBuffer : EditableTextBuffer
     length++;
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertArray/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertArray/*"/>
   public override void Insert(int destIndex, char[] srcArray, int srcIndex, int count)
   {
     if((uint)destIndex > (uint)length) throw new ArgumentOutOfRangeException();
@@ -802,7 +802,7 @@ public class GapTextBuffer : EditableTextBuffer
     length   += count;
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertString/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertString/*"/>
   public override void Insert(int index, string str)
   {
     if(str == null) throw new ArgumentNullException();
@@ -898,7 +898,7 @@ public class TextDocument
     if(initialText != null) Insert(Length, initialText);
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Indexer/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Indexer/*"/>
   public char this[int index]
   {
     get { return textBuffer[index]; }
@@ -933,13 +933,13 @@ public class TextDocument
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Length/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Length/*"/>
   public int Length
   {
     get { return textBuffer.Length; }
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/Length/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/Length/*"/>
   public int LineCount
   {
     get { return lineStorage.LineCount; }
@@ -952,19 +952,19 @@ public class TextDocument
     lineStorage.Clear();
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Copy3/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Copy3/*"/>
   public void CopyTo(TextWriter writer, int srcIndex, int count)
   {
     textBuffer.CopyTo(writer, srcIndex, count);
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Copy4/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Copy4/*"/>
   public void CopyTo(int srcIndex, char[] destArray, int destIndex, int count)
   {
     textBuffer.CopyTo(srcIndex, destArray, destIndex, count);
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Delete/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Delete/*"/>
   public void Delete(int index)
   {
     char c = textBuffer[index];
@@ -982,7 +982,7 @@ public class TextDocument
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Delete2/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Delete2/*"/>
   public void Delete(int index, int count)
   {
     Utility.ValidateRange(Length, index, count);
@@ -1009,25 +1009,25 @@ public class TextDocument
     textBuffer.Delete(index, count); // now remove the text from the buffer
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLength/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLength/*"/>
   public int GetLineLength(int line)
   {
     return lineStorage.GetLineLength(line);
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLengths/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLengths/*"/>
   public int[] GetLineLengths()
   {
     return lineStorage.GetLineLengths();
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineInfo/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineInfo/*"/>
   public void GetLineInfo(int line, out int offset, out int length)
   {
     lineStorage.GetLineInfo(line, out offset, out length);
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertChar/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertChar/*"/>
   public void Insert(int index, char c)
   {
     textBuffer.Insert(index, c);
@@ -1050,7 +1050,7 @@ public class TextDocument
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertArray/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertArray/*"/>
   public void Insert(int destIndex, char[] srcArray, int srcIndex, int count)
   {
     // insert the text into the buffer
@@ -1088,7 +1088,7 @@ public class TextDocument
     lineStorage.AlterLength(line, count);
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertString/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertString/*"/>
   public void Insert(int index, string str)
   {
     if(str == null) throw new ArgumentNullException();
@@ -1096,7 +1096,7 @@ public class TextDocument
     Insert(index, buffer, 0, buffer.Length);
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertReader/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertReader/*"/>
   public void Insert(int index, TextReader reader)
   {
     if((uint)index > (uint)Length) throw new ArgumentOutOfRangeException();
@@ -1112,13 +1112,13 @@ public class TextDocument
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/GetText/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/GetText/*"/>
   public string GetText()
   {
     return textBuffer.GetText();
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/GetText2/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/GetText2/*"/>
   public string GetText(int start, int length)
   {
     return textBuffer.GetText(start, length);
@@ -1130,7 +1130,7 @@ public class TextDocument
     return GetText();
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/TrimExcess/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/TrimExcess/*"/>
   public void TrimExcess()
   {
     textBuffer.TrimExcess();

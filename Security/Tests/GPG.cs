@@ -20,7 +20,7 @@ public abstract class GPGTestBase : IDisposable
 
   ~GPGTestBase() { Dispose(false); }
 
-  [TestFixtureTearDown]
+  [OneTimeTearDown]
   public void Dispose()
   {
     Dispose(true);
@@ -39,7 +39,7 @@ public abstract class GPGTestBase : IDisposable
 
   const int Encrypter=0, Signer=1, Receiver=2; // keys that were imported
 
-  [TestFixtureSetUp]
+  [OneTimeSetUp]
   public void Setup()
   {
     // we'll use "aoeu" as the password in places where passwords are needed

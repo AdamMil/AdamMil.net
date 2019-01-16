@@ -329,7 +329,7 @@ public static class EnumerableExtensions
   /// <summary>Returns up to the specified number of items, all of which are greater than or equal to the rest of the items. The
   /// items may not be returned in sorted order.
   /// </summary>
-  /// <include file="documentation.xml" path="/Utilities/Linq/TakeGreatest/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Linq/TakeGreatest/*"/>
   public static IEnumerable<T> TakeGreatest<T>(this IEnumerable<T> items, int count)
   {
     return items.TakeGreatest(count, Comparer<T>.Default);
@@ -338,7 +338,7 @@ public static class EnumerableExtensions
   /// <summary>Returns up to the specified number of items, all of which are greater than or equal to the rest of the items (using
   /// the given <see cref="Comparison{T}"/> to compare them). The items may not be returned in sorted order.
   /// </summary>
-  /// <include file="documentation.xml" path="/Utilities/Linq/TakeGreatest/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Linq/TakeGreatest/*"/>
   public static IEnumerable<T> TakeGreatest<T>(this IEnumerable<T> items, int count, Comparison<T> comparison)
   {
     return items.TakeGreatest(count, new DelegateComparer<T>(comparison));
@@ -347,7 +347,7 @@ public static class EnumerableExtensions
   /// <summary>Returns up to the specified number of items, all of which are greater than or equal to the rest of the items (using
   /// the given <see cref="IComparer{T}"/> to compare them). The items may not be returned in sorted order.
   /// </summary>
-  /// <include file="documentation.xml" path="/Utilities/Linq/TakeGreatest/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Linq/TakeGreatest/*"/>
   public static IEnumerable<T> TakeGreatest<T>(this IEnumerable<T> items, int count, IComparer<T> comparer)
   {
     return items.TakeLeast(count, new ReversedComparer<T>(comparer));
@@ -356,7 +356,7 @@ public static class EnumerableExtensions
   /// <summary>Returns up to the specified number of items, all of which are greater than or equal to the rest of the items (using
   /// the given key selector function to compare them). The items may not be returned in sorted order.
   /// </summary>
-  /// <include file="documentation.xml" path="/Utilities/Linq/TakeGreatest/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Linq/TakeGreatest/*"/>
   public static IEnumerable<T> TakeGreatest<T, TKey>(this IEnumerable<T> items, int count, Func<T, TKey> keySelector)
   {
     return items.TakeGreatest(count, MakeKeyComparer(keySelector));
@@ -365,7 +365,7 @@ public static class EnumerableExtensions
   /// <summary>Returns up to the specified number of items, all of which are less than or equal to the rest of the items. The
   /// items may not be returned in sorted order.
   /// </summary>
-  /// <include file="documentation.xml" path="/Utilities/Linq/TakeLeast/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Linq/TakeLeast/*"/>
   public static IEnumerable<T> TakeLeast<T>(this IEnumerable<T> items, int count)
   {
     return items.TakeLeast(count, Comparer<T>.Default);
@@ -374,7 +374,7 @@ public static class EnumerableExtensions
   /// <summary>Returns up to the specified number of items, all of which are less than or equal to the rest of the items (using
   /// the given <see cref="Comparison{T}"/> to compare them). The items may not be returned in sorted order.
   /// </summary>
-  /// <include file="documentation.xml" path="/Utilities/Linq/TakeLeast/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Linq/TakeLeast/*"/>
   public static IEnumerable<T> TakeLeast<T>(this IEnumerable<T> items, int count, Comparison<T> comparison)
   {
     return items.TakeLeast(count, new DelegateComparer<T>(comparison));
@@ -383,7 +383,7 @@ public static class EnumerableExtensions
   /// <summary>Returns up to the specified number of items, all of which are less than or equal to the rest of the items (using
   /// the given key selector function to compare them). The items may not be returned in sorted order.
   /// </summary>
-  /// <include file="documentation.xml" path="/Utilities/Linq/TakeLeast/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Linq/TakeLeast/*"/>
   public static IEnumerable<T> TakeLeast<T, TKey>(this IEnumerable<T> items, int count, Func<T, TKey> keySelector)
   {
     return items.TakeLeast(count, MakeKeyComparer(keySelector));
@@ -392,7 +392,7 @@ public static class EnumerableExtensions
   /// <summary>Returns up to the specified number of items, all of which are less than or equal to the rest of the items (using
   /// the given <see cref="IComparer{T}"/> to compare them). The items may not be returned in sorted order.
   /// </summary>
-  /// <include file="documentation.xml" path="/Utilities/Linq/TakeLeast/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/Linq/TakeLeast/*"/>
   public static IEnumerable<T> TakeLeast<T>(this IEnumerable<T> items, int count, IComparer<T> comparer)
   {
     if(items == null) throw new ArgumentNullException();
