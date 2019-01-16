@@ -43,11 +43,11 @@ namespace AdamMil.Mathematics.LinearAlgebra
   /// <summary>Represents a class that can solve systems of linear equations.</summary>
   public interface ILinearEquationSolver
   {
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/GetInverse/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/GetInverse/*"/>
     Matrix GetInverse();
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Initialize/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Initialize/*"/>
     void Initialize(Matrix coefficients);
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Solve/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Solve/*"/>
     Matrix Solve(Matrix values, bool tryInPlace);
   }
   #endregion
@@ -74,27 +74,27 @@ namespace AdamMil.Mathematics.LinearAlgebra
       Initialize(coefficients);
     }
 
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/GetInverse/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/GetInverse/*"/>
     public Matrix GetInverse()
     {
       AssertInitialized();
       return inverse == null ? Invert(coefficients) : inverse.Clone();
     }
 
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Initialize/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Initialize/*"/>
     public void Initialize(Matrix coefficients)
     {
       Matrix.Assign(ref this.coefficients, coefficients);
       inverse = null;
     }
 
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Solve1/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Solve1/*"/>
     public Matrix Solve(Matrix values)
     {
       return Solve(values, false);
     }
 
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Solve/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Solve/*"/>
     /// <remarks>Gauss-Jordan is always capable of solving in place, if requested.</remarks>
     public Matrix Solve(Matrix values, bool tryInPlace)
     {
@@ -136,7 +136,7 @@ namespace AdamMil.Mathematics.LinearAlgebra
     }
 
     /// <summary>Solves a system of linear equations and returns the inverse matrix.</summary>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/Solve/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/Solve/*"/>
     public static Matrix Solve(Matrix coefficients, Matrix values, out Matrix inverse, bool tryInPlace)
     {
       return Solve(coefficients, values, out inverse, true, tryInPlace);
@@ -332,7 +332,7 @@ namespace AdamMil.Mathematics.LinearAlgebra
       return product;
     }
 
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/GetInverse/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/GetInverse/*"/>
     public Matrix GetInverse()
     {
       AssertDecomposition();
@@ -362,7 +362,7 @@ namespace AdamMil.Mathematics.LinearAlgebra
       return sum;
     }
 
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Initialize/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Initialize/*"/>
     public void Initialize(Matrix coefficients)
     {
       if(coefficients == null) throw new ArgumentNullException();
@@ -416,13 +416,13 @@ namespace AdamMil.Mathematics.LinearAlgebra
       solution.Subtract(Solve(errors, true));
     }
 
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Solve1/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Solve1/*"/>
     public Matrix Solve(Matrix values)
     {
       return Solve(values, false);
     }
 
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Solve/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Solve/*"/>
     public Matrix Solve(Matrix values, bool inPlace)
     {
       if(values == null) throw new ArgumentNullException();
@@ -628,7 +628,7 @@ namespace AdamMil.Mathematics.LinearAlgebra
   /// <see cref="GaussJordan">Gauss-Jordan elimination</see>.
   /// </summary>
   /// <include file="documentation.xml" path="/Math/LinearAlgebra/Solve/remarks"/>
-  /// <include file="documentation.xml" path="/Math/LinearAlgebra/QRDecomposition/QRRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/LinearAlgebra/QRDecomposition/QRRemarks/*"/>
   public sealed class QRDecomposition : ILinearEquationSolver
   {
     /// <summary>Initializes a new <see cref="QRDecomposition"/> with no matrix. <see cref="Initialize" /> can be called to provide a
@@ -653,7 +653,7 @@ namespace AdamMil.Mathematics.LinearAlgebra
     /// <param name="r">A <see cref="Matrix"/> variable that will assigned (if null) or overwritten (if not null) with the R matrix from
     /// the QR decomposition.
     /// </param>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/QRDecomposition/QRRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/QRDecomposition/QRRemarks/*"/>
     /// <remarks>The QR decomposition decomposes a matrix A into two matrices Q and R such that A = Q*R and Q is orthogonal, and R is upper
     /// triangular. (Although the decomposition exists for general rectangular matrices, this class only implements QR decomposition of
     /// square matrices.) However, for many applications, it is more useful to have the transpose of Q matrix, so that is what is returned
@@ -666,14 +666,14 @@ namespace AdamMil.Mathematics.LinearAlgebra
       Matrix.Assign(ref r, this.r);
     }
 
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/GetInverse/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/GetInverse/*"/>
     public Matrix GetInverse()
     {
       AssertDecomposition();
       return Solve(Matrix.CreateIdentity(qt.Width));
     }
 
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Initialize/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Initialize/*"/>
     public void Initialize(Matrix coefficients)
     {
       if(coefficients == null) throw new ArgumentNullException();
@@ -729,7 +729,7 @@ namespace AdamMil.Mathematics.LinearAlgebra
       }
     }
 
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Solve1/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Solve1/*"/>
     public Matrix Solve(Matrix values)
     {
       if(values == null) throw new ArgumentNullException();
@@ -751,7 +751,7 @@ namespace AdamMil.Mathematics.LinearAlgebra
     /// <param name="v">
     /// The right-hand vector used in a tensor product with <paramref name="u"/> during the update. See the remarks for details.
     /// </param>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/QRDecomposition/Update/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/QRDecomposition/Update/*"/>
     public void Update(Vector u, Vector v)
     {
       if(u == null || v == null) throw new ArgumentNullException();
@@ -764,7 +764,7 @@ namespace AdamMil.Mathematics.LinearAlgebra
     /// <param name="v">An array representing the right-hand vector used in a tensor product with <paramref name="u"/> during the update.
     /// See the remarks for details.
     /// </param>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/QRDecomposition/Update/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/QRDecomposition/Update/*"/>
     public void Update(double[] u, double[] v)
     {
       if(u == null || v == null) throw new ArgumentNullException();
@@ -893,7 +893,7 @@ namespace AdamMil.Mathematics.LinearAlgebra
     /// <summary>Gets the default threshold for singular values. Singular values less than or equal to this value will be considered to be
     /// zero. See the remarks for more details. This property is only valid after a matrix has been decomposed.
     /// </summary>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/*"/>
     /// <remarks>This property returns the default threshold that singular values must be above in order to be considered non-zero. By
     /// default, methods of the <see cref="SVDecomposition"/> class will use the default threshold, but you can use your own threshold
     /// (perhaps based on the default threshold).
@@ -935,7 +935,7 @@ namespace AdamMil.Mathematics.LinearAlgebra
     }
 
     /// <summary>Returns the inverse of the decomposed matrix's condition number.</summary>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/*"/>
     /// <remarks>Rather than returning the condition number described above, this method returns its inverse. The reason is that with
     /// singular matrices, the condition number is infinite (since it involves a division by zero), and for very ill-conditioned matrices
     /// it may overflow. So with this method, an inverse condition number of zero indicates an exactly singular matrix, and a condition
@@ -948,16 +948,16 @@ namespace AdamMil.Mathematics.LinearAlgebra
     }
 
     /// <summary>Returns the nullity of the matrix, which is the dimension of its null space, using the <see cref="DefaultThreshold"/>.</summary>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/node()"/>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/NullSpaceRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/*"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/NullSpaceRemarks/*"/>
     public int GetNullity()
     {
       return GetNullity(_defaultThreshold);
     }
 
     /// <summary>Returns the nullity of the matrix, which is the dimension of its null space, using the given threshold.</summary>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/node()"/>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/NullSpaceRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/*"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/NullSpaceRemarks/*"/>
     /// <seealso cref="DefaultThreshold"/>
     public int GetNullity(double threshold)
     {
@@ -968,8 +968,8 @@ namespace AdamMil.Mathematics.LinearAlgebra
     /// <summary>Returns a description of the null space of the decomposed matrix, as a matrix whose column vectors represent the
     /// orthogonal basis of the null space, using the <see cref="DefaultThreshold"/>.
     /// </summary>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/node()"/>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/NullSpaceRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/*"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/NullSpaceRemarks/*"/>
     public Matrix GetNullSpace()
     {
       return GetNullSpace(_defaultThreshold);
@@ -978,8 +978,8 @@ namespace AdamMil.Mathematics.LinearAlgebra
     /// <summary>Returns a description of the null space of the decomposed matrix, as a matrix whose column vectors represent the
     /// orthogonal basis of the null space, using the given threshold.
     /// </summary>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/node()"/>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/NullSpaceRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/*"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/NullSpaceRemarks/*"/>
     /// <seealso cref="DefaultThreshold"/>
     public Matrix GetNullSpace(double threshold)
     {
@@ -995,8 +995,8 @@ namespace AdamMil.Mathematics.LinearAlgebra
     /// <summary>Returns a description of the range of the decomposed matrix, as a matrix whose column vectors represent the
     /// orthogonal basis of the range, using the <see cref="DefaultThreshold"/>.
     /// </summary>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/node()"/>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/RangeRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/*"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/RangeRemarks/*"/>
     public Matrix GetRange()
     {
       return GetRange(_defaultThreshold);
@@ -1005,8 +1005,8 @@ namespace AdamMil.Mathematics.LinearAlgebra
     /// <summary>Returns a description of the range of the decomposed matrix, as a matrix whose column vectors represent the
     /// orthogonal basis of the range, using the given threshold.
     /// </summary>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/node()"/>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/RangeRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/*"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/RangeRemarks/*"/>
     /// <seealso cref="DefaultThreshold"/>
     public Matrix GetRange(double threshold)
     {
@@ -1020,16 +1020,16 @@ namespace AdamMil.Mathematics.LinearAlgebra
     }
 
     /// <summary>Returns the rank of the matrix, which is the dimension of its range, using the <see cref="DefaultThreshold"/>.</summary>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/node()"/>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/RangeRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/*"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/RangeRemarks/*"/>
     public int GetRank()
     {
       return GetRank(_defaultThreshold);
     }
 
     /// <summary>Returns the rank of the matrix, which is the dimension of its range, using the given threshold.</summary>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/node()"/>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/RangeRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/*"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/RangeRemarks/*"/>
     public int GetRank(double threshold)
     {
       AssertDecomposition();
@@ -1042,14 +1042,14 @@ namespace AdamMil.Mathematics.LinearAlgebra
     }
 
     /// <summary>Returns a vector containing the singular values of the matrix, sorted from largest to smallest.</summary>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/GeneralRemarks/*"/>
     public Vector GetSingularValues()
     {
       AssertDecomposition();
       return w.Clone();
     }
 
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Initialize/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Initialize/*"/>
     public void Initialize(Matrix coefficients)
     {
       // this routine was mostly adapted from http://www.public.iastate.edu/~dicook/JSS/paper/code/svd.c, which was adapted from a routine
@@ -1340,7 +1340,7 @@ namespace AdamMil.Mathematics.LinearAlgebra
 
     /// <summary>Solves a system of linear equations using the <see cref="DefaultThreshold"/>.</summary>
     /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Solve/*[not(self::summary) and not(@name='tryInPlace')]"/>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/SolveRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/SolveRemarks/*"/>
     public Matrix Solve(Matrix values)
     {
       return Solve(values, _defaultThreshold, false);
@@ -1348,7 +1348,7 @@ namespace AdamMil.Mathematics.LinearAlgebra
 
     /// <summary>Solves a system of linear equations using the given threshold.</summary>
     /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Solve/*[not(self::summary) and not(@name='tryInPlace')]"/>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/SolveRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/SolveRemarks/*"/>
     /// <seealso cref="DefaultThreshold"/>
     public Matrix Solve(Matrix values, double threshold)
     {
@@ -1357,7 +1357,7 @@ namespace AdamMil.Mathematics.LinearAlgebra
 
     /// <summary>Solves a system of linear equations using the <see cref="DefaultThreshold"/>.</summary>
     /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Solve/*[not(self::summary)]"/>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/SolveRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/SolveRemarks/*"/>
     public Matrix Solve(Matrix values, bool tryInPlace)
     {
       return Solve(values, _defaultThreshold, tryInPlace);
@@ -1365,7 +1365,7 @@ namespace AdamMil.Mathematics.LinearAlgebra
 
     /// <summary>Solves a system of linear equations using the given threshold.</summary>
     /// <include file="documentation.xml" path="/Math/LinearAlgebra/ILinearEquationSolver/Solve/*[not(self::summary)]"/>
-    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/SolveRemarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/LinearAlgebra/SVDecomposition/SolveRemarks/*"/>
     /// <seealso cref="DefaultThreshold"/>
     public Matrix Solve(Matrix values, double threshold, bool tryInPlace)
     {

@@ -88,7 +88,7 @@ public struct XmlDuration
   }
 
   /// <summary>Initializes a new <see cref="XmlDuration"/> from the given number of years, months, and days.</summary>
-  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/*"/>
   public XmlDuration(int years, int months, int days)
   {
     if(days < -10675199 || days > 10675199) throw OverflowError();
@@ -98,7 +98,7 @@ public struct XmlDuration
   }
 
   /// <summary>Initializes a new <see cref="XmlDuration"/> from the given components.</summary>
-  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/*"/>
   public XmlDuration(int years, int months, int days, int hours, int minutes, int seconds)
   {
     if(days < -10675199 || days > 10675199 || hours < -256204778 || hours > 256204778) throw OverflowError();
@@ -108,7 +108,7 @@ public struct XmlDuration
   }
 
   /// <summary>Initializes a new <see cref="XmlDuration"/> from the given components.</summary>
-  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/*"/>
   public XmlDuration(int years, int months, int days, int hours, int minutes, int seconds, int milliseconds)
   {
     if(days < -10675199 || days > 10675199 || hours < -256204778 || hours > 256204778) throw OverflowError();
@@ -121,7 +121,7 @@ public struct XmlDuration
   /// <summary>Initializes a new <see cref="XmlDuration"/> from a number of years and months to add, and a number of 100-nanosecond ticks
   /// to add.
   /// </summary>
-  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/*"/>
   public XmlDuration(int years, int months, long ticks)
   {
     _ticks  = ticks;
@@ -223,7 +223,7 @@ public struct XmlDuration
   }
 
   /// <summary>Adds the given duration to this duration and returns the result.</summary>
-  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/*"/>
   public XmlDuration Add(XmlDuration duration)
   {
     if(((uint)(_months ^ duration._months) & 0x80000000) == 0) // if the two durations have the same sign...
@@ -243,35 +243,35 @@ public struct XmlDuration
   }
 
   /// <summary>Adds the given number of days (which can be negative) to this duration and returns the result.</summary>
-  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/*"/>
   public XmlDuration AddDays(double days)
   {
     return AddTicks((long)(days * TicksPerDay + 0.5));
   }
 
   /// <summary>Adds the given number of hours (which can be negative) to this duration and returns the result.</summary>
-  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/*"/>
   public XmlDuration AddHours(double hours)
   {
     return AddTicks((long)(hours * TicksPerHour + 0.5));
   }
 
   /// <summary>Adds the given number of milliseconds (which can be negative) to this duration and returns the result.</summary>
-  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/*"/>
   public XmlDuration AddMilliseconds(double seconds)
   {
     return AddTicks((long)(seconds * TicksPerMillisecond + 0.5));
   }
 
   /// <summary>Adds the given number of minutes (which can be negative) to this duration and returns the result.</summary>
-  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/*"/>
   public XmlDuration AddMinutes(double minutes)
   {
     return AddTicks((long)(minutes * TicksPerMinute + 0.5));
   }
 
   /// <summary>Adds the given number of months (which can be negative) to this duration and returns the result.</summary>
-  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/*"/>
   public XmlDuration AddMonths(int months)
   {
     if(IsNegative == (months < 0))
@@ -287,14 +287,14 @@ public struct XmlDuration
   }
 
   /// <summary>Adds the given number of seconds (which can be negative) to this duration and returns the result.</summary>
-  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/*"/>
   public XmlDuration AddSeconds(double seconds)
   {
     return AddTicks((long)(seconds * TicksPerSecond + 0.5));
   }
 
   /// <summary>Adds the given number of ticks (which can be negative) to this duration and returns the result.</summary>
-  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/*"/>
   public XmlDuration AddTicks(long ticks)
   {
     if(IsNegative == (ticks < 0))
@@ -310,7 +310,7 @@ public struct XmlDuration
   }
 
   /// <summary>Adds the given number of years (which can be negative) to this duration and returns the result.</summary>
-  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/*"/>
   public XmlDuration AddYears(int years)
   {
     if(years < -178956970 || years > 178956970) throw OverflowError();
@@ -342,7 +342,7 @@ public struct XmlDuration
   }
 
   /// <summary>Subtractions the given duration from this one and returns the result.</summary>
-  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/*"/>
   public XmlDuration Subtract(XmlDuration duration)
   {
     return Add(duration.Negate());
@@ -405,14 +405,14 @@ public struct XmlDuration
   }
 
   /// <summary>Adds two durations together and returns the result.</summary>
-  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/*"/>
   public static XmlDuration operator+(XmlDuration a, XmlDuration b)
   {
     return a.Add(b);
   }
 
   /// <summary>Subtracts <paramref name="b"/> from <paramref name="a"/> and returns the result.</summary>
-  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Utilities/XmlDuration/AddSubRemarks/*"/>
   public static XmlDuration operator-(XmlDuration a, XmlDuration b)
   {
     return a.Add(b.Negate());

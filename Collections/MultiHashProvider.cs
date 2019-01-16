@@ -53,9 +53,9 @@ public interface IMultiHashable
 /// </remarks>
 public interface IMultiHashProvider<T>
 {
-  /// <include file="documentation.xml" path="/Collections/MultiHashProvider/HashCount/node()"/>
+  /// <include file="documentation.xml" path="/Collections/MultiHashProvider/HashCount/*"/>
   int HashCount { get; }
-  /// <include file="documentation.xml" path="/Collections/MultiHashProvider/GetHashCode/node()"/>
+  /// <include file="documentation.xml" path="/Collections/MultiHashProvider/GetHashCode/*"/>
   int GetHashCode(int hashFunction, T item);
 }
 #endregion
@@ -171,13 +171,13 @@ public abstract class MultiHashProvider<T> : IMultiHashProvider<T>
 {
   internal MultiHashProvider() { } // prevent subclassing outside this assembly
 
-  /// <include file="documentation.xml" path="/Collections/MultiHashProvider/HashCount/node()"/>
+  /// <include file="documentation.xml" path="/Collections/MultiHashProvider/HashCount/*"/>
   public int HashCount
   {
     get { return int.MaxValue; }
   }
 
-  /// <include file="documentation.xml" path="/Collections/MultiHashProvider/GetHashCode/node()"/>
+  /// <include file="documentation.xml" path="/Collections/MultiHashProvider/GetHashCode/*"/>
   public abstract int GetHashCode(int hashFunction, T item);
 
   /// <summary>Gets the default <see cref="MultiHashProvider{T}"/> instance.</summary>
@@ -427,7 +427,7 @@ public sealed class ArrayHashProvider : MultiHashProvider<Array>
     this.elementSize = HashHelper.IsBlittable(elementType) ? Marshal.SizeOf(elementType) : 0;
   }
 
-  /// <include file="documentation.xml" path="/Collections/MultiHashProvider/GetHashCode/node()"/>
+  /// <include file="documentation.xml" path="/Collections/MultiHashProvider/GetHashCode/*"/>
   public override int GetHashCode(int hashFunction, Array item)
   {
     if(item != null && item.GetType() != arrayType) throw new ArgumentException();
@@ -504,7 +504,7 @@ public sealed class ArrayHashProvider<T> : MultiHashProvider<T[]>
     elementSize = HashHelper.IsBlittable(elementType) ? Marshal.SizeOf(elementType) : 0;
   }
 
-  /// <include file="documentation.xml" path="/Collections/MultiHashProvider/GetHashCode/node()"/>
+  /// <include file="documentation.xml" path="/Collections/MultiHashProvider/GetHashCode/*"/>
   public unsafe override int GetHashCode(int hashFunction, T[] item)
   {
     return ArrayHashProvider.HashCore(hashFunction, item, elementSize);

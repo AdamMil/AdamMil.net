@@ -63,13 +63,13 @@ public enum FailureReason
 /// <summary>The base class of exceptions specific to PGP systems.</summary>
 public class PGPException : ApplicationException
 {
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/*"/>
   public PGPException() : base("A PGP-related error occurred.") { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/*"/>
   public PGPException(string message) : base(message) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/*"/>
   public PGPException(string message, Exception innerException) : base(message, innerException) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsBF/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsBF/*"/>
   public PGPException(string baseMessage, FailureReason reasons) : base(baseMessage + GetFailureText(reasons))
   {
     this.reasons = reasons;
@@ -120,15 +120,15 @@ public class PGPException : ApplicationException
 /// <summary>An exception thrown when decryption of a document has failed.</summary>
 public class DecryptionFailedException : PGPException
 {
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/*"/>
   public DecryptionFailedException() : base("Decryption failed.") { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/*"/>
   public DecryptionFailedException(string message) : base(message) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/*"/>
   public DecryptionFailedException(string message, Exception innerException) : base(message, innerException) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF/*"/>
   public DecryptionFailedException(FailureReason reasons) : base("Decryption failed.", reasons) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF2/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF2/*"/>
   public DecryptionFailedException(FailureReason reasons, string extraText)
     : base("Decryption failed.", reasons, extraText) { }
 }
@@ -138,15 +138,15 @@ public class DecryptionFailedException : PGPException
 /// <summary>An exception thrown when encryption of a document has failed.</summary>
 public class EncryptionFailedException : PGPException
 {
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/*"/>
   public EncryptionFailedException() : base("Encryption failed.") { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/*"/>
   public EncryptionFailedException(string message) : base(message) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/*"/>
   public EncryptionFailedException(string message, Exception innerException) : base(message, innerException) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF/*"/>
   public EncryptionFailedException(FailureReason reasons) : base("Encryption failed.", reasons) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF2/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF2/*"/>
   public EncryptionFailedException(FailureReason reasons, string extraText)
     : base("Encryption failed.", reasons, extraText) { }
 }
@@ -156,15 +156,15 @@ public class EncryptionFailedException : PGPException
 /// <summary>An exception thrown when a key export has failed.</summary>
 public class ExportFailedException : PGPException
 {
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/*"/>
   public ExportFailedException() : base("Export failed.") { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/*"/>
   public ExportFailedException(string message) : base(message) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/*"/>
   public ExportFailedException(string message, Exception innerException) : base(message, innerException) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF/*"/>
   public ExportFailedException(FailureReason reasons) : base("Export failed.", reasons) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF2/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF2/*"/>
   public ExportFailedException(FailureReason reasons, string extraText)
     : base("Export failed.", reasons, extraText) { }
 }
@@ -174,15 +174,15 @@ public class ExportFailedException : PGPException
 /// <summary>An exception thrown when a key import has failed.</summary>
 public class ImportFailedException : PGPException
 {
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/*"/>
   public ImportFailedException() : base("Import failed.") { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/*"/>
   public ImportFailedException(string message) : base(message) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/*"/>
   public ImportFailedException(string message, Exception innerException) : base(message, innerException) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF/*"/>
   public ImportFailedException(FailureReason reasons) : base("Import failed.", reasons) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF2/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF2/*"/>
   public ImportFailedException(FailureReason reasons, string extraText)
     : base("Import failed.", reasons, extraText) { }
 }
@@ -192,15 +192,15 @@ public class ImportFailedException : PGPException
 /// <summary>An exception thrown when a key creation operation has failed.</summary>
 public class KeyCreationFailedException : PGPException
 {
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/*"/>
   public KeyCreationFailedException() : base("Key creation failed.") { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/*"/>
   public KeyCreationFailedException(string message) : base(message) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/*"/>
   public KeyCreationFailedException(string message, Exception innerException) : base(message, innerException) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF/*"/>
   public KeyCreationFailedException(FailureReason reasons) : base("Key creation failed.", reasons) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF2/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF2/*"/>
   public KeyCreationFailedException(FailureReason reasons, string extraText)
     : base("Key Creation failed.", reasons, extraText) { }
 }
@@ -210,13 +210,13 @@ public class KeyCreationFailedException : PGPException
 /// <summary>An exception thrown when a key edit operation has failed.</summary>
 public class KeyEditFailedException : PGPException
 {
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/*"/>
   public KeyEditFailedException() : base("Key edit failed.") { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/*"/>
   public KeyEditFailedException(string message) : base(message) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/*"/>
   public KeyEditFailedException(string message, Exception innerException) : base(message, innerException) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsBF/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsBF/*"/>
   public KeyEditFailedException(string baseMessage, FailureReason reasons) : base(baseMessage, reasons) { }
 }
 #endregion
@@ -225,15 +225,15 @@ public class KeyEditFailedException : PGPException
 /// <summary>An exception thrown when a key retrieval operation has failed.</summary>
 public class KeyRetrievalFailedException : PGPException
 {
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/*"/>
   public KeyRetrievalFailedException() : base("Key retrieval failed.") { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/*"/>
   public KeyRetrievalFailedException(string message) : base(message) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/*"/>
   public KeyRetrievalFailedException(string message, Exception innerException) : base(message, innerException) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF/*"/>
   public KeyRetrievalFailedException(FailureReason reasons) : base("Key retrieval failed.", reasons) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF2/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF2/*"/>
   public KeyRetrievalFailedException(FailureReason reasons, string extraText)
     : base("Key retrieval failed.", reasons, extraText) { }
 }
@@ -243,13 +243,13 @@ public class KeyRetrievalFailedException : PGPException
 /// <summary>An exception thrown when a key server operation has failed.</summary>
 public class KeyServerFailedException : PGPException
 {
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/*"/>
   public KeyServerFailedException() : base("Key server operation failed.") { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/*"/>
   public KeyServerFailedException(string message) : base(message) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/*"/>
   public KeyServerFailedException(string message, Exception innerException) : base(message, innerException) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsBF/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsBF/*"/>
   public KeyServerFailedException(string baseMessage, FailureReason reasons) : base(baseMessage, reasons) { }
 }
 #endregion
@@ -258,15 +258,15 @@ public class KeyServerFailedException : PGPException
 /// <summary>An exception thrown when the signing of a document has failed.</summary>
 public class SigningFailedException : PGPException
 {
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/*"/>
   public SigningFailedException() : base("Signing failed.") { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/*"/>
   public SigningFailedException(string message) : base(message) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/*"/>
   public SigningFailedException(string message, Exception innerException) : base(message, innerException) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF/*"/>
   public SigningFailedException(FailureReason reasons) : base("Signing failed.", reasons) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF2/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/ConsF2/*"/>
   public SigningFailedException(FailureReason reasons, string extraText)
     : base("Signing failed.", reasons, extraText) { }
 }
@@ -276,11 +276,11 @@ public class SigningFailedException : PGPException
 /// <summary>An exception thrown when a password is needed, but the no password handler is set.</summary>
 public class UnhandledPasswordException : PGPException
 {
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons0/*"/>
   public UnhandledPasswordException() : base("A password was required, but no password handler was set.") { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons1/*"/>
   public UnhandledPasswordException(string message) : base(message) { }
-  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/Exception/Cons2/*"/>
   public UnhandledPasswordException(string message, Exception innerException) : base(message, innerException) { }
 }
 #endregion

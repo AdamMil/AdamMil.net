@@ -183,12 +183,10 @@ namespace AdamMil.Utilities
   /// sure to test whether using a reader/writer lock improves performance versus a <see cref="Monitor"/> before deciding to use it.
   /// </para>
   /// </remarks>
-  /// <example>
-  /// <include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/ReadExample/node()" />
-  /// <include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/WriteExample/node()" />
-  /// <include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/UpgradeExample/node()" />
-  /// <include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/DowngradeExample/node()" />
-  /// </example>
+  /// <include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/ReadExample/*" />
+  /// <include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/WriteExample/*" />
+  /// <include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/UpgradeExample/*" />
+  /// <include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/DowngradeExample/*" />
   [HostProtection(SecurityAction.LinkDemand, Synchronization=true, ExternalThreading=true)]
   public sealed class UpgradableReadWriteLock
   {
@@ -279,7 +277,7 @@ namespace AdamMil.Utilities
 
     /// <summary>Downgrades a lock held in write (exclusive) mode to read (shared) mode.</summary>
     /// <remarks>After calling this method, you must call <see cref="ExitRead"/> instead of <see cref="ExitWrite"/> to release the lock.</remarks>
-    /// <example><include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/DowngradeExample/node()" /></example>
+    /// <example><include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/DowngradeExample/*" /></example>
     public void Downgrade()
     {
       if(lockState >= 0) throw new SynchronizationLockException(); // (lockState & OwnedByWriter) == 0
@@ -303,11 +301,9 @@ namespace AdamMil.Utilities
     /// the lock to write mode, you must call <see cref="ExitRead"/> to release the lock. If you use the methods on the returned
     /// <see cref="LockReleaser"/>, it will keep track of this for you.
     /// </remarks>
-    /// <example>
-    /// <include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/ReadExample/node()" />
-    /// <include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/UpgradeExample/node()" />
-    /// <include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/DowngradeExample/node()" />
-    /// </example>
+    /// <include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/ReadExample/*" />
+    /// <include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/UpgradeExample/*" />
+    /// <include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/DowngradeExample/*" />
     public LockReleaser EnterRead()
     {
       int spinCount = 0;
@@ -343,7 +339,7 @@ namespace AdamMil.Utilities
     /// then you should also exit the lock yourself rather than using the <see cref="LockReleaser"/>'s Dispose method.
     /// </returns>
     /// <remarks>You must call <see cref="ExitWrite"/> to release the lock.</remarks>
-    /// <example><include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/WriteExample/node()" /></example>
+    /// <include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/WriteExample/*" />
     public LockReleaser EnterWrite()
     {
       if(!crossThread) Thread.BeginCriticalRegion();
@@ -400,10 +396,8 @@ namespace AdamMil.Utilities
     /// another thread upgraded to write mode first. In that case, you may wish to reread any protected data to check if it's still
     /// valid, or to check if you still need to perform the write operation.
     /// </returns>
-    /// <example>
-    /// <include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/UpgradeExample/node()" />
-    /// <include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/DowngradeExample/node()" />
-    /// </example>
+    /// <include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/UpgradeExample/*" />
+    /// <include file="documentation.xml" path="/Utilities/UpgradableReadWriteLock/DowngradeExample/*" />
     public bool Upgrade()
     {
       if((lockState & ReaderMask) == 0) throw new SynchronizationLockException();

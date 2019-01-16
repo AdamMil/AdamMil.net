@@ -103,7 +103,7 @@ public class KeySignature : SignatureBase
     }
   }
 
-  /// <include file="documentation.xml" path="/Security/ReadOnlyClass/Finish/node()"/>
+  /// <include file="documentation.xml" path="/Security/ReadOnlyClass/Finish/*"/>
   public override void MakeReadOnly()
   {
     if(signedObject == null) throw new InvalidOperationException("The Object property is not set.");
@@ -119,7 +119,7 @@ public class KeySignature : SignatureBase
     base.MakeReadOnly();
   }
 
-  /// <include file="documentation.xml" path="/Security/Common/ToString/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/ToString/*"/>
   public override string ToString()
   {
     string str;
@@ -236,7 +236,7 @@ public abstract class UserAttribute : ReadOnlyClass, ISignableObject
     }
   }
 
-  /// <include file="documentation.xml" path="/Security/ReadOnlyClass/Finish/node()"/>
+  /// <include file="documentation.xml" path="/Security/ReadOnlyClass/Finish/*"/>
   public override void MakeReadOnly()
   {
     if(key == null) throw new InvalidOperationException("The Key property is not set.");
@@ -330,7 +330,7 @@ public class UserId : UserAttribute
     }
   }
 
-  /// <include file="documentation.xml" path="/Security/Common/ToString/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/ToString/*"/>
   public override string ToString()
   {
     return string.IsNullOrEmpty(Name) ? "Unknown user" : Name;
@@ -556,7 +556,7 @@ public abstract class Key : ReadOnlyClass
     }
   }
 
-  /// <include file="documentation.xml" path="/Security/Key/Keyring/node()"/>
+  /// <include file="documentation.xml" path="/Security/Key/Keyring/*"/>
   public abstract Keyring Keyring
   {
     get; set;
@@ -620,7 +620,7 @@ public abstract class Key : ReadOnlyClass
     }
   }
 
-  /// <include file="documentation.xml" path="/Security/ReadOnlyClass/Finish/node()"/>
+  /// <include file="documentation.xml" path="/Security/ReadOnlyClass/Finish/*"/>
   public override void MakeReadOnly()
   {
     if(sigs == null) throw new InvalidOperationException("The Signatures property has not been set.");
@@ -636,7 +636,7 @@ public abstract class Key : ReadOnlyClass
   /// <summary>Gets or sets the primary key associated with this key, or the current key if it is a primary key.</summary>
   public abstract PrimaryKey GetPrimaryKey();
 
-  /// <include file="documentation.xml" path="/Security/Common/ToString/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/ToString/*"/>
   public override string ToString()
   {
     return "0x" + KeyId;
@@ -715,7 +715,7 @@ public class PrimaryKey : Key, ISignableObject
     }
   }
 
-  /// <include file="documentation.xml" path="/Security/Key/Keyring/node()"/>
+  /// <include file="documentation.xml" path="/Security/Key/Keyring/*"/>
   public override Keyring Keyring
   {
     get { return keyring; }
@@ -784,7 +784,7 @@ public class PrimaryKey : Key, ISignableObject
     }
   }
 
-  /// <include file="documentation.xml" path="/Security/Key/Finish/node()"/>
+  /// <include file="documentation.xml" path="/Security/Key/Finish/*"/>
   public override void MakeReadOnly()
   {
     if(string.IsNullOrEmpty(EffectiveId)) throw new InvalidOperationException("No key ID or fingerprint is set.");
@@ -839,7 +839,7 @@ public class PrimaryKey : Key, ISignableObject
     return (TotalCapabilities & capability) == capability;
   }
 
-  /// <include file="documentation.xml" path="/Security/Common/ToString/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/ToString/*"/>
   public override string ToString()
   {
     string str = base.ToString();
@@ -869,7 +869,7 @@ public class PrimaryKey : Key, ISignableObject
 /// <summary>Represents a subkey of a primary key. See <see cref="PrimaryKey"/> for a more thorough description.</summary>
 public class Subkey : Key, ISignableObject
 {
-  /// <include file="documentation.xml" path="/Security/Key/Keyring/node()"/>
+  /// <include file="documentation.xml" path="/Security/Key/Keyring/*"/>
   public override Keyring Keyring
   {
     get { return PrimaryKey != null ? PrimaryKey.Keyring : null; }
@@ -887,7 +887,7 @@ public class Subkey : Key, ISignableObject
     }
   }
 
-  /// <include file="documentation.xml" path="/Security/Key/Finish/node()"/>
+  /// <include file="documentation.xml" path="/Security/Key/Finish/*"/>
   public override void MakeReadOnly()
   {
     if(primaryKey == null) throw new InvalidOperationException("The PrimaryKey property has not been set.");
@@ -906,7 +906,7 @@ public class Subkey : Key, ISignableObject
     return (Capabilities & capability) == capability;
   }
 
-  /// <include file="documentation.xml" path="/Security/Common/ToString/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/ToString/*"/>
   public override string ToString()
   {
     string str = base.ToString();
@@ -1049,7 +1049,7 @@ public class Keyring
     return PublicFile.GetHashCode();
   }
 
-  /// <include file="documentation.xml" path="/Security/Common/ToString/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/ToString/*"/>
   public override string ToString()
   {
     return "public:" + PublicFile + (SecretFile == null ? null : ", secret:" + SecretFile) +

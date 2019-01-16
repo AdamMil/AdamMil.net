@@ -496,7 +496,7 @@ namespace AdamMil.Mathematics
     /// <summary>Gets the value of a bit, where zero is the least significant bit.</summary>
     /// <remarks>This method allows you to read bits beyond those actually stored. (I.e. <paramref name="index"/> can be greater than or
     /// equal to <see cref="BitLength"/>.)
-    /// <include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/*"/>
     /// </remarks>
     public bool GetBit(int index)
     {
@@ -548,7 +548,7 @@ namespace AdamMil.Mathematics
       return data == null ? new uint[0] : (uint[])data.Clone();
     }
 
-    /// <include file="documentation.xml" path="/Math/Common/GetHashCode/node()"/>
+    /// <include file="documentation.xml" path="/Math/Common/GetHashCode/*"/>
     public override int GetHashCode()
     {
       int hash = 0;
@@ -709,7 +709,7 @@ namespace AdamMil.Mathematics
     /// <summary>Adds a value to this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be
     /// corrupted.
     /// </summary>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/*"/>
     public void UnsafeAdd(int value)
     {
       if(value != 0)
@@ -724,7 +724,7 @@ namespace AdamMil.Mathematics
     /// <summary>Adds a value to this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be
     /// corrupted.
     /// </summary>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/*"/>
     [CLSCompliant(false)]
     public void UnsafeAdd(uint value)
     {
@@ -739,8 +739,8 @@ namespace AdamMil.Mathematics
     /// corrupted.
     /// </summary>
     /// <remarks>
-    /// <include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/node()"/>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/remarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/*"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/remarks/*"/>
     /// </remarks>
     public void UnsafeBitwiseAnd(int value)
     {
@@ -751,8 +751,8 @@ namespace AdamMil.Mathematics
     /// corrupted.
     /// </summary>
     /// <remarks>
-    /// <include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/node()"/>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/remarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/*"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/remarks/*"/>
     /// </remarks>
     [CLSCompliant(false)]
     public void UnsafeBitwiseAnd(uint value)
@@ -764,8 +764,8 @@ namespace AdamMil.Mathematics
     /// corrupted.
     /// </summary>
     /// <remarks>
-    /// <include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/node()"/>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/remarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/*"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/remarks/*"/>
     /// </remarks>
     public void UnsafeBitwiseOr(int value)
     {
@@ -776,8 +776,8 @@ namespace AdamMil.Mathematics
     /// corrupted.
     /// </summary>
     /// <remarks>
-    /// <include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/node()"/>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/remarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/*"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/remarks/*"/>
     /// </remarks>
     [CLSCompliant(false)]
     public void UnsafeBitwiseOr(uint value)
@@ -787,8 +787,8 @@ namespace AdamMil.Mathematics
 
     /// <summary>Negates this integer, bitwise and in place. If this integer shares storage with others, the others may be corrupted.</summary>
     /// <remarks>
-    /// <include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/node()"/>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/remarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/*"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/remarks/*"/>
     /// </remarks>
     public void UnsafeBitwiseNegate()
     {
@@ -810,7 +810,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Decrements this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be corrupted.</summary>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/*"/>
     public void UnsafeDecrement()
     {
       if(IsPositive)
@@ -831,7 +831,7 @@ namespace AdamMil.Mathematics
     /// <summary>Divides this <see cref="Integer"/> in place by the given value and returns the remainder. If this integer shares storage
     /// with others, the others may be corrupted.
     /// </summary>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/*"/>
     public int UnsafeDivide(int value)
     {
       int remainder = (int)UnsafeDivide((uint)(value < 0 ? -value : value)); // divide by the magnitude
@@ -842,7 +842,7 @@ namespace AdamMil.Mathematics
     /// <summary>Divides this <see cref="Integer"/> in place by the given value and returns the remainder. If this integer shares storage
     /// with others, the others may be corrupted.
     /// </summary>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/*"/>
     [CLSCompliant(false)]
     public long UnsafeDivide(uint value) // this must return a long because the remainder can be from -(2^32-1) to 2^32-1
     {
@@ -871,7 +871,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Increments this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be corrupted.</summary>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/*"/>
     public void UnsafeIncrement()
     {
       if(IsPositive)
@@ -892,7 +892,7 @@ namespace AdamMil.Mathematics
     /// <summary>Left-shifts this <see cref="Integer"/> in place by the given number of bits. (If the shift count is negative, the value
     /// will be effectively right-shifted.) If this integer shares storage with others, the others may be corrupted.
     /// </summary>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/*"/>
     public void UnsafeLeftShift(int shift)
     {
       if(shift > 0) UnsafeLeftShift((uint)shift);
@@ -900,7 +900,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Multiplies this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be corrupted.</summary>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/*"/>
     public void UnsafeMultiply(int value)
     {
       UnsafeMultiply((uint)(value < 0 ? -value : value));
@@ -908,7 +908,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Multiplies this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be corrupted.</summary>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/*"/>
     [CLSCompliant(false)]
     public void UnsafeMultiply(uint value)
     {
@@ -934,7 +934,7 @@ namespace AdamMil.Mathematics
     /// <summary>Right-shifts this <see cref="Integer"/> in place by the given number of bits. (If the shift amount is negative, the value
     /// will be effectively left-shifted.) If this integer shares storage with others, the others may be corrupted.
     /// </summary>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/*"/>
     public void UnsafeRightShift(int shift)
     {
       if(shift > 0) UnsafeRightShift((uint)shift);
@@ -944,7 +944,7 @@ namespace AdamMil.Mathematics
     /// <summary>Replaces this <see cref="Integer"/> in place with the remainder after dividing by the given value. If this integer shares
     /// storage with others, the others may be corrupted.
     /// </summary>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/*"/>
     public void UnsafeRemainder(int value)
     {
       UnsafeSetMagnitude(RemainderMagnitude(data, BitLength, (uint)(value < 0 ? -value : value)));
@@ -953,7 +953,7 @@ namespace AdamMil.Mathematics
     /// <summary>Replaces this <see cref="Integer"/> in place with the remainder after dividing by the given value. If this integer shares
     /// storage with others, the others may be corrupted.
     /// </summary>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/*"/>
     [CLSCompliant(false)]
     public void UnsafeRemainder(uint value)
     {
@@ -961,7 +961,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Sets this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be corrupted.</summary>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/*"/>
     public void UnsafeSet(int value)
     {
       UnsafeSetMagnitude((uint)(value < 0 ? -value : value));
@@ -969,7 +969,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Sets this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be corrupted.</summary>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/*"/>
     [CLSCompliant(false)]
     public void UnsafeSet(uint value)
     {
@@ -978,7 +978,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Sets this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be corrupted.</summary>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/*"/>
     public void UnsafeSet(long value)
     {
       UnsafeSetMagnitude((ulong)(value < 0 ? -value : value));
@@ -986,7 +986,7 @@ namespace AdamMil.Mathematics
     }
 
     /// <summary>Sets this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be corrupted.</summary>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/*"/>
     [CLSCompliant(false)]
     public void UnsafeSet(ulong value)
     {
@@ -1000,8 +1000,8 @@ namespace AdamMil.Mathematics
     /// <remarks>This method allows you to set bits beyond those actually stored. (I.e. <paramref name="index"/> can be greater than or
     /// equal to <see cref="BitLength"/>.) In that case, the value will be expanded as necessary. It is not possible to make a positive
     /// value negative or vice versa with this method.
-    /// <include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/node()"/>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/remarks/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/*"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/remarks/*"/>
     /// </remarks>
     public void UnsafeSetBit(int index, bool value)
     {
@@ -1082,7 +1082,7 @@ namespace AdamMil.Mathematics
     /// <summary>Subtracts a value from this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be
     /// corrupted.
     /// </summary>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/*"/>
     public void UnsafeSubtract(int value)
     {
       if(value != 0)
@@ -1097,7 +1097,7 @@ namespace AdamMil.Mathematics
     /// <summary>Subtracts a value from this <see cref="Integer"/> in place. If this integer shares storage with others, the others may be
     /// corrupted.
     /// </summary>
-    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/node()"/>
+    /// <include file="documentation.xml" path="/Math/Integer/UnsafeOps/*"/>
     [CLSCompliant(false)]
     public void UnsafeSubtract(uint value)
     {
@@ -1331,7 +1331,7 @@ namespace AdamMil.Mathematics
 
     /// <summary>Bitwise-ANDs two <see cref="Integer"/> values and returns the result.</summary>
     /// <remarks>The result will be negative only if both parameters are negative.
-    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/node()"/></para>
+    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/*"/></para>
     /// </remarks>
     public static Integer operator&(Integer a, Integer b)
     {
@@ -1340,7 +1340,7 @@ namespace AdamMil.Mathematics
 
     /// <summary>Bitwise-ANDs an <see cref="Integer"/> and an <see cref="int"/> and returns the result.</summary>
     /// <remarks>The result will be negative only if both parameters are negative.
-    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/node()"/></para>
+    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/*"/></para>
     /// </remarks>
     public static Integer operator&(Integer a, int b)
     {
@@ -1352,7 +1352,7 @@ namespace AdamMil.Mathematics
 
     /// <summary>Bitwise-ANDs an <see cref="Integer"/> and a <see cref="uint"/> and returns the result.</summary>
     /// <remarks>The result will be non-negative.
-    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/node()"/></para>
+    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/*"/></para>
     /// </remarks>
     [CLSCompliant(false)]
     public static uint operator&(Integer a, uint b)
@@ -1362,7 +1362,7 @@ namespace AdamMil.Mathematics
 
     /// <summary>Bitwise-ANDs an <see cref="int"/> and an <see cref="Integer"/> and returns the result.</summary>
     /// <remarks>The result will be negative only if both parameters are negative.
-    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/node()"/></para>
+    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/*"/></para>
     /// </remarks>
     public static Integer operator&(int a, Integer b)
     {
@@ -1374,7 +1374,7 @@ namespace AdamMil.Mathematics
 
     /// <summary>Bitwise-ANDs a <see cref="uint"/> and an <see cref="Integer"/> and returns the result.</summary>
     /// <remarks>The result will be non-negative.
-    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/node()"/></para>
+    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/*"/></para>
     /// </remarks>
     [CLSCompliant(false)]
     public static uint operator&(uint a, Integer b)
@@ -1384,7 +1384,7 @@ namespace AdamMil.Mathematics
 
     /// <summary>Bitwise-ORs two <see cref="Integer"/> values and returns the result.</summary>
     /// <remarks>The result will be negative if either parameter is negative.
-    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/node()"/></para>
+    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/*"/></para>
     /// </remarks>
     public static Integer operator|(Integer a, Integer b)
     {
@@ -1393,7 +1393,7 @@ namespace AdamMil.Mathematics
 
     /// <summary>Bitwise-ORs an <see cref="Integer"/> and an <see cref="int"/> and returns the result.</summary>
     /// <remarks>The result will be negative if either parameter is negative.
-    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/node()"/></para>
+    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/*"/></para>
     /// </remarks>
     public static Integer operator|(Integer a, int b)
     {
@@ -1404,7 +1404,7 @@ namespace AdamMil.Mathematics
 
     /// <summary>Bitwise-ORs an <see cref="Integer"/> and a <see cref="uint"/> and returns the result.</summary>
     /// <remarks>The result will be negative if the <see cref="Integer"/> is negative.
-    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/node()"/></para>
+    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/*"/></para>
     /// </remarks>
     [CLSCompliant(false)]
     public static Integer operator|(Integer a, uint b)
@@ -1416,7 +1416,7 @@ namespace AdamMil.Mathematics
 
     /// <summary>Bitwise-ORs an <see cref="int"/> and an <see cref="Integer"/> and returns the result.</summary>
     /// <remarks>The result will be negative if either parameter is negative.
-    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/node()"/></para>
+    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/*"/></para>
     /// </remarks>
     public static Integer operator|(int a, Integer b)
     {
@@ -1427,7 +1427,7 @@ namespace AdamMil.Mathematics
 
     /// <summary>Bitwise-ORs a <see cref="uint"/> and an <see cref="Integer"/> and returns the result.</summary>
     /// <remarks>The result will be negative if the <see cref="Integer"/> is negative.
-    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/node()"/></para>
+    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/*"/></para>
     /// </remarks>
     [CLSCompliant(false)]
     public static Integer operator|(uint a, Integer b)
@@ -1439,7 +1439,7 @@ namespace AdamMil.Mathematics
 
     /// <summary>Negates an <see cref="Integer"/> value, bitwise, and returns the result.</summary>
     /// <remarks>This method will make positive values negative and negative values non-positive.
-    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/node()"/></para>
+    /// <para><include file="documentation.xml" path="/Math/Integer/BitwiseOps/remarks/*"/></para>
     /// </remarks>
     public static Integer operator~(Integer value)
     {

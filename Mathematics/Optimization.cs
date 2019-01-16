@@ -39,11 +39,11 @@ namespace AdamMil.Mathematics.Optimization
 /// of how near the parameters are to violating the constraints into a penalty value.
 /// </para>
 /// </remarks>
-/// <include file="documentation.xml" path="/Math/Optimization/ConstrainedMinimizer/OOBRemarks/node()"/>
+/// <include file="documentation.xml" path="/Math/Optimization/ConstrainedMinimizer/OOBRemarks/*"/>
 public class ConstrainedMinimizer
 {
   /// <summary>Initializes the <see cref="ConstrainedMinimizer"/> with the objective function to minimize.</summary>
-  /// <include file="documentation.xml" path="/Math/Optimization/ConstrainedMinimizer/OOBRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/ConstrainedMinimizer/OOBRemarks/*"/>
   public ConstrainedMinimizer(IDifferentiableMDFunction objectiveFunction)
   {
     if(objectiveFunction == null) throw new ArgumentNullException();
@@ -52,7 +52,7 @@ public class ConstrainedMinimizer
   }
 
   /// <summary>Initializes the <see cref="ConstrainedMinimizer"/> with the objective function to minimize.</summary>
-  /// <include file="documentation.xml" path="/Math/Optimization/ConstrainedMinimizer/OOBRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/ConstrainedMinimizer/OOBRemarks/*"/>
   public ConstrainedMinimizer(IDifferentiableFunction objectiveFunction) : this(new DifferentiableMDFunction(objectiveFunction)) { }
 
   /// <summary>Gets or sets the base penalty multiplier. This is the multiplier applied to be penalty on the first iteration. On each later
@@ -563,7 +563,7 @@ public static class Minimize
   }
 
   /// <summary>Finds a local minimum of multi-dimensional function near the given initial point.</summary>
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/BGFS/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/BGFS/*"/>
   public static double BFGS(IDifferentiableMDFunction function, double[] x, double tolerance)
   {
     if(function == null || x == null) throw new ArgumentNullException();
@@ -627,14 +627,14 @@ public static class Minimize
     throw MinimumNotFoundError();
   }
 
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/BracketInward/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/BracketInward/*"/>
   public static IEnumerable<MinimumBracket> BracketInward(IOneDimensionalFunction function, double x1, double x2, int segments)
   {
     if(function == null) throw new ArgumentNullException();
     return BracketInward(function.Evaluate, x1, x2, segments);
   }
 
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/BracketInward/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/BracketInward/*"/>
   public static IEnumerable<MinimumBracket> BracketInward(Func<double, double> function, double x1, double x2, int segments)
   {
     if(function == null) throw new ArgumentNullException();
@@ -689,14 +689,14 @@ public static class Minimize
     }
   }
 
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/BracketOutward/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/BracketOutward/*"/>
   public static bool BracketOutward(IOneDimensionalFunction function, double x1, double x2, out MinimumBracket bracket)
   {
     if(function == null) throw new ArgumentNullException();
     return BracketOutward(function.Evaluate, x1, x2, out bracket);
   }
 
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/BracketOutward/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/BracketOutward/*"/>
   public static bool BracketOutward(Func<double, double> function, double x1, double x2, out MinimumBracket bracket)
   {
     if(function == null) throw new ArgumentNullException();
@@ -798,7 +798,7 @@ public static class Minimize
   }
 
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[not(@name='tolerance') and not(@name='value')]"/>
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/*"/>
   public static double Brent(IOneDimensionalFunction function, MinimumBracket bracket)
   {
     if(function == null) throw new ArgumentNullException();
@@ -806,7 +806,7 @@ public static class Minimize
   }
 
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[not(@name='tolerance')]"/>
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/*"/>
   public static double Brent(IOneDimensionalFunction function, MinimumBracket bracket, out double value)
   {
     if(function == null) throw new ArgumentNullException();
@@ -814,7 +814,7 @@ public static class Minimize
   }
 
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[not(@name='value')]"/>
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/*"/>
   [CLSCompliant(false)]
   public static double Brent(IOneDimensionalFunction function, MinimumBracket bracket, double tolerance)
   {
@@ -822,8 +822,8 @@ public static class Minimize
     return Brent(function.Evaluate, bracket, tolerance);
   }
 
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/node()"/>
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/*"/>
   public static double Brent(IOneDimensionalFunction function, MinimumBracket bracket, double tolerance, out double value)
   {
     if(function == null) throw new ArgumentNullException();
@@ -831,7 +831,7 @@ public static class Minimize
   }
 
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[not(@name='tolerance') and not(@name='value')]"/>
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/*"/>
   public static double Brent(Func<double, double> function, MinimumBracket bracket)
   {
     double value;
@@ -839,14 +839,14 @@ public static class Minimize
   }
 
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[not(@name='tolerance')]"/>
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/*"/>
   public static double Brent(Func<double, double> function, MinimumBracket bracket, out double value)
   {
     return Brent(function, bracket, IEEE754.SqrtDoublePrecision, out value);
   }
 
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[not(@name='value')]"/>
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/*"/>
   [CLSCompliant(false)]
   public static double Brent(Func<double, double> function, MinimumBracket bracket, double tolerance)
   {
@@ -854,8 +854,8 @@ public static class Minimize
     return Brent(function, bracket, tolerance, out value);
   }
 
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/node()"/>
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/NDBrentRemarks/*"/>
   public static double Brent(Func<double, double> function, MinimumBracket bracket, double tolerance, out double value)
   {
     if(function == null) throw new ArgumentNullException();
@@ -962,7 +962,7 @@ public static class Minimize
   }
 
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[not(@name='tolerance') and not(@name='value')]"/>
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/DBrentRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/DBrentRemarks/*"/>
   public static double Brent(IDifferentiableFunction function, MinimumBracket bracket)
   {
     double value;
@@ -970,14 +970,14 @@ public static class Minimize
   }
 
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[not(@name='tolerance')]"/>
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/DBrentRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/DBrentRemarks/*"/>
   public static double Brent(IDifferentiableFunction function, MinimumBracket bracket, out double value)
   {
     return Brent(function, bracket, IEEE754.SqrtDoublePrecision, out value);
   }
 
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[not(@name='value')]"/>
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/DBrentRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/DBrentRemarks/*"/>
   [CLSCompliant(false)]
   public static double Brent(IDifferentiableFunction function, MinimumBracket bracket, double tolerance)
   {
@@ -985,8 +985,8 @@ public static class Minimize
     return Brent(function, bracket, tolerance, out value);
   }
 
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/node()"/>
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/DBrentRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/DBrentRemarks/*"/>
   public static double Brent(IDifferentiableFunction function, MinimumBracket bracket, double tolerance, out double value)
   {
     if(function == null) throw new ArgumentNullException();
@@ -1123,7 +1123,7 @@ public static class Minimize
   }
 
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[not(@name='tolerance') and not(@name='value')]"/>
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/*"/>
   public static double GoldenSection(IOneDimensionalFunction function, MinimumBracket bracket)
   {
     if(function == null) throw new ArgumentNullException();
@@ -1131,7 +1131,7 @@ public static class Minimize
   }
 
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[not(@name='tolerance')]"/>
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/*"/>
   public static double GoldenSection(IOneDimensionalFunction function, MinimumBracket bracket, out double value)
   {
     if(function == null) throw new ArgumentNullException();
@@ -1139,7 +1139,7 @@ public static class Minimize
   }
 
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[not(@name='value')]"/>
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/*"/>
   [CLSCompliant(false)]
   public static double GoldenSection(IOneDimensionalFunction function, MinimumBracket bracket, double tolerance)
   {
@@ -1147,8 +1147,8 @@ public static class Minimize
     return GoldenSection(function.Evaluate, bracket, tolerance);
   }
 
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/node()"/>
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/*"/>
   public static double GoldenSection(IOneDimensionalFunction function, MinimumBracket bracket, double tolerance, out double value)
   {
     if(function == null) throw new ArgumentNullException();
@@ -1156,7 +1156,7 @@ public static class Minimize
   }
 
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[not(@name='tolerance') and not(@name='value')]"/>
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/*"/>
   public static double GoldenSection(Func<double, double> function, MinimumBracket bracket)
   {
     double value;
@@ -1164,14 +1164,14 @@ public static class Minimize
   }
 
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[not(@name='tolerance')]"/>
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/*"/>
   public static double GoldenSection(Func<double, double> function, MinimumBracket bracket, out double value)
   {
     return GoldenSection(function, bracket, IEEE754.SqrtDoublePrecision, out value);
   }
 
   /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*[not(@name='value')]"/>
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/*"/>
   [CLSCompliant(false)]
   public static double GoldenSection(Func<double, double> function, MinimumBracket bracket, double tolerance)
   {
@@ -1179,8 +1179,8 @@ public static class Minimize
     return GoldenSection(function, bracket, tolerance, out value);
   }
 
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/node()"/>
-  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/node()"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/Minimize1D/*"/>
+  /// <include file="documentation.xml" path="/Math/Optimization/Minimize/GoldenSectionRemarks/*"/>
   public static double GoldenSection(Func<double, double> function, MinimumBracket bracket, double tolerance, out double value)
   {
     if(function == null) throw new ArgumentNullException();

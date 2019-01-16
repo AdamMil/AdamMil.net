@@ -222,7 +222,7 @@ public class ReadOnlyDictionaryWrapper<TKey, TValue>
   #endregion
 
   #region IEnumerable<KeyValuePair<K,V>> Members
-  /// <include file="documentation.xml" path="/Collections/Dictionary/GetEnumerator/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Dictionary/GetEnumerator/*"/>
   public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
   {
     return dictionary.GetEnumerator();
@@ -230,25 +230,25 @@ public class ReadOnlyDictionaryWrapper<TKey, TValue>
   #endregion
 
   #region IReadOnlyCollection<KeyValuePair<K,V>> Members
-  /// <include file="documentation.xml" path="/Collections/Common/Count/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Common/Count/*"/>
   public int Count
   {
     get { return dictionary.Count; }
   }
 
-  /// <include file="documentation.xml" path="/Collections/Dictionary/Contains/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Dictionary/Contains/*"/>
   public bool Contains(KeyValuePair<TKey, TValue> item)
   {
     return dictionary.Contains(item);
   }
 
-  /// <include file="documentation.xml" path="/Collections/Dictionary/CopyTo/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Dictionary/CopyTo/*"/>
   public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
   {
     dictionary.CopyTo(array, arrayIndex);
   }
 
-  /// <include file="documentation.xml" path="/Collections/Dictionary/ToArray/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Dictionary/ToArray/*"/>
   public KeyValuePair<TKey, TValue>[] ToArray()
   {
     KeyValuePair<TKey, TValue>[] array = new KeyValuePair<TKey, TValue>[dictionary.Count];
@@ -258,31 +258,31 @@ public class ReadOnlyDictionaryWrapper<TKey, TValue>
   #endregion
 
   #region IReadOnlyDictionary<K,V> Members
-  /// <include file="documentation.xml" path="/Collections/Dictionary/Indexer/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Dictionary/Indexer/*"/>
   public TValue this[TKey key]
   {
     get { return dictionary[key]; }
   }
 
-  /// <include file="documentation.xml" path="/Collections/Dictionary/Keys/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Dictionary/Keys/*"/>
   public IReadOnlyCollection<TKey> Keys
   {
     get; private set;
   }
 
-  /// <include file="documentation.xml" path="/Collections/Dictionary/Values/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Dictionary/Values/*"/>
   public IReadOnlyCollection<TValue> Values
   {
     get; private set;
   }
 
-  /// <include file="documentation.xml" path="/Collections/Dictionary/ContainsKey/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Dictionary/ContainsKey/*"/>
   public bool ContainsKey(TKey key)
   {
     return dictionary.ContainsKey(key);
   }
 
-  /// <include file="documentation.xml" path="/Collections/Dictionary/TryGetValue/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Dictionary/TryGetValue/*"/>
   public bool TryGetValue(TKey key, out TValue value)
   {
     return dictionary.TryGetValue(key, out value);
@@ -304,43 +304,43 @@ public class ReadOnlyListWrapper<T> : ReadOnlyCollectionWrapperBase, IReadOnlyLi
     this.list = list;
   }
 
-  /// <include file="documentation.xml" path="/Collections/Common/Indexer/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Common/Indexer/*"/>
   public T this[int index]
   {
     get { return list[index]; }
   }
 
-  /// <include file="documentation.xml" path="/Collections/Common/Count/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Common/Count/*"/>
   public int Count
   {
     get { return list.Count; }
   }
 
-  /// <include file="documentation.xml" path="/Collections/Common/Contains/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Common/Contains/*"/>
   public bool Contains(T item)
   {
     return list.Contains(item);
   }
 
-  /// <include file="documentation.xml" path="/Collections/Common/CopyTo/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Common/CopyTo/*"/>
   public void CopyTo(T[] array, int arrayIndex)
   {
     list.CopyTo(array, arrayIndex);
   }
 
-  /// <include file="documentation.xml" path="/Collections/Common/GetEnumerator/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Common/GetEnumerator/*"/>
   public IEnumerator<T> GetEnumerator()
   {
     return list.GetEnumerator();
   }
 
-  /// <include file="documentation.xml" path="/Collections/Common/IndexOf/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Common/IndexOf/*"/>
   public int IndexOf(T item)
   {
     return list.IndexOf(item);
   }
 
-  /// <include file="documentation.xml" path="/Collections/Common/ToArray/node()"/>
+  /// <include file="documentation.xml" path="/Collections/Common/ToArray/*"/>
   public T[] ToArray()
   {
     T[] array = new T[list.Count];

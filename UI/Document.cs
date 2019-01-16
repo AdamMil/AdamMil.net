@@ -81,25 +81,25 @@ public struct Measurement
     set { Unit = value; }
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/Equals/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/Equals/*"/>
   public override bool Equals(object obj)
   {
     return obj is Measurement ? this == (Measurement)obj : false;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/Equals/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/Equals/*"/>
   public bool Equals(Measurement other)
   {
     return this == other;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/GetHashCode/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/GetHashCode/*"/>
   public override int GetHashCode()
   {
     return size.GetHashCode() ^ (int)unit;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/ToString/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/ToString/*"/>
   public override string ToString()
   {
     string sizeString = size.ToString("g3"), suffix;
@@ -118,13 +118,13 @@ public struct Measurement
     return sizeString + suffix;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OpEquals/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OpEquals/*"/>
   public static bool operator==(Measurement a, Measurement b)
   {
     return a.Size == b.Size && a.Unit == b.Unit;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OpNotEquals/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OpNotEquals/*"/>
   public static bool operator!=(Measurement a, Measurement b)
   {
     return a.Size != b.Size || a.Unit != b.Unit;
@@ -214,19 +214,19 @@ public struct FourSide
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/Equals/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/Equals/*"/>
   public override bool Equals(object obj)
   {
     return obj is FourSide ? this == (FourSide)obj : false;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/Equals/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/Equals/*"/>
   public bool Equals(FourSide other)
   {
     return this == other;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/GetHashCode/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/GetHashCode/*"/>
   public override int GetHashCode()
   {
     return left.GetHashCode() ^ top.GetHashCode() ^ right.GetHashCode() ^ bottom.GetHashCode();
@@ -253,7 +253,7 @@ public struct FourSide
     topUnit = bottomUnit = value.Unit;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OpEquals/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OpEquals/*"/>
   public static bool operator==(FourSide a, FourSide b)
   {
     return a.left == b.left && a.top == b.top && a.right == b.right && a.bottom == b.bottom &&
@@ -261,7 +261,7 @@ public struct FourSide
            a.rightUnit == b.rightUnit && a.bottomUnit == b.bottomUnit;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OpNotEquals/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OpNotEquals/*"/>
   public static bool operator!=(FourSide a, FourSide b)
   {
     return a.left != b.left || a.top != b.top || a.right != b.right || a.bottom != b.bottom ||
@@ -497,7 +497,7 @@ public class Style
     set { SetNullableOption("*Height", value, value != Height); }
   }
 
-  /// <include file="documentation.xml" path="/UI/Style/GetOption/node()"/>
+  /// <include file="documentation.xml" path="/UI/Style/GetOption/*"/>
   /// <returns>Returns the option value, or the default value for the type if no value was found.</returns>
   protected T? GetNullableOption<T>(string optionName, bool searchAncestors) where T : struct
   {
@@ -521,14 +521,14 @@ public class Style
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/Style/GetOption/node()"/>
+  /// <include file="documentation.xml" path="/UI/Style/GetOption/*"/>
   /// <returns>Returns the option value, or null if no value was found.</returns>
   protected T GetOption<T>(string optionName, bool searchAncestors)
   {
     return GetOption<T>(optionName, searchAncestors, default(T));
   }
 
-  /// <include file="documentation.xml" path="/UI/Style/GetOption/node()"/>
+  /// <include file="documentation.xml" path="/UI/Style/GetOption/*"/>
   /// <param name="defaultValue">The default value which will be returned if the option is not set.</param>
   /// <returns>Returns the option value, or null if no value was found.</returns>
   protected T GetOption<T>(string optionName, bool searchAncestors, T defaultValue)
@@ -553,7 +553,7 @@ public class Style
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/Style/SetOption/node()"/>
+  /// <include file="documentation.xml" path="/UI/Style/SetOption/*"/>
   protected void SetOption<T>(string optionName, T value, bool triggerNodeChange)
   {
     if(options == null)
@@ -568,7 +568,7 @@ public class Style
     if(triggerNodeChange) owner.OnNodeChanged();
   }
 
-  /// <include file="documentation.xml" path="/UI/Style/SetOption/node()"/>
+  /// <include file="documentation.xml" path="/UI/Style/SetOption/*"/>
   protected void SetNullableOption<T>(string optionName, T? value, bool triggerNodeChange) where T : struct
   {
     if(options == null)
@@ -704,7 +704,7 @@ public class Document
     version--;
   }
 
-  /// <include file="documentation.xml" path="/UI/Document/OnNodeChanged/node()"/>
+  /// <include file="documentation.xml" path="/UI/Document/OnNodeChanged/*"/>
   protected internal virtual void OnNodeChanged(DocumentNode node)
   {
     if(node == null) throw new ArgumentNullException();

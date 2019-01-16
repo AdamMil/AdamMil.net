@@ -28,6 +28,87 @@
   </Common>
 
   <Financial>
+    <CumulativeInterest>
+      <summary>Returns the cumulative interest paid between two periods of a loan or other annuity.</summary>
+      <param name="rate">The interest rate of the loan or investment, or the discount rate of the annuity, per period</param>
+      <param name="payment">The payment per period, positive for cash received and negative for cash paid. If omitted, the payment will be
+        calculated based on the other parameters, but if this method will be called multiple times for the same annuity, it is more
+        efficient to calculate the payment once and provide it as a parameter. Also, you must specify the payment if it differs from the
+        standard payment for the loan or annuity. Note that if you specify a non-standard payment, this method will not be aware of how
+        that impacts other loan parameters; for example, it assumes all payments are the same size and is not aware that with a
+        non-standard payment, the final payment may be smaller than the others.
+      </param>
+      <param name="firstPeriod">The beginning of the periods whose cumulative interest payments should be returned, where 0 is the first
+        period in the loan or annuity
+      </param>
+      <param name="periodCount">The number of periods whose cumulative interest payments should be returned, starting from
+        <paramref name="firstPeriod"/>
+      </param>
+      <param name="paymentCount">The total number of payment periods in the loan or other annuity</param>
+      <param name="presentValue">The the amount received as a loan (positive), or the present value that would have to be paid to
+        purchase the investment (negative), or zero if the future value will come from the payments alone
+      </param>
+      <param name="futureValue">The future balance of the loan (negative) or value of the investment (positive) after the last
+        payment. You may specify zero, if the loan would be completely paid off or the investment would be completely sold or after the
+        last payment. If omitted, the value is zero.
+      </param>
+      <param name="payAtEnd">If true, payments are made at the end of each period (e.g. for an annuity-immediate), and if false, payments
+        are made at the beginning of each period (e.g. for an annuity-due). This affects whether the first and last periods have a chance
+        to earn interest. If omitted, the value is true.
+      </param>
+      <returns>Returns the total amount of interest added to the balance of the loan or present value of the investment during the
+        given payment periods.
+      </returns>
+      <example>
+        You take out a $500,000 home loan at 5% APR (compounded monthly) over 30 years and want to know how much of the principal will be
+        paid in the first year compared to the last year, so you take rate = <c>0.05 / 12</c> (5% APR compounded monthly), firstPeriod = 0 (the
+        start of the first year), periodCount = 12 (the length of the first year, in months), paymentCount = 30*12 (because it's a
+        30-year loan paid monthly), presentValue = 500,000, and payAtEnd = true (as is typical for mortgages). You get -$24,832.47
+        (negative because you must pay it). To check the last year, you do the same calculation but with firstPeriod = 29*12 (the start
+        of the 29th year) and get -$855.63.
+      </example>
+    </CumulativeInterest>
+    <CumulativePrincipal>
+      <summary>Returns the cumulative principal paid between two periods of a loan or other annuity.</summary>
+      <param name="rate">The interest rate of the loan or investment, or the discount rate of the annuity, per period</param>
+      <param name="payment">
+        The payment per period, positive for cash received and negative for cash paid. If omitted, the payment will be
+        calculated based on the other parameters, but if this method will be called multiple times for the same annuity, it is more
+        efficient to calculate the payment once and provide it as a parameter. Also, you must specify the payment if it differs from the
+        standard payment for the loan or annuity. Note that if you specify a non-standard payment, this method will not be aware of how
+        that impacts other loan parameters; for example, it assumes all payments are the same size and is not aware that with a
+        non-standard payment, the final payment may be smaller than the others.
+      </param>
+      <param name="firstPeriod">The beginning of the periods whose cumulative principal payments should be returned, where 0 is the first
+        period in the loan or annuity
+      </param>
+      <param name="periodCount">The number of periods whose cumulative principal payments should be returned, starting from
+        <paramref name="firstPeriod"/>
+      </param>
+      <param name="paymentCount">The total number of payment periods in the loan or other annuity</param>
+      <param name="presentValue">The the amount received as a loan (positive), or the present value that would have to be paid to
+        purchase the investment (negative), or zero if the future value will come from the payments alone
+      </param>
+      <param name="futureValue">The future balance of the loan (negative) or value of the investment (positive) after the last
+        payment. You may specify zero, if the loan would be completely paid off or the investment would be completely sold or after the
+        last payment. If omitted, the value is zero.
+      </param>
+      <param name="payAtEnd">If true, payments are made at the end of each period (e.g. for an annuity-immediate), and if false, payments
+        are made at the beginning of each period (e.g. for an annuity-due). This affects whether the first and last periods have a chance
+        to earn interest. If omitted, the value is true.
+      </param>
+      <returns>Returns the total amount of principal added to the balance of the loan or present value of the investment during the
+        given payment periods.
+      </returns>
+      <example>
+        You take out a $500,000 home loan at 5% APR (compounded monthly) over 30 years and want to know how much of the principal will be
+        paid in the first year compared to the last year, so you take rate = <c>0.05 / 12</c> (5% APR compounded monthly),
+        firstPeriod = 0 (the start of the first year), periodCount = 12 (the length of the first year, in months), paymentCount = 30*12
+        (because it's a 30-year loan paid monthly), presentValue = 500,000, and payAtEnd = true (as is typical for mortgages). You get
+        -$7,376.83 (negative because you must pay it). To check the last year, you do the same calculation but with firstPeriod = 29*12
+        (the start of the 29th year) and get -$31,353.66.
+      </example>
+    </CumulativePrincipal>
     <FutureValue>
       <summary>Computes the future value of an annuity, investment, or loan.</summary>
       <param name="rate">The interest rate of the investment or loan, or the discount rate of the annuity, per period</param>
@@ -48,12 +129,50 @@
       </returns>
       <example>
         To compute how much you would have if you started with $3000 and saved $500 at the end of each month for ten years while
-        earning 5% APY compounded monthly, use rate = PeriodicRate(.05, 12) (5% APY compounded monthly), payment = -500 (negative because
-        you are paying), paymentCount = 10*12 (ten years of monthly payments), presentValue = -3000 (because you started by depositing
-        (paying) $3000 into your account), and payAtEnd = true (because you are depositing money at the end of each month).
+        earning 5% APY compounded monthly, use rate = <c>PeriodicRate(.05, 12)</c> (5% APY compounded monthly), payment = -500 (negative
+        because you are paying), paymentCount = 10*12 (ten years of monthly payments), presentValue = -3000 (because you started by
+        depositing (paying) $3000 into your account), and payAtEnd = true (because you are depositing money at the end of each month).
         The result is $82,068.26 (positive because this is an asset), indicating that you'd have that much money after 10 years.
       </example>
     </FutureValue>
+    <Interest>
+      <summary>Computes the amount of interest paid in a single period of a loan.</summary>
+      <param name="rate">The interest rate of the loan or investment, or the discount rate of the annuity, per period</param>
+      <param name="payment">
+        The payment per period, positive for cash received and negative for cash paid. If omitted, the payment will be
+        calculated based on the other parameters, but if this method will be called multiple times, it is more efficient to calculate the
+        payment once and provide it as a parameter. Also, you must specify the payment if it differs from the
+        standard payment for the loan or annuity. Note that if you specify a non-standard payment, this method will not be aware of how
+        that impacts other loan parameters; for example, it assumes all payments are the same size and is not aware that with a
+        non-standard payment, the final payment may be smaller than the others.
+      </param>
+      <param name="period">The payment period whose interest payment should be returned, from 0 to <paramref name="paymentCount"/>. If
+      <paramref name="period"/> is <paramref name="paymentCount"/>, the interest rate of a hypothetical next payment after the last payment
+        will be returned.
+      </param>
+      <param name="paymentCount">The number of payment periods</param>
+      <param name="presentValue">The the amount received as a loan (positive), or the present value that would have to be paid to
+        purchase the investment (negative), or zero if the future value will come from the payments alone
+      </param>
+      <param name="futureValue">The future balance of the loan (negative) or value of the investment (positive) after the last
+        payment. You may specify zero, if the loan would be completely paid off or the investment would be completely sold after the
+        last payment. If omitted, the value is zero.
+      </param>
+      <param name="payAtEnd">If true, payments are made at the end of each period (e.g. for an annuity-immediate), and if false, payments
+        are made at the beginning of each period (e.g. for an annuity-due). This affects whether the first and last periods have a chance
+        to earn interest. If omitted, the value is true.
+      </param>
+      <returns>Returns the amount of interest paid (negative) or received (positive) during the given period.</returns>
+      <example>
+        You take out a $500,000 home loan at 5% APR (compounded monthly) over 30 years and are surprised to see that of your first $2,684.11
+        monthly payment, $2,083.33 goes to interest and only $600.78 goes to reduce your principal. You wonder what the situation will look
+        like in 10 years, so you take rate = <c>0.05 / 12</c> (5% APR compounded monthly), period = 10*12 (the first month of the 10th year),
+        paymentCount = 30*12 (because it's a 30-year loan paid monthly), presentValue = 500,000 (the value of the loan), and payAtEnd = true
+        (as is typical for mortgages). You get -$1,694.63 (negative since you must pay it), indicating that even after 10 years, $1,694.63
+        goes to interest and only $989.48 goes to principal. As a result, you resolve to pay extra each month to reduce your principal more
+        quickly.
+      </example>
+    </Interest>
     <Payment>
       <summary>Computes the periodic payment needed to bring an annuity, loan, or investment from its present value to a future value.</summary>
       <param name="rate">The interest rate of the loan or investment, or the discount rate of the annuity, per period</param>
@@ -79,17 +198,17 @@
       </returns>
       <example>
         You want to take a $10,000 personal loan. The bank is willing to offer you the money at 8% APR (compounded monthly), and
-        you want to know what your monthly payment would need to be in order to pay it back within 4 years. Take rate = 0.08/12 (8% APR
-        compounded monthly), paymentCount = 4*12 (four years of monthly payments), presentValue = 10,000 (positive because the lender gave
-        you money), futureValue = 0 (because you expect to fully repay the loan after four years), and payAtEnd = true (because the bank
-        changes interest before the first payment is due). The result is -$244.13 per month, which is negative because you'll have to pay
-        that amount.
+        you want to know what your monthly payment would need to be in order to pay it back within 4 years. Take rate = <c>0.08 / 12</c>
+        (8% APR compounded monthly), paymentCount = 4*12 (four years of monthly payments), presentValue = 10,000 (positive because the
+        lender gave you money), futureValue = 0 (because you expect to fully repay the loan after four years), and payAtEnd = true (because
+        the bank changes interest before the first payment is due). The result is -$244.13 per month, which is negative because you'll have
+        to pay that amount.
         <para>
           It's October and you've had a child. You want to save $75,000 over the next 18 years for his college tuition. You expect
           the market to return at least 5% per year and want to know how much you'll need to divert from your Christmas bonus to reach your
           goal. Take rate = 0.05 (5%), paymentCount = 18, presentValue = 0 (because you don't have anything saved yet), futureValue = 75,000,
           and payAtEnd = false (because you'll be depositing money from your Christmas bonus which is near the beginning of the 12-month
-          period starting from October). The result is about -$2539, which is negative because you'll have to pay it each Christmas.
+          period starting from October). The result is about -$2,539, which is negative because you'll have to pay it each Christmas.
         </para>
       </example>
     </Payment>
@@ -119,13 +238,13 @@
       </returns>
       <example>
         You're considering taking a loan for $100,000 at 5% APR compounded monthly with a $1000 monthly payment, and want to know
-        how long it would take to pay it off. Take rate = .05/12 (5% APR compounded monthly), payment = -1000 (negative
+        how long it would take to pay it off. Take rate = <c>.05 / 12</c> (5% APR compounded monthly), payment = -1000 (negative
         because you're paying), presentValue = 100,000 (positive because you received the money from the lender), futureValue = 0 (because
         you intend to repay the entire loan), and payAtEnd = true (because for this loan the interest is charged before the first payment).
         The result is about 129.63, meaning it will take that many months to pay it off. Dividing by 12, you get 10.8 years.
         <para>
           You have $2000 in your savings account which pays 2.5% APY (compounded monthly) and want to know how long it will take to reach
-          $2200. Take rate = PeriodicRate(0.025, 12) (2.5% APY compounded monthly), payment = 0 (because you're not making additional
+          $2200. Take rate = <c>PeriodicRate(0.025, 12)</c> (2.5% APY compounded monthly), payment = 0 (because you're not making additional
           deposits), presentValue = -2000 (negative because you "paid" (deposited) money to create this investment), and futureValue = 2200
           (positive because you'll be able to "sell" (withdraw) your investment at the end). The result is about 46.32 months or 3.9 years.
         </para>
@@ -148,28 +267,64 @@
       <returns>Returns the present value, positive if you receive cash in the present and negative if you pay cash in the present.</returns>
       <example>
         To compute how much you would have to pay right now to obtain $100,000 in ten years assuming you had a savings account
-        that paid 5% APY (compounded monthly) and assuming that you would deposit $250 per month, use rate = PeriodicRate(.05, 12) (5% APY
-        compounded monthly), payment = -250 (negative because you are paying), paymentCount = 10*12 (ten years of monthly payments),
+        that paid 5% APY (compounded monthly) and assuming that you would deposit $250 per month, use rate = <c>PeriodicRate(.05, 12)</c>
+        (5% APY compounded monthly), payment = -250 (negative because you are paying), paymentCount = 10*12 (ten years of monthly payments),
         futureValue = 100,000 (the amount you want to have at the end), and payAtEnd = true (because you'll make the first $250 payment
         after the first month). The result is -$37699.93, meaning that you'd need to start with a
         lump sum payment of $37699.93 under those conditions to reach $100,000 in ten years.
         <para>
           To compute how expensive of a house you could afford assuming you have $50,000 saved for a down payment and are able to pay
-          $1,250 per month over 30 years to service the loan, and assuming you can get an interest rate of 5% APR, use rate = 0.05/12 (5% APR
-          paid monthly), payment = -1250 (negative because you are paying), paymentCount = 30*12 (30 years of monthly payments),
+          $1,250 per month over 30 years to service the loan, and assuming you can get an interest rate of 5% APR, use rate = <c>0.05 / 12</c>
+          (5% APR paid monthly), payment = -1250 (negative because you are paying), paymentCount = 30*12 (30 years of monthly payments),
           futureValue = 0 (because you'll have paid off the loan at the end of 30 years), and payAtEnd = true (since that's how mortgages
           work). The result is about $232,852 (positive since you are being paid that much by the lender), which is the amount of loan
           principal you can afford. Adding the down payment, you get $282,852 as the most expensive house you can afford.
         </para>
         <para>
           To compute how much you'd need to pay to establish an annuity that pays you $1000/mo for 20 years and has a fixed interest
-          rate of 5% APY (compounded daily), use rate = PeriodicRate(.05, 365.25) (5% APY compounded daily), payment = 1000 (positive because
-          you are being paid), paymentCount = 20*12 (20 years of monthly payments), futureValue = 0 (because the annuity will be exhausted at
-          the end of 20 years), and payAtEnd = true (as is typical for annuities). The result is -$236,177.90 (negative because you must pay
-          this lump sum in the present to establish the annuity).
+          rate of 5% APY (compounded daily), use rate = <c>PeriodicRate(.05, 365.25)</c> (5% APY compounded daily), payment = 1000 (positive
+          because you are being paid), paymentCount = 20*12 (20 years of monthly payments), futureValue = 0 (because the annuity will be
+          exhausted at the end of 20 years), and payAtEnd = true (as is typical for annuities). The result is -$236,177.90 (negative because
+          you must pay this lump sum in the present to establish the annuity).
         </para>
       </example>
     </PresentValue>
+    <Principal>
+      <summary>Computes the amount of principal paid in a single period of a loan.</summary>
+      <param name="rate">The interest rate of the loan or investment, or the discount rate of the annuity, per period</param>
+      <param name="payment">
+        The payment per period, positive for cash received and negative for cash paid. If omitted, the payment will be
+        calculated based on the other parameters, but if this method will be called multiple times for the same annuity, it is more
+        efficient to calculate the payment once and provide it as a parameter. Also, you must specify the payment if it differs from the
+        standard payment for the loan or annuity. Note that if you specify a non-standard payment, this method will not be aware of how
+        that impacts other loan parameters; for example, it assumes all payments are the same size and is not aware that with a
+        non-standard payment, the final payment may be smaller than the others.
+      </param>
+      <param name="period">The payment period whose principal payment should be returned, from 0 to <paramref name="paymentCount"/>-1</param>
+      <param name="paymentCount">The number of payment periods</param>
+      <param name="presentValue">The the amount received as a loan (positive), or the present value that would have to be paid to
+        purchase the investment (negative), or zero if the future value will come from the payments alone
+      </param>
+      <param name="futureValue">The future balance of the loan (negative) or value of the investment (positive) after the last
+        payment. You may specify zero, if the loan would be completely paid off or the investment would be completely sold after the
+        last payment. If omitted, the value is zero.
+      </param>
+      <param name="payAtEnd">If true, payments are made at the end of each period (e.g. for an annuity-immediate), and if false, payments
+        are made at the beginning of each period (e.g. for an annuity-due). This affects whether the first and last periods have a chance
+        to earn interest. If omitted, the value is true.
+      </param>
+      <returns>Returns the amount of principal added to the balance of the loan or present value of the investment during the given payment
+        period.
+      </returns>
+      <example>
+        You take out a $500,000 home loan at 5% APR (compounded monthly) over 30 years and are surprised to see that of your first $2,684.11
+        monthly payment, $2,083.33 goes to interest and only $600.78 goes to reduce your principal. You wonder what the situation will look
+        like in 10 years, so you take rate = <c>0.05 / 12</c> (5% APR compounded monthly), period = 10*12 (the first month of the 10th year),
+        paymentCount = 30*12 (because it's a 30-year loan paid monthly), presentValue = 500,000 (the value of the loan), and payAtEnd = true
+        (as is typical for mortgages). You get -$989.48 (negative since you must pay it), indicating that even after 10 years, only $989.48
+        goes to principal and $1,694.63 goes to interest. As a result, you resolve to pay extra each month to reduce your principal more quickly.
+      </example>
+    </Principal>
     <Rate>
       <summary>Computes the interest rate needed to bring an annuity, loan, or investment from its present value to a future value.</summary>
       <param name="payment">The payment per period, positive for cash received and negative for cash paid</param>
@@ -854,7 +1009,9 @@
   </ReedSolomon>
   
   <RNG>
-    <SeedSize>The number of uints that should be used to used to seed the random number generator.</SeedSize>
+    <SeedSize>
+      <summary>The number of uints that should be used to used to seed the random number generator.</summary>
+    </SeedSize>
     <LoadStateCore>
       <summary>Loads the state of the generator, as implemented by derived classes, from a <see cref="BinaryReader" />.</summary>
     </LoadStateCore>

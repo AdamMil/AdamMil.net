@@ -73,17 +73,17 @@ public abstract class PGPListBase : ListView
     get { return treeImageList; }
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/ClearCachedFonts/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/ClearCachedFonts/*"/>
   protected virtual void ClearCachedFonts() { }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/CreateAttributeItem/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/CreateAttributeItem/*"/>
   protected virtual AttributeItem CreateAttributeItem(UserAttribute attr)
   {
     if(attr == null) throw new ArgumentNullException();
     return new AttributeItem(attr, PGPUI.GetAttributeName(attr));
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnFontChanged/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnFontChanged/*"/>
   protected override void OnFontChanged(EventArgs e)
   {
     base.OnFontChanged(e);
@@ -91,7 +91,7 @@ public abstract class PGPListBase : ListView
     RecreateItems();
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnForeColorChanged/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnForeColorChanged/*"/>
   protected override void OnForeColorChanged(EventArgs e)
   {
     base.OnForeColorChanged(e);
@@ -99,14 +99,14 @@ public abstract class PGPListBase : ListView
     RecreateItems();
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnNotifyMessage/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnNotifyMessage/*"/>
   protected override void OnNotifyMessage(Message m)
   {
     // filter out the WM_ERASEBKGND message to prevent flicker
     if(m.Msg != 0x14) base.OnNotifyMessage(m);
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/RecreateItems/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/RecreateItems/*"/>
   protected virtual void RecreateItems() { }
 
   readonly ImageList treeImageList;
@@ -143,13 +143,13 @@ public abstract class KeyListBase : PGPListBase
     Owned=4,
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/ClearCachedFonts/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/ClearCachedFonts/*"/>
   protected override void ClearCachedFonts()
   {
     Array.Clear(fonts, 0, fonts.Length);
   }
 
-  /// <include file="documentation.xml" path="/UI/ListBase/CreateFont/node()"/>
+  /// <include file="documentation.xml" path="/UI/ListBase/CreateFont/*"/>
   protected virtual void CreateFont(ItemStatus type, out Font font, out Color color)
   {
     ItemStatus basicStatus = type & ItemStatus.BasicStatusMask;
@@ -191,7 +191,7 @@ public abstract class KeyListBase : PGPListBase
            ItemStatus.Normal;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/*"/>
   protected override void OnKeyDown(KeyEventArgs e)
   {
     base.OnKeyDown(e);

@@ -57,7 +57,7 @@ public partial class UserIdManagerForm : Form
     if(Visible) ReloadKey();
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnKeyDown/*"/>
   protected override void OnKeyDown(KeyEventArgs e)
   {
     base.OnKeyDown(e);
@@ -69,7 +69,7 @@ public partial class UserIdManagerForm : Form
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnShown/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnShown/*"/>
   protected override void OnShown(EventArgs e)
   {
     base.OnShown(e);

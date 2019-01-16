@@ -262,7 +262,7 @@ public class DocumentNode
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/DocumentNode/GetDescription/node()"/>
+  /// <include file="documentation.xml" path="/UI/DocumentNode/GetDescription/*"/>
   public virtual string GetDescription()
   {
     return "a node";
@@ -292,7 +292,7 @@ public class DocumentNode
     }
   }
 
-  /// <include file="documentation.xml" path="/UI/DocumentNode/OnNodeChanged/node()"/>
+  /// <include file="documentation.xml" path="/UI/DocumentNode/OnNodeChanged/*"/>
   protected internal virtual void OnNodeChanged()
   {
     if(Document != null) Document.OnNodeChanged(this);
@@ -445,7 +445,7 @@ public class LinkNode : DocumentNode
     OnActivated();
   }
 
-  /// <include file="documentation.xml" path="/UI/DocumentNode/GetDescription/node()"/>
+  /// <include file="documentation.xml" path="/UI/DocumentNode/GetDescription/*"/>
   public override string GetDescription()
   {
     return Link.AbsoluteUri;
@@ -479,7 +479,7 @@ public class TextNode : DocumentNode
     textDocument = initialDocument != null ? initialDocument : new TextDocument();
   }
 
-  /// <include file="documentation.xml" path="/UI/TextDocument/LineCount/node()"/>
+  /// <include file="documentation.xml" path="/UI/TextDocument/LineCount/*"/>
   public int LineCount
   {
     get { return textDocument.LineCount; }
@@ -491,73 +491,73 @@ public class TextNode : DocumentNode
     get { return textDocument.Length; }
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Copy3/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Copy3/*"/>
   public void CopyText(System.IO.TextWriter writer, int srcIndex, int count)
   {
     textDocument.CopyTo(writer, srcIndex, count);
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Copy4/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Copy4/*"/>
   public void CopyText(int srcIndex, char[] destArray, int destIndex, int count)
   {
     textDocument.CopyTo(srcIndex, destArray, destIndex, count);
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Delete2/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Delete2/*"/>
   public void Delete(int index, int count)
   {
     DoChange(new DeleteTextChange(this, index, count));
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Indexer/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/Indexer/*"/>
   public char GetCharacter(int index)
   {
     return textDocument[index];
   }
 
-  /// <include file="documentation.xml" path="/UI/DocumentNode/GetDescription/node()"/>
+  /// <include file="documentation.xml" path="/UI/DocumentNode/GetDescription/*"/>
   public override string GetDescription()
   {
     return "\"" + textDocument.GetText() + "\"";
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLength/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLength/*"/>
   public int GetLineLength(int line)
   {
     return textDocument.GetLineLength(line);
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLengths/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineLengths/*"/>
   public int[] GetLineLengths()
   {
     return textDocument.GetLineLengths();
   }
 
-  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineInfo/node()"/>
+  /// <include file="documentation.xml" path="/UI/LineStorage/GetLineInfo/*"/>
   public void GetLineInfo(int line, out int offset, out int length)
   {
     textDocument.GetLineInfo(line, out offset, out length);
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/GetText/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/GetText/*"/>
   public string GetText()
   {
     return textDocument.GetText();
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/GetText2/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/GetText2/*"/>
   public string GetText(int index, int count)
   {
     return textDocument.GetText(index, count);
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertChar/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertChar/*"/>
   public void Insert(int index, char c)
   {
     Insert(index, new string(c, 1));
   }
 
-  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertString/node()"/>
+  /// <include file="documentation.xml" path="/UI/EditableTextBuffer/InsertString/*"/>
   public void Insert(int index, string text)
   {
     DoChange(new InsertTextChange(this, index, text));

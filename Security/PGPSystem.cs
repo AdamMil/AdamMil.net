@@ -633,7 +633,7 @@ public class Signature : SignatureBase
     }
   }
 
-  /// <include file="documentation.xml" path="/Security/Common/ToString/node()"/>
+  /// <include file="documentation.xml" path="/Security/Common/ToString/*"/>
   public override string ToString()
   {
     string from = null;
@@ -695,22 +695,22 @@ public class Signature : SignatureBase
 
 #region Delegates
 #region CardPinHandler
-/// <include file="documentation.xml" path="/Security/PGPSystem/GetCardPin/node()"/>
+/// <include file="documentation.xml" path="/Security/PGPSystem/GetCardPin/*"/>
 public delegate SecureString CardPinHandler(string cardType, string chvNumber, string serialNumber);
 #endregion
 
 #region CipherPasswordHandler
-/// <include file="documentation.xml" path="/Security/PGPSystem/GetPlainPassword/node()"/>
+/// <include file="documentation.xml" path="/Security/PGPSystem/GetPlainPassword/*"/>
 public delegate SecureString CipherPasswordHandler();
 #endregion
 
 #region KeyPasswordHandler
-/// <include file="documentation.xml" path="/Security/PGPSystem/GetKeyPassword/node()"/>
+/// <include file="documentation.xml" path="/Security/PGPSystem/GetKeyPassword/*"/>
 public delegate SecureString KeyPasswordHandler(string keyId, string passwordHint);
 #endregion
 
 #region PasswordInvalidHandler
-/// <include file="documentation.xml" path="/Security/PGPSystem/OnPasswordInvalid/node()"/>
+/// <include file="documentation.xml" path="/Security/PGPSystem/OnPasswordInvalid/*"/>
 public delegate void PasswordInvalidHandler(string keyId);
 #endregion
 #endregion
@@ -721,7 +721,7 @@ public delegate void PasswordInvalidHandler(string keyId);
 /// </summary>
 public abstract class ReadOnlyClass
 {
-  /// <include file="documentation.xml" path="/Security/ReadOnlyClass/MakeReadOnly/node()"/>
+  /// <include file="documentation.xml" path="/Security/ReadOnlyClass/MakeReadOnly/*"/>
   public virtual void MakeReadOnly()
   {
     readOnly = true;
@@ -756,49 +756,49 @@ public abstract class PGPSystem
   public event KeyPasswordHandler KeyPasswordNeeded;
 
   #region Configuration
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetDefaultPrimaryKeyType/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetDefaultPrimaryKeyType/*"/>
   public abstract string GetDefaultPrimaryKeyType();
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetDefaultSubkeyType/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetDefaultSubkeyType/*"/>
   public abstract string GetDefaultSubkeyType();
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetMaximumKeyLength/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetMaximumKeyLength/*"/>
   public abstract int GetMaximumKeyLength(string keyType);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedCiphers/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedCiphers/*"/>
   public abstract string[] GetSupportedCiphers();
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedCompressions/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedCompressions/*"/>
   public abstract string[] GetSupportedCompressions();
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedHashes/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedHashes/*"/>
   public abstract string[] GetSupportedHashes();
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedKeyTypes/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetSupportedKeyTypes/*"/>
   public abstract string[] GetSupportedKeyTypes();
   #endregion
 
   #region Encryption and signing
-  /// <include file="documentation.xml" path="/Security/PGPSystem/Encrypt/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/Encrypt/*"/>
   public void Encrypt(Stream sourceData, Stream destination, EncryptionOptions encryptionOptions)
   {
     Encrypt(sourceData, destination, encryptionOptions, null);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/Encrypt/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/Encrypt/*"/>
   public void Encrypt(Stream sourceData, Stream destination, EncryptionOptions encryptionOptions,
                       OutputOptions outputOptions)
   {
     SignAndEncrypt(sourceData, destination, null, encryptionOptions, outputOptions);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/Sign/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/Sign/*"/>
   public void Sign(Stream sourceData, Stream destination, SigningOptions signingOptions)
   {
     Sign(sourceData, destination, signingOptions, null);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/Sign/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/Sign/*"/>
   public void Sign(Stream sourceData, Stream destination, SigningOptions signingOptions, OutputOptions outputOptions)
   {
     SignAndEncrypt(sourceData, destination, signingOptions, null, outputOptions);
@@ -811,7 +811,7 @@ public abstract class PGPSystem
     SignAndEncrypt(sourceData, destination, signingOptions, encryptionOptions, null);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SignAndEncrypt/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignAndEncrypt/*"/>
   public abstract void SignAndEncrypt(Stream sourceData, Stream destination, SigningOptions signingOptions,
                                       EncryptionOptions encryptionOptions, OutputOptions outputOptions);
 
@@ -825,7 +825,7 @@ public abstract class PGPSystem
     return Decrypt(ciphertext, destination, null);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/Decrypt/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/Decrypt/*"/>
   public abstract Signature[] Decrypt(Stream ciphertext, Stream destination, DecryptionOptions options);
 
   /// <summary>Verifies embedded signatures in the given signed data, using the default verification options. The
@@ -843,10 +843,10 @@ public abstract class PGPSystem
     return Verify(signedData, signature, null);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/Verify2/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/Verify2/*"/>
   public abstract Signature[] Verify(Stream signedData, VerificationOptions options);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/Verify3/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/Verify3/*"/>
   public abstract Signature[] Verify(Stream signedData, Stream signature, VerificationOptions options);
   #endregion
 
@@ -882,7 +882,7 @@ public abstract class PGPSystem
     ExportKeys(keys, destination, exportOptions, null);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportKeys/*"/>
   public abstract void ExportKeys(PrimaryKey[] keys, Stream destination, ExportOptions exportOptions,
                                   OutputOptions outputOptions);
 
@@ -919,7 +919,7 @@ public abstract class PGPSystem
     ExportKeys(keyrings, includeDefaultKeyring, destination, options, null);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ExportKeys/*"/>
   public abstract void ExportKeys(Keyring[] keyrings, bool includeDefaultKeyring, Stream destination,
                                   ExportOptions exportOptions, OutputOptions outputOptions);
 
@@ -929,7 +929,7 @@ public abstract class PGPSystem
     return ImportKeys(source, null, ImportOptions.Default);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeys2/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeys2/*"/>
   public ImportedKey[] ImportKeys(Stream source, ImportOptions options)
   {
     return ImportKeys(source, null, options);
@@ -941,35 +941,35 @@ public abstract class PGPSystem
     return ImportKeys(source, keyring, ImportOptions.Default);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeys3/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeys3/*"/>
   public abstract ImportedKey[] ImportKeys(Stream source, Keyring keyring, ImportOptions options);
   #endregion
 
   #region Key revocation
-  /// <include file="documentation.xml" path="/Security/PGPSystem/AddDesignatedRevoker/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddDesignatedRevoker/*"/>
   public abstract void AddDesignatedRevoker(PrimaryKey key, PrimaryKey revokerKey);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRevocationCertificate/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRevocationCertificate/*"/>
   public abstract void GenerateRevocationCertificate(PrimaryKey key, Stream destination, KeyRevocationReason reason,
                                                      OutputOptions outputOptions);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRevocationCertificateD/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRevocationCertificateD/*"/>
   public abstract void GenerateRevocationCertificate(PrimaryKey keyToRevoke, PrimaryKey designatedRevoker,
                                                      Stream destination, KeyRevocationReason reason,
                                                      OutputOptions outputOptions);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeKeys/*"/>
   public abstract void RevokeKeys(KeyRevocationReason reason, params PrimaryKey[] keys);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeKeysD/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeKeysD/*"/>
   public abstract void RevokeKeys(PrimaryKey designatedRevoker, KeyRevocationReason reason, params PrimaryKey[] keys);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSubkeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSubkeys/*"/>
   public abstract void RevokeSubkeys(KeyRevocationReason reason, params Subkey[] subkeys);
   #endregion
 
   #region Key server operations
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKeysOnServer/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKeysOnServer/*"/>
   public abstract void FindKeysOnServer(Uri keyServer, KeySearchHandler handler, params string[] searchKeywords);
 
   /// <summary>Downloads the public keys specified with the given fingerprints (or key IDs) from the given key server,
@@ -980,7 +980,7 @@ public abstract class PGPSystem
     return ImportKeysFromServer(options, null, keyFingerprintsOrIds);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeysFromServer/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ImportKeysFromServer/*"/>
   public abstract ImportedKey[] ImportKeysFromServer(KeyDownloadOptions options, Keyring keyring,
                                                      params string[] keyFingerprintsOrIds);
 
@@ -990,41 +990,41 @@ public abstract class PGPSystem
     return RefreshKeysFromServer(options, (Keyring)null);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/RefreshKeyringFromServer/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RefreshKeyringFromServer/*"/>
   public abstract ImportedKey[] RefreshKeysFromServer(KeyDownloadOptions options, Keyring keyring);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/RefreshKeysFromServer/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RefreshKeysFromServer/*"/>
   public abstract ImportedKey[] RefreshKeysFromServer(KeyDownloadOptions options, params PrimaryKey[] keys);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/UploadKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/UploadKeys/*"/>
   public abstract void UploadKeys(KeyUploadOptions options, params PrimaryKey[] keys);
   #endregion
 
   #region Key signing
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSignatures/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSignatures/*"/>
   public abstract void DeleteSignatures(params KeySignature[] signatures);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSignatures/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeSignatures/*"/>
   public abstract void RevokeSignatures(UserRevocationReason reason, params KeySignature[] signatures);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SignAttribute/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignAttribute/*"/>
   public void SignAttribute(UserAttribute attribute, PrimaryKey signingKey, KeySigningOptions options)
   {
     if(attribute == null) throw new ArgumentNullException();
     SignAttributes(new UserAttribute[] { attribute }, signingKey, options);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SignKey/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignKey/*"/>
   public void SignKey(PrimaryKey keyToSign, PrimaryKey signingKey, KeySigningOptions options)
   {
     if(keyToSign == null) throw new ArgumentNullException();
     SignKeys(new PrimaryKey[] { keyToSign }, signingKey, options);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SignAttributes/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignAttributes/*"/>
   public abstract void SignAttributes(UserAttribute[] attributes, PrimaryKey signingKey, KeySigningOptions options);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SignKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SignKeys/*"/>
   public abstract void SignKeys(PrimaryKey[] keysToSign, PrimaryKey signingKey, KeySigningOptions options);
   #endregion
 
@@ -1051,7 +1051,7 @@ public abstract class PGPSystem
     return FindKey(keywordOrId, keyring, ListOptions.Default);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKey/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKey/*"/>
   public abstract PrimaryKey FindKey(string keywordOrId, Keyring keyring, ListOptions options);
 
   /// <include file="documentation.xml" path="/Security/PGPSystem/FindKeys/*[not(@name='keyrings') and not(@name='includeDefaultKeyring')]"/>
@@ -1061,7 +1061,7 @@ public abstract class PGPSystem
     return FindKeys(fingerprintsOrIds, keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/FindKeys/*"/>
   public abstract PrimaryKey[] FindKeys(string[] fingerprintsOrIds, Keyring[] keyrings,
                                         bool includeDefaultKeyring, ListOptions options);
 
@@ -1089,7 +1089,7 @@ public abstract class PGPSystem
     return GetKeys(keyring == null ? null : new Keyring[] { keyring }, keyring == null, options);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetKeys/*"/>
   public abstract PrimaryKey[] GetKeys(Keyring[] keyrings, bool includeDefaultKeyring, ListOptions options);
 
   /// <summary>Refreshes the given key by reloading it from its keyring database and returning the updated key, or
@@ -1171,19 +1171,19 @@ public abstract class PGPSystem
   #endregion
 
   #region Miscellaneous
-  /// <include file="documentation.xml" path="/Security/PGPSystem/CreatePublicKeyring/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/CreatePublicKeyring/*"/>
   public virtual void CreatePublicKeyring(string path)
   {
     new FileStream(path, FileMode.Create, FileAccess.Write).Dispose();
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/CreateSecretKeyring/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/CreateSecretKeyring/*"/>
   public virtual void CreateSecretKeyring(string path)
   {
     new FileStream(path, FileMode.Create, FileAccess.Write).Dispose();
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/CreateTrustDatabase/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/CreateTrustDatabase/*"/>
   public virtual void CreateTrustDatabase(string path)
   {
     new FileStream(path, FileMode.Create, FileAccess.Write).Dispose();
@@ -1213,60 +1213,60 @@ public abstract class PGPSystem
     GetRandomData(Randomness.Strong, buffer, index, count);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRandomData/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GenerateRandomData/*"/>
   public abstract void GetRandomData(Randomness quality, byte[] buffer, int index, int count);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/Hash/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/Hash/*"/>
   public abstract byte[] Hash(Stream data, string hashAlgorithm);
   #endregion
 
   #region Primary key management
-  /// <include file="documentation.xml" path="/Security/PGPSystem/AddSubkey/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddSubkey/*"/>
   public abstract void AddSubkey(PrimaryKey key, string keyType, KeyCapabilities capabilities, int keyLength,
                                  DateTime? expiration);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ChangeExpiration/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ChangeExpiration/*"/>
   public abstract void ChangeExpiration(Key key, DateTime? expiration);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/ChangePassword/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/ChangePassword/*"/>
   public abstract void ChangePassword(PrimaryKey key, SecureString password);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/CleanKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/CleanKeys/*"/>
   public abstract void CleanKeys(params PrimaryKey[] keys);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/CreateKey/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/CreateKey/*"/>
   public abstract PrimaryKey CreateKey(NewKeyOptions options);
 
   /// <summary>Deletes the given primary key, or a part of it, from its keyring.</summary>
   /// <param name="key">The primary key to delete.</param>
   /// <param name="deletion">The portion of the key to delete.</param>
-  /// <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/KeyNotUpdatedImmediately/*"/>
   public void DeleteKey(PrimaryKey key, KeyDeletion deletion)
   {
     DeleteKeys(new PrimaryKey[] { key }, deletion);
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteKeys/*"/>
   public abstract void DeleteKeys(PrimaryKey[] keys, KeyDeletion deletion);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSubkeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteSubkeys/*"/>
   public abstract void DeleteSubkeys(params Subkey[] subkeys);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DisableKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DisableKeys/*"/>
   public abstract void DisableKeys(params PrimaryKey[] keys);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/EnableKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/EnableKeys/*"/>
   public abstract void EnableKeys(params PrimaryKey[] keys);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/MinimizeKeys/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/MinimizeKeys/*"/>
   public abstract void MinimizeKeys(params PrimaryKey[] keys);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SetOwnerTrust/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SetOwnerTrust/*"/>
   public abstract void SetOwnerTrust(TrustLevel trust, params PrimaryKey[] keys);
   #endregion
 
   #region User ID management
-  /// <include file="documentation.xml" path="/Security/PGPSystem/AddPhoto2/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddPhoto2/*"/>
   public virtual void AddPhoto(PrimaryKey key, Image image, UserPreferences preferences)
   {
     if(key == null || image == null) throw new ArgumentNullException();
@@ -1284,49 +1284,49 @@ public abstract class PGPSystem
     finally { File.Delete(jpegFilename); }
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/AddPhoto4/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddPhoto4/*"/>
   public abstract void AddPhoto(PrimaryKey key, Stream image, OpenPGPImageType imageFormat,
                                 UserPreferences preferences);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/AddUserId/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/AddUserId/*"/>
   public abstract void AddUserId(PrimaryKey key, string realName, string email, string comment,
                                  UserPreferences preferences);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteAttributes/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/DeleteAttributes/*"/>
   public abstract void DeleteAttributes(params UserAttribute[] attributes);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetPreferences/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetPreferences/*"/>
   public abstract UserPreferences GetPreferences(UserAttribute user);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/SetPreferences/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/SetPreferences/*"/>
   public abstract void SetPreferences(UserAttribute user, UserPreferences preferences);
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeAttributes/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/RevokeAttributes/*"/>
   public abstract void RevokeAttributes(UserRevocationReason reason, params UserAttribute[] attributes);
   #endregion
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetCardPin/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetCardPin/*"/>
   protected virtual SecureString GetCardPin(string cardType, string chvNumber, string serialNumber)
   {
     if(CardPinNeeded != null) return CardPinNeeded(cardType, chvNumber, serialNumber);
     else throw new UnhandledPasswordException("A smart card PIN was required, but no PIN handler was set.");
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetDecryptionPassword/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetDecryptionPassword/*"/>
   protected virtual SecureString GetDecryptionPassword()
   {
     if(DecryptionPasswordNeeded != null) return DecryptionPasswordNeeded();
     else throw new UnhandledPasswordException();
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/GetKeyPassword/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/GetKeyPassword/*"/>
   protected virtual SecureString GetKeyPassword(string keyId, string passwordHint)
   {
     if(KeyPasswordNeeded != null) return KeyPasswordNeeded(keyId, passwordHint);
     else throw new UnhandledPasswordException();
   }
 
-  /// <include file="documentation.xml" path="/Security/PGPSystem/OnPasswordInvalid/node()"/>
+  /// <include file="documentation.xml" path="/Security/PGPSystem/OnPasswordInvalid/*"/>
   protected virtual void OnInvalidPassword(string keyId)
   {
     if(KeyPasswordInvalid != null) KeyPasswordInvalid(keyId);

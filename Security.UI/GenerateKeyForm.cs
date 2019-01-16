@@ -138,7 +138,7 @@ public partial class GenerateKeyForm : Form
     subkeyExpiration.Value = DateTime.UtcNow.Date.AddYears(5); // by default, the subkey expires in 5 years
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnClosing/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnClosing/*"/>
   protected override void OnClosing(CancelEventArgs e)
   {
     base.OnClosing(e);

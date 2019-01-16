@@ -145,7 +145,7 @@ public partial class KeyServerSearchForm : Form
     keyservers.Text = keyServer.AbsoluteUri;
   }
 
-  /// <include file="documentation.xml" path="/UI/Common/OnShown/node()"/>
+  /// <include file="documentation.xml" path="/UI/Common/OnShown/*"/>
   protected override void OnShown(EventArgs e)
   {
     base.OnShown(e);
