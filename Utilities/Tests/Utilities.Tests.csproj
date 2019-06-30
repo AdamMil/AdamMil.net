@@ -6,7 +6,7 @@
     <ProductVersion>9.0.30729</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{49375935-95C1-46FE-AD47-3E366E428C5F}</ProjectGuid>
-    <OutputType>Library</OutputType>
+    <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>AdamMil.Utilities.Tests</RootNamespace>
     <AssemblyName>AdamMil.Utilities.Tests</AssemblyName>
@@ -53,12 +53,16 @@
     <UseVSHostingProcess>false</UseVSHostingProcess>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject />
+  </PropertyGroup>
   <ItemGroup>
     <Compile Include="ArrayTests.cs" />
     <Compile Include="BinaryTests.cs" />
     <Compile Include="GuidTests.cs" />
     <Compile Include="InvariantCultureTests.cs" />
     <Compile Include="LinqTests.cs" />
+    <Compile Include="Main.cs" />
     <Compile Include="NumberTests.cs" />
     <Compile Include="PathTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -77,9 +81,9 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="nunit.framework, Version=2.5.10.11092, Culture=neutral, PublicKeyToken=96d09a1eb7f44a77, processorArchitecture=MSIL">
+    <Reference Include="nunit.framework, Version=2.6.3.13283, Culture=neutral, PublicKeyToken=96d09a1eb7f44a77, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\programs\NUnit\framework\nunit.framework.dll</HintPath>
+      <HintPath>C:\Program Files (x86)\Nunit\bin\net35\nunit.framework.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core">

@@ -25,8 +25,6 @@ using AdamMil.Utilities;
 using BinaryReader=AdamMil.IO.BinaryReader;
 using BinaryWriter=AdamMil.IO.BinaryWriter;
 
-// TODO: move these to AdamMil.Utilities? but then we might have a circular references unless we also moved BinaryReader & BinaryWriter...
-
 namespace AdamMil.Mathematics.Random
 {
 
@@ -207,7 +205,7 @@ public abstract class RandomNumberGenerator
   public void SaveState(BinaryWriter writer)
   {
     if(writer == null) throw new ArgumentNullException();
-    writer.Write(bitsInBuffer);
+    writer.Write((byte)bitsInBuffer);
     if(bitsInBuffer != 0) writer.Write(bitBuffer);
     SaveStateCore(writer);
   }
@@ -221,23 +219,91 @@ public abstract class RandomNumberGenerator
   /// <summary>Generates and returns a random non-negative integer.</summary>
   public int Next()
   {
-    return (int)(NextUInt32()>>1); // we could call GetBits(31) but perhaps the overhead of managing the bit buffer would outweigh the
-  }                                // benefit of 3% fewer calls to NextUInt32(), since many of the generators are quite fast
+    return (int)(NextUInt32()>>1); // we don't call GetBits(31) because the overhead of managing the bit buffer outweighs
+  }                                // benefit of 3% fewer calls to NextUInt32(), with pretty much any reasonable generator
 
   /// <summary>Generates and returns a random integer less than the given maximum, which must be positive.</summary>
   /// <remarks>If <paramref name="exclusiveMaximum"/> is a power of two, it's much more efficient to use <see cref="NextBits"/>, if you
-  /// can easily obtain the base-2 logarithm of <paramref name="exclusiveMaximum"/>.
+  /// can easily obtain the base-2 logarithm of <paramref name="exclusiveMaximum"/>. This method can be biased up to one part in 2^20 -
+  /// roughly one part in a million, and for many values is considerably less biased than that. If you need a completely unbiased method,
+  /// use <see cref="Unbiased(int)"/> (although it's sometimes slower for small ranges).
   /// </remarks>
   public int Next(int exclusiveMaximum)
   {
-    if(exclusiveMaximum <= 1<<23) // if we need no more than 23 bits of randomness...
+    if(exclusiveMaximum <= 0) throw new ArgumentOutOfRangeException();
+    return (int)Next((uint)exclusiveMaximum);
+  }
+
+  /// <summary>Generates and returns a random integer less than the given maximum, which must be positive.</summary>
+  /// <remarks>If <paramref name="exclusiveMaximum"/> is a power of two, it's much more efficient to use <see cref="NextBits"/>, if you
+  /// can easily obtain the base-2 logarithm of <paramref name="exclusiveMaximum"/>. This method can be biased up to one part in 2^20 -
+  /// less than one part in a million - and for many values is considerably less biased than that. If you need a completely unbiased
+  /// method, use <see cref="Unbiased(uint)"/> (although it is sometimes slower).
+  /// </remarks>
+  [CLSCompliant(false)]
+  public uint Next(uint exclusiveMaximum)
+  {
+    // the general strategy is to do (uint)(NextDouble() * exclusiveMaximum). this smears the bias across the output space rather than
+    // concentrating it in the lower numbers like NextUInt32() % exclusiveMaximum would do. also, to achieve no more than one in 2^20
+    // bias we need to generate 20 more random bits than the bit width of the range.
+    if(exclusiveMaximum <= 1u<<12) // if the range is no more than 2^12 and we need up to 32 random bits...
     {
-      if(exclusiveMaximum <= 0) throw new ArgumentOutOfRangeException();
-      return (int)(NextFloat() * exclusiveMaximum); // use NextFloat, which provides 23 bits of randomness and is usually faster
+      if(exclusiveMaximum == 0) throw new ArgumentOutOfRangeException();
+      // then we can use NextUInt32 to generate 32 bits of randomness and do the calculation faster with fixed-point math
+      return (uint)(((ulong)NextUInt32() * exclusiveMaximum) >> 32); // NextUInt32 has the range [0,1) considered as 32:32 fixed-point
     }
-    else
+    else // otherwise, the unbiased method is actually faster than larger fixed-point products
     {
-      return (int)(NextDouble() * exclusiveMaximum); // otherwise use NextDouble, which provides 52 bits of randomness
+      uint r, v, limit = (uint)-(int)exclusiveMaximum; // -uint in C# becomes a long and we don't want that
+      do
+      {
+        r = NextUInt32();
+        v = r % exclusiveMaximum;
+      } while(r-v > limit);
+      return v;
+    }
+  }
+
+  /// <summary>Generates and returns a random integer less than the given maximum, which must be positive.</summary>
+  /// <remarks>If <paramref name="exclusiveMaximum"/> is a power of two, it's much more efficient to use <see cref="NextBits"/>, if you
+  /// can easily obtain the base-2 logarithm of <paramref name="exclusiveMaximum"/>. This method can be biased up to one part in 2^20 -
+  /// roughly one part in a million, and for many values is considerably less biased than that. If you need a completely unbiased method,
+  /// use <see cref="Unbiased(long)"/> (although it's sometimes slower).
+  /// </remarks>
+  public long Next(long exclusiveMaximum)
+  {
+    if(exclusiveMaximum <= 0) throw new ArgumentOutOfRangeException();
+    return (long)Next((ulong)exclusiveMaximum);
+  }
+
+  /// <summary>Generates and returns a random integer less than the given maximum, which must be positive.</summary>
+  /// <remarks>If <paramref name="exclusiveMaximum"/> is a power of two, it's much more efficient to use <see cref="NextBits"/>, if you
+  /// can easily obtain the base-2 logarithm of <paramref name="exclusiveMaximum"/>. This method can be biased up to one part in 2^20 -
+  /// roughly one part in a million, and for many values is considerably less biased than that. If you need a completely unbiased method,
+  /// use <see cref="Unbiased(ulong)"/> (although it's sometimes slower).
+  /// </remarks>
+  [CLSCompliant(false)]
+  public ulong Next(ulong exclusiveMaximum)
+  {
+    if(exclusiveMaximum <= uint.MaxValue) // if the range is no less 2^32...
+    {
+      return Next((uint)exclusiveMaximum); // just use the 32-bit method
+    }
+    else if(exclusiveMaximum <= 1UL<<38) // otherwise, if we need up to 58 random bits...
+    {
+      // compute the multiplication of 58 random bits and the 38-bit range, producing a 96-bit fixed-point result.
+      // we actually consume 64 random bits because it's faster than going through the bit buffer
+      return ((NextUInt32()*exclusiveMaximum >> 32) + (NextUInt32()&((1u<<26)-1))*exclusiveMaximum) >> 26;
+    }
+    else // otherwise, if we need up to 84 random bits, use the unbiased method, which is faster than a large fixed-point product
+    {
+      ulong r, v, limit = (ulong)-(long)exclusiveMaximum; // -ulong is not allowed in C#
+      do
+      {
+        r = NextUInt64();
+        v = r % exclusiveMaximum;
+      } while(r-v > limit);
+      return v;
     }
   }
 
@@ -248,7 +314,43 @@ public abstract class RandomNumberGenerator
   public int Next(int minimum, int maximum)
   {
     if(minimum > maximum) throw new ArgumentException("The minimum must be less than or equal to the maximum.");
-    return (int)(NextDouble() * (uint)(maximum - minimum)) + minimum; // maximum - minimum can be up to 2^32-1, so it fits in a uint
+    uint diff = (uint)(maximum - minimum + 1);
+    return diff != 0 ? (int)Next(diff)+minimum : (int)NextUInt32(); // if diff == 0 then it's the full 32-bit range
+  }
+
+  /// <summary>Generates and returns a random integer between the given inclusive minimum and maximum, which may be any integers.</summary>
+  /// <remarks>If <paramref name="maximum"/>-<paramref name="minimum"/> is a power of two, it's much more efficient to use
+  /// <see cref="NextBits"/>.
+  /// </remarks>
+  [CLSCompliant(false)]
+  public uint Next(uint minimum, uint maximum)
+  {
+    if(minimum > maximum) throw new ArgumentException("The minimum must be less than or equal to the maximum.");
+    uint diff = maximum - minimum + 1;
+    return diff != 0 ? Next(diff)+minimum : NextUInt32(); // if diff == 0 then it's the full 32-bit range
+  }
+
+  /// <summary>Generates and returns a random integer between the given inclusive minimum and maximum, which may be any integers.</summary>
+  /// <remarks>If <paramref name="maximum"/>-<paramref name="minimum"/> is a power of two, it's much more efficient to use
+  /// <see cref="NextBits"/>.
+  /// </remarks>
+  public long Next(long minimum, long maximum)
+  {
+    if(minimum > maximum) throw new ArgumentException("The minimum must be less than or equal to the maximum.");
+    ulong diff = (ulong)(maximum - minimum) + 1;
+    return diff != 0 ? (long)Next(diff)+minimum : (long)NextUInt64(); // if diff == 0 then it's the full 64-bit range
+  }
+
+  /// <summary>Generates and returns a random integer between the given inclusive minimum and maximum, which may be any integers.</summary>
+  /// <remarks>If <paramref name="maximum"/>-<paramref name="minimum"/> is a power of two, it's much more efficient to use
+  /// <see cref="NextBits"/>.
+  /// </remarks>
+  [CLSCompliant(false)]
+  public ulong Next(ulong minimum, ulong maximum)
+  {
+    if(minimum > maximum) throw new ArgumentException("The minimum must be less than or equal to the maximum.");
+    ulong diff = maximum - minimum + 1;
+    return diff != 0 ? Next(diff)+minimum : NextUInt64(); // if diff == 0 then it's the full 64-bit range
   }
 
   /// <summary>Generates a number of random bits and returns them in the low order bits of an integer.</summary>
@@ -261,20 +363,20 @@ public abstract class RandomNumberGenerator
   public uint NextBits(int bits)
   {
     uint value;
-    if((uint)bits <= bitsInBuffer)
+    if((uint)bits <= (uint)bitsInBuffer) // if we have enough bits in the buffer...
     {
       value        = bitBuffer & ((1u<<bits)-1);
       bitBuffer  >>= bits;
-      bitsInBuffer = (byte)(bitsInBuffer - bits); // mcs generates slightly better code for this than bitsInBuffer -= (byte)bits
+      bitsInBuffer -= bits;
     }
-    else if((uint)bits < 32)
+    else if(bits < 32)
     {
       bits -= bitsInBuffer; // get as many bits as we can from the buffer
-      value = bitBuffer;
+      value = bitBuffer << bits; // leave space for the remaining bits
       bitBuffer = NextUInt32(); // then refill the buffer
-      value = (value<<bits) | (bitBuffer & ((1u<<bits)-1)); // and grab the remaining bits from it
-      bitBuffer  >>= bits;
-      bitsInBuffer = (byte)(32 - bits);
+      value |= bitBuffer & ((1u<<bits)-1); // and grab the remaining bits from it
+      bitBuffer >>= bits;
+      bitsInBuffer = 32 - bits;
     }
     else if(bits == 32)
     {
@@ -287,19 +389,30 @@ public abstract class RandomNumberGenerator
     return value;
   }
 
+  /// <summary>Generates a number of random bits and returns them in the low order bits of an integer.</summary>
+  /// <param name="bits">The number of bits to generate, from 0 to 64.</param>
+  /// <remarks>This method can be used to efficiently generate small random numbers in the range of a power of two. For instance, by
+  /// passing 3 you get a small random number from 0 to 7 (i.e. 0 to 2^3-1) much more efficiently than calling <see cref="Next(int)"/>.
+  /// This method uses <see cref="NextUInt32"/> to generate batches of 32 bits at a time.
+  /// </remarks>
+  [CLSCompliant(false)]
+  public ulong NextBits64(int bits)
+  {
+    if(bits <= 32) return NextBits(bits);
+    else return NextUInt32() | ((ulong)NextBits(bits-32)<<32);
+  }
+
   /// <summary>Generates and returns a random boolean value.</summary>
   /// <remarks>This method uses <see cref="NextUInt32"/> to generate batches of 32 bits at a time.</remarks>
   public bool NextBoolean()
   {
-    if(bitsInBuffer == 0)
+    if(--bitsInBuffer < 0)
     {
+      bitsInBuffer = 31;
       bitBuffer    = NextUInt32();
-      bitsInBuffer = 32;
     }
-
     bool result = (bitBuffer & 1) != 0;
     bitBuffer >>= 1;
-    bitsInBuffer--;
     return result;
   }
 
@@ -308,25 +421,23 @@ public abstract class RandomNumberGenerator
   /// double with the full 52 bits of randomness. If you override this method (perhaps because your random number generator natively
   /// generates floating point values), it is important that this method be capable of returning a sufficient number of different values.
   /// Ideally this method should be able to return all 2^52 different values, but at a minimum it must be able to return 2^32 different
-  /// values. The values must also be uniformly distributed.
+  /// values. The values must also be uniformly distributed in the real number space.
   /// </note></remarks>
   public virtual unsafe double NextDouble()
   {
-    double n;
-    *(uint*)&n     = NextUInt32(); // adapted from http://www.cs.ucl.ac.uk/staff/d.jones/GoodPracticeRNG.pdf
-    *((uint*)&n+1) = NextBits(20) | (1023u<<20);
-    return n - 1;
+    ulong n = NextUInt32() | ((ulong)(NextBits(20) | (1023u<<20)) << 32); // generate 52 random mantissa bits and an unbiased exponent of 0
+    return *(double*)&n - 1; // the result of 1.xxxxx * 2^0 lies within [1,2), but we can subtract 1 to get it in [0,1)
   }
 
   /// <summary>Generates and returns a random float greater than or equal to zero and less than one.</summary>
   /// <remarks><note type="inherit">The default implementation uses <see cref="NextBits"/> to generate a float with the full 23 bits of
   /// randomness. If you override this method (perhaps because your random number generator natively generates floating point values), it
-  /// must be able to return all 2^23 different values. The values must also be uniformly distributed.
+  /// must be able to return all 2^23 different values. The values must also be uniformly distributed in the real number space.
   /// </note></remarks>
   public virtual unsafe float NextFloat()
   {
-    uint n = NextBits(23) | (127u<<23); // adapted from http://www.cs.ucl.ac.uk/staff/d.jones/GoodPracticeRNG.pdf
-    return *(float*)&n - 1;
+    uint n = NextBits(23) | (127u<<23); // generate a float with 23 random mantissa bits and an (unbiased) exponent of 0
+    return *(float*)&n - 1; // the result of 1.xxxxx * 2^0 lies within [1,2), but we can subtract 1 to get it in [0,1)
   }
 
   /// <summary>Returns a value from the exponential distribution with rate 1.</summary>
@@ -334,7 +445,7 @@ public abstract class RandomNumberGenerator
   {
     while(true) // we'll use Marsaglia's ziggurat algorithm with a table size of 64. a larger table would make this faster,
     {           // but it's pretty fast with 64
-      uint n = NextBits(6), i = n&63; // select a layer of the ziggurat
+      uint i = NextBits(6); // select a layer of the ziggurat
       double x = expTables.xs[i] * NextDouble(); // generate a value from that layer
       if(x < expTables.xs[i+1]) return x; // if the value definitely lies under the curve, we're done. it'll exit here ~92.6% of the time
 
@@ -355,6 +466,12 @@ public abstract class RandomNumberGenerator
   public double NextExponential(double rate)
   {
     return NextExponential() / rate;
+  }
+
+  /// <summary>Generates and returns a random, nonnegative 64-bit signed integer.</summary>
+  public long NextInt64()
+  {
+    return (long)NextUInt64() & long.MaxValue;
   }
 
   /// <summary>Returns a value from the normal distribution with mean 0 and standard deviation 1.</summary>
@@ -416,12 +533,95 @@ public abstract class RandomNumberGenerator
   /// this method to make use of that ability.
   /// </note></remarks>
   [CLSCompliant(false)]
-  public virtual unsafe ulong NextUInt64()
+  public virtual ulong NextUInt64()
   {
-    ulong n;
-    *(uint*)&n     = NextUInt32();
-    *((uint*)&n+1) = NextUInt32();
-    return n;
+    return NextUInt32() | ((ulong)NextUInt32() << 32); // it's slightly faster to shift and combine than to write the individual halves
+  }
+
+  /// <summary>Generates and returns a random integer less than the given maximum, which must be positive.</summary>
+  /// <remarks>If <paramref name="exclusiveMaximum"/> is a power of two, it's much more efficient to use <see cref="NextBits"/>, if you
+  /// already know the base-2 logarithm of <paramref name="exclusiveMaximum"/>. This method has no bias but may be slower than
+  /// <see cref="Next(int)"/> depending on the maximum value and the speed of the underlying generator. It is also less consistent in its
+  /// runtime as it sometimes needs to loop for several iterations before finding an acceptable value.
+  /// </remarks>
+  public int Unbiased(int exclusiveMaximum)
+  {
+    if(exclusiveMaximum <= 0) throw new ArgumentOutOfRangeException();
+    uint r, v, limit = (uint)-exclusiveMaximum; // limit = 2^32 - exclusiveMaximum
+    do
+    {
+      r = NextUInt32();
+      v = r % (uint)exclusiveMaximum;
+    } while(r-v > limit);
+    return (int)v;
+  }
+
+  /// <summary>Generates and returns a random integer less than the given maximum, which must be positive.</summary>
+  /// <remarks>If <paramref name="exclusiveMaximum"/> is a power of two, it's much more efficient to use <see cref="NextBits"/>, if you
+  /// already know the base-2 logarithm of <paramref name="exclusiveMaximum"/>. This method has no bias but may be slower than
+  /// <see cref="Next(uint)"/> depending on the maximum value and the speed of the underlying generator. It is also less consistent in its
+  /// runtime as it sometimes needs to loop for several iterations before finding an acceptable value.
+  /// </remarks>
+  [CLSCompliant(false)]
+  public uint Unbiased(uint exclusiveMaximum)
+  {
+    if(exclusiveMaximum == 0) throw new ArgumentOutOfRangeException();
+    // the modulo technique is fastest for almost all 32-bit numbers when we don't have a fast way to compute the base-2 logarithm needed
+    // for the bitmask technique, and for generators that aren't very slow. the modulo technique is as follows. let's say exclusiveMaximum
+    // (max) is 10. then NextUInt32() % max would be biased because 2^32 is not divisible by 10.  we need to reject 2^32 % 10 = 6 values,
+    // leaving a usable range of 2^32 - 6 which IS divisible by 10. one way to do this is to reject random values < 6 and then return value
+    // % max if it wasn't rejected. the problem with this approach is that it requires performing at least two (slow) modulus operations. so
+    // we use a trick, which is to instead take limit = 2^32 - 10 (not -6) and for each value compare n - n%max to that limit. for values 0
+    // to max-1, n - n%max is zero. (0-0%10 = 0, 1-1%10 = 0, ..., 9-9%10 = 0.) then for max to max*2-1, n - n%max == max. (10 - 10%10 =
+    // 10 - 0 = 10, 11 - 11%10 = 11 - 1 = 10, etc.) thus n - n%max is always a multiple of max. since limit = 2^32 - max, limit is the
+    // largest legal value of n - n%max. (beyond that limit, there isn't enough space in the range for another full set of max values.) in
+    // our example, limit = 2^32 - 10 but it's not until n = 2^32 - 6 that n - n%max will exceed the limit. when n = 2^32 - 7, n - n%max =
+    // 2^32 - 16 and when n = 2^32 - 6, n - n%max = 2^32-6. thus, this approach also excludes six values from the range but requires a
+    // minimum of one modulus operation instead of two
+    uint r, v, limit = (uint)-(int)exclusiveMaximum; // limit = 2^32 - exclusiveMaximum. -uint in C# becomes a long and we don't want that
+    do
+    {
+      r = NextUInt32();
+      v = r % exclusiveMaximum;
+    } while(r-v > limit);
+    return v;
+  }
+
+  /// <summary>Generates and returns a random integer less than the given maximum, which must be positive.</summary>
+  /// <remarks>If <paramref name="exclusiveMaximum"/> is a power of two, it's much more efficient to use <see cref="NextBits"/>, if you
+  /// already know the base-2 logarithm of <paramref name="exclusiveMaximum"/>. This method has no bias but may be slower than
+  /// <see cref="Next(long)"/> depending on the maximum value and the speed of the underlying generator. It is also less consistent in its
+  /// runtime as it sometimes needs to loop for several iterations before finding an acceptable value.
+  /// </remarks>
+  public long Unbiased(long exclusiveMaximum)
+  {
+    if(exclusiveMaximum <= 0) throw new ArgumentOutOfRangeException();
+    return (long)Unbiased((ulong)exclusiveMaximum);
+  }
+
+  /// <summary>Generates and returns a random integer less than the given maximum, which must be positive.</summary>
+  /// <remarks>If <paramref name="exclusiveMaximum"/> is a power of two, it's much more efficient to use <see cref="NextBits"/>, if you
+  /// already know the base-2 logarithm of <paramref name="exclusiveMaximum"/>. This method has no bias but may be slower than
+  /// <see cref="Next(ulong)"/> depending on the maximum value and the speed of the underlying generator. It is also less consistent in its
+  /// runtime as it sometimes needs to loop for several iterations before finding an acceptable value.
+  /// </remarks>
+  [CLSCompliant(false)]
+  public ulong Unbiased(ulong exclusiveMaximum)
+  {
+    if(exclusiveMaximum < 1UL<<32) // if the range is relatively small...
+    {
+      return Unbiased((uint)exclusiveMaximum); // use the 32-bit version
+    }
+    else // otherwise, use the modulo technique, which is pretty consistently good
+    {
+      ulong r, v, limit = (ulong)-(long)exclusiveMaximum; // -ulong is not allowed in C#
+      do
+      {
+        r = NextUInt64();
+        v = r % exclusiveMaximum;
+      } while(r-v > limit);
+      return v;
+    }
   }
 
   /// <summary>Creates a new <see cref="RandomNumberGenerator"/> of the all-around best general-purpose type in the library.</summary>
@@ -506,7 +706,7 @@ public abstract class RandomNumberGenerator
   #endregion
 
   uint bitBuffer;
-  byte bitsInBuffer;
+  int bitsInBuffer;
 
   static System.Diagnostics.Stopwatch timer;
   static uint seedIncrement;
@@ -613,7 +813,8 @@ public sealed class AWCKISSRNG : RandomNumberGenerator
 /// </summary>
 /// <remarks><note type="caution">Note that although ISAAC was designed for cryptography, it is only secure if initialized with a secure
 /// seed. A secure seed is an array of 256 cryptographically random uint values. The default constructor does not seed the generator
-/// securely, since it uses a small seed based on the current time.</note></remarks>
+/// securely, since it uses a small seed based on the current time.
+/// </note></remarks>
 [Serializable]
 public sealed class ISAACRNG : RandomNumberGenerator
 {

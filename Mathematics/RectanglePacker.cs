@@ -35,10 +35,11 @@ namespace AdamMil.Mathematics.Geometry
     /// <summary>Initializes a new <see cref="RectanglePacker"/> that will attempt to pack rectangles into a larger
     /// rectangle of the given dimensions.
     /// </summary>
-    public RectanglePacker(int width, int height)
+    public RectanglePacker(int width, int height, int spacing = 0)
     {
-      if(width <= 0 || height <= 0) throw new ArgumentOutOfRangeException();
+      if(width <= 0 || height <= 0 || spacing < 0) throw new ArgumentOutOfRangeException();
       root = new Node(null, 0, 0, width, height);
+      this.spacing = spacing;
     }
 
     #region SizeComparer
@@ -104,7 +105,7 @@ namespace AdamMil.Mathematics.Geometry
       }
       else
       {
-        pt = root.TryAdd(width, height);
+        pt = root.TryAdd(width, height, spacing);
         if(pt.HasValue)
         {
           int right = pt.Value.X + width, bottom = pt.Value.Y + height;
@@ -133,14 +134,16 @@ namespace AdamMil.Mathematics.Geometry
     {
       ValidateSizes(sizes);
       sizes = (Size[])sizes.Clone(); // clone the array so we don't modify the original
-      Array.Sort(sizes, SizeComparer.Instance);
+      int[] indices = new int[sizes.Length]; // remember the original positions of the rectangles
+      for(int i = 0; i < indices.Length; i++) indices[i] = i;
+      Array.Sort(sizes, indices, SizeComparer.Instance);
       points = new Point?[sizes.Length];
       bool allAdded = true;
       for(int i=0; i<sizes.Length; i++)
       {
         Point? point = TryAdd(sizes[i]);
         if(!point.HasValue) allAdded = false;
-        points[i] = point;
+        points[indices[i]] = point;
       }
       return allAdded;
     }
@@ -186,7 +189,7 @@ namespace AdamMil.Mathematics.Geometry
       /// <summary>Attempts to add a rectangle of the given size to this node. The X and Y offsets keep track of the
       /// offset of this node from the origin.
       /// </summary>
-      public Point? TryAdd(int width, int height)
+      public Point? TryAdd(int width, int height, int spacing)
       {
         if(width > this.Width || height > this.Height) return null;
 
@@ -195,7 +198,7 @@ namespace AdamMil.Mathematics.Geometry
           // if this node has a rectangle stored here already, delegate to the children
           if(Child1 != null) // try adding it to the right first
           {
-            Point? pt = Child1.TryAdd(width, height);
+            Point? pt = Child1.TryAdd(width, height, spacing);
             // as an optimization, we'll prevent degenerate subtrees (linked lists) from forming by replacing this
             // child with our grandchild if it's an only child, or removing this child if we have no grandchildren
             if(pt.HasValue && (Child1.Child1 == null || Child1.Child2 == null))
@@ -208,7 +211,7 @@ namespace AdamMil.Mathematics.Geometry
 
           if(Child2 != null) // if we couldn't add it to the first child, try adding it to the second
           {
-            Point? pt = Child2.TryAdd(width, height);
+            Point? pt = Child2.TryAdd(width, height, spacing);
             if(pt.HasValue)
             {
               // prevent degenerate subtrees (linked lists) from forming (see comment above for details)
@@ -220,13 +223,14 @@ namespace AdamMil.Mathematics.Geometry
             }
             return pt;
           }
-          else return null;
+
+          return null;
         }
         else // this node does not have a rectangle stored here yet, so store it here and subdivide this space
         {
           // only add children if they'd have a non-empty area
-          if(this.Width  != width) Child1 = new Node(this, X + width, Y, this.Width - width, height);
-          if(this.Height != height) Child2 = new Node(this, X, Y + height, this.Width, this.Height - height);
+          if(this.Width > width + spacing) Child1 = new Node(this, X + (width + spacing), Y, this.Width - (width + spacing), height);
+          if(this.Height > height + spacing) Child2 = new Node(this, X, Y + (height + spacing), this.Width, this.Height - (height + spacing));
           RectangleStored = true;
           return new Point(X, Y);
         }
@@ -239,6 +243,7 @@ namespace AdamMil.Mathematics.Geometry
     #endregion
 
     readonly Node root;
+    readonly int spacing;
     Size size;
   }
 }
