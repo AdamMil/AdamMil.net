@@ -59,14 +59,14 @@ public static class Permutations
   public static void RandomlyPermute<T>(this IList<T> list, int start, int count, System.Random random)
   {
     if(list == null) throw new ArgumentNullException();
-    for(int end=start+count; start < end; start++) Swap(list, start, random.Next(start, end));
+    for(int end=start+count-1; start <= end; start++) Swap(list, start, random.Next(start, end));
   }
 
   /// <summary>Randomly permutes the given portion of the list in-place, using the given random number generator.</summary>
   public static void RandomlyPermute<T>(this IList<T> list, int start, int count, RandomNumberGenerator random)
   {
     if(list == null) throw new ArgumentNullException();
-    for(int end=start+count; start < end; start++) Swap(list, start, random.Next(start, end));
+    for(int end=start+count-1; start <= end; start++) Swap(list, start, random.Next(start, end));
   }
 
   static void Swap<T>(IList<T> list, int i, int j)

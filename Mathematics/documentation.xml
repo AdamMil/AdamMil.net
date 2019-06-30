@@ -60,7 +60,7 @@
         given payment periods.
       </returns>
       <example>
-        You take out a $500,000 home loan at 5% APR (compounded monthly) over 30 years and want to know how much of the principal will be
+        You take out a $500,000 home loan at 5% APR (compounded monthly) over 30 years and want to know how much interest will be
         paid in the first year compared to the last year, so you take rate = <c>0.05 / 12</c> (5% APR compounded monthly), firstPeriod = 0 (the
         start of the first year), periodCount = 12 (the length of the first year, in months), paymentCount = 30*12 (because it's a
         30-year loan paid monthly), presentValue = 500,000, and payAtEnd = true (as is typical for mortgages). You get -$24,832.47
@@ -270,8 +270,8 @@
         that paid 5% APY (compounded monthly) and assuming that you would deposit $250 per month, use rate = <c>PeriodicRate(.05, 12)</c>
         (5% APY compounded monthly), payment = -250 (negative because you are paying), paymentCount = 10*12 (ten years of monthly payments),
         futureValue = 100,000 (the amount you want to have at the end), and payAtEnd = true (because you'll make the first $250 payment
-        after the first month). The result is -$37699.93, meaning that you'd need to start with a
-        lump sum payment of $37699.93 under those conditions to reach $100,000 in ten years.
+        after the first month). The result is -$37,699.93, meaning that you'd need to start with a
+        lump sum payment of $37,699.93 under those conditions to reach $100,000 in ten years.
         <para>
           To compute how expensive of a house you could afford assuming you have $50,000 saved for a down payment and are able to pay
           $1,250 per month over 30 years to service the loan, and assuming you can get an interest rate of 5% APR, use rate = <c>0.05 / 12</c>

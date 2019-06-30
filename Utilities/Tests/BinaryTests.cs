@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System;
+using System.Text;
 using AdamMil.Tests;
 using NUnit.Framework;
 
@@ -25,11 +26,36 @@ public class BinaryTests
       uint f = seed, b = seed;
       for(int i=0; i<=32; f >>= 1, b <<= 1, i++)
       {
+        Assert.AreEqual(32-i, BinaryUtility.BitsNeeded(f));
+        Assert.AreEqual(32-i, BinaryUtility.BitsNeeded((ulong)f));
+        if(f == 0) TestHelpers.TestException<ArgumentOutOfRangeException>(() => BinaryUtility.Log2(f));
+        else Assert.AreEqual(31-i, BinaryUtility.Log2(f));
+        if(f == 0) TestHelpers.TestException<ArgumentOutOfRangeException>(() => BinaryUtility.Log2((ulong)f));
+        else Assert.AreEqual(31-i, BinaryUtility.Log2((ulong)f));
+        Assert.AreEqual(i, BinaryUtility.CountLeadingZeros(f));
+        Assert.AreEqual(i+32, BinaryUtility.CountLeadingZeros((ulong)f));
+        Assert.AreEqual(i, BinaryUtility.CountTrailingZeros(b));
+        Assert.AreEqual(b == 0 ? i+32 : i, BinaryUtility.CountTrailingZeros((ulong)b));
+        Assert.AreEqual(CountBits(f), BinaryUtility.CountBits(f));
+        Assert.AreEqual(CountBits(f), BinaryUtility.CountBits((ulong)f));
+        Assert.AreEqual(CountBits(b), BinaryUtility.CountBits(b));
+        Assert.AreEqual(CountBits(b), BinaryUtility.CountBits((ulong)b));
+        Assert.AreEqual(CountBits(f)+CountBits(b), BinaryUtility.CountBits(((ulong)f<<32)|b));
+      }
+    }
+
+    foreach(ulong seed in new ulong[] { 0xFFFFFFFFFFFFFFFF, 0x8a23A3829f27b439, 0x8000000000000001, 0xA3828a23b4399f27 }) // each seed has the high and low bit set
+    {
+      ulong f = seed, b = seed;
+      for(int i=0; i<=64; f >>= 1, b <<= 1, i++)
+      {
+        Assert.AreEqual(64-i, BinaryUtility.BitsNeeded(f));
+        if(f == 0) TestHelpers.TestException<ArgumentOutOfRangeException>(() => BinaryUtility.Log2(f));
+        else Assert.AreEqual(63-i, BinaryUtility.Log2(f));
         Assert.AreEqual(i, BinaryUtility.CountLeadingZeros(f));
         Assert.AreEqual(i, BinaryUtility.CountTrailingZeros(b));
         Assert.AreEqual(CountBits(f), BinaryUtility.CountBits(f));
         Assert.AreEqual(CountBits(b), BinaryUtility.CountBits(b));
-        Assert.AreEqual(CountBits(f)+CountBits(b), BinaryUtility.CountBits(((ulong)f<<32)|b));
       }
     }
   }
@@ -61,6 +87,13 @@ public class BinaryTests
   }
 
   static int CountBits(uint v)
+  {
+    int count = 0;
+    for(; v != 0; v &= v-1) count++;
+    return count;
+  }
+
+  static int CountBits(ulong v)
   {
     int count = 0;
     for(; v != 0; v &= v-1) count++;

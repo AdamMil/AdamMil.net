@@ -45,6 +45,35 @@ public static class BinaryUtility
     fixed(byte* pA=a, pB=b) return Unsafe.AreEqual(pA+aIndex, pB+bIndex, length);
   }
 
+  /// <summary>Counts the number of bits needed to represent the value. If the value is zero, zero is returned.</summary>
+  /// <remarks>The number of bits needed is related to the base-2 logarithm of the value in that <c>BitsNeeded(n) == Log2(n)+1</c>
+  /// (where n != 0).
+  /// </remarks>
+  [CLSCompliant(false)]
+  public unsafe static int BitsNeeded(uint value)
+  {
+    int count = 0;
+    if(value > 0xFFFF) { count = 16; value >>= 16; }
+    if(value > 0x00FF) { count += 8; value >>= 8; }
+    fixed(byte* p = bitsTable.Entries) return count + p[value];
+  }
+
+  /// <summary>Counts the number of bits needed to represent the value. If the value is zero, zero is returned.</summary>
+  /// <remarks>The number of bits needed is related to the base-2 logarithm of the value in that <c>BitsNeeded(n) == Log2(n)+1</c>
+  /// (where n != 0).
+  /// </remarks>
+  [CLSCompliant(false)]
+  public unsafe static int BitsNeeded(ulong value)
+  {
+    int count = 0;
+    uint lo = (uint)(value >> 32);
+    if(lo != 0) count = 32;
+    else lo = (uint)value;
+    if(lo > 0xFFFF) { count += 16; lo >>= 16; }
+    if(lo > 0x00FF) { count +=  8; lo >>= 8; }
+    fixed(byte* p = bitsTable.Entries) return count + p[lo];
+  }
+
   /// <summary>Swaps the bytes in the value, converting big-endian values to little-endian and vice versa.</summary>
   public static int ByteSwap(int value)
   {
@@ -140,41 +169,41 @@ public static class BinaryUtility
 
   /// <summary>Returns the number of leading zero bits in the given value.</summary>
   [CLSCompliant(false)]
-  public static int CountLeadingZeros(uint value)
+  public unsafe static int CountLeadingZeros(uint value)
   {
-    if(value == 0) return 32;
-    // this algorithm works by repeatedly subdividing the value. first it considers the top 16 bits. if they're zero, it adds 16 to the
-    // leading zero count and left-shifts the value by 16. either way, the top 16 bits now contain at least one 1 bit since we ensured
-    // that the value was non-zero above. then we check the top 8 bits and possibly left-shift by 8, after which the leading one bit is
-    // in the top 8 bits. etc.
-    int count = 1; // add 1 to the start since we know there's a leading bit somewhere. this saves one operation later
-    if((value >> 16) == 0) { count = 17; value <<= 16; } // after this, the leading bit is in the top 16 bits
-    if((value >> 24) == 0) { count += 8; value <<= 8; }  // after this, the leading bit is in the top 8 bits
-    if((value >> 28) == 0) { count += 4; value <<= 4; }  // after this, the leading bit is in the top 4 bits
-    if((value >> 30) == 0) { count += 2; value <<= 2; }  // after this, the leading bit is in the top 2 bits
-    // now, either the leading bit is in the high bit or it's in the one below. if it's not in the high bit, we'd want to add one to the
-    // count. however, we already added 1 to the count at the start, so instead we need to subtract 1 if the leading one bit /is/ in the
-    // high bit. we can just shift right and subtract (or do a signed shift and add)
-    return count - (int)(value >> 31);
+    int count = 32;
+    if(value > 0xFFFF) { count -= 16; value >>= 16; }
+    if(value > 0x00FF) { count -=  8; value >>= 8; }
+    fixed(byte* p = bitsTable.Entries) return count - p[value];
   }
 
   /// <summary>Returns the number of leading zero bits in the given value.</summary>
   [CLSCompliant(false)]
-  public static int CountLeadingZeros(ulong value)
+  public unsafe static int CountLeadingZeros(ulong value)
   {
-    uint hi = (uint)(value >> 32);
-    return hi == 0 ? 32 + CountLeadingZeros((uint)value) : CountLeadingZeros(hi);
+    int count = 64;
+    uint lo = (uint)(value >> 32);
+    if(lo != 0) count -= 32;
+    else lo = (uint)value;
+    if(lo > 0xFFFF) { count -= 16; lo >>= 16; }
+    if(lo > 0x00FF) { count -=  8; lo >>= 8; }
+    fixed(byte* p = bitsTable.Entries) return count - p[lo];
   }
 
   /// <summary>Returns the number of trailing zero bits in the given value.</summary>
   [CLSCompliant(false)]
   public static int CountTrailingZeros(uint value)
   {
-    if(value == 0) return 32;
     // this algorithm works just like CountLeadingZeros above, except that at each step it ensures the trailing one bit is in the lower
     // bits rather than the upper bits
     int count = 1;
-    if((value & 0xFFFF) == 0) { count = 17; value >>= 16; }
+    if((value & 0xFFFF) == 0)
+    {
+      if(value == 0) return 32;
+      value >>= 16;
+      count = 17;
+    }
+
     if((value & 0x00FF) == 0) { count += 8; value >>= 8; }
     if((value & 0x000F) == 0) { count += 4; value >>= 4; }
     if((value & 0x0003) == 0) { count += 2; value >>= 2; }
@@ -185,8 +214,24 @@ public static class BinaryUtility
   [CLSCompliant(false)]
   public static int CountTrailingZeros(ulong value)
   {
+    int count;
     uint lo = (uint)value;
-    return lo == 0 ? 32 + CountTrailingZeros((uint)(value>>32)) : CountTrailingZeros(lo);
+    if(lo != 0)
+    {
+      count = 1;
+    }
+    else
+    {
+      lo = (uint)(value >> 32);
+      if(lo == 0) return 64;
+      count = 33;
+    }
+
+    if((lo & 0xFFFF) == 0) { count += 16; lo >>= 16; }
+    if((lo & 0x00FF) == 0) { count += 8;  lo >>= 8; }
+    if((lo & 0x000F) == 0) { count += 4;  lo >>= 4; }
+    if((lo & 0x0003) == 0) { count += 2;  lo >>= 2; }
+    return count - (int)(lo & 1);
   }
 
   /// <summary>Returns a 32-bit hash of the given array, which can be null.</summary>
@@ -320,6 +365,46 @@ public static class BinaryUtility
   public static bool IsHex(char c)
   {
     return c <= '9' ? c >= '0' : c >= 'a' ? c <= 'f' : c >= 'A' && c <= 'F';
+  }
+
+  /// <summary>Returns the base-2 logarithm of the value, rounded down. If the value is zero, an exception is thrown.</summary>
+  /// <remarks>The base-2 logarithm of the value is related to the number of bits needed to represent the value in that <c>Log2(n) == BitsNeeded(n)-1</c>
+  /// (where n != 0).
+  /// </remarks>
+  /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="value"/> is zero</exception>
+  [CLSCompliant(false)]
+  public unsafe static int Log2(uint value)
+  {
+    if(value == 0) throw new ArgumentOutOfRangeException();
+    int count = 0;
+    if(value > 0xFFFF) { count = 16; value >>= 16; }
+    if(value > 0x00FF) { count += 8; value >>= 8; }
+    fixed(byte* p = bitsTable.Entries) return count + p[value] - 1;
+  }
+
+  /// <summary>Returns the base-2 logarithm of the value, rounded down. If the value is zero, an exception is thrown.</summary>
+  /// <remarks>The base-2 logarithm of the value is related to the number of bits needed to represent the value in that <c>Log2(n) == BitsNeeded(n)-1</c>
+  /// (where n != 0).
+  /// </remarks>
+  /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="value"/> is zero</exception>
+  [CLSCompliant(false)]
+  public unsafe static int Log2(ulong value)
+  {
+    int count = 0;
+    uint lo = (uint)(value >> 32);
+    if(lo != 0)
+    {
+      count = 32;
+    }
+    else
+    {
+      lo = (uint)value;
+      if(lo == 0) throw new ArgumentOutOfRangeException();
+    }
+
+    if(lo > 0xFFFF) { count += 16; lo >>= 16; }
+    if(lo > 0x00FF) { count += 8;  lo >>= 8; }
+    fixed(byte* p = bitsTable.Entries) return count + p[lo] - 1;
   }
 
   /// <summary>Parses the given hex digit into its numeric value.</summary>
@@ -551,6 +636,22 @@ public static class BinaryUtility
     }
   }
 
+  struct ByteTable
+  {
+    public unsafe fixed byte Entries[256];
+  }
+
+  static unsafe ByteTable CreateBitsNeededTable()
+  {
+    var table = new ByteTable();
+    for(int i = 1, n = 0; i < 256; i++)
+    {
+      if((i & (i-1)) == 0) n++; // when we see a power of two (or zero), increase the bits needed
+      table.Entries[i] = (byte)n;
+    }
+    return table;
+  }
+
   static unsafe uint Read(byte* data, uint length)
   {
     switch(length)
@@ -564,6 +665,7 @@ public static class BinaryUtility
   }
 
   const string LHexChars = "0123456789abcdef", UHexChars = "0123456789ABCDEF";
+  static ByteTable bitsTable = CreateBitsNeededTable();
 }
 #endregion
 
